@@ -2288,6 +2288,36 @@ describe('ClaudianService', () => {
       expect(errorChunks).toHaveLength(1);
       expect(errorChunks[0].content).toContain('session expired');
     });
+
+    it('should classify a confirmed missing session from the cold-start retry', async () => {
+      jest.spyOn(sdkModule, 'query' as any).mockImplementation(() => {
+        // eslint-disable-next-line require-yield
+        const gen = (async function* () {
+          throw new Error('No conversation found with session ID: old-session');
+        })() as any;
+        gen.interrupt = jest.fn();
+        gen.setModel = jest.fn();
+        gen.setMaxThinkingTokens = jest.fn();
+        gen.setPermissionMode = jest.fn();
+        gen.setMcpServers = jest.fn();
+        return gen;
+      });
+
+      service.setSessionId('old-session');
+      const history: any[] = [
+        { id: '1', role: 'user', content: 'Previous', timestamp: 1000 },
+      ];
+
+      const chunks = await collectChunks(
+        service.query('follow up', undefined, history, { forceColdStart: true })
+      );
+
+      expect(chunks).toContainEqual(expect.objectContaining({
+        type: 'error',
+        code: 'provider_session_missing',
+        providerSessionId: 'old-session',
+      }));
+    });
   });
 
   describe('applyDynamicUpdates - cliPath null', () => {
@@ -2935,6 +2965,36 @@ describe('ClaudianService', () => {
       expect(errorChunks[0].content).toContain('retry also failed');
     });
 
+    it('should classify a confirmed missing session from the persistent retry', async () => {
+      service.setSessionId('old-persistent-session');
+      const history: any[] = [
+        { id: '1', role: 'user', content: 'Previous question', timestamp: 1000 },
+      ];
+
+      jest.spyOn(service as any, 'queryViaPersistent').mockImplementation(
+        // eslint-disable-next-line require-yield
+        async function* () {
+          throw new Error('session expired');
+        }
+      );
+      jest.spyOn(service as any, 'queryViaSDK').mockImplementation(
+        // eslint-disable-next-line require-yield
+        async function* () {
+          throw new Error('No conversation found with session ID: old-persistent-session');
+        }
+      );
+      (service as any).persistentQuery = { interrupt: jest.fn().mockResolvedValue(undefined) };
+      (service as any).shuttingDown = false;
+
+      const chunks = await collectChunks(service.query('follow up', undefined, history));
+
+      expect(chunks).toContainEqual(expect.objectContaining({
+        type: 'error',
+        code: 'provider_session_missing',
+        providerSessionId: 'old-persistent-session',
+      }));
+    });
+
     it('should re-throw non-session-expired errors from persistent path', async () => {
       jest.spyOn(service as any, 'queryViaPersistent').mockImplementation(
         // eslint-disable-next-line require-yield
@@ -2967,6 +3027,27 @@ describe('ClaudianService', () => {
       await expect(async () => {
         await collectChunks(service.query('hello'));
       }).rejects.toThrow('session expired');
+    });
+
+    it('should classify a confirmed missing session without rendering a generic error', async () => {
+      jest.spyOn(service as any, 'queryViaPersistent').mockImplementation(
+        // eslint-disable-next-line require-yield
+        async function* () {
+          throw new Error('No conversation found with session ID: missing-session');
+        }
+      );
+
+      (service as any).persistentQuery = { interrupt: jest.fn().mockResolvedValue(undefined) };
+      (service as any).shuttingDown = false;
+
+      const chunks = await collectChunks(service.query('hello'));
+
+      expect(chunks).toContainEqual(expect.objectContaining({
+        type: 'error',
+        code: 'provider_session_missing',
+        providerSessionId: 'missing-session',
+      }));
+      expect(service.getSessionId()).toBeNull();
     });
   });
 
@@ -3087,6 +3168,44 @@ describe('ClaudianService', () => {
   });
 
   describe('startResponseConsumer - crash recovery', () => {
+    it('closes a persistent query whose resume session is confirmed missing', async () => {
+      const missingSessionError = new Error(
+        'No conversation found with session ID: missing-session',
+      );
+      const mockPQ = {
+        [Symbol.asyncIterator]() { return this; },
+        async next() {
+          throw missingSessionError;
+        },
+        async return() { return { done: true, value: undefined }; },
+        interrupt: jest.fn().mockResolvedValue(undefined),
+      };
+      const onError = jest.fn();
+      const handler = createResponseHandler({
+        id: 'missing-session-test',
+        onChunk: jest.fn(),
+        onDone: jest.fn(),
+        onError,
+      });
+
+      (service as any).sessionManager.setSessionId('missing-session', 'claude-sonnet-4-5');
+      (service as any).persistentQuery = mockPQ;
+      (service as any).messageChannel = { close: jest.fn() };
+      (service as any).queryAbortController = { abort: jest.fn() };
+      (service as any).responseHandlers = [handler];
+      (service as any).shuttingDown = false;
+      (service as any).coldStartInProgress = false;
+      (service as any).responseConsumerRunning = false;
+
+      (service as any).startResponseConsumer();
+      const consumerPromise = (service as any).responseConsumerPromise;
+      await consumerPromise;
+
+      expect(onError).toHaveBeenCalledWith(missingSessionError);
+      expect((service as any).persistentQuery).toBeNull();
+      expect(service.getSessionId()).toBeNull();
+    });
+
     it('should attempt crash recovery when error occurs before any chunks', async () => {
       // Set up persistent query that will throw on iteration
       const crashError = new Error('process crashed');

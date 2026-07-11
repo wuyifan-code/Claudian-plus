@@ -8,6 +8,7 @@ import {
   encodeVaultPathForSDK,
   filterActiveBranch,
   getSDKProjectsPath,
+  getSDKSessionAvailability,
   getSDKSessionPath,
   isValidSessionId,
   loadSDKSessionMessages,
@@ -174,6 +175,131 @@ describe('sdkSession', () => {
       const exists = sdkSessionExists('/Users/test/vault', 'session-err');
 
       expect(exists).toBe(false);
+    });
+  });
+
+  describe('getSDKSessionAvailability', () => {
+    it('reports an available session', async () => {
+      mockFsPromises.access.mockResolvedValue(undefined);
+
+      await expect(getSDKSessionAvailability(
+        '/Users/test/vault',
+        'session-abc',
+      )).resolves.toBe('available');
+      expect(mockFsPromises.access).toHaveBeenCalledWith(
+        '/Users/test/.claude/projects/-Users-test-vault/session-abc.jsonl',
+      );
+    });
+
+    it('reports a missing session when a complete scan finds no transcript', async () => {
+      mockFsPromises.access.mockRejectedValue(
+        Object.assign(new Error('Missing'), { code: 'ENOENT' }),
+      );
+      mockFsPromises.readdir.mockResolvedValue([]);
+
+      await expect(getSDKSessionAvailability(
+        '/Users/test/vault',
+        'session-missing',
+      )).resolves.toBe('missing');
+    });
+
+    it('reports a session found under a previous vault project as relocated', async () => {
+      mockFsPromises.access.mockRejectedValue(
+        Object.assign(new Error('Missing'), { code: 'ENOENT' }),
+      );
+      mockFsPromises.readdir
+        .mockResolvedValueOnce([{
+          isDirectory: () => true,
+          isFile: () => false,
+          name: '-Users-test-previous-vault',
+        }] as any)
+        .mockResolvedValueOnce([{
+          isDirectory: () => false,
+          isFile: () => true,
+          name: 'session-relocated.jsonl',
+        }] as any);
+
+      await expect(getSDKSessionAvailability(
+        '/Users/test/vault',
+        'session-relocated',
+      )).resolves.toBe('relocated');
+    });
+
+    it('finds relocated sessions in nested project directories', async () => {
+      mockFsPromises.access.mockRejectedValue(
+        Object.assign(new Error('Missing'), { code: 'ENOENT' }),
+      );
+      mockFsPromises.readdir
+        .mockResolvedValueOnce([{
+          isDirectory: () => true,
+          isFile: () => false,
+          name: '-Users-test-current-project',
+        }] as any)
+        .mockResolvedValueOnce([{
+          isDirectory: () => true,
+          isFile: () => false,
+          name: '-Users-test-previous-vault',
+        }] as any)
+        .mockResolvedValueOnce([{
+          isDirectory: () => false,
+          isFile: () => true,
+          name: 'session-nested.jsonl',
+        }] as any);
+
+      await expect(getSDKSessionAvailability(
+        '/Users/test/vault',
+        'session-nested',
+      )).resolves.toBe('relocated');
+    });
+
+    it('reports unknown when the local Claude projects root is absent', async () => {
+      mockFsPromises.access.mockRejectedValue(
+        Object.assign(new Error('Missing'), { code: 'ENOENT' }),
+      );
+      mockFsPromises.readdir.mockRejectedValue(
+        Object.assign(new Error('Missing root'), { code: 'ENOENT' }),
+      );
+
+      await expect(getSDKSessionAvailability(
+        '/Users/test/vault',
+        'session-on-another-machine',
+      )).resolves.toBe('unknown');
+    });
+
+    it('reports unknown for other filesystem failures', async () => {
+      mockFsPromises.access.mockRejectedValue(
+        Object.assign(new Error('Permission denied'), { code: 'EACCES' }),
+      );
+
+      await expect(getSDKSessionAvailability(
+        '/Users/test/vault',
+        'session-inaccessible',
+      )).resolves.toBe('unknown');
+    });
+
+    it('reports unknown when an unscanned symlink could contain the transcript', async () => {
+      mockFsPromises.access.mockRejectedValue(
+        Object.assign(new Error('Missing'), { code: 'ENOENT' }),
+      );
+      mockFsPromises.readdir.mockResolvedValue([{
+        isDirectory: () => false,
+        isFile: () => false,
+        isSymbolicLink: () => true,
+        name: 'linked-project',
+      }] as any);
+
+      await expect(getSDKSessionAvailability(
+        '/Users/test/vault',
+        'session-in-linked-project',
+      )).resolves.toBe('unknown');
+    });
+
+    it('reports unknown for an invalid session ID', async () => {
+      await expect(getSDKSessionAvailability(
+        '/Users/test/vault',
+        '../invalid',
+      )).resolves.toBe('unknown');
+      expect(mockFsPromises.access).not.toHaveBeenCalled();
     });
   });
 
@@ -2354,6 +2480,44 @@ describe('sdkSession', () => {
       expect(taskToolCall.subagent!.toolCalls).toHaveLength(1);
       expect(taskToolCall.subagent!.toolCalls[0].name).toBe('Grep');
       expect(taskToolCall.subagent!.toolCalls[0].result).toBe('3 matches found');
+    });
+
+    it('loads subagent tool calls beside a relocated session transcript', async () => {
+      mockExistsSync.mockReturnValue(true);
+      mockFsPromises.readFile.mockImplementation(async (filePath: any) => {
+        const p = String(filePath);
+        if (p === '/old-project/session-sidecar.jsonl') {
+          return [
+            '{"type":"user","uuid":"u1","timestamp":"2024-01-15T10:00:00Z","message":{"content":"Review"}}',
+            '{"type":"assistant","uuid":"a1","timestamp":"2024-01-15T10:01:00Z","message":{"content":[{"type":"tool_use","id":"task-1","name":"Task","input":{"description":"Review","prompt":"check","run_in_background":true}}]}}',
+            '{"type":"user","uuid":"u2","timestamp":"2024-01-15T10:01:01Z","toolUseResult":{"isAsync":true,"agentId":"ae5eb9a"},"message":{"content":[{"type":"tool_result","tool_use_id":"task-1","content":"Launched"}]}}',
+          ].join('\n');
+        }
+        if (p === '/old-project/session-sidecar/subagents/agent-ae5eb9a.jsonl') {
+          return [
+            '{"type":"assistant","timestamp":"2024-01-15T10:02:00Z","message":{"content":[{"type":"tool_use","id":"sub-tool-1","name":"Grep","input":{"pattern":"TODO"}}]}}',
+            '{"type":"user","timestamp":"2024-01-15T10:02:01Z","message":{"content":[{"type":"tool_result","tool_use_id":"sub-tool-1","content":"3 matches found"}]}}',
+          ].join('\n');
+        }
+        return '';
+      });
+
+      const result = await loadSDKSessionMessages(
+        '/Users/test/vault',
+        'session-sidecar',
+        undefined,
+        '/old-project/session-sidecar.jsonl',
+      );
+
+      const assistantMsg = result.messages.find(m => m.toolCalls?.some(tc => tc.name === 'Task'));
+      const taskToolCall = assistantMsg!.toolCalls!.find(tc => tc.name === 'Task')!;
+      expect(mockFsPromises.readFile).toHaveBeenCalledWith(
+        '/old-project/session-sidecar/subagents/agent-ae5eb9a.jsonl',
+        'utf-8',
+      );
+      expect(taskToolCall.subagent!.toolCalls).toEqual([
+        expect.objectContaining({ name: 'Grep', result: '3 matches found' }),
+      ]);
     });
   });
 });
