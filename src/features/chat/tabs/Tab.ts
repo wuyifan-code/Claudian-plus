@@ -168,9 +168,10 @@ function getWritableTabSettingsSnapshot(
   plugin: FeatureHost,
   settings: ClaudianSettings = plugin.settings,
 ): TabProviderSettings {
-  return ProviderSettingsCoordinator.getProviderSettingsSnapshot(
+  return getProviderSettingsSnapshotWithModel(
     settings,
     getTabProviderId(tab, plugin),
+    getTabSelectedModel(tab, plugin),
   );
 }
 
