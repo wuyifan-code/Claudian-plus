@@ -1755,6 +1755,7 @@ export function activateTab(tab: TabData): void {
  * Deactivates a tab (hides it and stops services).
  */
 export function deactivateTab(tab: TabData): void {
+  tab.ui.navigationSidebar?.collapse();
   tab.dom.contentEl.addClass('claudian-hidden');
   tab.controllers.selectionController?.stop();
   tab.controllers.browserSelectionController?.stop();
