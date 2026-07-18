@@ -21,6 +21,13 @@ The fork keeps provider compatibility while making Codex the default agent runti
 - Keep stored settings and existing Claude conversations unchanged during upgrades.
 - Give the enhanced build a separate plugin identity before live side-by-side testing.
 
+### M0.5: Codex floating conversation outline
+
+- Render user prompts and assistant Markdown H1-H3 headings as a compact outline rail.
+- Preview each section on hover or keyboard focus and jump to it without losing chat state.
+- Track the active reading section and follow the current provider's theme color.
+- Collapse to the existing directory control in narrow or touch-oriented layouts.
+
 ### M1: Drag notes and folders into chat
 
 - Accept Obsidian file-explorer drag payloads in the composer.
