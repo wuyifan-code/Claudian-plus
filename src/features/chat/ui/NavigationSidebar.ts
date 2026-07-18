@@ -7,7 +7,7 @@ import {
 } from '../../../utils/animationFrame';
 import { formatConversationDirectoryTitle } from '../utils/conversationDirectoryTitle';
 
-type ConversationOutlineKind = 'prompt' | 'heading';
+type ConversationOutlineKind = 'prompt' | 'heading' | 'response';
 type ConversationOutlineLevel = 1 | 2 | 3;
 
 interface ConversationOutlineEntry {
@@ -266,6 +266,23 @@ export class NavigationSidebar {
       }
     }
 
+    if (entries.length > 0) return entries;
+
+    const thoughtEl = messageEl.querySelector<HTMLElement>('.claudian-thinking-block');
+    const title = thoughtEl ? 'Thought' : this.getDirectoryTitle(messageEl);
+    if (!title) return entries;
+
+    const targetEl = thoughtEl ?? messageEl;
+    entries.push({
+      targetEl,
+      messageEl,
+      title,
+      excerpt: this.getOutlineExcerpt(targetEl, title),
+      badge: thoughtEl ? 'Thought' : 'A',
+      kind: 'response',
+      level: 1,
+    });
+
     return entries;
   }
 
@@ -309,7 +326,7 @@ export class NavigationSidebar {
   }
 
   private getDirectoryEntries(): ConversationOutlineEntry[] {
-    return this.collectOutlineEntries(null);
+    return this.collectOutlineEntries(null).filter(entry => entry.kind !== 'response');
   }
 
   private getDirectoryTitle(el: HTMLElement): string {
@@ -497,13 +514,13 @@ export class NavigationSidebar {
   private mutationAffectsOutline(mutation: MutationRecord): boolean {
     if (mutation.type === 'attributes') {
       return mutation.attributeName === 'data-toc-title'
-        && this.isDirectoryMessageElement(mutation.target);
+        && this.isOutlineMessageElement(mutation.target);
     }
     if (mutation.type === 'characterData') {
-      return this.isOutlineHeadingElement(mutation.target.parentNode)
-        && this.isWithinOutlineTextBlock(mutation.target.parentNode);
+      return this.findContainingOutlineMessage(mutation.target) !== null;
     }
     if (mutation.type !== 'childList') return false;
+    if (this.findContainingOutlineMessage(mutation.target)) return true;
     if (
       this.isOutlineHeadingElement(mutation.target)
       && this.isWithinOutlineTextBlock(mutation.target)
@@ -511,10 +528,10 @@ export class NavigationSidebar {
       return true;
     }
     return Array.from(mutation.addedNodes).some(node => (
-      this.nodeContainsDirectoryMessage(node)
+      this.nodeContainsOutlineMessage(node)
       || this.nodeContainsOutlineHeading(node, mutation.target)
     )) || Array.from(mutation.removedNodes).some(node => (
-      this.nodeContainsDirectoryMessage(node)
+      this.nodeContainsOutlineMessage(node)
       || this.nodeContainsOutlineHeading(node, mutation.target)
     ));
   }
