@@ -1,6 +1,6 @@
-# Claudian Enhanced Roadmap
+# Claudian Plus Roadmap
 
-Claudian Enhanced is a Codex-first fork of Claudian for local-first knowledge work in Obsidian.
+Claudian Plus is a Codex-first fork of Claudian for local-first knowledge work in Obsidian.
 The fork keeps provider compatibility while making Codex the default agent runtime.
 
 ## Product principles
