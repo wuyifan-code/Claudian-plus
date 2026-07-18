@@ -1036,6 +1036,26 @@ describe('NavigationSidebar', () => {
       expect(markers[2].getAttribute('data-outline-level')).toBe('3');
     });
 
+    it('renders a fallback marker for an assistant Thought block without headings', () => {
+      messagesEl.scrollHeight = 2000;
+      messagesEl.clientHeight = 500;
+      const assistant = addMessage('assistant', 180);
+      const content = assistant.createDiv({ cls: 'claudian-message-content' });
+      const thought = content.createDiv({ cls: 'claudian-thinking-block', text: 'Thought' });
+
+      sidebar = new NavigationSidebar(
+        parentEl as unknown as HTMLElement,
+        messagesEl as unknown as HTMLElement
+      );
+
+      const markers = parentEl.querySelectorAll('.claudian-nav-outline-marker');
+      expect(markers).toHaveLength(1);
+      expect(markers[0].getAttribute('data-outline-kind')).toBe('response');
+      expect(markers[0].getAttribute('aria-label')).toBe('Thought: Thought');
+      expect(markers[0].getAttribute('aria-current')).toBe('location');
+      expect(thought).not.toBeNull();
+    });
+
     it('shows a heading preview card on marker hover', () => {
       messagesEl.scrollHeight = 2000;
       messagesEl.clientHeight = 500;
