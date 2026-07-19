@@ -100,7 +100,7 @@ describe('ClaudianPlugin', () => {
     };
 
     mockManifest = {
-      id: 'Claudian-plus',
+      id: 'claudian-plus',
       name: 'Claudian Plus',
       version: '0.1.0',
     };
