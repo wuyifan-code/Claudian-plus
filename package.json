@@ -1,6 +1,6 @@
 {
   "name": "claudian-plus",
-  "version": "2.0.41",
+  "version": "2.0.42",
   "description": "Claudian Plus - a Codex-first AI workspace embedded in Obsidian",
   "main": "main.js",
   "engines": {
