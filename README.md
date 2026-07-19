@@ -4,156 +4,88 @@
 [![GitHub release](https://img.shields.io/github/v/release/wuyifan-code/Claudian-plus)](https://github.com/wuyifan-code/Claudian-plus/releases)
 [![License](https://img.shields.io/github/license/wuyifan-code/Claudian-plus)](LICENSE)
 
-> A Codex-first AI workspace for Obsidian.
+Claudian Plus is a Codex-first AI workspace for local-first knowledge work. It combines Codex, Claude, OpenCode, and Pi in one desktop chat workspace while keeping notes, context, and provider sessions in your local vault.
 
-## English Overview
+## Highlights
 
-Claudian Plus is a Codex-first AI workspace for local-first knowledge work. It brings Codex, Claude, OpenCode, and Pi into one desktop chat workspace with a floating conversation outline, searchable local history, drag-and-drop note and folder context, and source-backed vault search.
+- **Codex-first defaults** — use Codex as the default agent and prefer `gpt-5.6-sol` when that model is available in the local CLI.
+- **Floating conversation outline** — keep a compact rail of user questions and assistant headings, with thoughts and tool output collapsed out of the outline.
+- **Multiple providers** — switch between Codex, Claude, OpenCode, and Pi without changing the chat workspace.
+- **Local conversation history** — search previous conversations by title, first message, provider, date, or model.
+- **Note and folder context** — drag notes and folders into the chat input to add `@file` and `@folder/` context.
+- **Vault search and insights** — use local source-backed search and an insight workflow that keeps citations and sends the resulting task to the active agent.
+- **Existing Claudian workflows** — keep slash commands, skills, MCP, inline editing, multi-tab conversations, and provider-native sessions.
 
 ## Installation
 
-Download `main.js`, `manifest.json`, and `styles.css` from the latest GitHub release and place them in `.obsidian/plugins/claudian-plus/`. Enable **Claudian Plus** in the app's community plugin settings. The plugin is desktop-only because it integrates with local agent CLIs. Configure your provider and CLI login in the plugin settings.
+### Install from a release
 
-插件 ID：`claudian-plus`
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/wuyifan-code/Claudian-plus/releases/latest).
+2. Create `.obsidian/plugins/claudian-plus/` inside your vault.
+3. Copy the three downloaded files into that directory.
+4. Open the app's community plugin settings and enable **Claudian Plus**.
 
-基于 [Claudian](https://github.com/YishenTu/claudian) 的增强分支，面向长期使用 Obsidian、Coding Agent 和 AI 工作流的用户。
+The plugin is desktop-only because it integrates with local agent CLIs and desktop filesystem capabilities.
 
-Claudian Plus 把 Codex、Claude、OpenCode 和 Pi 接入同一个 Obsidian 对话工作区，保留本地优先的笔记上下文、Provider 原生会话与编辑能力，并逐步补齐历史检索、RAG 和知识洞察。
+### Build from source
 
-![Claudian Plus preview](assets/Preview.png)
-
-## 为什么做 Plus
-
-Claudian Plus 的优先级不是再做一个聊天窗口，而是让 Agent 真正成为 Obsidian 知识库里的工作入口：
-
-- Codex 是默认 Agent，优先适配 `gpt-5.6-sol`，同时允许动态发现和自定义模型。
-- 对话上下文和笔记上下文在同一处管理，减少在 Obsidian、终端和浏览器之间来回切换。
-- Agent 的思考和工具执行过程默认收起，主内容保持清晰；需要时仍可展开查看细节。
-- 对话悬浮大纲只提取用户问题和助手正文标题，保持一条一条的导航标记，不把 Thought 或工具标题混进大纲。
-- 先保留 Provider 原生能力，再在上层补齐跨 Provider 的历史、检索和洞察体验。
-
-## 当前状态
-
-| 能力 | 状态 | 说明 |
-| --- | --- | --- |
-| Codex-first 默认体验 | ✅ 已实现 | 新安装默认启用 Codex，并选择 Codex 作为设置和空白对话的 Provider。 |
-| GPT-5.6 模型偏好 | ✅ 已实现 | 偏好 `gpt-5.6-sol`；如果运行时没有返回该模型，会回退到发现的模型或自定义模型。 |
-| Codex 悬浮对话大纲 | ✅ 已实现 | 支持用户问题、助手 H1–H3 标题、悬浮预览、键盘操作、当前位置追踪和点击跳转。 |
-| 执行过程降噪 | ✅ 已实现 | Thought / 工具过程默认折叠为低干扰的执行详情，不参与大纲索引。 |
-| 多 Provider 工作区 | ✅ 已实现 | Codex、Claude、OpenCode、Pi 共用对话工作区和 Provider 选择器。 |
-| `@file`、`@folder`、Slash Commands、Skills、MCP | ✅ 已实现 | 继续沿用上游 Claudian 的上下文和 Agent 扩展方式。 |
-| 多标签页、历史会话、行内编辑 | ✅ 已实现 | 保留上游的聊天和编辑工作流。 |
-| 拖拽笔记和文件夹 | ✅ MVP 已实现 | 从 Obsidian 或文件管理器拖入输入区，自动识别 Vault 内的笔记/文件夹，插入 `@path` / `@folder/` 上下文。 |
-| 历史聊天检索 | ✅ MVP 已实现 | 历史下拉框支持按标题、首条消息预览和 Provider 搜索；全文索引与日期/模型筛选留待下一迭代。 |
-| 混合 RAG / 语义检索 | ✅ 本地 MVP 已实现 | `/vault-search` 使用词法匹配、标题/路径、链接和近期修改时间加权，结果保留来源和命中词；尚未接入远程 embedding。 |
-| 类 flomo 洞察 | ✅ 可追溯入口已实现 | `/insight` 基于本地来源生成带 `[n]` 引用的 Agent 提示，可一键交给当前 Agent；自动聚类和定时洞察留待下一迭代。 |
-
-### 今日规划的落地边界
-
-这一版先把四条链路做成可用闭环：入口、来源、上下文和失败提示都在本地完成，不会偷偷上传 Vault 内容，也不会改写已有会话数据。下一阶段再接入全文历史索引、真正的向量 embedding、重排器、主题聚类和定时洞察任务。
-
-可用入口：
-
-- 在聊天输入框输入 `/vault-search 关键词`，查看带路径、标题和摘录的来源卡片。
-- 输入 `/insight 主题`，确认来源后点击 **Ask agent for an insight**，把带引用的分析任务送入当前 Agent。
-- 将 Vault 笔记或文件夹拖到输入区；文件会进入现有文件上下文，文件夹会插入可继续编辑的 `@folder/` 句柄。
-- 打开历史下拉框后直接在搜索框输入标题、首条消息片段或 Provider。
-
-详细路线图见 [ENHANCEMENTS.md](ENHANCEMENTS.md)。
-
-## 安装
-
-### 从 Release 安装
-
-Claudian Plus 已提交到 Obsidian Community Plugins，当前等待官方自动/人工审核。
-
-1. 从 [最新 Release](https://github.com/wuyifan-code/Claudian-plus/releases/latest) 下载 `main.js`、`manifest.json` 和 `styles.css`。
-2. 在 Obsidian 库中创建目录 `.obsidian/plugins/claudian-plus/`。
-3. 将三个文件放入该目录。
-4. 打开 Obsidian 设置 → 第三方插件，启用 **Claudian Plus**。
-
-### 从源码安装
-
-需要 Node.js 24。
+The project requires Node.js 24.
 
 ```bash
-cd /path/to/vault/.obsidian/plugins
 git clone https://github.com/wuyifan-code/Claudian-plus.git
 cd Claudian-plus
-npm install
+npm ci
 npm run build
 ```
 
-如果希望构建后自动复制到某个 Vault，可以设置 `OBSIDIAN_VAULT`：
+To copy the build into a local vault during development, set `OBSIDIAN_VAULT` before running the build:
 
-```bash
-# macOS / Linux
-OBSIDIAN_VAULT="/path/to/vault" npm run build
-
-# Windows PowerShell
+```powershell
 $env:OBSIDIAN_VAULT = "D:\Obsidian\My Vault"
 npm run build
 ```
 
-也可以在仓库根目录创建 `.env.local`：
+You can also put the variable in a local `.env.local` file. That file is ignored by Git and should never contain secrets committed to the repository.
 
-```dotenv
-OBSIDIAN_VAULT=D:\Obsidian\My Vault
-```
+## First-time setup
 
-## 首次配置
+1. Install and authenticate the [Codex CLI](https://github.com/openai/codex), and make sure `codex` is available in your terminal.
+2. Enable Claudian Plus and open its settings.
+3. Select **Codex** as the provider. The model selector prefers `gpt-5.6-sol` when the CLI exposes it, and falls back to the available model list otherwise.
+4. Keep the default permission mode at `normal` unless a task explicitly requires a different approval policy.
+5. Configure Claude, OpenCode, or Pi separately if you want to use those providers. Enabling this plugin does not create or transfer their login state.
 
-1. 安装并登录 [Codex CLI](https://github.com/openai/codex)，确保 `codex` 能在终端中运行。
-2. 在 Obsidian 中启用 Claudian Plus。
-3. 打开插件设置，确认 Provider 为 **Codex**。
-4. 在 Codex 设置中发现模型；如果环境中存在 `gpt-5.6-sol`，它会作为首选模型使用。
-5. 根据任务选择权限模式：新安装默认为 `normal`，需要完全自动执行时再手动选择 `YOLO`。
+## Useful commands
 
-Claude、OpenCode 和 Pi 需要各自的 CLI、登录状态或 Provider 配置；它们不会因为启用 Claudian Plus 就自动获得认证。
+Type these commands in the chat input:
 
-## 权限与数据安全
+- `/vault-search <query>` searches local vault sources and returns paths, headings, excerpts, and match terms.
+- `/insight <topic>` prepares a source-backed insight task. Review the sources, then send it to the active agent.
 
-- 新安装默认使用 `normal` 权限模式，不会默认给 Agent 机器级免确认权限。
-- 现有 Vault 的设置、会话和登录状态不会被静默迁移或覆盖。
-- Provider 环境指纹只用于检测配置变化，API Key 和 URL 不会以明文写入指纹。
-- 插件不包含遥测；网络请求来自你主动使用的 Provider、MCP 服务或对应 SDK / CLI。
-- Claudian Plus 与官方 Claudian 目前不要在同一个 Vault 中同时启用：两者仍可能共享 `.claudian/` 数据和 Provider 原生会话目录。
+You can drag a note, folder, or supported file from the vault into the input area. Notes are added as file context; folders are inserted as an editable `@folder/` reference.
 
-常见数据位置包括：
+## Privacy and permissions
 
-```text
-.claudian/                         共享设置与会话元数据
-.claude/                           Claude Code 项目配置、命令、Skills 和 Agents
-.codex/                            Codex Vault Skills 与 Agents
-.opencode/                         OpenCode Agents
-.pi/                               Pi Vault 会话
-~/.claude/projects/                Claude 原生会话
-~/.codex/sessions/                 Codex 原生会话
-```
+- New installations use the `normal` permission mode by default.
+- Provider settings, conversation data, and CLI login state stay in their existing local locations.
+- The plugin does not include telemetry. Network requests happen only when you explicitly use a configured provider, MCP server, SDK, or CLI.
+- Agent features may use shell execution, local filesystem access, clipboard integration, and vault enumeration. These capabilities are required for local coding-agent workflows; review the selected provider and permission mode before running sensitive tasks.
+- Do not enable the official Claudian plugin and Claudian Plus in the same vault if both are configured to share the same `.claudian/` data directory.
 
-## 开发与验证
-
-```bash
-npm run dev          # 监听源码并生成开发构建
-npm run build        # 生成生产构建
-npm run typecheck    # TypeScript 类型检查
-npm run lint         # ESLint
-npm run test         # 完整测试
-npm run test:unit    # Jest 单元测试
-npm run test:watch   # 监听测试
-```
-
-提交改动前建议至少运行：
+## Development and verification
 
 ```bash
 npm run typecheck
 npm run lint
-npm run test
+npm run test:architecture
 npm run build
+npm run check:performance
 ```
 
-## 上游与许可证
+The release workflow installs from `package-lock.json`, builds on GitHub Actions, verifies the release version, generates artifact attestations, and uploads `main.js`, `manifest.json`, and `styles.css`.
 
-Claudian Plus 基于 [YishenTu/claudian](https://github.com/YishenTu/claudian) 及其贡献者的公开代码、架构和文档开发。上游项目仍是重要的同步来源，感谢所有贡献者。
+## Upstream and license
 
-本项目依据 [MIT License](LICENSE) 发布。
+Claudian Plus is an enhanced fork of [Claudian](https://github.com/YishenTu/claudian). Improvements are developed in the public [Claudian Plus repository](https://github.com/wuyifan-code/Claudian-plus), and upstream-compatible changes are proposed through pull requests when appropriate.
+
+This project is released under the [MIT License](LICENSE).
