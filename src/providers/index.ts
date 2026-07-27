@@ -25,5 +25,3 @@ export function registerBuiltInProviders(): void {
   }
   builtInProvidersRegistered = true;
 }
-
-registerBuiltInProviders();
