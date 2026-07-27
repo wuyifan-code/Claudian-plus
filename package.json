@@ -1,6 +1,6 @@
 {
   "name": "claudian-plus",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Claudian Plus - a Codex-first AI workspace with consciousness mechanism embedded in Obsidian",
   "main": "main.js",
   "engines": {
@@ -60,10 +60,13 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.209",
+    "@codemirror/commands": "^6.8.1",
     "@codemirror/state": "^6.5.0",
     "@codemirror/view": "^6.38.6",
     "@modelcontextprotocol/sdk": "~1.29.0",
+    "@types/three": "^0.185.1",
     "smol-toml": "^1.6.1",
+    "three": "^0.185.1",
     "tslib": "^2.8.1"
   },
   "overrides": {
