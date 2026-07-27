@@ -1,88 +1,52 @@
 # Claudian Plus
 
-[![GitHub stars](https://img.shields.io/github/stars/wuyifan-code/Claudian-plus?style=social)](https://github.com/wuyifan-code/Claudian-plus)
 [![GitHub release](https://img.shields.io/github/v/release/wuyifan-code/Claudian-plus)](https://github.com/wuyifan-code/Claudian-plus/releases)
 [![License](https://img.shields.io/github/license/wuyifan-code/Claudian-plus)](LICENSE)
+[![Obsidian Version](https://img.shields.io/badge/Obsidian-v1.7.2%2B-purple)](https://obsidian.md)
 
-Claudian Plus is a Codex-first AI workspace with **consciousness mechanism** for local-first knowledge work. It combines Codex, Claude, OpenCode, and Pi in one desktop chat workspace while keeping notes, context, and provider sessions in your local vault.
+**Claudian Plus** is a Codex-first AI agent workspace for Obsidian with an opt-in local memory and awareness layer. It combines Codex, Claude, OpenCode, and Pi in one desktop chat workspace, keeping your conversations, vault knowledge, and provider sessions entirely in your local vault.
 
-## ✨ New in v2.1.0: Consciousness Mechanism
+---
 
-Inspired by QoderWork's awareness system, Claudian Plus now features a complete consciousness mechanism that enables:
+## ✨ Feature Highlights
 
-- **🧠 Self-Reflection** — Automatically extract key insights from conversations without explicit commands
-- **📝 Memory Accumulation** — Build long-term user profiles and preferences over time
-- **📚 Vault Knowledge** — Index and understand your entire Obsidian vault
-- **🔄 Cross-Session Memory** — Carry context and knowledge across conversations
+- 💬 **Continuous Conversation Workflow** — Multi-tab interface, saved conversations, fast session search, resume, fork, rewind, and provider-native history replay. Floating outline navigation (bars or dots) previews and jumps to each prompt.
+- 🧠 **Consciousness & Memory System** — Opt-in awareness files, long-term memory accumulation, user profile support, and vault knowledge indexing. Cross-session context carried across conversations.
+- ✏️ **Inline Editing** — Inline prompt execution with real-time word-level diff previews directly in your active editor.
+- 📝 **Live Composer** — Auto-completing `@note` and `@folder` mentions, drag-and-drop vault items, image attachments, and File Explorer integration.
+- 🌐 **Multi-Provider Support** — Works with Codex, Claude, OpenCode, and Pi. Models, sessions, and permissions follow provider-native capabilities; feature parity is never assumed.
+- ⚙️ **Shared Workspace Resources** — Manage MCP servers, slash commands, Skills, and subagents across supported providers.
+- 🛡️ **Privacy First** — Operates directly with local provider CLIs. No third-party telemetry. All data stays in your vault.
 
-### How It Works
+---
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Consciousness System                      │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
-│  │   SOUL.md   │    │   USER.md   │    │  MEMORY.md  │     │
-│  │ Collaboration│    │ User Profile│    │ Long-term   │     │
-│  │    Style    │    │             │    │   Memory    │     │
-│  └─────────────┘    └─────────────┘    └─────────────┘     │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              Vault Knowledge Index                   │   │
-│  │  (Scans all notes, extracts tags, headings, etc.)   │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              Activity Log                            │   │
-│  │  (Tracks memory additions, removals, reflections)   │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+## 📸 Preview
 
-### Memory Triggers
+<!-- TODO: Add a preview screenshot here. Example: assets/Preview.png -->
 
-| Type | Chinese | English |
-|------|---------|---------|
-| **Save** | 记住... / 记得... / 别忘了... | remember... / keep in mind... |
-| **Delete** | 忘记... / 忘掉... | forget... / remove memory... |
-| **List** | 列出记忆 / 显示记忆 | list memories / show memories |
+---
 
-### Implicit Memory (Auto-Extract)
+## 📦 Requirements
 
-The consciousness system automatically detects important information in conversations:
+- **Obsidian**: Version 1.7.2 or later on macOS, Linux, or Windows (desktop only).
+- **Provider CLI**: At least one of the following installed and available on your system `$PATH`:
+  - [Codex CLI](https://github.com/openai/codex) (`codex`)
+  - [Claude Code](https://claude.ai/claude-code) (`claude`)
+  - [OpenCode](https://opencode.ai/) (`opencode`)
+  - [Pi](https://github.com/badlogic/pi-mono) (`pi`)
+- **Node.js**: Only required if building from source.
 
-- **Preferences**: "我喜欢暗色主题" → Saved as user preference
-- **Habits**: "我通常用 Vim 键位" → Saved as work habit
-- **Personal**: "我叫小明" → Saved as personal info
-- **Project**: "我们项目用 React" → Saved as project context
-- **Corrections**: "不对，应该用 TypeScript" → Saved as rule
+---
 
-## Highlights
+## 🚀 Installation
 
-- **Codex-first defaults** — use Codex as the default agent and prefer `gpt-5.6-sol` when that model is available in the local CLI.
-- **Consciousness mechanism** — self-reflection, memory accumulation, and vault knowledge indexing.
-- **Floating conversation outline** — keep a compact rail of user questions and assistant headings, with thoughts and tool output collapsed out of the outline.
-- **Multiple providers** — switch between Codex, Claude, OpenCode, and Pi without changing the chat workspace.
-- **Local conversation history** — search previous conversations by title, first message, provider, date, or model.
-- **Note and folder context** — drag notes and folders into the chat input to add `@file` and `@folder/` context.
-- **Vault search and insights** — use local source-backed search and an insight workflow that keeps citations and sends the resulting task to the active agent.
-- **Existing Claudian workflows** — keep slash commands, skills, MCP, inline editing, multi-tab conversations, and provider-native sessions.
-
-## Installation
-
-### Install from a release
-
+### Option 1: Manual Install from Release
 1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/wuyifan-code/Claudian-plus/releases/latest).
-2. Create `.obsidian/plugins/claudian-plus/` inside your vault.
+2. Create the plugin directory inside your vault: `<vault>/.obsidian/plugins/claudian-plus/`.
 3. Copy the three downloaded files into that directory.
-4. Open the app's community plugin settings and enable **Claudian Plus**.
+4. Open Obsidian **Settings → Community plugins**, enable **Claudian Plus**.
 
-The plugin is desktop-only because it integrates with local agent CLIs and desktop filesystem capabilities.
-
-### Build from source
-
+### Option 2: Build from Source
 The project requires Node.js 24.
 
 ```bash
@@ -92,86 +56,100 @@ npm ci
 npm run build
 ```
 
-To copy the build into a local vault during development, set `OBSIDIAN_VAULT` before running the build:
+Copy the generated `main.js`, `manifest.json`, and `styles.css` to `<vault>/.obsidian/plugins/claudian-plus/`.
 
-```powershell
-$env:OBSIDIAN_VAULT = "D:\Obsidian\My Vault"
-npm run build
+For development, set `OBSIDIAN_VAULT` in `.env.local` before building:
+
+```
+OBSIDIAN_VAULT=D:\\Obsidian\\My Vault
 ```
 
-You can also put the variable in a local `.env.local` file. That file is ignored by Git and should never contain secrets committed to the repository.
+Then `npm run build` copies the files automatically.
 
-## First-time setup
+---
 
-1. Install and authenticate the [Codex CLI](https://github.com/openai/codex), and make sure `codex` is available in your terminal.
-2. Enable Claudian Plus and open its settings.
-3. Select **Codex** as the provider. The model selector prefers `gpt-5.6-sol` when the CLI exposes it, and falls back to the available model list otherwise.
+## ⚙️ First-Time Setup
+
+1. Install and authenticate the [Codex CLI](https://github.com/openai/codex) — make sure `codex` is available in your terminal.
+2. Enable Claudian Plus in Obsidian and open its settings.
+3. Select **Codex** as the default provider. The model selector prefers `gpt-5.6-sol` when available.
 4. Keep the default permission mode at `normal` unless a task explicitly requires a different approval policy.
-5. Configure Claude, OpenCode, or Pi separately if you want to use those providers. Enabling this plugin does not create or transfer their login state.
+5. Configure Claude, OpenCode, or Pi separately if you need those providers. Enabling this plugin does not create or transfer their login state.
 
-## Consciousness Settings
+---
 
-Navigate to **Settings → General → Consciousness**:
+## 🧠 Consciousness System
+
+Inspired by QoderWork's awareness system, Claudian Plus provides an early local memory layer:
 
 | Setting | Description |
 |---------|-------------|
-| **Consciousness Mode** | Enable cross-session memory and skill evolution |
-| **Auto Memory** | Automatically extract important info from conversations |
+| **Consciousness Mode** | Opt in to awareness files and vault knowledge context |
+| **Auto Memory** | Enable heuristic extraction of important conversation details |
 | **View Awareness Files** | Open the `.claudian/awareness/` directory |
 | **Reset All** | Clear all consciousness data |
 
-### Commands
+### Memory Triggers
 
-| Command | Description |
-|---------|-------------|
-| `Open memory file` | Open the memory file for manual editing |
-| `Scan vault knowledge` | Index all vault notes for knowledge injection |
+| Type | Chinese | English |
+|------|---------|---------|
+| **Save** | 记住... / 记得... | remember... / keep in mind... |
+| **Delete** | 忘记... / 忘掉... | forget... / remove memory... |
+| **List** | 列出记忆 | list memories / show memories |
 
-## Useful commands
+Commands: `Open memory file`, `Scan vault knowledge`
 
-Type these commands in the chat input:
+---
 
-- `/vault-search <query>` searches local vault sources and returns paths, headings, excerpts, and match terms.
-- `/insight <topic>` prepares a source-backed insight task. Review the sources, then send it to the active agent.
+## 🎨 Outline Style
 
-You can drag a note, folder, or supported file from the vault into the input area. Notes are added as file context; folders are inserted as an editable `@folder/` reference.
+Choose between two floating outline styles in **Settings → Outline style**:
 
-## Privacy and permissions
+| Style | Preview |
+|-------|---------|
+| **Bars** | Horizontal tick marks with spring animation; active marker extends to the left with accent color glow |
+| **Dots** | Circular markers with codian-inspired wave-focus effect; dots near the hovered marker grow in proportion to their distance |
 
-- New installations use the `normal` permission mode by default.
-- Provider settings, conversation data, and CLI login state stay in their existing local locations.
-- The plugin does not include telemetry. Network requests happen only when you explicitly use a configured provider, MCP server, SDK, or CLI.
-- Agent features may use shell execution, local filesystem access, clipboard integration, and vault enumeration. These capabilities are required for local coding-agent workflows; review the selected provider and permission mode before running sensitive tasks.
-- Do not enable the official Claudian plugin and Claudian Plus in the same vault if both are configured to share the same `.claudian/` data directory.
-- **Consciousness data** is stored locally in `.claudian/awareness/` and never leaves your vault.
+Both styles remain fixed-positioned at the left side of the viewport and update the active marker as you scroll through the conversation.
 
-## Development and verification
+---
+
+## ❓ FAQ & Troubleshooting
+
+### 1. CLI not detected?
+macOS GUI apps don't inherit shell environment variables. Go to the provider's **Connection** tab in Settings and enter the absolute CLI path (e.g., `/usr/local/bin/claude`).
+
+### 2. Can I use Claudian Plus alongside the official Claudian?
+**Not recommended.** If both plugins share the same `.claudian/` data directory, they may conflict. Use only one at a time.
+
+---
+
+## 🛠️ Development & Verification
 
 ```bash
+# Type check
 npm run typecheck
+
+# Lint
 npm run lint
-npm run test:architecture
+
+# Test
+npm run test
+
+# Build
 npm run build
-npm run check:performance
 ```
 
-The release workflow installs from `package-lock.json`, builds on GitHub Actions, verifies the release version, generates artifact attestations, and uploads `main.js`, `manifest.json`, and `styles.css`.
+Review [CONTRIBUTING.md](CONTRIBUTING.md) (if available) before submitting pull requests.
 
-## Architecture
+---
 
-```
-src/core/memory/
-├── ConsciousnessEngine.ts    # Core consciousness engine
-├── MemoryExtractor.ts        # Explicit & implicit memory extraction
-├── MemoryStore.ts            # Persistent memory storage
-├── VaultKnowledgeEngine.ts   # Vault-wide knowledge indexing
-├── consciousness-types.ts    # Type definitions
-├── memoryPrompt.ts           # Memory injection formatting
-└── types.ts                  # Base types
-```
+## 🙏 Acknowledgments
 
-## Upstream and license
+Claudian Plus is an enhanced fork of [Claudian](https://github.com/YishenTu/claudian), created by [Yishen Tu](https://github.com/YishenTu). I am deeply grateful to Yishen Tu and the Claudian contributors for their pioneering work in bringing AI coding agents to Obsidian.
 
-Claudian Plus is an enhanced fork of [Claudian](https://github.com/YishenTu/claudian). Improvements are developed in the public [Claudian Plus repository](https://github.com/wuyifan-code/Claudian-plus), and upstream-compatible changes are proposed through pull requests when appropriate.
+---
+
+## 📄 License
 
 This project is released under the [MIT License](LICENSE).
