@@ -1,6 +1,6 @@
+import { DEFAULT_MEMORY_FILE_PATH, DEFAULT_MEMORY_MAX_INJECTION_CHARS } from '../../core/memory/types';
 import { getDefaultHiddenProviderCommands } from '../../core/providers/commands/hiddenCommands';
 import { DEFAULT_REASONING_VALUE } from '../../core/providers/reasoning';
-import { DEFAULT_MEMORY_FILE_PATH, DEFAULT_MEMORY_MAX_INJECTION_CHARS } from '../../core/memory/types';
 import { type ClaudianSettings } from '../../core/types/settings';
 import { getBuiltInProviderDefaultConfigs } from '../../providers/defaultProviderConfigs';
 
@@ -46,10 +46,13 @@ export const DEFAULT_CLAUDIAN_SETTINGS: ClaudianSettings = {
   },
   requireCommandOrControlEnterToSend: false,
 
+  enableLivePreviewComposer: true,
+
   locale: 'en',
 
   providerConfigs: getEnhancedProviderDefaultConfigs(),
 
+  defaultChatProviderId: '',
   settingsProvider: 'codex',
   savedProviderModel: {
     codex: ENHANCED_DEFAULT_CODEX_MODEL,
@@ -64,6 +67,7 @@ export const DEFAULT_CLAUDIAN_SETTINGS: ClaudianSettings = {
 
   maxTabs: 3,
   enableAutoScroll: true,
+  outlineStyle: 'bar',
   deferMathRenderingDuringStreaming: true,
   expandFileEditsByDefault: false,
   chatViewPlacement: 'right-sidebar',
@@ -75,7 +79,8 @@ export const DEFAULT_CLAUDIAN_SETTINGS: ClaudianSettings = {
   memoryFilePath: DEFAULT_MEMORY_FILE_PATH,
   memoryMaxInjectionChars: DEFAULT_MEMORY_MAX_INJECTION_CHARS,
 
-  // Consciousness system (QoderWork-inspired)
-  consciousnessEnabled: true,
-  consciousnessAutoMemory: true,
+  // Consciousness data can contain personal context and is injected into provider prompts.
+  // Require an explicit opt-in on new installations.
+  consciousnessEnabled: false,
+  consciousnessAutoMemory: false,
 };

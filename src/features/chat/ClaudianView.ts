@@ -162,6 +162,14 @@ export class ClaudianView extends ItemView {
     this.tabManager?.invalidateProviderCommandCaches(providerIds);
   }
 
+  /** Applies the outline style setting to all open tab sidebars. */
+  refreshOutlineStyle(): void {
+    const style = this.plugin.settings.outlineStyle ?? 'bar';
+    for (const tab of this.tabManager?.getAllTabs() ?? []) {
+      tab.ui.navigationSidebar?.setOutlineStyle(style);
+    }
+  }
+
   /** Updates provider-scoped hidden commands on all tabs after settings changes. */
   updateHiddenProviderCommands(): void {
     for (const tab of this.tabManager?.getAllTabs() ?? []) {
@@ -843,6 +851,23 @@ export class ClaudianView extends ItemView {
   /** Gets the tab manager. */
   getTabManager(): TabManager | null {
     return this.tabManager;
+  }
+
+  /**
+   * Appends text to the active tab's input at the cursor position.
+   * Used by the file explorer "Add to Claudian" menu action.
+   */
+  appendToActiveInput(text: string): boolean {
+    const activeTab = this.tabManager?.getActiveTab();
+    if (!activeTab) return false;
+
+    const input = activeTab.dom.inputEl;
+    const start = input.selectionStart ?? input.value.length;
+    const end = input.selectionEnd ?? start;
+    input.setRangeText(text, start, end, 'end');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
+    return true;
   }
 
   /** Gets shared view controls that should preserve active tab selection context. */

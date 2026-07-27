@@ -1,5 +1,5 @@
 import type { Component } from 'obsidian';
-import { Notice, Platform } from 'obsidian';
+import { Notice, Platform, TFile, TFolder } from 'obsidian';
 
 import { getHiddenProviderCommandSet } from '../../../core/providers/commands/hiddenCommands';
 import type { ProviderCommandDropdownConfig } from '../../../core/providers/commands/ProviderCommandCatalog';
@@ -31,6 +31,7 @@ import { SlashCommandDropdown } from '../../../shared/components/SlashCommandDro
 import { getEnhancedPath } from '../../../utils/env';
 import { getVaultPath } from '../../../utils/path';
 import type { FeatureHost } from '../../FeatureHost';
+import type { VaultContextReference } from '../composer/types';
 import { BrowserSelectionController } from '../controllers/BrowserSelectionController';
 import { CanvasSelectionController } from '../controllers/CanvasSelectionController';
 import { ConversationController } from '../controllers/ConversationController';
@@ -260,7 +261,10 @@ function shouldSendMessageFromEnterKey(
 }
 
 function isTabInputFocused(tab: TabData): boolean {
-  return tab.dom.inputEl.ownerDocument.activeElement === tab.dom.inputEl;
+  const activeElement = tab.dom.inputEl.ownerDocument.activeElement;
+  return activeElement === tab.dom.inputEl
+    || (activeElement !== null
+      && tab.dom.composerSession?.focusTargetEl.contains(activeElement) === true);
 }
 
 function sendTabInputMessage(
@@ -443,9 +447,7 @@ function ensureTitleGenerationService(tab: TabData, plugin: FeatureHost): void {
 }
 
 function cleanupTabRuntime(tab: TabData): void {
-  if (tab.service && typeof tab.service.cleanup === 'function') {
-    tab.service.cleanup();
-  }
+  tab.runtimeSupervisor.cleanup();
   tab.service = null;
   tab.serviceInitialized = false;
 }
@@ -485,9 +487,7 @@ export function onProviderAvailabilityChanged(tab: TabData, plugin: FeatureHost)
     tab.service
     && tab.service.providerId !== nextProviderId
   ) {
-    tab.service.cleanup();
-    tab.service = null;
-    tab.serviceInitialized = false;
+    cleanupTabRuntime(tab);
   }
 
   syncTabProviderServices(tab, plugin);
@@ -534,9 +534,12 @@ export function createTab(options: TabCreateOptions): TabData {
   const restoredDraftModel = typeof options.draftModel === 'string'
     ? options.draftModel.trim()
     : '';
+  const defaultProviderId = options.defaultProviderId
+    ?? ProviderRegistry.resolveDefaultChatProviderId(plugin.settings)
+    ?? undefined;
   const draftModel = isBound
     ? null
-    : (restoredDraftModel || resolveBlankTabModel(plugin, options.defaultProviderId));
+    : (restoredDraftModel || resolveBlankTabModel(plugin, defaultProviderId));
   const initialProviderId = conversation?.providerId
     ?? (draftModel
       ? getEnabledProviderForModel(draftModel, plugin.settings)
@@ -663,6 +666,8 @@ function buildTabDOM(contentEl: HTMLElement): TabDOMElements {
     inputEl,
     navRowEl,
     contextRowEl,
+    composerSession: null,
+    composerReferenceSink: null,
     eventCleanups: [],
   };
 }
@@ -729,11 +734,9 @@ export async function initializeTabService(
   const previousService = tab.service;
 
   try {
-    if (typeof previousService?.cleanup === 'function') {
-      previousService.cleanup();
+    if (previousService) {
+      cleanupTabRuntime(tab);
     }
-    tab.service = null;
-    tab.serviceInitialized = false;
 
     const runtime = ProviderRegistry.createChatRuntime({
       plugin: plugin.providerHost,
@@ -804,6 +807,15 @@ function initializeContextManagers(tab: TabData, plugin: FeatureHost): void {
     {
       getExcludedTags: () => plugin.settings.excludedTags,
       getExternalContexts: () => tab.ui.externalContextSelector?.getExternalContexts() || [],
+      onChipsChanged: () => {
+        const manager = tab.ui.fileContextManager;
+        if (!manager || !dom.composerReferenceSink) return;
+        const references: VaultContextReference[] = [
+          ...[...manager.getAttachedFiles()].map(path => ({ path, kind: 'file' as const })),
+          ...[...manager.getAttachedFolders()].map(path => ({ path, kind: 'folder' as const })),
+        ];
+        dom.composerReferenceSink(references);
+      },
     },
     dom.inputContainerEl,
     contextTray,
@@ -817,6 +829,76 @@ function initializeContextManagers(tab: TabData, plugin: FeatureHost): void {
     dom.contextRowEl,
     contextTray,
   );
+}
+
+async function openVaultReference(
+  plugin: FeatureHost,
+  path: string,
+  kind: 'file' | 'folder',
+): Promise<void> {
+  const abstractFile = plugin.app.vault.getAbstractFileByPath(path);
+  if (kind === 'file' && abstractFile instanceof TFile) {
+    await plugin.app.workspace.getLeaf().openFile(abstractFile);
+    return;
+  }
+  if (kind !== 'folder' || !(abstractFile instanceof TFolder)) return;
+
+  for (const leaf of plugin.app.workspace.getLeavesOfType('file-explorer')) {
+    const view = leaf.view as unknown;
+    if (typeof view !== 'object' || view === null) continue;
+    const revealInFolder = (view as Record<string, unknown>).revealInFolder;
+    if (typeof revealInFolder !== 'function') continue;
+    revealInFolder.call(view, abstractFile);
+    return;
+  }
+}
+
+function initializeComposerEnhancement(tab: TabData, plugin: FeatureHost): void {
+  // Idempotent: the CodeMirror composer is heavyweight, so it is mounted lazily
+  // on first tab activation rather than for every restored tab at startup.
+  if (tab.dom.composerSession) return;
+
+  const enhancement = plugin.settings.enableLivePreviewComposer === false
+    ? null
+    : plugin.getComposerEnhancement?.() ?? null;
+  if (!enhancement) return;
+
+  const { dom } = tab;
+  dom.composerSession = enhancement.mount({
+    app: plugin.app,
+    sourceEl: dom.inputEl,
+    inputWrapperEl: dom.inputWrapper,
+    dropZoneEl: dom.inputWrapper,
+    initialReferences: [],
+    onReferencesDropped: references => {
+      for (const reference of references) {
+        if (reference.kind === 'file') {
+          tab.ui.fileContextManager?.attachFilePath(reference.path);
+        } else {
+          tab.ui.fileContextManager?.attachFolderPath(reference.path);
+        }
+      }
+    },
+    onOpenReference: reference => {
+      void openVaultReference(plugin, reference.path, reference.kind);
+    },
+    setReferenceSink: sink => { dom.composerReferenceSink = sink; },
+  });
+
+  // Push the currently attached references so chips render immediately on mount.
+  const manager = tab.ui.fileContextManager;
+  if (manager && dom.composerReferenceSink) {
+    dom.composerReferenceSink([
+      ...[...manager.getAttachedFiles()].map(path => ({ path, kind: 'file' as const })),
+      ...[...manager.getAttachedFolders()].map(path => ({ path, kind: 'folder' as const })),
+    ]);
+  }
+
+  dom.eventCleanups.push(() => {
+    dom.composerSession?.destroy();
+    dom.composerSession = null;
+    dom.composerReferenceSink = null;
+  });
 }
 
 function initializeSlashCommands(
@@ -872,11 +954,21 @@ function initializeInstructionAndTodo(tab: TabData, plugin: FeatureHost): void {
           onSubmit: async (command) => {
             const statusPanel = tab.ui.statusPanel;
             if (!statusPanel) return;
+            const ownerConversationId = tab.state.currentConversationId;
 
             const id = `bash-${Date.now()}`;
             statusPanel.addBashOutput({ id, command, status: 'running', output: '' });
 
             const result = await bashService.execute(command);
+            // Shell commands can outlive a tab or conversation. Do not render
+            // their late result into a destroyed panel or another chat.
+            if (
+              tab.lifecycleState === 'closing'
+              || tab.ui.statusPanel !== statusPanel
+              || tab.state.currentConversationId !== ownerConversationId
+            ) {
+              return;
+            }
             const output = [result.stdout, result.stderr, result.error].filter(Boolean).join('\n').trim();
             const status = result.exitCode === 0 ? 'completed' : 'error';
             statusPanel.updateBashOutput(id, { status, output, exitCode: result.exitCode });
@@ -934,6 +1026,19 @@ function initializeInputToolbar(
     getSettings: () => getTabSettingsSnapshot(tab, plugin),
     getEnvironmentVariables: () => plugin.getActiveEnvironmentVariables(),
     onModelChange: async (model: string) => {
+      // A first send creates its runtime asynchronously. Letting the picker
+      // change provider in that window can make the eventual runtime disagree
+      // with the model shown in the toolbar (and can reconfigure an in-flight
+      // session midway through a turn).
+      if (
+        tab.state.isStreaming
+        || tab.state.isCreatingConversation
+        || tab.state.isSwitchingConversation
+      ) {
+        new Notice('Cannot change model while a conversation is active.');
+        return;
+      }
+
       // For blank tabs, update draft model and derive provider
       if (tab.lifecycleState === 'blank') {
         const previousProvider = tab.providerId;
@@ -1142,7 +1247,8 @@ export function initializeTabUI(
   if (dom.messagesEl.parentElement) {
     tab.ui.navigationSidebar = new NavigationSidebar(
       dom.messagesEl.parentElement,
-      dom.messagesEl
+      dom.messagesEl,
+      plugin.settings.outlineStyle ?? 'bar',
     );
   }
 
@@ -1460,6 +1566,7 @@ export function initializeTabControllers(
       clearQueuedMessage: () => tab.controllers.inputController?.clearQueuedMessage(),
       getTitleGenerationService: () => services.titleGenerationService,
       getStatusPanel: () => ui.statusPanel,
+      onConversationReset: () => dom.composerSession?.onConversationReset(),
       getAgentService: () => tab.service, // Use tab's service instead of plugin's
       getSelectedModel: () => getTabSelectedModel(tab, plugin),
       dismissPendingInlinePrompts: () => tab.controllers.inputController?.dismissPendingApproval(),
@@ -1540,10 +1647,12 @@ export function initializeTabControllers(
     resetInputHeight: () => {
       autoResizeTextarea(dom.inputEl);
     },
+    onDraftConsumed: () => dom.composerSession?.onDraftConsumed(),
     getAuxiliaryModel: () => getTabSelectedModel(tab, plugin),
     getAgentService: () => tab.service,
     getSubagentManager: () => services.subagentManager,
     getTabProviderId: () => getTabProviderId(tab, plugin),
+    isDisposed: () => isClosingLifecycleState(tab.lifecycleState),
     turnOwner: tab.session,
     ensureServiceInitialized: async () => {
       if (tab.serviceInitialized && tab.lifecycleState === 'bound_active') {
@@ -1754,15 +1863,19 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
   const SCROLL_THRESHOLD = 20; // pixels from bottom to consider "at bottom"
   const RE_ENABLE_DELAY = 150; // ms to wait before re-enabling auto-scroll
   let reEnableTimeout: number | null = null;
+  let reEnableTimeoutWindow: Window | null = null;
 
   const isAutoScrollAllowed = (): boolean => plugin.settings.enableAutoScroll ?? true;
+  const clearReEnableTimeout = (): void => {
+    if (reEnableTimeout === null) return;
+    reEnableTimeoutWindow?.clearTimeout(reEnableTimeout);
+    reEnableTimeout = null;
+    reEnableTimeoutWindow = null;
+  };
 
   const scrollHandler = () => {
     if (!isAutoScrollAllowed()) {
-      if (reEnableTimeout) {
-        window.clearTimeout(reEnableTimeout);
-        reEnableTimeout = null;
-      }
+      clearReEnableTimeout();
       state.autoScrollEnabled = false;
       return;
     }
@@ -1772,16 +1885,17 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
 
     if (!isAtBottom) {
       // Immediately disable when user scrolls up
-      if (reEnableTimeout) {
-        window.clearTimeout(reEnableTimeout);
-        reEnableTimeout = null;
-      }
+      clearReEnableTimeout();
       state.autoScrollEnabled = false;
     } else if (!state.autoScrollEnabled) {
       // Debounce re-enabling to avoid bounce during scroll animation
-      if (!reEnableTimeout) {
-        reEnableTimeout = window.setTimeout(() => {
+      if (reEnableTimeout === null) {
+        const ownerWindow = dom.messagesEl.ownerDocument.defaultView ?? window;
+        reEnableTimeoutWindow = ownerWindow;
+        reEnableTimeout = ownerWindow.setTimeout(() => {
           reEnableTimeout = null;
+          reEnableTimeoutWindow = null;
+          if (tab.lifecycleState === 'closing' || dom.messagesEl.isConnected === false) return;
           // Re-verify position before enabling (content may have changed)
           const { scrollTop, scrollHeight, clientHeight } = dom.messagesEl;
           if (scrollHeight - scrollTop - clientHeight <= SCROLL_THRESHOLD) {
@@ -1794,15 +1908,18 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
   dom.messagesEl.addEventListener('scroll', scrollHandler, { passive: true });
   dom.eventCleanups.push(() => {
     dom.messagesEl.removeEventListener('scroll', scrollHandler);
-    if (reEnableTimeout) window.clearTimeout(reEnableTimeout);
+    clearReEnableTimeout();
   });
 }
 
 /**
  * Activates a tab (shows it and starts services).
  */
-export function activateTab(tab: TabData): void {
+export function activateTab(tab: TabData, plugin: FeatureHost): void {
   tab.dom.contentEl.removeClass('claudian-hidden');
+  // Lazily mount the live-preview composer on first activation (idempotent).
+  initializeComposerEnhancement(tab, plugin);
+  tab.renderer?.resumeWelcomeAnimation();
   tab.controllers.selectionController?.start();
   tab.controllers.browserSelectionController?.start();
   tab.controllers.canvasSelectionController?.start();
@@ -1814,6 +1931,7 @@ export function activateTab(tab: TabData): void {
  * Deactivates a tab (hides it and stops services).
  */
 export function deactivateTab(tab: TabData): void {
+  tab.renderer?.pauseWelcomeAnimation();
   tab.ui.navigationSidebar?.collapse();
   tab.dom.contentEl.addClass('claudian-hidden');
   tab.controllers.selectionController?.stop();
@@ -1875,6 +1993,7 @@ export async function destroyTab(tab: TabData): Promise<void> {
   tab.controllers.inputController?.dismissPendingApproval();
   await cancelAndAwaitActiveTurn(tab);
   await tab.session.awaitBackgroundWork();
+  tab.controllers.streamController?.resetStreamingState?.();
 
   tab.services.subagentManager.orphanAllActive();
   if (tab.state.currentConversationId) {
@@ -1902,6 +2021,8 @@ export async function destroyTab(tab: TabData): Promise<void> {
   tab.controllers.inputController?.destroyResumeDropdown();
   tab.ui.fileContextManager?.destroy();
   tab.ui.imageContextManager?.destroy();
+  tab.ui.externalContextSelector?.destroy?.();
+  tab.ui.externalContextSelector = null;
   tab.ui.contextTray?.destroy();
   tab.ui.contextTray = null;
   tab.ui.slashCommandDropdown?.destroy();
@@ -1919,6 +2040,8 @@ export async function destroyTab(tab: TabData): Promise<void> {
   tab.ui.statusPanel = null;
   tab.ui.navigationSidebar?.destroy();
   tab.ui.navigationSidebar = null;
+  tab.renderer?.dispose();
+  tab.renderer = null;
 
   for (const cleanup of tab.dom.eventCleanups) {
     cleanup();
