@@ -1,6 +1,5 @@
 # Build output
-main.js
-styles.css
+# Built assets – committed for Obsidian distribution.
 .codex-vendor/
 *.js.map
 dist/
