@@ -4,6 +4,8 @@
 [![License](https://img.shields.io/github/license/wuyifan-code/Claudian-plus)](LICENSE)
 [![Obsidian Version](https://img.shields.io/badge/Obsidian-v1.7.2%2B-purple)](https://obsidian.md)
 
+[English](README.md) | [简体中文](README_ZH.md)
+
 **Claudian Plus** is a Codex-first AI agent workspace for Obsidian with an opt-in local memory and awareness layer. It combines Codex, Claude, OpenCode, and Pi in one desktop chat workspace, keeping your conversations, vault knowledge, and provider sessions entirely in your local vault.
 
 ---
