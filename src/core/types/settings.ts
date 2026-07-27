@@ -119,6 +119,7 @@ export interface ClaudianSettings {
   // UI settings
   keyboardNavigation: KeyboardNavigationSettings;
   requireCommandOrControlEnterToSend: boolean;
+  enableLivePreviewComposer?: boolean;
 
   // Internationalization
   locale: string;
@@ -127,6 +128,7 @@ export interface ClaudianSettings {
   providerConfigs: ProviderConfigMap;
 
   // Provider selection
+  defaultChatProviderId?: string; // ProviderId — default for initial blank tabs
   settingsProvider: string;  // ProviderId — which provider's model/effort/budget is projected to top-level fields
   savedProviderModel: Partial<Record<string, string>>;
   savedProviderEffort: Partial<Record<string, string>>;
@@ -143,6 +145,7 @@ export interface ClaudianSettings {
   // UI preferences
   maxTabs: number;
   enableAutoScroll: boolean;
+  outlineStyle: 'bar' | 'dot';
   deferMathRenderingDuringStreaming: boolean;
   expandFileEditsByDefault: boolean;
   chatViewPlacement: ChatViewPlacement;

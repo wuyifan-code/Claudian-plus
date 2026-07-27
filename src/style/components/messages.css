@@ -17,6 +17,11 @@
   gap: 12px;
 }
 
+/* Floating outline — reserve space so text doesn't overlap the rail */
+.claudian-messages-wrapper.claudian-has-nav-sidebar .claudian-messages {
+  padding-inline-start: 48px;
+}
+
 /* Focusable messages panel for vim-style navigation */
 .claudian-messages-focusable:focus {
   outline: none;

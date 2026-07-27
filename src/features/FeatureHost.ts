@@ -1,12 +1,19 @@
 import type { App } from 'obsidian';
 
 import type { SharedAppStorage } from '../core/bootstrap/storage';
-import type { ConsciousnessEngine, MemoryExtractor, MemoryStore } from '../core/memory';
+import type {
+  ConsciousnessEngine,
+  MemoryExtractor,
+  MemoryStore,
+  VaultKnowledgeEngine,
+} from '../core/memory';
 import type { ProviderHost } from '../core/providers/ProviderHost';
 import type { AppTabManagerState, ProviderId } from '../core/providers/types';
 import type { VaultRetrievalService } from '../core/retrieval/VaultRetrievalService';
 import type { ChatRuntime } from '../core/runtime/ChatRuntime';
+import type { AgentSkillRepository } from '../core/skills/AgentSkillRepository';
 import type { ClaudianSettings, Conversation, ConversationMeta } from '../core/types';
+import type { ComposerEnhancement } from './chat/composer/types';
 import type { TabData, TabId, TabManagerViewHost } from './chat/tabs/types';
 
 export interface FeatureTabManagerHost {
@@ -23,6 +30,7 @@ export interface FeatureViewHost extends TabManagerViewHost {
   refreshModelSelector(): void;
   refreshTabControls(): void;
   updateHiddenProviderCommands(): void;
+  refreshOutlineStyle?(): void;
 }
 
 /** Application capabilities consumed by user-facing features. */
@@ -40,10 +48,22 @@ export interface FeatureHost {
   /** Get the consciousness engine for awareness features. */
   getConsciousnessEngine(): ConsciousnessEngine;
 
+  /** Get the vault knowledge index for awareness reset and retrieval features. */
+  getVaultKnowledgeEngine(): VaultKnowledgeEngine;
+
   mutateSettings(
     mutation: (settings: ClaudianSettings) => void | Promise<void>,
   ): Promise<void>;
   getActiveEnvironmentVariables(providerId?: ProviderId): string;
+
+  /** Notifies providers that shared vault agent skills changed. */
+  notifyAgentSkillsChanged(): Promise<void>;
+
+  /** Optional live-preview composer enhancement for the chat input. */
+  getComposerEnhancement?(): ComposerEnhancement | null;
+
+  /** Shared agent-skill repository for vault .agents/skills management. */
+  getAgentSkillRepository(): AgentSkillRepository;
 
   createConversation(options?: {
     providerId?: ProviderId;

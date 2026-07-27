@@ -1,5 +1,3 @@
-import { setIcon } from 'obsidian';
-
 import {
   cancelScheduledAnimationFrame,
   scheduleAnimationFrame,
@@ -18,16 +16,11 @@ interface ConversationOutlineEntry {
   badge: string;
   kind: ConversationOutlineKind;
   level: ConversationOutlineLevel;
-  headingIndex?: number;
-  headingOccurrence?: number;
 }
 
 const OUTLINE_EXCERPT_LENGTH = 140;
 const OUTLINE_REFRESH_DELAY_MS = 80;
-const OUTLINE_COMPACT_MAX_GAP_PX = 12;
-const OUTLINE_COMPACT_MAX_SPAN_PX = 216;
 let nextOutlinePreviewId = 0;
-let nextDirectoryPopoverId = 0;
 
 function normalizeOutlineText(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
@@ -39,77 +32,63 @@ function truncateOutlineText(text: string, maxLength: number): string {
 }
 
 /**
- * Floating sidebar for navigating chat history.
- * Provides quick access to top/bottom and previous/next user messages.
+ * Floating conversation outline rail.
+ * Renders a track of horizontal tick markers sized to the transcript height.
  */
 export class NavigationSidebar {
   private container: HTMLElement;
-  private topBtn: HTMLElement;
-  private prevBtn: HTMLElement;
-  private tocBtn: HTMLElement;
-  private nextBtn: HTMLElement;
-  private bottomBtn: HTMLElement;
   private outlineTrack: HTMLElement;
   private outlineEntries: ConversationOutlineEntry[] = [];
   private outlineEntriesByMessage = new Map<HTMLElement, ConversationOutlineEntry[]>();
   private outlineMarkers: HTMLElement[] = [];
   private activeOutlineIndex: number | null = null;
-  private lastOutlineTrackHeight = -1;
   private outlinePreview: HTMLElement | null = null;
   private outlinePreviewTrigger: HTMLElement | null = null;
-  private tocPopover: HTMLElement | null = null;
-  private readonly directoryPopoverId = `claudian-directory-${++nextDirectoryPopoverId}`;
   private scrollHandler: () => void = () => {};
-  private outsideClickHandler: ((event: MouseEvent) => void) | null = null;
   private mutationObserver: MutationObserver | null = null;
+  private resizeObserver: ResizeObserver | null = null;
   private pendingVisibilityFrame: ScheduledAnimationFrame | null = null;
+  private pendingOutlineReposition = false;
   private pendingOutlineRefresh: { id: number; ownerWindow: Window } | null = null;
   private pendingOutlineMessages = new Set<HTMLElement>();
   private pendingFullOutlineRefresh = false;
   private isVisible: boolean | null = null;
+  private destroyed = false;
+  private outlineStyle: 'bar' | 'dot';
 
   constructor(
     private parentEl: HTMLElement,
-    private messagesEl: HTMLElement
+    private messagesEl: HTMLElement,
+    outlineStyle: 'bar' | 'dot' = 'bar',
   ) {
+    this.outlineStyle = outlineStyle;
     this.container = this.parentEl.createDiv({ cls: 'claudian-nav-sidebar' });
+    this.container.setAttribute('aria-label', 'Conversation outline sidebar');
+    this.applyOutlineStyle();
+    this.container.tabIndex = -1;
+    // tabIndex=-1 lets the container receive focus from container-level
+    // shortcuts without participating in the regular tab order.
 
-    // Create buttons
-    this.topBtn = this.createButton('claudian-nav-btn-top', 'chevrons-up', 'Scroll to top');
-    this.prevBtn = this.createButton('claudian-nav-btn-prev', 'chevron-up', 'Previous message');
-    const outlineSlot = this.container.createDiv({ cls: 'claudian-nav-outline-slot' });
-    this.tocBtn = this.createButton(
-      'claudian-nav-btn-toc',
-      'list-tree',
-      'Conversation directory',
-      outlineSlot,
-    );
-    this.outlineTrack = outlineSlot.createDiv({ cls: 'claudian-nav-outline-track' });
+    // Outline track holds horizontal tick markers sized to the transcript height.
+    this.outlineTrack = this.container.createDiv({ cls: 'claudian-nav-outline-track' });
     this.outlineTrack.setAttribute('role', 'navigation');
     this.outlineTrack.setAttribute('aria-label', 'Conversation outline');
-    this.nextBtn = this.createButton('claudian-nav-btn-next', 'chevron-down', 'Next message');
-    this.bottomBtn = this.createButton('claudian-nav-btn-bottom', 'chevrons-down', 'Scroll to bottom');
 
     this.setupEventListeners();
     this.refreshOutline();
     this.applyVisibility();
   }
 
-  private createButton(
-    cls: string,
-    icon: string,
-    label: string,
-    parentEl: HTMLElement = this.container,
-  ): HTMLElement {
-    const btn = parentEl.createEl('button', {
-      cls: `claudian-nav-btn ${cls}`,
-      attr: {
-        type: 'button',
-        'aria-label': label,
-      },
-    });
-    setIcon(btn, icon);
-    return btn;
+  setOutlineStyle(style: 'bar' | 'dot'): void {
+    if (this.outlineStyle === style) return;
+    this.outlineStyle = style;
+    this.applyOutlineStyle();
+    // Rebuild markers so the dot element rendering reflects the new mode.
+    this.refreshOutline();
+  }
+
+  private applyOutlineStyle(): void {
+    this.container.classList.toggle('claudian-nav-outline-dot-mode', this.outlineStyle === 'dot');
   }
 
   private setupEventListeners(): void {
@@ -117,49 +96,26 @@ export class NavigationSidebar {
     this.scrollHandler = () => this.updateVisibility();
     this.messagesEl.addEventListener('scroll', this.scrollHandler, { passive: true });
 
-    // Button clicks
-    this.topBtn.addEventListener('click', () => {
-      this.messagesEl.scrollTo({ top: 0, behavior: this.getScrollBehavior() });
-    });
-
-    this.bottomBtn.addEventListener('click', () => {
-      this.messagesEl.scrollTo({
-        top: this.messagesEl.scrollHeight,
-        behavior: this.getScrollBehavior(),
-      });
-    });
-
-    this.prevBtn.addEventListener('click', () => this.scrollToMessage('prev'));
-    this.nextBtn.addEventListener('click', () => this.scrollToMessage('next'));
-    this.tocBtn.addEventListener('click', (event) => {
-      event.stopPropagation();
-      this.toggleDirectory();
-    });
-    this.tocBtn.setAttribute('aria-haspopup', 'dialog');
-    this.tocBtn.setAttribute('aria-expanded', 'false');
-    this.tocBtn.setAttribute('aria-controls', this.directoryPopoverId);
-    this.tocBtn.addEventListener('keydown', (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || !this.tocPopover) return;
-      event.preventDefault();
-      event.stopPropagation();
-      this.closeDirectory(true);
-    });
-
-    this.outsideClickHandler = (event: MouseEvent) => {
-      const target = event.target as Node | null;
-      if (!target) return;
-      const containerContainsTarget = typeof this.container.contains === 'function'
-        && this.container.contains(target);
-      const popoverContainsTarget = typeof this.tocPopover?.contains === 'function'
-        && this.tocPopover.contains(target);
-      if (!containerContainsTarget && !popoverContainsTarget) {
-        this.closeDirectory();
+    this.container.addEventListener('keydown', (event: KeyboardEvent) => {
+      if (this.outlineMarkers.length === 0) return;
+      if (event.key === 'Home') {
+        event.preventDefault();
+        this.outlineMarkers[0]?.focus({ preventScroll: true });
+      } else if (event.key === 'End') {
+        event.preventDefault();
+        this.outlineMarkers[this.outlineMarkers.length - 1]?.focus({ preventScroll: true });
       }
-    };
-    this.parentEl.ownerDocument?.addEventListener?.('click', this.outsideClickHandler);
+    });
+
+    // Wave-focus effect (from codian dot navigation): dots near the
+    // hovered marker grow in proportion to their distance.
+    this.outlineTrack.addEventListener('mouseleave', () => {
+      this.resetWaveFocus();
+    });
 
     if (typeof MutationObserver !== 'undefined') {
       this.mutationObserver = new MutationObserver((mutations) => {
+        if (this.destroyed) return;
         this.updateVisibility();
         const outlineMutations = mutations.filter(mutation => this.mutationAffectsOutline(mutation));
         if (outlineMutations.length > 0) {
@@ -174,6 +130,20 @@ export class NavigationSidebar {
         characterData: true,
       });
     }
+
+    // A pane can change height or width without mutating the transcript. In
+    // that case scrollability, text wrapping, and marker positions all change
+    // together, so a scroll-only update leaves a stale rail behind.
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(() => {
+        if (this.destroyed) return;
+        this.scheduleLayoutUpdate(true);
+      });
+      this.resizeObserver.observe(this.messagesEl);
+      if (this.parentEl !== this.messagesEl) {
+        this.resizeObserver.observe(this.parentEl);
+      }
+    }
   }
 
   /**
@@ -181,9 +151,21 @@ export class NavigationSidebar {
    * Visible if content overflows.
    */
   updateVisibility(): void {
+    if (this.destroyed) return;
+    this.scheduleLayoutUpdate();
+  }
+
+  private scheduleLayoutUpdate(repositionOutlineMarkers = false): void {
+    if (this.destroyed) return;
+    this.pendingOutlineReposition ||= repositionOutlineMarkers;
     if (this.pendingVisibilityFrame !== null) return;
     this.pendingVisibilityFrame = scheduleAnimationFrame(() => {
       this.pendingVisibilityFrame = null;
+      if (this.destroyed) return;
+      if (this.pendingOutlineReposition) {
+        this.pendingOutlineReposition = false;
+        this.repositionOutlineMarkers();
+      }
       this.applyVisibility();
       this.applyActiveOutline();
     }, this.messagesEl.ownerDocument.defaultView ?? null);
@@ -191,14 +173,17 @@ export class NavigationSidebar {
 
   private applyVisibility(): void {
     const { scrollHeight, clientHeight } = this.messagesEl;
-    const isScrollable = scrollHeight > clientHeight + 50; // Small buffer
-    this.tocBtn.classList.remove('claudian-hidden');
-    if (this.isVisible === isScrollable) return;
-    this.isVisible = isScrollable;
-    this.container.classList.toggle('visible', isScrollable);
+    const isScrollable = scrollHeight > clientHeight + 10;
+    const hasOutline = this.outlineEntries.length > 0;
+    const shouldShow = isScrollable && hasOutline;
+    if (this.isVisible === shouldShow) return;
+    this.isVisible = shouldShow;
+    this.container.classList.toggle('visible', shouldShow);
+    this.parentEl.classList.toggle('claudian-has-nav-sidebar', shouldShow);
   }
 
   private scheduleOutlineRefresh(mutations: MutationRecord[]): void {
+    if (this.destroyed) return;
     this.queueOutlineMutations(mutations);
     if (this.pendingOutlineRefresh !== null) return;
     const ownerWindow = this.messagesEl.ownerDocument.defaultView;
@@ -213,6 +198,7 @@ export class NavigationSidebar {
     }
     const id = ownerWindow.setTimeout(() => {
       this.pendingOutlineRefresh = null;
+      if (this.destroyed) return;
       const dirtyMessages = this.pendingFullOutlineRefresh
         ? null
         : new Set(this.pendingOutlineMessages);
@@ -225,49 +211,18 @@ export class NavigationSidebar {
 
   private collectMessageOutlineEntries(messageEl: HTMLElement): ConversationOutlineEntry[] {
     const entries: ConversationOutlineEntry[] = [];
-    if (this.isUserMessageElement(messageEl)) {
-      const title = this.getDirectoryTitle(messageEl);
-      if (!title) return entries;
-      entries.push({
-        targetEl: messageEl,
-        messageEl,
-        title,
-        excerpt: this.getOutlineExcerpt(messageEl, title),
-        badge: 'Q',
-        kind: 'prompt',
-        level: 1,
-      });
-      return entries;
-    }
-
-    let headingIndex = 0;
-    const headingOccurrences = new Map<string, number>();
-    for (const textBlockEl of messageEl.querySelectorAll<HTMLElement>('.claudian-text-block')) {
-      for (const headingEl of textBlockEl.querySelectorAll<HTMLElement>('h1, h2, h3')) {
-        const level = this.getHeadingLevel(headingEl);
-        const title = truncateOutlineText(
-          normalizeOutlineText(headingEl.textContent ?? ''),
-          80,
-        );
-        if (!level || !title) continue;
-        const occurrenceKey = `${level}:${title}`;
-        const headingOccurrence = headingOccurrences.get(occurrenceKey) ?? 0;
-        headingOccurrences.set(occurrenceKey, headingOccurrence + 1);
-        entries.push({
-          targetEl: headingEl,
-          messageEl,
-          title,
-          excerpt: this.getHeadingExcerpt(headingEl),
-          badge: `H${level}`,
-          kind: 'heading',
-          level,
-          headingIndex,
-          headingOccurrence,
-        });
-        headingIndex += 1;
-      }
-    }
-
+    if (!this.isUserMessageElement(messageEl)) return entries;
+    const title = this.getDirectoryTitle(messageEl);
+    if (!title) return entries;
+    entries.push({
+      targetEl: messageEl,
+      messageEl,
+      title,
+      excerpt: this.getAssistantResponseExcerpt(messageEl),
+      badge: 'Q',
+      kind: 'prompt',
+      level: 1,
+    });
     return entries;
   }
 
@@ -275,7 +230,7 @@ export class NavigationSidebar {
     dirtyMessages: Set<HTMLElement> | null = null,
   ): ConversationOutlineEntry[] {
     const messageEls = Array.from(this.messagesEl.querySelectorAll<HTMLElement>(
-      '.claudian-message-user, .claudian-message-assistant, [data-role="user"], [data-role="assistant"]',
+      '.claudian-message-user, [data-role="user"]',
     ));
     const currentMessages = new Set(messageEls);
     for (const cachedMessage of this.outlineEntriesByMessage.keys()) {
@@ -310,10 +265,6 @@ export class NavigationSidebar {
       });
   }
 
-  private getDirectoryEntries(): ConversationOutlineEntry[] {
-    return this.collectOutlineEntries(null);
-  }
-
   private getDirectoryTitle(el: HTMLElement): string {
     const explicitTitle = (el.getAttribute('data-toc-title') ?? '').trim();
     if (explicitTitle) return explicitTitle;
@@ -322,79 +273,47 @@ export class NavigationSidebar {
     return formatConversationDirectoryTitle(contentEl?.textContent ?? el.textContent ?? '');
   }
 
-  private getOutlineExcerpt(sourceEl: HTMLElement, title: string): string {
-    const contentEl = sourceEl.classList.contains('claudian-text-block')
-      ? sourceEl
-      : sourceEl.querySelector<HTMLElement>('.claudian-message-content');
-    const content = normalizeOutlineText(contentEl?.textContent ?? sourceEl.textContent ?? '');
-    if (!content) return '';
-
-    const normalizedTitle = normalizeOutlineText(title);
-    const titleIndex = content.toLocaleLowerCase().indexOf(normalizedTitle.toLocaleLowerCase());
-    const remainder = titleIndex >= 0
-      ? content.slice(titleIndex + normalizedTitle.length).trim()
-      : content;
-    return truncateOutlineText(remainder, OUTLINE_EXCERPT_LENGTH);
-  }
-
-  private getHeadingExcerpt(headingEl: HTMLElement): string {
-    const sectionParts: string[] = [];
-    let sibling = headingEl.nextElementSibling as HTMLElement | null;
+  private getAssistantResponseExcerpt(userMsgEl: HTMLElement): string {
+    let sibling = userMsgEl.nextElementSibling as HTMLElement | null;
     while (sibling) {
-      if (this.getHeadingLevel(sibling)) break;
-      const text = normalizeOutlineText(sibling.textContent ?? '');
-      if (text) sectionParts.push(text);
+      // Consecutive user messages occur when a turn is queued, retried, or
+      // steered. Do not borrow the next turn's response as this prompt's
+      // directory preview.
+      if (this.isUserMessageElement(sibling)) {
+        return '';
+      }
+      const isAssistant = sibling.classList?.contains?.('claudian-message-assistant')
+        || sibling.getAttribute?.('data-role') === 'assistant';
+      if (isAssistant) {
+        const textBlocks = sibling.querySelectorAll<HTMLElement>('.claudian-text-block');
+        if (textBlocks.length > 0) {
+          const parts: string[] = [];
+          for (const block of textBlocks) {
+            const text = normalizeOutlineText(block.textContent ?? '');
+            if (text) parts.push(text);
+          }
+          return truncateOutlineText(parts.join(' '), OUTLINE_EXCERPT_LENGTH);
+        }
+        return '';
+      }
       sibling = sibling.nextElementSibling as HTMLElement | null;
     }
-    return truncateOutlineText(sectionParts.join(' '), OUTLINE_EXCERPT_LENGTH);
-  }
-
-  private getMessageHeadingElements(messageEl: HTMLElement): HTMLElement[] {
-    const headings: HTMLElement[] = [];
-    for (const textBlockEl of messageEl.querySelectorAll<HTMLElement>('.claudian-text-block')) {
-      for (const headingEl of textBlockEl.querySelectorAll<HTMLElement>('h1, h2, h3')) {
-        if (this.getHeadingLevel(headingEl) && normalizeOutlineText(headingEl.textContent ?? '')) {
-          headings.push(headingEl);
-        }
-      }
-    }
-    return headings;
+    return '';
   }
 
   private resolveEntryTarget(entry: ConversationOutlineEntry): HTMLElement {
     if (this.messagesEl.contains(entry.targetEl)) return entry.targetEl;
-
-    if (entry.kind === 'heading' && this.messagesEl.contains(entry.messageEl)) {
-      const headings = this.getMessageHeadingElements(entry.messageEl);
-      const matchingHeadings = headings.filter(headingEl => {
-        const level = this.getHeadingLevel(headingEl);
-        const title = truncateOutlineText(
-          normalizeOutlineText(headingEl.textContent ?? ''),
-          80,
-        );
-        return level === entry.level && title === entry.title;
-      });
-      const resolvedHeading = matchingHeadings[entry.headingOccurrence ?? 0]
-        ?? headings[entry.headingIndex ?? -1];
-      if (resolvedHeading) {
-        entry.targetEl = resolvedHeading;
-        entry.excerpt = this.getHeadingExcerpt(resolvedHeading);
-        return resolvedHeading;
-      }
-    }
-
     return this.messagesEl.contains(entry.messageEl) ? entry.messageEl : this.messagesEl;
-  }
-
-  private getHeadingLevel(el: HTMLElement): ConversationOutlineLevel | null {
-    const match = /^H([1-3])$/.exec(el.tagName.toUpperCase());
-    if (!match) return null;
-    return Number(match[1]) as ConversationOutlineLevel;
   }
 
   private isUserMessageElement(el: HTMLElement): boolean {
     return el.classList.contains('claudian-message-user')
       || el.getAttribute('data-role') === 'user';
+  }
+
+  private isAssistantMessageElement(el: HTMLElement): boolean {
+    return el.classList.contains('claudian-message-assistant')
+      || el.getAttribute('data-role') === 'assistant';
   }
 
   private isOutlineMessageElement(node: Node | null): node is HTMLElement {
@@ -404,9 +323,7 @@ export class NavigationSidebar {
       getAttribute?: (name: string) => string | null;
     };
     return candidate.classList?.contains?.('claudian-message-user') === true
-      || candidate.classList?.contains?.('claudian-message-assistant') === true
-      || candidate.getAttribute?.('data-role') === 'user'
-      || candidate.getAttribute?.('data-role') === 'assistant';
+      || candidate.getAttribute?.('data-role') === 'user';
   }
 
   private nodeContainsOutlineMessage(node: Node): boolean {
@@ -414,7 +331,7 @@ export class NavigationSidebar {
     const candidate = node as { querySelector?: (selector: string) => Element | null };
     return typeof candidate.querySelector === 'function'
       && candidate.querySelector(
-        '.claudian-message-user, .claudian-message-assistant, [data-role="user"], [data-role="assistant"]',
+        '.claudian-message-user, [data-role="user"]',
       ) !== null;
   }
 
@@ -423,6 +340,26 @@ export class NavigationSidebar {
     while (current && current !== this.messagesEl) {
       if (this.isOutlineMessageElement(current)) return current;
       current = current.parentNode;
+    }
+    return null;
+  }
+
+  /** Finds the user prompt whose directory preview is affected by a DOM change. */
+  private findAssociatedOutlineMessage(node: Node | null): HTMLElement | null {
+    const directMessage = this.findContainingOutlineMessage(node);
+    if (directMessage) return directMessage;
+
+    let current = node as HTMLElement | null;
+    while (current && current !== this.messagesEl) {
+      if (this.isAssistantMessageElement(current)) {
+        let sibling = current.previousElementSibling as HTMLElement | null;
+        while (sibling) {
+          if (this.isUserMessageElement(sibling)) return sibling;
+          sibling = sibling.previousElementSibling as HTMLElement | null;
+        }
+        return null;
+      }
+      current = current.parentElement;
     }
     return null;
   }
@@ -440,9 +377,18 @@ export class NavigationSidebar {
           this.pendingOutlineMessages.clear();
           continue;
         }
+
+        const associatedMessage = this.findAssociatedOutlineMessage(mutation.target)
+          ?? changedNodes
+            .map(node => this.findAssociatedOutlineMessage(node))
+            .find((message): message is HTMLElement => message !== null);
+        if (associatedMessage) {
+          this.pendingOutlineMessages.add(associatedMessage);
+          continue;
+        }
       }
 
-      const messageEl = this.findContainingOutlineMessage(mutation.target);
+      const messageEl = this.findAssociatedOutlineMessage(mutation.target);
       if (messageEl) {
         this.pendingOutlineMessages.add(messageEl);
       } else {
@@ -452,76 +398,21 @@ export class NavigationSidebar {
     }
   }
 
-  private isOutlineHeadingElement(node: Node | null): node is HTMLElement {
-    if (!node) return false;
-    const candidate = node as { tagName?: string };
-    return typeof candidate.tagName === 'string' && /^H[1-3]$/i.test(candidate.tagName);
-  }
-
-  private isWithinOutlineTextBlock(node: Node | null): boolean {
-    let current = node;
-    while (current && current !== this.messagesEl) {
-      const candidate = current as { classList?: { contains?: (className: string) => boolean } };
-      if (candidate.classList?.contains?.('claudian-text-block') === true) return true;
-      current = current.parentNode;
-    }
-    return false;
-  }
-
-  private nodeContainsOutlineHeading(node: Node, context: Node): boolean {
-    if (this.isOutlineHeadingElement(node)) {
-      return this.isWithinOutlineTextBlock(node) || this.isWithinOutlineTextBlock(context);
-    }
-
-    const candidate = node as {
-      classList?: { contains?: (className: string) => boolean };
-      querySelector?: (selector: string) => Element | null;
-      querySelectorAll?: (selector: string) => NodeListOf<HTMLElement>;
-    };
-    if (typeof candidate.querySelector !== 'function') return false;
-    if (
-      this.isWithinOutlineTextBlock(context)
-      && candidate.querySelector('h1, h2, h3') !== null
-    ) {
-      return true;
-    }
-    if (
-      candidate.classList?.contains?.('claudian-text-block') === true
-      && candidate.querySelector('h1, h2, h3') !== null
-    ) {
-      return true;
-    }
-    if (typeof candidate.querySelectorAll !== 'function') return false;
-    return Array.from(candidate.querySelectorAll('.claudian-text-block'))
-      .some(textBlock => textBlock.querySelector('h1, h2, h3') !== null);
-  }
-
   private mutationAffectsOutline(mutation: MutationRecord): boolean {
     if (mutation.type === 'attributes') {
       return mutation.attributeName === 'data-toc-title'
-        && this.isDirectoryMessageElement(mutation.target);
+        && this.findAssociatedOutlineMessage(mutation.target) !== null;
     }
-    if (mutation.type === 'characterData') {
-      return this.isOutlineHeadingElement(mutation.target.parentNode)
-        && this.isWithinOutlineTextBlock(mutation.target.parentNode);
-    }
+    if (mutation.type === 'characterData') return this.findAssociatedOutlineMessage(mutation.target) !== null;
     if (mutation.type !== 'childList') return false;
-    if (
-      this.isOutlineHeadingElement(mutation.target)
-      && this.isWithinOutlineTextBlock(mutation.target)
-    ) {
-      return true;
-    }
-    return Array.from(mutation.addedNodes).some(node => (
-      this.nodeContainsDirectoryMessage(node)
-      || this.nodeContainsOutlineHeading(node, mutation.target)
-    )) || Array.from(mutation.removedNodes).some(node => (
-      this.nodeContainsDirectoryMessage(node)
-      || this.nodeContainsOutlineHeading(node, mutation.target)
+    if (this.findAssociatedOutlineMessage(mutation.target)) return true;
+    return [...Array.from(mutation.addedNodes), ...Array.from(mutation.removedNodes)].some(node => (
+      this.findAssociatedOutlineMessage(node) !== null
     ));
   }
 
   private refreshOutline(dirtyMessages: Set<HTMLElement> | null = null): void {
+    if (this.destroyed) return;
     const nextEntries = this.collectOutlineEntries(dirtyMessages);
     if (this.hasSameOutlineStructure(nextEntries)) {
       const previewMarkerIndex = this.outlinePreviewTrigger
@@ -531,8 +422,6 @@ export class NavigationSidebar {
         this.outlineEntries[index].targetEl = entry.targetEl;
         this.outlineEntries[index].messageEl = entry.messageEl;
         this.outlineEntries[index].excerpt = entry.excerpt;
-        this.outlineEntries[index].headingIndex = entry.headingIndex;
-        this.outlineEntries[index].headingOccurrence = entry.headingOccurrence;
       });
       if (previewMarkerIndex >= 0) {
         this.showOutlinePreview(
@@ -540,7 +429,9 @@ export class NavigationSidebar {
           this.outlineMarkers[previewMarkerIndex],
         );
       }
+      this.repositionOutlineMarkers();
       this.applyActiveOutline();
+      this.applyVisibility();
       return;
     }
 
@@ -553,18 +444,19 @@ export class NavigationSidebar {
     this.outlineMarkers = [];
     this.activeOutlineIndex = null;
     this.outlineTrack.empty();
-    this.tocBtn.classList.toggle('has-outline', this.outlineEntries.length > 0);
 
     this.outlineEntries.forEach((entry, index) => {
       const marker = this.outlineTrack.createEl('button', {
         cls: 'claudian-nav-outline-marker',
         attr: {
           type: 'button',
-          'aria-label': `${entry.badge}: ${entry.title}`,
+          'aria-label': entry.title,
           'data-outline-kind': entry.kind,
           'data-outline-level': String(entry.level),
         },
       });
+      // Dot marker (codian-style circle) coexists with the ::before bar.
+      marker.createSpan({ cls: 'claudian-nav-outline-dot' });
       this.positionOutlineMarker(marker, index);
       this.outlineMarkers.push(marker);
 
@@ -574,7 +466,10 @@ export class NavigationSidebar {
         this.hideOutlinePreview();
       };
       marker.addEventListener('click', selectEntry);
-      marker.addEventListener('mouseenter', () => this.showOutlinePreview(entry, marker));
+      marker.addEventListener('mouseenter', () => {
+        this.applyWaveFocus(index);
+        this.showOutlinePreview(entry, marker);
+      });
       marker.addEventListener('mouseleave', () => this.hideOutlinePreview());
       marker.addEventListener('focus', () => this.showOutlinePreview(entry, marker));
       marker.addEventListener('blur', () => this.hideOutlinePreview());
@@ -582,6 +477,28 @@ export class NavigationSidebar {
         if (event.key === 'Escape') {
           event.preventDefault();
           this.hideOutlinePreview();
+          (marker as HTMLElement & { blur?: () => void }).blur?.();
+          return;
+        }
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          event.preventDefault();
+          const direction = event.key === 'ArrowDown' ? 1 : -1;
+          const nextIndex = Math.max(
+            0,
+            Math.min(
+              this.outlineMarkers.length - 1,
+              this.outlineMarkers.indexOf(marker) + direction,
+            ),
+          );
+          const nextMarker = this.outlineMarkers[nextIndex];
+          if (nextMarker && nextMarker !== marker) {
+            nextMarker.focus({ preventScroll: true });
+          }
+          return;
+        }
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          selectEntry(event);
         }
       });
     });
@@ -590,10 +507,13 @@ export class NavigationSidebar {
     if (focusedMarkerIndex >= 0) {
       const nextFocusTarget = this.outlineMarkers[
         Math.min(focusedMarkerIndex, this.outlineMarkers.length - 1)
-      ] ?? this.tocBtn;
-      nextFocusTarget.focus({ preventScroll: true });
+      ];
+      nextFocusTarget?.focus({ preventScroll: true });
     }
-    this.refreshOpenDirectory(this.outlineEntries);
+    // MutationObserver schedules visibility before its debounced outline scan.
+    // Re-evaluate after the scan so a newly restored or removed conversation
+    // cannot leave a stale rail (or a stale message gutter) behind.
+    this.applyVisibility();
   }
 
   private applyActiveOutline(): void {
@@ -620,9 +540,6 @@ export class NavigationSidebar {
     }
 
     if (this.activeOutlineIndex === activeIndex) {
-      if (this.outlineTrack.clientHeight !== this.lastOutlineTrackHeight) {
-        this.scrollActiveMarkerIntoView(this.outlineMarkers[activeIndex]);
-      }
       return;
     }
 
@@ -635,59 +552,27 @@ export class NavigationSidebar {
     activeMarker.classList.add('is-active');
     activeMarker.setAttribute('aria-current', 'location');
     this.activeOutlineIndex = activeIndex;
-    this.scrollActiveMarkerIntoView(activeMarker);
   }
 
-  private scrollActiveMarkerIntoView(marker: HTMLElement): void {
-    const trackHeight = this.outlineTrack.clientHeight;
-    this.lastOutlineTrackHeight = trackHeight;
-    if (trackHeight <= 0) return;
-
-    let markerTop = marker.offsetTop;
-    if (
-      typeof marker.getBoundingClientRect === 'function'
-      && typeof this.outlineTrack.getBoundingClientRect === 'function'
-    ) {
-      const markerRect = marker.getBoundingClientRect();
-      const trackRect = this.outlineTrack.getBoundingClientRect();
-      markerTop = this.outlineTrack.scrollTop + markerRect.top - trackRect.top;
-    }
-    const markerBottom = markerTop + marker.offsetHeight;
-    const viewportTop = this.outlineTrack.scrollTop;
-    const viewportBottom = viewportTop + trackHeight;
-    const padding = 8;
-
-    if (markerTop < viewportTop + padding) {
-      this.outlineTrack.scrollTo({
-        top: Math.max(markerTop - padding, 0),
-        behavior: 'auto',
-      });
-    } else if (markerBottom > viewportBottom - padding) {
-      this.outlineTrack.scrollTo({
-        top: markerBottom - trackHeight + padding,
-        behavior: 'auto',
-      });
-    }
+  private positionOutlineMarker(_marker: HTMLElement, _index: number): void {
+    // Markers are laid out by the track's flex gap, so no per-marker position
+    // is required. This method stays as an extension point for future per
+    // entry styling (e.g. heading levels, badges).
   }
 
-  private positionOutlineMarker(marker: HTMLElement, index: number): void {
-    const count = this.outlineEntries.length;
-    const gap = count > 1
-      ? Math.min(OUTLINE_COMPACT_MAX_GAP_PX, OUTLINE_COMPACT_MAX_SPAN_PX / (count - 1))
-      : 0;
-    const offset = (index - (count - 1) / 2) * gap;
-    marker.style.setProperty('--claudian-outline-offset', `${offset.toFixed(2)}px`);
+  private repositionOutlineMarkers(): void {
+    this.outlineMarkers.forEach((marker, index) => this.positionOutlineMarker(marker, index));
   }
 
   private showOutlinePreview(entry: ConversationOutlineEntry, marker: HTMLElement): void {
     this.hideOutlinePreview();
+    const index = this.outlineMarkers.indexOf(marker);
     this.resolveEntryTarget(entry);
     const preview = this.parentEl.createDiv({ cls: 'claudian-nav-outline-preview' });
     const previewId = `claudian-outline-preview-${++nextOutlinePreviewId}`;
     preview.setAttribute('id', previewId);
     preview.setAttribute('role', 'tooltip');
     marker.setAttribute('aria-describedby', previewId);
-    preview.createDiv({ cls: 'claudian-nav-outline-preview-badge', text: entry.badge });
     preview.createDiv({ cls: 'claudian-nav-outline-preview-title', text: entry.title });
     if (entry.excerpt) {
       preview.createDiv({
@@ -695,131 +580,120 @@ export class NavigationSidebar {
         text: entry.excerpt,
       });
     }
+    if (index >= 0 && entry.badge) {
+      const badge = preview.createDiv({
+        cls: 'claudian-nav-outline-preview-badge',
+        text: `${entry.badge}${index + 1}`,
+      });
+      badge.setAttribute('aria-hidden', 'true');
+    }
     this.positionOutlinePreview(preview, marker);
     this.outlinePreview = preview;
     this.outlinePreviewTrigger = marker;
   }
 
   private positionOutlinePreview(preview: HTMLElement, marker: HTMLElement): void {
-    const parentRect = this.parentEl.getBoundingClientRect?.();
     const markerRect = marker.getBoundingClientRect?.();
-    if (!parentRect || !markerRect || parentRect.height <= 0) return;
+    if (!markerRect) return;
 
-    const markerCenter = markerRect.top - parentRect.top + markerRect.height / 2;
-    const top = Math.max(12, Math.min(markerCenter, parentRect.height - 12));
+    // Both sidebar and preview are position:fixed — use viewport coords.
+    const markerCenter = markerRect.top + markerRect.height / 2;
+    const previewHeight = preview.offsetHeight || 120;
+    const viewportHeight = window.innerHeight;
+    const edgePadding = 12;
+    const minTop = edgePadding;
+    const maxTop = viewportHeight - edgePadding - previewHeight;
+    const top = maxTop >= minTop
+      ? Math.max(minTop, Math.min(markerCenter - previewHeight / 2, maxTop))
+      : viewportHeight / 2 - previewHeight / 2;
     preview.style.setProperty('--claudian-outline-preview-top', `${top}px`);
   }
 
   private hideOutlinePreview(): void {
-    this.outlinePreviewTrigger?.removeAttribute('aria-describedby');
-    this.outlinePreview?.remove();
+    const preview = this.outlinePreview;
+    if (!preview) return;
     this.outlinePreview = null;
+    this.outlinePreviewTrigger?.removeAttribute('aria-describedby');
     this.outlinePreviewTrigger = null;
-  }
-
-  private nodeContainsDirectoryMessage(node: Node): boolean {
-    if (this.isDirectoryMessageElement(node)) return true;
-    const candidate = node as { querySelector?: (selector: string) => Element | null };
-    return typeof candidate.querySelector === 'function'
-      && candidate.querySelector('.claudian-message-user, [data-role="user"]') !== null;
-  }
-
-  private isDirectoryMessageElement(node: Node): boolean {
-    const candidate = node as {
-      matches?: (selector: string) => boolean;
-      classList?: { contains?: (className: string) => boolean };
-      getAttribute?: (name: string) => string | null;
+    if (this.destroyed) {
+      preview.remove();
+      return;
+    }
+    // Play a soft exit animation so the card does not vanish abruptly when
+    // the user moves between markers.
+    preview.classList.add('claudian-nav-outline-preview-leaving');
+    const ownerWindow = this.messagesEl.ownerDocument.defaultView;
+    const cleanup = () => {
+      if (preview.dataset['claudianCollapsed'] === '1') return;
+      preview.remove();
     };
-    if (typeof candidate.matches === 'function') {
-      return candidate.matches('.claudian-message-user, [data-role="user"]');
-    }
-    return candidate.classList?.contains?.('claudian-message-user') === true
-      || candidate.getAttribute?.('data-role') === 'user';
+    preview.addEventListener('animationend', cleanup, { once: true });
+    ownerWindow?.setTimeout(cleanup, 160);
   }
 
-  private toggleDirectory(): void {
-    if (this.tocPopover) {
-      this.closeDirectory();
-      return;
-    }
-    this.openDirectory();
-  }
-
-  private openDirectory(
-    entries: ConversationOutlineEntry[] = this.getDirectoryEntries(),
-    focusIndex: number | null = null,
-  ): void {
-    this.closeDirectory();
-    this.hideOutlinePreview();
-    this.tocPopover = this.parentEl.createDiv({ cls: 'claudian-nav-toc-popover' });
-    const titleId = `${this.directoryPopoverId}-title`;
-    this.tocPopover.setAttribute('id', this.directoryPopoverId);
-    this.tocPopover.setAttribute('role', 'dialog');
-    this.tocPopover.setAttribute('aria-labelledby', titleId);
-    this.tocPopover.addEventListener('keydown', (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      event.stopPropagation();
-      this.closeDirectory(true);
+  /**
+   * Wave-focus effect from codian dot navigation: dots near the hovered
+   * marker scale up based on their distance, creating a ripple.
+   */
+  private applyWaveFocus(focusIndex: number): void {
+    this.outlineMarkers.forEach((marker, index) => {
+      const distance = Math.abs(index - focusIndex);
+      const size = Math.max(5, 10 - distance * 2);
+      const dot = marker.querySelector<HTMLElement>('.claudian-nav-outline-dot');
+      if (dot) {
+        dot.style.width = `${size}px`;
+        dot.style.height = `${size}px`;
+      }
     });
-    this.tocBtn.setAttribute('aria-expanded', 'true');
-    const titleEl = this.tocPopover.createDiv({
-      cls: 'claudian-nav-toc-title',
-      text: 'Conversation directory',
-    });
-    titleEl.setAttribute('id', titleId);
-    const listEl = this.tocPopover.createDiv({ cls: 'claudian-nav-toc-list' });
+  }
 
-    if (entries.length === 0) {
-      listEl.createDiv({
-        cls: 'claudian-nav-toc-empty',
-        text: 'No outline entries in this conversation',
-      });
-      return;
-    }
-
-    entries.forEach((entry, index) => {
-      const itemEl = listEl.createEl('button', {
-        cls: 'claudian-nav-toc-item',
-        text: `${index + 1}. ${entry.title}`,
-        attr: {
-          type: 'button',
-          title: entry.title,
-          'data-outline-kind': entry.kind,
-          'data-outline-level': String(entry.level),
-          'data-outline-index': String(index),
-        },
-      });
-
-      const selectEntry = () => {
-        this.scrollToElement(this.resolveEntryTarget(entry));
-        this.closeDirectory(true);
-      };
-      itemEl.addEventListener('click', selectEntry);
-    });
-
-    if (focusIndex !== null) {
-      const focusTarget = listEl.querySelector<HTMLElement>(
-        `[data-outline-index="${Math.min(focusIndex, entries.length - 1)}"]`,
-      );
-      focusTarget?.focus({ preventScroll: true });
+  private resetWaveFocus(): void {
+    for (const marker of this.outlineMarkers) {
+      const dot = marker.querySelector<HTMLElement>('.claudian-nav-outline-dot');
+      if (dot) {
+        dot.style.width = '';
+        dot.style.height = '';
+      }
     }
   }
 
-  private refreshOpenDirectory(entries: ConversationOutlineEntry[]): void {
-    if (!this.tocPopover) return;
-    const activeElement = this.parentEl.ownerDocument.activeElement as HTMLElement | null;
-    const focusIndex = activeElement && this.tocPopover.contains(activeElement)
-      ? Number(activeElement.getAttribute('data-outline-index'))
-      : null;
-    this.openDirectory(entries, Number.isFinite(focusIndex) ? focusIndex : null);
+  collapse(): void {
+    // Skip the exit animation when collapsing — the entire sidebar is going
+    // away so the listener should not see a fading card mid-transition.
+    // Mark the element so a still-pending hideOutlinePreview timeout can
+    // detect that it was already removed and skip the double-remove.
+    const preview = this.outlinePreview;
+    this.outlinePreview = null;
+    this.outlinePreviewTrigger?.removeAttribute('aria-describedby');
+    this.outlinePreviewTrigger = null;
+    if (preview) {
+      preview.dataset['claudianCollapsed'] = '1';
+      preview.remove();
+    }
   }
 
-  private closeDirectory(restoreFocus = false): void {
-    this.tocPopover?.remove();
-    this.tocPopover = null;
-    this.tocBtn.setAttribute('aria-expanded', 'false');
-    if (restoreFocus) this.tocBtn.focus({ preventScroll: true });
+  destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    if (this.pendingVisibilityFrame !== null) {
+      cancelScheduledAnimationFrame(this.pendingVisibilityFrame);
+      this.pendingVisibilityFrame = null;
+    }
+    this.pendingOutlineReposition = false;
+    if (this.pendingOutlineRefresh !== null) {
+      this.pendingOutlineRefresh.ownerWindow.clearTimeout(this.pendingOutlineRefresh.id);
+      this.pendingOutlineRefresh = null;
+    }
+    this.pendingOutlineMessages.clear();
+    this.outlineEntriesByMessage.clear();
+    this.collapse();
+    this.mutationObserver?.disconnect();
+    this.mutationObserver = null;
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
+    this.messagesEl.removeEventListener('scroll', this.scrollHandler);
+    this.parentEl.classList.remove('claudian-has-nav-sidebar');
+    this.container.remove();
   }
 
   private scrollToElement(el: HTMLElement): void {
@@ -853,69 +727,5 @@ export class NavigationSidebar {
       current = current.parentElement;
     }
     return top;
-  }
-
-  /**
-   * Scrolls to previous or next user message, skipping assistant messages.
-   */
-  private scrollToMessage(direction: 'prev' | 'next'): void {
-    const messages = Array.from(this.messagesEl.querySelectorAll<HTMLElement>('.claudian-message-user'));
-
-    if (messages.length === 0) return;
-
-    const scrollTop = this.messagesEl.scrollTop;
-    const threshold = 30;
-
-    if (direction === 'prev') {
-      // Find the last message strictly above the current scroll position
-      for (let i = messages.length - 1; i >= 0; i--) {
-        if (messages[i].offsetTop < scrollTop - threshold) {
-          this.scrollToElement(messages[i]);
-          return;
-        }
-      }
-      // Already at or above the first message — scroll to top
-      this.messagesEl.scrollTo({ top: 0, behavior: this.getScrollBehavior() });
-    } else {
-      // Find the first message strictly below the current scroll position
-      for (let i = 0; i < messages.length; i++) {
-        if (messages[i].offsetTop > scrollTop + threshold) {
-          this.scrollToElement(messages[i]);
-          return;
-        }
-      }
-      // Already at or past the last message — scroll to bottom
-      this.messagesEl.scrollTo({
-        top: this.messagesEl.scrollHeight,
-        behavior: this.getScrollBehavior(),
-      });
-    }
-  }
-
-  collapse(): void {
-    this.hideOutlinePreview();
-    this.closeDirectory();
-  }
-
-  destroy(): void {
-    if (this.pendingVisibilityFrame !== null) {
-      cancelScheduledAnimationFrame(this.pendingVisibilityFrame);
-      this.pendingVisibilityFrame = null;
-    }
-    if (this.pendingOutlineRefresh !== null) {
-      this.pendingOutlineRefresh.ownerWindow.clearTimeout(this.pendingOutlineRefresh.id);
-      this.pendingOutlineRefresh = null;
-    }
-    this.pendingOutlineMessages.clear();
-    this.outlineEntriesByMessage.clear();
-    this.collapse();
-    if (this.outsideClickHandler) {
-      this.parentEl.ownerDocument?.removeEventListener?.('click', this.outsideClickHandler);
-      this.outsideClickHandler = null;
-    }
-    this.mutationObserver?.disconnect();
-    this.mutationObserver = null;
-    this.messagesEl.removeEventListener('scroll', this.scrollHandler);
-    this.container.remove();
   }
 }
