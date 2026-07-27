@@ -3,6 +3,11 @@ type TestWindow = typeof globalThis & {
   requestAnimationFrame?: (callback: FrameRequestCallback) => number;
 };
 
+// Register built-in providers so all tests can resolve provider lookups.
+// In production this runs inside onload; tests need it eagerly.
+import { registerBuiltInProviders } from '../src/providers';
+registerBuiltInProviders();
+
 const testWindow = globalThis as TestWindow;
 
 if (!testWindow.requestAnimationFrame) {
