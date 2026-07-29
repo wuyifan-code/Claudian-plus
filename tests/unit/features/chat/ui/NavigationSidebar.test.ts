@@ -212,6 +212,12 @@ class MockElement {
     this.textContent = text;
   }
 
+  setCssProps(properties: Record<string, string>): void {
+    for (const [name, value] of Object.entries(properties)) {
+      this.style.setProperty(name, value);
+    }
+  }
+
   createEl(
     tagName: string,
     options?: { cls?: string; text?: string; attr?: Record<string, string> }

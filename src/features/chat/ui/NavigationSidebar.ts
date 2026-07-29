@@ -641,8 +641,10 @@ export class NavigationSidebar {
       const size = Math.max(5, 10 - distance * 2);
       const dot = marker.querySelector<HTMLElement>('.claudian-plus-nav-outline-dot');
       if (dot) {
-        dot.style.width = `${size}px`;
-        dot.style.height = `${size}px`;
+        dot.setCssProps({
+          width: `${size}px`,
+          height: `${size}px`,
+        });
       }
     });
   }
@@ -651,8 +653,7 @@ export class NavigationSidebar {
     for (const marker of this.outlineMarkers) {
       const dot = marker.querySelector<HTMLElement>('.claudian-plus-nav-outline-dot');
       if (dot) {
-        dot.style.width = '';
-        dot.style.height = '';
+        dot.setCssProps({ width: '', height: '' });
       }
     }
   }

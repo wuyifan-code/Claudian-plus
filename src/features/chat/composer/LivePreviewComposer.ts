@@ -15,9 +15,19 @@ import { setIcon } from 'obsidian';
 
 import type { VaultContextReference } from './types';
 
-// CodeMirror widgets must return detached elements from toDOM(); Obsidian's
-// createEl/createSpan helpers append to a parent, so plain createElement is used.
-/* eslint-disable obsidianmd/prefer-create-el */
+/**
+ * CodeMirror widgets must return detached elements from `toDOM()`.  Creating
+ * through the owning editor keeps pop-out windows on the correct document;
+ * detaching immediately leaves the widget ready for CodeMirror to mount.
+ */
+function createDetachedElement<K extends keyof HTMLElementTagNameMap>(
+  view: EditorView,
+  tag: K,
+): HTMLElementTagNameMap[K] {
+  const element = view.dom.createEl(tag);
+  element.detach();
+  return element;
+}
 
 const refreshDecorationsEffect = StateEffect.define<void>();
 const MAX_REFERENCE_LABEL_LENGTH = 20;
@@ -51,7 +61,7 @@ class InlineCodeWidget extends WidgetType {
   }
 
   toDOM(view: EditorView): HTMLElement {
-    const element = view.dom.ownerDocument.createElement('code');
+    const element = createDetachedElement(view, 'code');
     element.classList.add('claudian-plus-live-preview-inline-code');
     element.textContent = this.text;
     return element;
@@ -68,7 +78,7 @@ class LinkWidget extends WidgetType {
   }
 
   toDOM(view: EditorView): HTMLElement {
-    const element = view.dom.ownerDocument.createElement('span');
+    const element = createDetachedElement(view, 'span');
     element.classList.add('claudian-plus-live-preview-link');
     element.dataset.href = this.href;
     element.title = this.href;
@@ -87,7 +97,7 @@ class ListMarkerWidget extends WidgetType {
   }
 
   toDOM(view: EditorView): HTMLElement {
-    const element = view.dom.ownerDocument.createElement('span');
+    const element = createDetachedElement(view, 'span');
     element.classList.add(this.ordered
       ? 'claudian-plus-live-preview-ordered-marker'
       : 'claudian-plus-live-preview-unordered-marker');
@@ -116,10 +126,9 @@ class VaultReferenceWidget extends WidgetType {
   }
 
   toDOM(view: EditorView): HTMLElement {
-    const ownerDocument = view.dom.ownerDocument;
-    const element = ownerDocument.createElement('span');
-    const icon = ownerDocument.createElement('span');
-    const label = ownerDocument.createElement('span');
+    const element = createDetachedElement(view, 'span');
+    const icon = createDetachedElement(view, 'span');
+    const label = createDetachedElement(view, 'span');
     const token = `@${this.reference.path}${this.reference.kind === 'folder' ? '/' : ''}`;
 
     element.classList.add('claudian-plus-live-preview-reference');

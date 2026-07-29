@@ -1,5 +1,6 @@
 import type { EditorView, PluginValue, ViewUpdate } from '@codemirror/view';
 import { ViewPlugin, WidgetType } from '@codemirror/view';
+import { setIcon } from 'obsidian';
 
 import { getActiveDocument } from '../../../utils/obsidianCompat';
 
@@ -10,8 +11,8 @@ import { getActiveDocument } from '../../../utils/obsidianCompat';
 export interface EditorFloatingBarAction {
   id: string;
   label: string;
+  /** A Lucide icon name, or a short literal symbol for custom actions. */
   icon?: string;
-  iconSvg?: string;
   /** Prompt template — `{selection}` is replaced with the selected text. */
   promptTemplate: string;
   /** Optional: use inline edit modal instead of sidebar. */
@@ -35,20 +36,11 @@ export interface EditorFloatingBarOptions {
 const BAR_SELECTION_GAP_PX = 10;
 const BAR_VIEWPORT_MARGIN_PX = 8;
 
-const SVG_ICONS = {
-  sparkles: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>`,
-  explain: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>`,
-  translate: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>`,
-  summarize: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
-  grammar: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`,
-  more: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>`,
-};
-
 const DEFAULT_ACTIONS: EditorFloatingBarAction[] = [
   {
     id: 'rewrite',
     label: '改写',
-    iconSvg: SVG_ICONS.sparkles,
+    icon: 'sparkles',
     inlineEdit: true,
     mode: 'inline',
     primary: true,
@@ -58,7 +50,7 @@ const DEFAULT_ACTIONS: EditorFloatingBarAction[] = [
   {
     id: 'explain',
     label: '解释',
-    iconSvg: SVG_ICONS.explain,
+    icon: 'help-circle',
     mode: 'chat',
     primary: true,
     promptTemplate: '请简明扼要地解释以下内容：\n\n{selection}',
@@ -66,7 +58,7 @@ const DEFAULT_ACTIONS: EditorFloatingBarAction[] = [
   {
     id: 'translate',
     label: '翻译',
-    iconSvg: SVG_ICONS.translate,
+    icon: 'languages',
     inlineEdit: true,
     mode: 'inline',
     primary: true,
@@ -76,14 +68,14 @@ const DEFAULT_ACTIONS: EditorFloatingBarAction[] = [
   {
     id: 'summarize',
     label: '提炼',
-    iconSvg: SVG_ICONS.summarize,
+    icon: 'file-text',
     mode: 'chat',
     promptTemplate: '请用 1-3 句话总结提炼以下内容的核心要点：\n\n{selection}',
   },
   {
     id: 'fix-grammar',
     label: '纠错',
-    iconSvg: SVG_ICONS.grammar,
+    icon: 'check',
     inlineEdit: true,
     mode: 'inline',
     initialInstruction: '只修正语法、错别字和标点，不要改变原意。',
@@ -92,7 +84,7 @@ const DEFAULT_ACTIONS: EditorFloatingBarAction[] = [
   {
     id: 'custom',
     label: '提问',
-    iconSvg: SVG_ICONS.sparkles,
+    icon: 'sparkles',
     mode: 'custom',
     promptTemplate: '{selection}',
   },
@@ -144,11 +136,13 @@ export class FloatingToolbarWidget extends WidgetType {
         },
       });
       btn.title = action.label;
-      if (action.iconSvg) {
+      if (action.icon) {
         const iconSpan = btn.createSpan({ cls: 'claudian-plus-floating-bar-icon' });
-        iconSpan.innerHTML = action.iconSvg;
-      } else if (action.icon) {
-        btn.createSpan({ cls: 'claudian-plus-floating-bar-icon', text: action.icon });
+        if (/^[a-z0-9-]+$/.test(action.icon)) {
+          setIcon(iconSpan, action.icon);
+        } else {
+          iconSpan.textContent = action.icon;
+        }
       }
       btn.createSpan({ cls: 'claudian-plus-floating-bar-label', text: action.label });
       btn.addEventListener('mousedown', (event) => {
@@ -177,7 +171,7 @@ export class FloatingToolbarWidget extends WidgetType {
         },
       });
       const iconSpan = moreButton.createSpan({ cls: 'claudian-plus-floating-bar-icon' });
-      iconSpan.innerHTML = SVG_ICONS.more;
+      setIcon(iconSpan, 'ellipsis');
       moreButton.createSpan({ cls: 'claudian-plus-floating-bar-label', text: '更多' });
       const menu = moreWrap.createDiv({
         cls: 'claudian-plus-floating-bar-menu claudian-plus-floating-bar-menu-hidden',
