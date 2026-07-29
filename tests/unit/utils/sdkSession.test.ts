@@ -1,6 +1,7 @@
 import { existsSync } from 'fs';
 import * as fsPromises from 'fs/promises';
 import * as os from 'os';
+import * as path from 'path';
 
 import {
   collectAsyncSubagentResults,
@@ -32,37 +33,72 @@ jest.mock('os');
 const mockExistsSync = existsSync as jest.MockedFunction<typeof existsSync>;
 const mockFsPromises = fsPromises as jest.Mocked<typeof fsPromises>;
 const mockOs = os as jest.Mocked<typeof os>;
+const SDK_HOME = '/Users/test';
+const SDK_VAULT = '/Users/test/vault';
+
+function expectedEncodedVault(vaultPath = SDK_VAULT): string {
+  return path.resolve(vaultPath).replace(/[^a-zA-Z0-9]/g, '-');
+}
+
+function expectedProjectsPath(configDir = path.join(SDK_HOME, '.claude')): string {
+  return path.join(path.normalize(configDir), 'projects');
+}
+
+function expectedSessionPath(
+  sessionId: string,
+  configDir = path.join(SDK_HOME, '.claude'),
+): string {
+  return path.join(expectedProjectsPath(configDir), expectedEncodedVault(), `${sessionId}.jsonl`);
+}
+
+function expectedSubagentPath(
+  sessionId: string,
+  agentId: string,
+  configDir = path.join(SDK_HOME, '.claude'),
+): string {
+  return path.join(
+    expectedProjectsPath(configDir),
+    expectedEncodedVault(),
+    sessionId,
+    'subagents',
+    `agent-${agentId}.jsonl`,
+  );
+}
+
+function withForwardSlashes(value: string): string {
+  return value.replace(/\\/g, '/');
+}
 
 describe('sdkSession', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockOs.homedir.mockReturnValue('/Users/test');
+    mockOs.homedir.mockReturnValue(SDK_HOME);
   });
 
   describe('encodeVaultPathForSDK', () => {
     it('encodes vault path by replacing all non-alphanumeric chars with dash', () => {
-      const encoded = encodeVaultPathForSDK('/Users/test/vault');
+      const encoded = encodeVaultPathForSDK(SDK_VAULT);
       // SDK replaces ALL non-alphanumeric characters with `-`
-      expect(encoded).toBe('-Users-test-vault');
+      expect(encoded).toBe(expectedEncodedVault());
     });
 
     it('handles paths with spaces and special characters', () => {
       const encoded = encodeVaultPathForSDK("/Users/test/My Vault's~Data");
-      expect(encoded).toBe('-Users-test-My-Vault-s-Data');
+      expect(encoded).toBe(path.resolve("/Users/test/My Vault's~Data").replace(/[^a-zA-Z0-9]/g, '-'));
     });
 
     it('handles Unicode characters (Chinese, Japanese, etc.)', () => {
       // Unicode characters should be replaced with `-` to match SDK behavior
       const encoded = encodeVaultPathForSDK('/Volumes/[Work]弘毅之鹰/学习/东京大学/2025年 秋');
       // All non-alphanumeric (including Chinese, brackets) become `-`
-      expect(encoded).toBe('-Volumes--Work--------------2025---');
+      expect(encoded).toBe(path.resolve('/Volumes/[Work]弘毅之鹰/学习/东京大学/2025年 秋').replace(/[^a-zA-Z0-9]/g, '-'));
       // Verify only ASCII alphanumeric and dash remain
       expect(encoded).toMatch(/^[a-zA-Z0-9-]+$/);
     });
 
     it('handles brackets and other special characters', () => {
       const encoded = encodeVaultPathForSDK('/Users/test/[my-vault](notes)');
-      expect(encoded).toBe('-Users-test--my-vault--notes-');
+      expect(encoded).toBe(path.resolve('/Users/test/[my-vault](notes)').replace(/[^a-zA-Z0-9]/g, '-'));
       expect(encoded).not.toContain('[');
       expect(encoded).not.toContain(']');
       expect(encoded).not.toContain('(');
@@ -100,7 +136,7 @@ describe('sdkSession', () => {
   describe('getSDKProjectsPath', () => {
     it('returns path under home directory', () => {
       const projectsPath = getSDKProjectsPath();
-      expect(projectsPath).toBe('/Users/test/.claude/projects');
+      expect(projectsPath).toBe(expectedProjectsPath());
     });
 
     it('uses CLAUDE_CONFIG_DIR from the effective SDK environment', () => {
@@ -109,7 +145,7 @@ describe('sdkSession', () => {
         vaultPath: '/Users/test/vault',
       });
 
-      expect(projectsPath).toBe('/custom/claude/projects');
+      expect(projectsPath).toBe(expectedProjectsPath('/custom/claude'));
     });
 
     it('resolves a relative CLAUDE_CONFIG_DIR from the SDK working directory', () => {
@@ -118,7 +154,7 @@ describe('sdkSession', () => {
         vaultPath: '/Users/test/vault',
       });
 
-      expect(projectsPath).toBe('/Users/test/vault/.claude-custom/projects');
+      expect(projectsPath).toBe(path.join(path.resolve(SDK_VAULT, '.claude-custom'), 'projects'));
     });
 
     it('falls back to the default directory when CLAUDE_CONFIG_DIR is unset', () => {
@@ -127,7 +163,7 @@ describe('sdkSession', () => {
         vaultPath: '/Users/test/vault',
       });
 
-      expect(projectsPath).toBe('/Users/test/.claude/projects');
+      expect(projectsPath).toBe(expectedProjectsPath());
     });
 
     it('uses the effective SDK HOME when CLAUDE_CONFIG_DIR is unset', () => {
@@ -137,7 +173,7 @@ describe('sdkSession', () => {
         vaultPath: '/Users/test/vault',
       });
 
-      expect(projectsPath).toBe('/custom/home/.claude/projects');
+      expect(projectsPath).toBe(expectedProjectsPath('/custom/home/.claude'));
     });
 
     it('uses the effective SDK USERPROFILE on Windows', () => {
@@ -147,7 +183,7 @@ describe('sdkSession', () => {
         vaultPath: '/Users/test/vault',
       });
 
-      expect(projectsPath).toBe('/custom/windows-home/.claude/projects');
+      expect(projectsPath).toBe(expectedProjectsPath('/custom/windows-home/.claude'));
     });
 
     it('resolves an empty SDK HOME from the SDK working directory', () => {
@@ -157,7 +193,7 @@ describe('sdkSession', () => {
         vaultPath: '/Users/test/vault',
       });
 
-      expect(projectsPath).toBe('/Users/test/vault/.claude/projects');
+      expect(projectsPath).toBe(path.join(path.resolve(SDK_VAULT, '.claude'), 'projects'));
     });
 
     it('preserves an explicitly empty CLAUDE_CONFIG_DIR like the SDK', () => {
@@ -166,7 +202,7 @@ describe('sdkSession', () => {
         vaultPath: '/Users/test/vault',
       });
 
-      expect(projectsPath).toBe('/Users/test/vault/projects');
+      expect(projectsPath).toBe(path.join(path.resolve(SDK_VAULT), 'projects'));
     });
   });
 
@@ -201,7 +237,7 @@ describe('sdkSession', () => {
   describe('getSDKSessionPath', () => {
     it('constructs correct session file path', () => {
       const sessionPath = getSDKSessionPath('/Users/test/vault', 'session-123');
-      expect(sessionPath).toContain('.claude/projects');
+      expect(withForwardSlashes(sessionPath)).toContain('.claude/projects');
       expect(sessionPath).toContain('session-123.jsonl');
     });
 
@@ -221,7 +257,7 @@ describe('sdkSession', () => {
         vaultPath: '/Users/test/vault',
       });
 
-      expect(sessionPath).toBe('/custom/claude/projects/-Users-test-vault/session-123.jsonl');
+      expect(sessionPath).toBe(expectedSessionPath('session-123', '/custom/claude'));
     });
   });
 
@@ -262,7 +298,7 @@ describe('sdkSession', () => {
         'session-abc',
       )).resolves.toBe('available');
       expect(mockFsPromises.access).toHaveBeenCalledWith(
-        '/Users/test/.claude/projects/-Users-test-vault/session-abc.jsonl',
+        expectedSessionPath('session-abc'),
       );
     });
 
@@ -386,7 +422,7 @@ describe('sdkSession', () => {
       await deleteSDKSession('/Users/test/vault', 'session-abc');
 
       expect(mockFsPromises.unlink).toHaveBeenCalledWith(
-        '/Users/test/.claude/projects/-Users-test-vault/session-abc.jsonl'
+        expectedSessionPath('session-abc'),
       );
     });
 
@@ -422,7 +458,7 @@ describe('sdkSession', () => {
       });
 
       expect(mockFsPromises.unlink).toHaveBeenCalledWith(
-        '/custom/claude/projects/-Users-test-vault/session-custom.jsonl',
+        expectedSessionPath('session-custom', '/custom/claude'),
       );
     });
   });
@@ -466,7 +502,7 @@ describe('sdkSession', () => {
 
       expect(result.messages).toHaveLength(1);
       expect(mockFsPromises.readFile).toHaveBeenCalledWith(
-        '/custom/claude/projects/-Users-test-vault/session-custom.jsonl',
+        expectedSessionPath('session-custom', '/custom/claude'),
         'utf-8',
       );
     });
@@ -525,7 +561,7 @@ describe('sdkSession', () => {
       );
 
       expect(mockFsPromises.readFile).toHaveBeenCalledWith(
-        '/Users/test/.claude/projects/-Users-test-vault/session-abc/subagents/agent-a123.jsonl',
+        expectedSubagentPath('session-abc', 'a123'),
         'utf-8'
       );
       expect(toolCalls).toHaveLength(1);
@@ -583,7 +619,7 @@ describe('sdkSession', () => {
 
       expect(result).toBe('Final answer');
       expect(mockFsPromises.readFile).toHaveBeenCalledWith(
-        '/Users/test/.claude/projects/-Users-test-vault/session-abc/subagents/agent-a123.jsonl',
+        expectedSubagentPath('session-abc', 'a123'),
         'utf-8'
       );
     });
@@ -2561,7 +2597,7 @@ describe('sdkSession', () => {
       mockExistsSync.mockReturnValue(true);
       mockFsPromises.readFile.mockImplementation(async (filePath: any) => {
         const p = String(filePath);
-        if (p.includes('subagents/agent-ae5eb9a.jsonl')) {
+        if (withForwardSlashes(p).includes('subagents/agent-ae5eb9a.jsonl')) {
           return [
             '{"type":"assistant","timestamp":"2024-01-15T10:02:00Z","message":{"content":[{"type":"tool_use","id":"sub-tool-1","name":"Grep","input":{"pattern":"TODO"}}]}}',
             '{"type":"user","timestamp":"2024-01-15T10:02:01Z","message":{"content":[{"type":"tool_result","tool_use_id":"sub-tool-1","content":"3 matches found"}]}}',
@@ -2600,7 +2636,7 @@ describe('sdkSession', () => {
             '{"type":"user","uuid":"u2","timestamp":"2024-01-15T10:01:01Z","toolUseResult":{"isAsync":true,"agentId":"ae5eb9a"},"message":{"content":[{"type":"tool_result","tool_use_id":"task-1","content":"Launched"}]}}',
           ].join('\n');
         }
-        if (p === '/old-project/session-sidecar/subagents/agent-ae5eb9a.jsonl') {
+        if (withForwardSlashes(p) === '/old-project/session-sidecar/subagents/agent-ae5eb9a.jsonl') {
           return [
             '{"type":"assistant","timestamp":"2024-01-15T10:02:00Z","message":{"content":[{"type":"tool_use","id":"sub-tool-1","name":"Grep","input":{"pattern":"TODO"}}]}}',
             '{"type":"user","timestamp":"2024-01-15T10:02:01Z","message":{"content":[{"type":"tool_result","tool_use_id":"sub-tool-1","content":"3 matches found"}]}}',
@@ -2619,7 +2655,7 @@ describe('sdkSession', () => {
       const assistantMsg = result.messages.find(m => m.toolCalls?.some(tc => tc.name === 'Task'));
       const taskToolCall = assistantMsg!.toolCalls!.find(tc => tc.name === 'Task')!;
       expect(mockFsPromises.readFile).toHaveBeenCalledWith(
-        '/old-project/session-sidecar/subagents/agent-ae5eb9a.jsonl',
+        path.join('/old-project/session-sidecar', 'subagents', 'agent-ae5eb9a.jsonl'),
         'utf-8',
       );
       expect(taskToolCall.subagent!.toolCalls).toEqual([

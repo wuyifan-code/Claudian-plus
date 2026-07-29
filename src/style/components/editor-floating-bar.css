@@ -1,0 +1,173 @@
+/* Modern Floating Action Bar — Sleek Capsule Pill Design */
+.claudian-plus-floating-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: calc(100vw - 16px);
+  padding: 3.5px 5px;
+  background: var(--background-secondary-alt, var(--background-secondary));
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 9999px;
+  box-shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.1);
+  position: fixed;
+  z-index: 99999;
+  user-select: none;
+  pointer-events: auto;
+  animation: claudian-plus-floating-bar-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.claudian-plus-floating-bar-hidden {
+  display: none !important;
+}
+
+.claudian-plus-floating-bar-primary {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.claudian-plus-floating-bar-more {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-left: 2px;
+  padding-left: 3px;
+  border-left: 1px solid var(--background-modifier-border);
+}
+
+@keyframes claudian-plus-floating-bar-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Individual Pill Buttons */
+.claudian-plus-floating-bar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.claudian-plus-floating-bar-btn:hover,
+.claudian-plus-floating-bar-btn:focus-visible,
+.claudian-plus-floating-bar-more-btn[aria-expanded='true'] {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+  border: none;
+  outline: none;
+}
+
+/* Primary AI Action Pill (First Action, e.g., 改写) */
+.claudian-plus-floating-bar-primary .claudian-plus-floating-bar-btn:first-child {
+  color: var(--text-on-accent, #ffffff);
+  background: var(--interactive-accent);
+  font-weight: 600;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--interactive-accent) 40%, transparent);
+}
+
+.claudian-plus-floating-bar-primary .claudian-plus-floating-bar-btn:first-child:hover {
+  background: var(--interactive-accent-hover, var(--interactive-accent));
+  opacity: 0.94;
+  transform: translateY(-0.5px);
+}
+
+.claudian-plus-floating-bar-primary .claudian-plus-floating-bar-btn:first-child .claudian-plus-floating-bar-icon {
+  color: var(--text-on-accent, #ffffff);
+}
+
+.claudian-plus-floating-bar-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+  line-height: 1;
+  transition: color 140ms ease;
+}
+
+.claudian-plus-floating-bar-btn:hover .claudian-plus-floating-bar-icon {
+  color: var(--text-normal);
+}
+
+.claudian-plus-floating-bar-icon svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2.2;
+}
+
+.claudian-plus-floating-bar-label {
+  font-size: 12px;
+  letter-spacing: 0.2px;
+}
+
+/* Dropdown Menu Popup */
+.claudian-plus-floating-bar-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+  padding: 5px;
+  background: var(--background-secondary);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+  animation: claudian-plus-floating-bar-in 120ms ease-out;
+}
+
+.claudian-plus-floating-bar-menu-hidden {
+  display: none !important;
+}
+
+.claudian-plus-floating-bar-menu-btn {
+  width: 100%;
+  justify-content: flex-start;
+  height: 28px;
+  padding-inline: 10px;
+  border-radius: 8px;
+}
+
+@media (max-width: 520px) {
+  .claudian-plus-floating-bar-label {
+    display: none;
+  }
+
+  .claudian-plus-floating-bar-btn {
+    padding: 0 7px;
+  }
+
+  .claudian-plus-floating-bar-menu-btn .claudian-plus-floating-bar-label {
+    display: inline;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .claudian-plus-floating-bar {
+    animation: none;
+  }
+}

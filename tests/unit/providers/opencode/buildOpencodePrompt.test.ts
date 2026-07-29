@@ -1,7 +1,7 @@
 import { buildOpencodePromptBlocks, buildOpencodePromptText } from '../../../../src/providers/opencode/runtime/buildOpencodePrompt';
 
 describe('buildOpencodePromptText', () => {
-  it('appends Claudian XML context to the user query', () => {
+  it('appends ClaudianPlus XML context to the user query', () => {
     const prompt = buildOpencodePromptText({
       browserSelection: {
         selectedText: 'Browser quote',
@@ -36,6 +36,16 @@ describe('buildOpencodePromptText', () => {
     expect(prompt).toContain('Summarize this');
     expect(prompt).not.toContain('<context_files>');
     expect(prompt).not.toContain('/tmp/project');
+  });
+
+  it('includes source-backed vault context in the prompt', () => {
+    const prompt = buildOpencodePromptText({
+      text: 'Explain this topic',
+      vaultContext: '<vault_context>\nSource: notes/topic.md\n</vault_context>',
+    });
+
+    expect(prompt).toContain('<vault_context>');
+    expect(prompt).toContain('notes/topic.md');
   });
 
   it('rebuilds prior conversation context when a native session must be recreated', () => {

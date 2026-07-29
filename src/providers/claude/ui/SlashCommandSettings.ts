@@ -3,7 +3,7 @@ import { Modal, Notice, setIcon, Setting } from 'obsidian';
 
 import type { ProviderCommandCatalog } from '../../../core/providers/commands/ProviderCommandCatalog';
 import type { ProviderCommandEntry } from '../../../core/providers/commands/ProviderCommandEntry';
-import { t } from '../../../i18n/i18n';
+import { localeText, t } from '../../../i18n/i18n';
 import { extractFirstParagraph, normalizeArgumentHint, parseSlashCommandContent, validateCommandName } from '../../../utils/slashCommand';
 
 function resolveAllowedTools(inputValue: string, parsedTools?: string[]): string[] | undefined {
@@ -42,10 +42,10 @@ export class SlashCommandModal extends Modal {
     const existingIsSkill = this.existingEntry ? isSkillEntry(this.existingEntry) : false;
     let selectedType: 'command' | 'skill' = existingIsSkill ? 'skill' : 'command';
 
-    const typeLabel = () => selectedType === 'skill' ? 'Skill' : 'Slash Command';
+    const typeLabel = () => selectedType === 'skill' ? localeText('技能', 'Skill') : localeText('斜杠命令', 'Slash Command');
 
     this.setTitle(this.existingEntry ? `Edit ${typeLabel()}` : `Add ${typeLabel()}`);
-    this.modalEl.addClass('claudian-sp-modal');
+    this.modalEl.addClass('claudian-plus-sp-modal');
 
     const { contentEl } = this;
 
@@ -66,7 +66,7 @@ export class SlashCommandModal extends Modal {
       if (!disableUserSetting || !disableUserToggle) return;
 
       const isSkillType = selectedType === 'skill';
-      disableUserSetting.settingEl.toggleClass('claudian-hidden', !isSkillType);
+      disableUserSetting.settingEl.toggleClass('claudian-plus-hidden', !isSkillType);
       if (!isSkillType) {
         disableUserInvocation = false;
         disableUserToggle.setValue(false);
@@ -74,12 +74,12 @@ export class SlashCommandModal extends Modal {
     };
 
     new Setting(contentEl)
-      .setName('Type')
-      .setDesc('Command or skill')
+      .setName(localeText('类型', 'Type'))
+      .setDesc(localeText('命令或技能', 'Command or skill'))
       .addDropdown(dropdown => {
         dropdown
-          .addOption('command', 'Command')
-          .addOption('skill', 'Skill')
+          .addOption('command', localeText('命令', 'Command'))
+          .addOption('skill', localeText('技能', 'Skill'))
           .setValue(selectedType)
           .onChange(value => {
             selectedType = value as 'command' | 'skill';
@@ -92,8 +92,8 @@ export class SlashCommandModal extends Modal {
       });
 
     new Setting(contentEl)
-      .setName('Command name')
-      .setDesc('The name used after / (e.g., "review" for /review)')
+      .setName(localeText('命令名称', 'Command name'))
+      .setDesc(localeText('在 / 后使用的名称（例如 /review 的名称为“review”）', 'The name used after / (e.g., "review" for /review)'))
       .addText(text => {
         nameInput = text.inputEl;
         text.setValue(this.existingEntry?.name || '')
@@ -101,17 +101,17 @@ export class SlashCommandModal extends Modal {
       });
 
     new Setting(contentEl)
-      .setName('Description')
-      .setDesc('Optional description shown in dropdown')
+      .setName(localeText('描述', 'Description'))
+      .setDesc(localeText('显示在下拉菜单中的可选描述', 'Optional description shown in dropdown'))
       .addText(text => {
         descInput = text.inputEl;
         text.setValue(this.existingEntry?.description || '');
       });
 
-    const details = contentEl.createEl('details', { cls: 'claudian-sp-advanced-section' });
+    const details = contentEl.createEl('details', { cls: 'claudian-plus-sp-advanced-section' });
     details.createEl('summary', {
-      text: 'Advanced options',
-      cls: 'claudian-sp-advanced-summary',
+      text: localeText('高级选项', 'Advanced options'),
+      cls: 'claudian-plus-sp-advanced-summary',
     });
     if (
       this.existingEntry?.argumentHint
@@ -126,16 +126,16 @@ export class SlashCommandModal extends Modal {
     }
 
     new Setting(details)
-      .setName('Argument hint')
-      .setDesc('Placeholder text for arguments (e.g., "[file] [focus]")')
+      .setName(localeText('参数提示', 'Argument hint'))
+      .setDesc(localeText('参数的占位文本（例如“[file] [focus]”）', 'Placeholder text for arguments (e.g., "[file] [focus]")'))
       .addText(text => {
         hintInput = text.inputEl;
         text.setValue(this.existingEntry?.argumentHint || '');
       });
 
     new Setting(details)
-      .setName('Model override')
-      .setDesc('Optional model to use for this command')
+      .setName(localeText('模型覆盖', 'Model override'))
+      .setDesc(localeText('此命令使用的可选模型', 'Optional model to use for this command'))
       .addText(text => {
         modelInput = text.inputEl;
         text.setValue(this.existingEntry?.model || '')
@@ -143,24 +143,24 @@ export class SlashCommandModal extends Modal {
       });
 
     new Setting(details)
-      .setName('Allowed tools')
-      .setDesc('Comma-separated list of tools to allow (empty = all)')
+      .setName(localeText('允许的工具', 'Allowed tools'))
+      .setDesc(localeText('允许使用的工具列表，以逗号分隔（留空表示全部）', 'Comma-separated list of tools to allow (empty = all)'))
       .addText(text => {
         toolsInput = text.inputEl;
         text.setValue(this.existingEntry?.allowedTools?.join(', ') || '');
       });
 
     new Setting(details)
-      .setName('Disable model invocation')
-      .setDesc('Prevent the model from invoking this command itself')
+      .setName(localeText('禁止模型调用', 'Disable model invocation'))
+      .setDesc(localeText('禁止模型主动调用此命令', 'Prevent the model from invoking this command itself'))
       .addToggle(toggle => {
         toggle.setValue(disableModelToggle)
           .onChange(value => { disableModelToggle = value; });
       });
 
     disableUserSetting = new Setting(details)
-      .setName('Disable user invocation')
-      .setDesc('Prevent the user from invoking this skill directly')
+      .setName(localeText('禁止用户调用', 'Disable user invocation'))
+      .setDesc(localeText('禁止用户直接调用此技能', 'Prevent the user from invoking this skill directly'))
       .addToggle(toggle => {
         disableUserToggle = toggle;
         toggle.setValue(disableUserInvocation)
@@ -170,32 +170,32 @@ export class SlashCommandModal extends Modal {
     updateSkillOnlyFields();
 
     new Setting(details)
-      .setName('Context')
-      .setDesc('Run in a subagent (fork)')
+      .setName(localeText('上下文', 'Context'))
+      .setDesc(localeText('在子代理（分支）中运行', 'Run in a subagent (fork)'))
       .addToggle(toggle => {
         toggle.setValue(contextValue === 'fork')
           .onChange(value => {
             contextValue = value ? 'fork' : '';
-            agentSetting.settingEl.toggleClass('claudian-hidden', !value);
+            agentSetting.settingEl.toggleClass('claudian-plus-hidden', !value);
           });
       });
 
     const agentSetting = new Setting(details)
-      .setName('Agent')
-      .setDesc('Subagent type when context is fork')
+      .setName(localeText('代理', 'Agent'))
+      .setDesc(localeText('上下文使用分支时的子代理类型', 'Subagent type when context is fork'))
       .addText(text => {
         agentInput = text.inputEl;
         text.setValue(this.existingEntry?.agent || '')
           .setPlaceholder('Code-reviewer');
       });
-    agentSetting.settingEl.toggleClass('claudian-hidden', contextValue !== 'fork');
+    agentSetting.settingEl.toggleClass('claudian-plus-hidden', contextValue !== 'fork');
 
     new Setting(contentEl)
-      .setName('Prompt template')
-      .setDesc('Use $ARGUMENTS, $1, $2, @file, !`bash`');
+      .setName(localeText('提示词模板', 'Prompt template'))
+      .setDesc(localeText('可使用 $ARGUMENTS、$1、$2、@file、!`bash`', 'Use $ARGUMENTS, $1, $2, @file, !`bash`'));
 
     const contentArea = contentEl.createEl('textarea', {
-      cls: 'claudian-sp-content-area',
+      cls: 'claudian-plus-sp-content-area',
       attr: {
         rows: '10',
         placeholder: 'Review this code for:\n$ARGUMENTS\n\n@$1',
@@ -206,17 +206,17 @@ export class SlashCommandModal extends Modal {
       : '';
     contentArea.value = initialContent;
 
-    const buttonContainer = contentEl.createDiv({ cls: 'claudian-sp-modal-buttons' });
+    const buttonContainer = contentEl.createDiv({ cls: 'claudian-plus-sp-modal-buttons' });
 
     const cancelBtn = buttonContainer.createEl('button', {
-      text: 'Cancel',
-      cls: 'claudian-cancel-btn',
+      text: localeText('取消', 'Cancel'),
+      cls: 'claudian-plus-cancel-btn',
     });
     cancelBtn.addEventListener('click', () => this.close());
 
     const saveBtn = buttonContainer.createEl('button', {
-      text: 'Save',
-      cls: 'claudian-save-btn',
+      text: localeText('保存', 'Save'),
+      cls: 'claudian-plus-save-btn',
     });
     saveBtn.addEventListener('click', () => {
       void (async (): Promise<void> => {
@@ -229,7 +229,7 @@ export class SlashCommandModal extends Modal {
 
       const content = contentArea.value;
       if (!content.trim()) {
-        new Notice('Prompt template is required');
+        new Notice(localeText('提示词模板不能为空', 'Prompt template is required'));
         return;
       }
 
@@ -238,7 +238,7 @@ export class SlashCommandModal extends Modal {
           && entry.id !== this.existingEntry?.id,
       );
       if (existing) {
-        new Notice(`A command named "/${name}" already exists`);
+        new Notice(localeText(`名为“/${name}”的命令已存在`, `A command named "/${name}" already exists`));
         return;
       }
 
@@ -277,8 +277,8 @@ export class SlashCommandModal extends Modal {
       try {
         await this.onSave(entry);
       } catch {
-        const label = isSkillType ? 'skill' : 'slash command';
-        new Notice(`Failed to save ${label}`);
+        const label = isSkillType ? localeText('技能', 'skill') : localeText('斜杠命令', 'slash command');
+        new Notice(localeText(`保存${label}失败`, `Failed to save ${label}`));
         return;
       }
       this.close();
@@ -328,32 +328,32 @@ export class SlashCommandSettings {
 
   private renderUnavailable(): void {
     this.containerEl.empty();
-    const emptyEl = this.containerEl.createDiv({ cls: 'claudian-sp-empty-state' });
-    emptyEl.setText('Claude command catalog is unavailable.');
+    const emptyEl = this.containerEl.createDiv({ cls: 'claudian-plus-sp-empty-state' });
+    emptyEl.setText(localeText('Claude 命令目录不可用。', 'Claude command catalog is unavailable.'));
   }
 
   private render(): void {
     this.containerEl.empty();
 
-    const headerEl = this.containerEl.createDiv({ cls: 'claudian-sp-header' });
-    headerEl.createSpan({ text: t('settings.slashCommands.name'), cls: 'claudian-sp-label' });
+    const headerEl = this.containerEl.createDiv({ cls: 'claudian-plus-sp-header' });
+    headerEl.createSpan({ text: t('settings.slashCommands.name'), cls: 'claudian-plus-sp-label' });
 
-    const actionsEl = headerEl.createDiv({ cls: 'claudian-sp-header-actions' });
+    const actionsEl = headerEl.createDiv({ cls: 'claudian-plus-sp-header-actions' });
 
     const addBtn = actionsEl.createEl('button', {
-      cls: 'claudian-settings-action-btn',
-      attr: { 'aria-label': 'Add' },
+      cls: 'claudian-plus-settings-action-btn',
+      attr: { 'aria-label': localeText('添加', 'Add') },
     });
     setIcon(addBtn, 'plus');
     addBtn.addEventListener('click', () => this.openCommandModal(null));
 
     if (this.commands.length === 0) {
-      const emptyEl = this.containerEl.createDiv({ cls: 'claudian-sp-empty-state' });
-      emptyEl.setText('No commands or skills configured. Click + to create one.');
+      const emptyEl = this.containerEl.createDiv({ cls: 'claudian-plus-sp-empty-state' });
+      emptyEl.setText(localeText('尚未配置命令或技能。点击 + 创建一个。', 'No commands or skills configured. Click + to create one.'));
       return;
     }
 
-    const listEl = this.containerEl.createDiv({ cls: 'claudian-sp-list' });
+    const listEl = this.containerEl.createDiv({ cls: 'claudian-plus-sp-list' });
 
     for (const cmd of this.commands) {
       this.renderCommandItem(listEl, cmd);
@@ -361,35 +361,35 @@ export class SlashCommandSettings {
   }
 
   private renderCommandItem(listEl: HTMLElement, cmd: ProviderCommandEntry): void {
-    const itemEl = listEl.createDiv({ cls: 'claudian-sp-item' });
+    const itemEl = listEl.createDiv({ cls: 'claudian-plus-sp-item' });
 
-    const infoEl = itemEl.createDiv({ cls: 'claudian-sp-info' });
+    const infoEl = itemEl.createDiv({ cls: 'claudian-plus-sp-info' });
 
-    const headerRow = infoEl.createDiv({ cls: 'claudian-sp-item-header' });
+    const headerRow = infoEl.createDiv({ cls: 'claudian-plus-sp-item-header' });
 
-    const nameEl = headerRow.createSpan({ cls: 'claudian-sp-item-name' });
+    const nameEl = headerRow.createSpan({ cls: 'claudian-plus-sp-item-name' });
     nameEl.setText(`/${cmd.name}`);
 
     if (isSkillEntry(cmd)) {
-      headerRow.createSpan({ text: 'skill', cls: 'claudian-slash-item-badge' });
+      headerRow.createSpan({ text: localeText('技能', 'skill'), cls: 'claudian-plus-slash-item-badge' });
     }
 
     if (cmd.argumentHint) {
-      const hintEl = headerRow.createSpan({ cls: 'claudian-slash-item-hint' });
+      const hintEl = headerRow.createSpan({ cls: 'claudian-plus-slash-item-hint' });
       hintEl.setText(cmd.argumentHint);
     }
 
     if (cmd.description) {
-      const descEl = infoEl.createDiv({ cls: 'claudian-sp-item-desc' });
+      const descEl = infoEl.createDiv({ cls: 'claudian-plus-sp-item-desc' });
       descEl.setText(cmd.description);
     }
 
-    const actionsEl = itemEl.createDiv({ cls: 'claudian-sp-item-actions' });
+    const actionsEl = itemEl.createDiv({ cls: 'claudian-plus-sp-item-actions' });
 
     if (cmd.isEditable) {
       const editBtn = actionsEl.createEl('button', {
-        cls: 'claudian-settings-action-btn',
-        attr: { 'aria-label': 'Edit' },
+        cls: 'claudian-plus-settings-action-btn',
+        attr: { 'aria-label': localeText('编辑', 'Edit') },
       });
       setIcon(editBtn, 'pencil');
       editBtn.addEventListener('click', () => this.openCommandModal(cmd));
@@ -397,8 +397,8 @@ export class SlashCommandSettings {
 
     if (!isSkillEntry(cmd) && cmd.isEditable) {
       const convertBtn = actionsEl.createEl('button', {
-        cls: 'claudian-settings-action-btn',
-        attr: { 'aria-label': 'Convert to skill' },
+        cls: 'claudian-plus-settings-action-btn',
+        attr: { 'aria-label': localeText('转换为技能', 'Convert to skill') },
       });
       setIcon(convertBtn, 'package');
       convertBtn.addEventListener('click', () => {
@@ -406,7 +406,7 @@ export class SlashCommandSettings {
         try {
           await this.transformToSkill(cmd);
         } catch {
-          new Notice('Failed to convert to skill');
+          new Notice(localeText('转换为技能失败', 'Failed to convert to skill'));
         }
         })();
       });
@@ -414,8 +414,8 @@ export class SlashCommandSettings {
 
     if (cmd.isDeletable) {
       const deleteBtn = actionsEl.createEl('button', {
-        cls: 'claudian-settings-action-btn claudian-settings-delete-btn',
-        attr: { 'aria-label': 'Delete' },
+        cls: 'claudian-plus-settings-action-btn claudian-plus-settings-delete-btn',
+        attr: { 'aria-label': localeText('删除', 'Delete') },
       });
       setIcon(deleteBtn, 'trash-2');
       deleteBtn.addEventListener('click', () => {
@@ -423,8 +423,8 @@ export class SlashCommandSettings {
         try {
           await this.deleteCommand(cmd);
         } catch {
-          const label = isSkillEntry(cmd) ? 'skill' : 'slash command';
-          new Notice(`Failed to delete ${label}`);
+          const label = isSkillEntry(cmd) ? localeText('技能', 'skill') : localeText('斜杠命令', 'slash command');
+          new Notice(localeText(`删除${label}失败`, `Failed to delete ${label}`));
         }
         })();
       });
@@ -457,8 +457,11 @@ export class SlashCommandSettings {
     await this.reloadCommands();
 
     this.render();
-    const label = isSkillEntry(cmd) ? 'Skill' : 'Slash command';
-    new Notice(`${label} "/${cmd.name}" ${existing ? 'updated' : 'created'}`);
+    const label = isSkillEntry(cmd) ? localeText('技能', 'Skill') : localeText('斜杠命令', 'Slash command');
+    new Notice(localeText(
+      `${label} “/${cmd.name}”${existing ? '已更新' : '已创建'}`,
+      `${label} "/${cmd.name}" ${existing ? 'updated' : 'created'}`,
+    ));
   }
 
   private async deleteCommand(cmd: ProviderCommandEntry): Promise<void> {
@@ -471,8 +474,8 @@ export class SlashCommandSettings {
     await this.reloadCommands();
 
     this.render();
-    const label = isSkillEntry(cmd) ? 'Skill' : 'Slash command';
-    new Notice(`${label} "/${cmd.name}" deleted`);
+    const label = isSkillEntry(cmd) ? localeText('技能', 'Skill') : localeText('斜杠命令', 'Slash command');
+    new Notice(localeText(`${label} “/${cmd.name}”已删除`, `${label} "/${cmd.name}" deleted`));
   }
 
   private async transformToSkill(cmd: ProviderCommandEntry): Promise<void> {
@@ -486,7 +489,7 @@ export class SlashCommandSettings {
       entry => isSkillEntry(entry) && entry.name === skillName,
     );
     if (existingSkill) {
-      new Notice(`A skill named "/${skillName}" already exists`);
+      new Notice(localeText(`名为“/${skillName}”的技能已存在`, `A skill named "/${skillName}" already exists`));
       return;
     }
 
@@ -509,7 +512,7 @@ export class SlashCommandSettings {
 
     await this.reloadCommands();
     this.render();
-    new Notice(`Converted "/${cmd.name}" to skill`);
+    new Notice(localeText(`已将“/${cmd.name}”转换为技能`, `Converted "/${cmd.name}" to skill`));
   }
 
   private async reloadCommands(): Promise<void> {

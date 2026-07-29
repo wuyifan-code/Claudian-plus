@@ -64,6 +64,20 @@ describe('MemoryExtractor', () => {
       expect(result.entries).toHaveLength(0);
     });
 
+    it('does not infer a name from ordinary English sentences', () => {
+      const result = extractor.extractImplicit('I am working on a project', []);
+      expect(result.entries).toHaveLength(0);
+    });
+
+    it('still extracts an explicitly stated English name', () => {
+      const result = extractor.extractImplicit('My name is Alice', []);
+      expect(result.entries).toHaveLength(1);
+      expect(result.entries[0]).toMatchObject({
+        category: 'Personal',
+        content: 'Name is Alice',
+      });
+    });
+
     it('does not extract from empty messages', () => {
       const result = extractor.extract('', []);
       expect(result.entries).toHaveLength(0);

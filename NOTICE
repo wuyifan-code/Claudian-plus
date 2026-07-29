@@ -1,0 +1,22 @@
+Claudian Plus
+Copyright (c) 2025 Yishen Tu (upstream Claudian)
+
+This product includes code ported from Codian
+(https://github.com/BCS1037/codian), Copyright (c) 2026 BCS, licensed under
+the GNU Affero General Public License, version 3 (AGPL-3.0).
+
+The following features were ported from Codian and adapted to this codebase:
+
+- File explorer "Add to Claudian" context menu (src/features/chat/fileMenu.ts)
+- Default chat provider selection for blank tabs
+- Claude third-party model service endpoints and SecretStorage integration
+  (src/providers/claude/services/, src/providers/claude/ui/ClaudeServiceSettings.ts)
+- Shared agent skill management (src/core/skills/,
+  src/features/settings/AgentSkillManagementCoordinator.ts,
+  src/features/settings/workspaceResources.ts,
+  src/shared/settings/AgentSkillSettings.ts)
+- Provider enablement toggle (src/shared/settings/ProviderEnablementToggle.ts)
+- Live Markdown composer (src/features/chat/composer/)
+
+Codian is itself derived from Claudian by Yishen Tu, licensed under the MIT
+License. See LICENSE for the terms governing this distribution.

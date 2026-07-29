@@ -1,10 +1,10 @@
 import * as fs from 'fs';
 import { Notice, Setting } from 'obsidian';
 
-import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import type { ProviderSettingsTabRenderer } from '../../../core/providers/types';
 import { t } from '../../../i18n/i18n';
 import { renderEnvironmentSettingsSection } from '../../../shared/settings/EnvironmentSettingsSection';
+import { applyProviderEnablementToggle } from '../../../shared/settings/ProviderEnablementToggle';
 import { getHostnameKey } from '../../../utils/env';
 import { expandHomePath } from '../../../utils/path';
 import { getCodexWorkspaceServices } from '../app/CodexWorkspaceServices';
@@ -44,14 +44,10 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
         toggle
           .setValue(codexSettings.enabled)
           .onChange(async (value) => {
-            await context.plugin.mutateSettings((settings) => {
-              ProviderSettingsCoordinator.applyProviderEnablement(settings, 'codex', value);
-            });
-            if (value) {
+            const applied = await applyProviderEnablementToggle(context, toggle, 'codex', value);
+            if (applied && value) {
               await refreshCodexModelCatalog();
             }
-            context.refreshModelSelectors();
-            context.refreshTitleGenerationModelOptions();
           })
       );
 
@@ -103,7 +99,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
       .setDesc(getCliPathCopy().desc);
 
     const validationEl = container.createDiv({
-      cls: 'claudian-cli-path-validation claudian-setting-validation claudian-setting-validation-error claudian-hidden',
+      cls: 'claudian-plus-cli-path-validation claudian-plus-setting-validation claudian-plus-setting-validation-error claudian-plus-hidden',
     });
 
     const validatePath = (value: string): string | null => {
@@ -133,16 +129,16 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
       const error = validatePath(value);
       if (error) {
         validationEl.setText(error);
-        validationEl.toggleClass('claudian-hidden', false);
+        validationEl.toggleClass('claudian-plus-hidden', false);
         if (inputEl) {
-          inputEl.toggleClass('claudian-input-error', true);
+          inputEl.toggleClass('claudian-plus-input-error', true);
         }
         return false;
       }
 
-      validationEl.toggleClass('claudian-hidden', true);
+      validationEl.toggleClass('claudian-plus-hidden', true);
       if (inputEl) {
-        inputEl.toggleClass('claudian-input-error', false);
+        inputEl.toggleClass('claudian-plus-input-error', false);
       }
       return true;
     };
@@ -160,7 +156,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
         updateCliPathValidation(cliPathInputEl.value, cliPathInputEl);
       }
       if (wslDistroSettingEl) {
-        wslDistroSettingEl.toggleClass('claudian-hidden', installationMethod !== 'wsl');
+        wslDistroSettingEl.toggleClass('claudian-plus-hidden', installationMethod !== 'wsl');
       }
       if (wslDistroInputEl) {
         wslDistroInputEl.disabled = installationMethod !== 'wsl';
@@ -196,7 +192,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
         .onChange(async (value) => {
           await persistCliPath(value);
         });
-      text.inputEl.addClass('claudian-settings-cli-path-input');
+      text.inputEl.addClass('claudian-plus-settings-cli-path-input');
       cliPathInputEl = text.inputEl;
 
       updateCliPathValidation(currentValue, text.inputEl);
@@ -218,7 +214,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
             });
           });
 
-        text.inputEl.addClass('claudian-settings-cli-path-input');
+        text.inputEl.addClass('claudian-plus-settings-cli-path-input');
         text.inputEl.disabled = installationMethod !== 'wsl';
         wslDistroInputEl = text.inputEl;
       });
@@ -285,13 +281,13 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
     if (codexCatalog) {
       new Setting(container).setName(t('settings.codex.skills.name')).setHeading();
 
-      const skillsDesc = container.createDiv({ cls: 'claudian-sp-settings-desc' });
+      const skillsDesc = container.createDiv({ cls: 'claudian-plus-sp-settings-desc' });
       skillsDesc.createEl('p', {
         cls: 'setting-item-description',
         text: t('settings.codex.skills.desc'),
       });
 
-      const skillsContainer = container.createDiv({ cls: 'claudian-slash-commands-container' });
+      const skillsContainer = container.createDiv({ cls: 'claudian-plus-slash-commands-container' });
       new CodexSkillSettings(skillsContainer, codexCatalog, context.plugin.app);
     }
 
@@ -305,13 +301,13 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     new Setting(container).setName(t('settings.codex.subagents.name')).setHeading();
 
-    const subagentDesc = container.createDiv({ cls: 'claudian-sp-settings-desc' });
+    const subagentDesc = container.createDiv({ cls: 'claudian-plus-sp-settings-desc' });
     subagentDesc.createEl('p', {
       cls: 'setting-item-description',
       text: t('settings.codex.subagents.desc'),
     });
 
-    const subagentContainer = container.createDiv({ cls: 'claudian-slash-commands-container' });
+    const subagentContainer = container.createDiv({ cls: 'claudian-plus-slash-commands-container' });
     new CodexSubagentSettings(subagentContainer, codexWorkspace.subagentStorage, context.plugin.app, () => {
       void codexWorkspace.refreshAgentMentions?.();
     });
@@ -319,7 +315,7 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
     // --- MCP Servers ---
 
     new Setting(container).setName(t('settings.mcpServers.name')).setHeading();
-    const mcpNotice = container.createDiv({ cls: 'claudian-mcp-settings-desc' });
+    const mcpNotice = container.createDiv({ cls: 'claudian-plus-mcp-settings-desc' });
     const mcpDesc = mcpNotice.createEl('p', { cls: 'setting-item-description' });
     mcpDesc.appendText(t('settings.codex.mcp.descBeforeCommand'));
     mcpDesc.createEl('code').appendText('codex mcp');

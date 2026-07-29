@@ -32,6 +32,7 @@ export interface ProviderCapabilities {
   supportsImageAttachments: boolean;
   supportsInstructionMode: boolean;
   supportsMcpTools: boolean;
+  supportsSharedAgentSkills?: boolean;
   supportsTurnSteer?: boolean;
   reasoningControl: 'effort' | 'token-budget' | 'none';
   planPathPrefix?: string;

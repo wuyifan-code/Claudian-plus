@@ -25,12 +25,14 @@ import {
 import type { ChatRuntime } from '../../../core/runtime/ChatRuntime';
 import type { AutoTurnResult } from '../../../core/runtime/types';
 import { TOOL_AGENT_OUTPUT } from '../../../core/tools/toolNames';
-import type { ChatMessage, ClaudianSettings, Conversation, StreamChunk } from '../../../core/types';
+import type { ChatMessage, ClaudianPlusSettings, Conversation, StreamChunk } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
 import { SlashCommandDropdown } from '../../../shared/components/SlashCommandDropdown';
+import { buildCanvasActionPrompt, type CanvasContextAction, type CanvasSelectionContext } from '../../../utils/canvas';
 import { getEnhancedPath } from '../../../utils/env';
 import { getVaultPath } from '../../../utils/path';
 import type { FeatureHost } from '../../FeatureHost';
+import { CanvasNeighborsModal } from '../CanvasNeighborsModal';
 import type { VaultContextReference } from '../composer/types';
 import { BrowserSelectionController } from '../controllers/BrowserSelectionController';
 import { CanvasSelectionController } from '../controllers/CanvasSelectionController';
@@ -168,7 +170,7 @@ function getTabSettingsSnapshot(
 function getWritableTabSettingsSnapshot(
   tab: TabProviderContext,
   plugin: FeatureHost,
-  settings: ClaudianSettings = plugin.settings,
+  settings: ClaudianPlusSettings = plugin.settings,
 ): TabProviderSettings {
   return getProviderSettingsSnapshotWithModel(
     settings,
@@ -247,7 +249,7 @@ function shouldSendMessageFromExplicitEnterShortcut(e: KeyboardEvent): boolean {
 
 function shouldSendMessageFromEnterKey(
   e: KeyboardEvent,
-  settings: Pick<ClaudianSettings, 'requireCommandOrControlEnterToSend'>,
+  settings: Pick<ClaudianPlusSettings, 'requireCommandOrControlEnterToSend'>,
 ): boolean {
   if (!isEnterWithoutShiftOrComposition(e)) {
     return false;
@@ -300,7 +302,7 @@ export function sendTabInputMessageFromExplicitEnterShortcut(
 
 function sendTabInputMessageFromEnterKey(
   tab: TabData,
-  settings: Pick<ClaudianSettings, 'requireCommandOrControlEnterToSend'>,
+  settings: Pick<ClaudianPlusSettings, 'requireCommandOrControlEnterToSend'>,
   e: KeyboardEvent,
 ): boolean {
   if (!shouldSendMessageFromEnterKey(e, settings)) {
@@ -384,7 +386,7 @@ function refreshTabProviderUI(tab: TabData, plugin: FeatureHost): void {
   tab.ui.permissionToggle?.updateDisplay();
   tab.ui.serviceTierToggle?.updateDisplay();
   tab.dom.inputWrapper.toggleClass(
-    'claudian-input-plan-mode',
+    'claudian-plus-input-plan-mode',
     permissionMode === 'plan' && capabilities.supportsPlanMode,
   );
 }
@@ -513,7 +515,7 @@ export function createTab(options: TabCreateOptions): TabData {
 
   const id = tabId ?? generateTabId();
 
-  const contentEl = containerEl.createDiv({ cls: 'claudian-tab-content claudian-hidden' });
+  const contentEl = containerEl.createDiv({ cls: 'claudian-plus-tab-content claudian-plus-hidden' });
 
   const state = new ChatState({
     onStreamingStateChanged: onStreamingChanged,
@@ -591,6 +593,7 @@ export function createTab(options: TabCreateOptions): TabData {
     },
     runtimeSupervisor,
     serviceInitialized: false,
+    uiInitialized: false,
     state,
     controllers: {
       selectionController: null,
@@ -635,18 +638,18 @@ export function createTab(options: TabCreateOptions): TabData {
  * Builds the DOM structure for a tab.
  */
 function buildTabDOM(contentEl: HTMLElement): TabDOMElements {
-  const messagesWrapperEl = contentEl.createDiv({ cls: 'claudian-messages-wrapper' });
-  const messagesEl = messagesWrapperEl.createDiv({ cls: 'claudian-messages' });
-  const welcomeEl = messagesEl.createDiv({ cls: 'claudian-welcome' });
-  const statusPanelContainerEl = contentEl.createDiv({ cls: 'claudian-status-panel-container' });
-  const inputComposerEl = contentEl.createDiv({ cls: 'claudian-input-composer' });
-  const inputContainerEl = inputComposerEl.createDiv({ cls: 'claudian-input-container' });
-  const queueIndicatorEl = inputContainerEl.createDiv({ cls: 'claudian-input-queue-row' });
-  const navRowEl = inputContainerEl.createDiv({ cls: 'claudian-input-nav-row' });
-  const inputWrapper = inputContainerEl.createDiv({ cls: 'claudian-input-wrapper' });
-  const contextRowEl = inputWrapper.createDiv({ cls: 'claudian-context-row' });
+  const messagesWrapperEl = contentEl.createDiv({ cls: 'claudian-plus-messages-wrapper' });
+  const messagesEl = messagesWrapperEl.createDiv({ cls: 'claudian-plus-messages' });
+  const welcomeEl = messagesEl.createDiv({ cls: 'claudian-plus-welcome' });
+  const statusPanelContainerEl = contentEl.createDiv({ cls: 'claudian-plus-status-panel-container' });
+  const inputComposerEl = contentEl.createDiv({ cls: 'claudian-plus-input-composer' });
+  const inputContainerEl = inputComposerEl.createDiv({ cls: 'claudian-plus-input-container' });
+  const queueIndicatorEl = inputContainerEl.createDiv({ cls: 'claudian-plus-input-queue-row' });
+  const navRowEl = inputContainerEl.createDiv({ cls: 'claudian-plus-input-nav-row' });
+  const inputWrapper = inputContainerEl.createDiv({ cls: 'claudian-plus-input-wrapper' });
+  const contextRowEl = inputWrapper.createDiv({ cls: 'claudian-plus-context-row' });
   const inputEl = inputWrapper.createEl('textarea', {
-    cls: 'claudian-input',
+    cls: 'claudian-plus-input',
     attr: {
       placeholder: 'How can i help you today?',
       rows: '3',
@@ -1000,7 +1003,7 @@ function initializeInputToolbar(
 ): void {
   const { dom } = tab;
 
-  const inputToolbar = dom.inputWrapper.createDiv({ cls: 'claudian-input-toolbar' });
+  const inputToolbar = dom.inputWrapper.createDiv({ cls: 'claudian-plus-input-toolbar' });
 
   // Blank-tab UI config wrapper that returns mixed model options
   const blankTabUIConfigProxy = (): ProviderChatUIConfig => {
@@ -1168,7 +1171,7 @@ function initializeInputToolbar(
       });
       tab.ui.permissionToggle?.updateDisplay();
       dom.inputWrapper.toggleClass(
-        'claudian-input-plan-mode',
+        'claudian-plus-input-plan-mode',
         mode === 'plan' && getTabCapabilities(tab, plugin).supportsPlanMode,
       );
     },
@@ -1520,6 +1523,16 @@ export function initializeTabControllers(
     plugin.app,
     ui.contextTray!,
     dom.inputEl,
+    undefined,
+    (context: CanvasSelectionContext, action: CanvasContextAction) => {
+      if (action === 'neighbors') {
+        new CanvasNeighborsModal(plugin.app, context).open();
+        return;
+      }
+      dom.inputEl.value = buildCanvasActionPrompt(context, action);
+      dom.inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+      dom.inputEl.focus();
+    },
   );
 
   tab.controllers.streamController = new StreamController({
@@ -1805,13 +1818,13 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
   const dropTarget = dom.inputWrapper;
   const clearDropTargetState = (): void => {
     dragDepth = 0;
-    dropTarget.removeClass('claudian-drop-target-active');
+    dropTarget.removeClass('claudian-plus-drop-target-active');
   };
   const dragEnterHandler = (event: DragEvent): void => {
     if (extractDroppedPaths(event.dataTransfer).length === 0) return;
     event.preventDefault();
     dragDepth += 1;
-    dropTarget.addClass('claudian-drop-target-active');
+    dropTarget.addClass('claudian-plus-drop-target-active');
   };
   const dragOverHandler = (event: DragEvent): void => {
     if (extractDroppedPaths(event.dataTransfer).length === 0) return;
@@ -1820,7 +1833,7 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
   };
   const dragLeaveHandler = (): void => {
     dragDepth = Math.max(0, dragDepth - 1);
-    if (dragDepth === 0) dropTarget.removeClass('claudian-drop-target-active');
+    if (dragDepth === 0) dropTarget.removeClass('claudian-plus-drop-target-active');
   };
   const dropHandler = (event: DragEvent): void => {
     const items = resolveDroppedVaultItems(plugin.app, extractDroppedPaths(event.dataTransfer));
@@ -1916,7 +1929,7 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
  * Activates a tab (shows it and starts services).
  */
 export function activateTab(tab: TabData, plugin: FeatureHost): void {
-  tab.dom.contentEl.removeClass('claudian-hidden');
+  tab.dom.contentEl.removeClass('claudian-plus-hidden');
   // Lazily mount the live-preview composer on first activation (idempotent).
   initializeComposerEnhancement(tab, plugin);
   tab.renderer?.resumeWelcomeAnimation();
@@ -1933,7 +1946,7 @@ export function activateTab(tab: TabData, plugin: FeatureHost): void {
 export function deactivateTab(tab: TabData): void {
   tab.renderer?.pauseWelcomeAnimation();
   tab.ui.navigationSidebar?.collapse();
-  tab.dom.contentEl.addClass('claudian-hidden');
+  tab.dom.contentEl.addClass('claudian-plus-hidden');
   tab.controllers.selectionController?.stop();
   tab.controllers.browserSelectionController?.stop();
   tab.controllers.canvasSelectionController?.stop();
@@ -2282,7 +2295,7 @@ async function renderAutoTriggeredTurn(tab: TabData, result: AutoTurnResult): Pr
   if (hasVisibleContent) {
     tab.state.addMessage(assistantMsg);
     const msgEl = tab.renderer?.addMessage?.(assistantMsg);
-    const contentEl = msgEl?.querySelector<HTMLElement>('.claudian-message-content');
+    const contentEl = msgEl?.querySelector<HTMLElement>('.claudian-plus-message-content');
     if (contentEl) {
       if (!previousContentEl) {
         tab.state.toolCallElements.clear();
@@ -2348,7 +2361,7 @@ export async function updatePlanModeUI(
     const activeMode = getTabPermissionMode(tab, plugin);
     tab.ui.permissionToggle?.updateDisplay();
     tab.dom.inputWrapper.toggleClass(
-      'claudian-input-plan-mode',
+      'claudian-plus-input-plan-mode',
       activeMode === 'plan' && getTabCapabilities(tab, plugin).supportsPlanMode,
     );
   }

@@ -6,45 +6,53 @@ import type { SharedAppStorage } from '../../core/bootstrap/storage';
 import { normalizeTabManagerState } from '../../core/bootstrap/tabManagerState';
 import type { AppTabManagerState } from '../../core/providers/types';
 import { VaultFileAdapter } from '../../core/storage/VaultFileAdapter';
-import { ClaudianSettingsStorage, type StoredClaudianSettings } from '../settings/ClaudianSettingsStorage';
+import { ClaudianPlusSettingsStorage, type StoredClaudianPlusSettings } from '../settings/ClaudianPlusSettingsStorage';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
 export class SharedStorageService implements SharedAppStorage {
-  readonly claudianSettings: ClaudianSettingsStorage;
+  readonly claudianPlusSettings: ClaudianPlusSettingsStorage;
   readonly sessions: SessionStorage;
 
   private adapter: VaultFileAdapter;
   private plugin: Plugin;
+  /** Serializes read-modify-write layout saves to prevent stale snapshots winning races. */
+  private tabManagerStateWriteTail: Promise<void> = Promise.resolve();
 
   constructor(plugin: Plugin) {
     this.plugin = plugin;
     this.adapter = new VaultFileAdapter(plugin.app);
-    this.claudianSettings = new ClaudianSettingsStorage(this.adapter);
+    this.claudianPlusSettings = new ClaudianPlusSettingsStorage(this.adapter);
     this.sessions = new SessionStorage(this.adapter);
   }
 
-  async initialize(): Promise<{ claudian: Record<string, unknown> }> {
-    const claudian = await this.claudianSettings.load();
-    return { claudian };
+  async initialize(): Promise<{ claudianPlus: Record<string, unknown> }> {
+    const claudianPlus = await this.claudianPlusSettings.load();
+    return { claudianPlus };
   }
 
-  async saveClaudianSettings(settings: Record<string, unknown>): Promise<void> {
-    await this.claudianSettings.save(settings as StoredClaudianSettings);
+  async saveClaudianPlusSettings(settings: Record<string, unknown>): Promise<void> {
+    await this.claudianPlusSettings.save(settings as StoredClaudianPlusSettings);
   }
 
-  async setTabManagerState(state: AppTabManagerState): Promise<void> {
-    try {
-      const loaded: unknown = await this.plugin.loadData();
-      const data = isRecord(loaded) ? loaded : {};
-      data.tabManagerState = state;
-      await this.plugin.saveData(data);
-    } catch (error) {
-      new Notice('Failed to save tab layout');
-      throw error;
-    }
+  setTabManagerState(state: AppTabManagerState): Promise<void> {
+    const write = this.tabManagerStateWriteTail
+      .catch(() => undefined)
+      .then(async () => {
+        try {
+          const loaded: unknown = await this.plugin.loadData();
+          const data = isRecord(loaded) ? loaded : {};
+          data.tabManagerState = state;
+          await this.plugin.saveData(data);
+        } catch (error) {
+          new Notice('Failed to save tab layout');
+          throw error;
+        }
+      });
+    this.tabManagerStateWriteTail = write;
+    return write;
   }
 
   async getTabManagerState(): Promise<AppTabManagerState | null> {

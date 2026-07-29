@@ -1,5 +1,5 @@
 /**
- * Claudian - Claude Agent SDK wrapper
+ * Claudian Plus - Claude Agent SDK wrapper
  *
  * Handles communication with Claude via the Agent SDK. Manages streaming,
  * session persistence and permission modes.
@@ -13,6 +13,8 @@
 
 import type {
   CanUseTool,
+  McpSdkServerConfigWithInstance,
+  McpServerConfig,
   Options,
   PermissionMode as SDKPermissionMode,
   Query,
@@ -58,7 +60,7 @@ import type {
   StreamChunk,
   ToolCallInfo,
 } from '../../../core/types';
-import type { ClaudianSettings, PermissionMode } from '../../../core/types/settings';
+import type { ClaudianPlusSettings, PermissionMode } from '../../../core/types/settings';
 import { stripCurrentNoteContext } from '../../../utils/context';
 import { getEnhancedPath, getMissingNodeError, parseEnvironmentVariables } from '../../../utils/env';
 import { getVaultPath } from '../../../utils/path';
@@ -82,6 +84,7 @@ import {
   isStreamChunk,
 } from '../sdk/typeGuards';
 import type { TransformEvent } from '../sdk/types';
+import { applyClaudeServiceEnvironment } from '../services/ClaudeThirdPartyServices';
 import { getClaudeProviderSettings } from '../settings';
 import {
   createTransformStreamState,
@@ -93,6 +96,7 @@ import { type ClaudeProviderState, getClaudeState } from '../types/providerState
 import { createClaudeApprovalCallback } from './ClaudeApprovalHandler';
 import { applyClaudeDynamicUpdates } from './ClaudeDynamicUpdates';
 import { MessageChannel } from './ClaudeMessageChannel';
+import { createClaudeObsidianMcpServer } from './ClaudeObsidianMcp';
 import {
   type ColdStartQueryContext,
   type PersistentQueryContext,
@@ -139,7 +143,7 @@ function isImageAttachmentArray(value: unknown): value is ImageAttachment[] {
     !!value[0] && typeof value[0] === 'object' && 'mediaType' in value[0] && 'data' in value[0];
 }
 
-export class ClaudianService implements ChatRuntime {
+export class ClaudeChatRuntime implements ChatRuntime {
   readonly providerId = CLAUDE_PROVIDER_CAPABILITIES.providerId;
   private plugin: ProviderHost;
   private agentManager: Pick<AppAgentManager, 'setBuiltinAgentNames'> | null;
@@ -159,6 +163,8 @@ export class ClaudianService implements ChatRuntime {
   // Modular components
   private sessionManager = new SessionManager();
   private mcpManager: McpServerManager;
+  private obsidianMcpServer: McpSdkServerConfigWithInstance | null = null;
+  private obsidianMcpServerPromise: Promise<McpSdkServerConfigWithInstance | null> | null = null;
 
   private persistentQuery: Query | null = null;
   private messageChannel: MessageChannel | null = null;
@@ -788,7 +794,7 @@ export class ClaudianService implements ChatRuntime {
   /**
    * Builds the base query options context from current state.
    */
-  private getScopedSettings(): ClaudianSettings {
+  private getScopedSettings(): ClaudianPlusSettings {
     const settings = ProviderSettingsCoordinator.getProviderSettingsSnapshot(
       this.plugin.settings,
       this.providerId,
@@ -800,32 +806,72 @@ export class ClaudianService implements ChatRuntime {
   }
 
   private async buildQueryOptionsContext(vaultPath: string, cliPath: string): Promise<QueryOptionsContext> {
-    const customEnv = parseEnvironmentVariables(this.plugin.getActiveEnvironmentVariables(this.providerId));
+    const settings = this.getScopedSettings();
+    const customEnv = applyClaudeServiceEnvironment(
+      parseEnvironmentVariables(this.plugin.getActiveEnvironmentVariables(this.providerId)),
+      settings.model,
+      getClaudeProviderSettings(settings).thirdPartyServices,
+      secretId => this.plugin.app.secretStorage.getSecret(secretId),
+    );
     const enhancedPath = getEnhancedPath(customEnv.PATH, cliPath);
-    const memoryAppendix = await this.plugin.getMemoryInjectionText();
-    const consciousnessAppendix = await this.plugin.getConsciousnessInjectionText();
+    const [memoryAppendix, consciousnessAppendix] = await Promise.all([
+      this.plugin.getMemoryInjectionText(),
+      this.plugin.getConsciousnessInjectionText(),
+    ]);
     const combinedAppendix = [memoryAppendix, consciousnessAppendix].filter(Boolean).join('\n\n') || undefined;
+    const obsidianMcpServer = await this.ensureObsidianMcpServer();
 
     return {
       vaultPath,
       cliPath,
-      settings: this.getScopedSettings(),
+      settings,
       customEnv,
       enhancedPath,
       mcpManager: this.mcpManager,
       pluginManager: this.requirePluginManager(),
       memoryAppendix: combinedAppendix,
+      obsidianMcpServer: obsidianMcpServer ?? undefined,
     };
   }
 
+  private async ensureObsidianMcpServer(): Promise<McpSdkServerConfigWithInstance | null> {
+    if (this.obsidianMcpServer) return this.obsidianMcpServer;
+    if (this.obsidianMcpServerPromise) return this.obsidianMcpServerPromise;
+
+    this.obsidianMcpServerPromise = createClaudeObsidianMcpServer(
+      this.plugin.app,
+      () => this.approvalCallback,
+    ).then(server => {
+      this.obsidianMcpServer = server;
+      return server;
+    }).catch(error => {
+      // Native tools are an enhancement; a missing optional SDK dependency must
+      // never prevent Claude from starting with its regular tool set.
+      new Notice(`Obsidian tools unavailable: ${error instanceof Error ? error.message : String(error)}`);
+      return null;
+    }).finally(() => {
+      this.obsidianMcpServerPromise = null;
+    });
+
+    return this.obsidianMcpServerPromise;
+  }
+
+  private getBuiltinMcpServers(): Record<string, McpServerConfig> {
+    return this.obsidianMcpServer ? { obsidian: this.obsidianMcpServer } : {};
+  }
+
   private buildHistoryPathContext(vaultPath: string): ProviderHistoryPathContext {
-    const customEnv = parseEnvironmentVariables(
-      this.plugin.getActiveEnvironmentVariables(this.providerId),
+    const settings = this.getScopedSettings();
+    const customEnv = applyClaudeServiceEnvironment(
+      parseEnvironmentVariables(this.plugin.getActiveEnvironmentVariables(this.providerId)),
+      settings.model,
+      getClaudeProviderSettings(settings).thirdPartyServices,
+      secretId => this.plugin.app.secretStorage.getSecret(secretId),
     );
     return {
       environment: { ...process.env, ...customEnv },
       hostPlatform: process.platform,
-      settings: this.getScopedSettings(),
+      settings,
       vaultPath,
     };
   }
@@ -1653,6 +1699,7 @@ export class ClaudianService implements ChatRuntime {
         getPermissionMode: () => this.plugin.settings.permissionMode,
         resolveSDKPermissionMode: (mode) => this.resolveSDKPermissionMode(mode),
         mcpManager: this.mcpManager,
+        getBuiltinMcpServers: () => this.getBuiltinMcpServers(),
         buildPersistentQueryConfig: (vaultPath, cliPath, externalContextPaths) =>
           this.buildPersistentQueryConfig(vaultPath, cliPath, externalContextPaths),
         needsRestart: (newConfig) => this.needsRestart(newConfig),

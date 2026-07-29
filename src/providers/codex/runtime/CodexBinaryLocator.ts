@@ -104,7 +104,11 @@ function parsePathEntriesForPlatform(pathValue: string | undefined, platform: No
     return [];
   }
 
-  const delimiter = platform === 'win32' ? ';' : ':';
+  // `platform` selects executable names, but the directories are read from
+  // the host filesystem. A Windows drive path contains `:`, so never split
+  // a host Windows PATH with a Unix delimiter merely because a caller is
+  // probing a non-Windows runtime target.
+  const delimiter = platform === 'win32' || process.platform === 'win32' ? ';' : ':';
   return pathValue
     .split(delimiter)
     .map(segment => stripSurroundingQuotes(segment.trim()))

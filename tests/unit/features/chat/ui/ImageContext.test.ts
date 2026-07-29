@@ -30,7 +30,7 @@ function createMockCallbacks() {
 
 function createContainerWithInputWrapper(): { container: any; inputWrapper: any } {
   const container = createMockEl();
-  const inputWrapper = container.createDiv({ cls: 'claudian-input-wrapper' });
+  const inputWrapper = container.createDiv({ cls: 'claudian-plus-input-wrapper' });
   return { container, inputWrapper };
 }
 
@@ -183,7 +183,7 @@ describe('ImageContextManager', () => {
 
       const mgr = new ImageContextManager(c, input, cb, previewContainer);
       expect(mgr).toBeDefined();
-      const trayEl = previewContainer.querySelector('.claudian-context-row');
+      const trayEl = previewContainer.querySelector('.claudian-plus-context-row');
       expect(trayEl).not.toBeNull();
     });
 
@@ -197,7 +197,67 @@ describe('ImageContextManager', () => {
 
       new ImageContextManager(c, input, cb, previewContainer);
       expect(previewContainer.children).toContain(existingContent);
-      expect(previewContainer.querySelector('.claudian-context-row')).not.toBeNull();
+      expect(previewContainer.querySelector('.claudian-plus-context-row')).not.toBeNull();
+    });
+  });
+
+  describe('lifecycle cleanup', () => {
+    it('removes its drag and paste listeners when destroyed', () => {
+      const inputWrapper = container.querySelector('.claudian-plus-input-wrapper');
+      expect(inputWrapper.getEventListenerCount('dragenter')).toBe(1);
+      expect(inputWrapper.getEventListenerCount('dragover')).toBe(1);
+      expect(inputWrapper.getEventListenerCount('dragleave')).toBe(1);
+      expect(inputWrapper.getEventListenerCount('drop')).toBe(1);
+      expect(inputEl.getEventListenerCount('paste')).toBe(1);
+
+      manager.destroy();
+
+      expect(inputWrapper.getEventListenerCount('dragenter')).toBe(0);
+      expect(inputWrapper.getEventListenerCount('dragover')).toBe(0);
+      expect(inputWrapper.getEventListenerCount('dragleave')).toBe(0);
+      expect(inputWrapper.getEventListenerCount('drop')).toBe(0);
+      expect(inputEl.getEventListenerCount('paste')).toBe(0);
+    });
+
+    it('does not attach an image when its file read finishes after destruction', async () => {
+      let resolveArrayBuffer: ((value: ArrayBuffer) => void) | undefined;
+      const file = {
+        name: 'late.png',
+        type: 'image/png',
+        size: 4,
+        arrayBuffer: jest.fn(() => new Promise<ArrayBuffer>((resolve) => {
+          resolveArrayBuffer = resolve;
+        })),
+      } as unknown as File;
+
+      const attaching = (manager as any).addImageFromFile(file, 'drop');
+      manager.destroy();
+      resolveArrayBuffer!(new TextEncoder().encode('late').buffer);
+
+      await expect(attaching).resolves.toBe(false);
+      expect(manager.getAttachedImages()).toEqual([]);
+      expect(callbacks.onImagesChanged).not.toHaveBeenCalled();
+    });
+
+    it('does not restore an image after the composer clears attachments during its read', async () => {
+      let resolveArrayBuffer: ((value: ArrayBuffer) => void) | undefined;
+      const file = {
+        name: 'stale.png',
+        type: 'image/png',
+        size: 5,
+        arrayBuffer: jest.fn(() => new Promise<ArrayBuffer>((resolve) => {
+          resolveArrayBuffer = resolve;
+        })),
+      } as unknown as File;
+
+      const attaching = (manager as any).addImageFromFile(file, 'paste');
+      manager.clearImages();
+      callbacks.onImagesChanged.mockClear();
+      resolveArrayBuffer!(new TextEncoder().encode('stale').buffer);
+
+      await expect(attaching).resolves.toBe(false);
+      expect(manager.getAttachedImages()).toEqual([]);
+      expect(callbacks.onImagesChanged).not.toHaveBeenCalled();
     });
   });
 });
@@ -641,16 +701,16 @@ describe('ImageContextManager - Private Helpers', () => {
       manager.setImages([createImageAttachment({ id: 'img-1', name: 'photo.png', size: 2048 })]);
 
       const trayEl = manager['contextTray']['containerEl'];
-      const chipEl = trayEl.querySelector('.claudian-context-chip--image');
+      const chipEl = trayEl.querySelector('.claudian-plus-context-chip--image');
       expect(chipEl).not.toBeNull();
 
-      const thumbEl = chipEl.querySelector('.claudian-context-chip-thumbnail');
+      const thumbEl = chipEl.querySelector('.claudian-plus-context-chip-thumbnail');
       expect(thumbEl).toBeNull();
 
-      const labelEl = chipEl.querySelector('.claudian-context-chip-label');
+      const labelEl = chipEl.querySelector('.claudian-plus-context-chip-label');
       expect(labelEl?.textContent).toBe('Image');
 
-      const removeEl = chipEl.querySelector('.claudian-context-chip-remove');
+      const removeEl = chipEl.querySelector('.claudian-plus-context-chip-remove');
       expect(removeEl).not.toBeNull();
     });
 
@@ -661,7 +721,7 @@ describe('ImageContextManager - Private Helpers', () => {
       ]);
 
       const trayEl = manager['contextTray']['containerEl'];
-      const labels = trayEl.querySelectorAll('.claudian-context-chip-label');
+      const labels = trayEl.querySelectorAll('.claudian-plus-context-chip-label');
 
       expect(labels.map((label: any) => label.textContent)).toEqual(['Image 1', 'Image 2']);
     });
@@ -681,8 +741,8 @@ describe('ImageContextManager - Private Helpers', () => {
       cb.onImagesChanged.mockClear();
 
       const trayEl = mgr['contextTray']['containerEl'];
-      const firstChip = trayEl.querySelector('.claudian-context-chip--image');
-      const removeEl = firstChip.querySelector('.claudian-context-chip-remove');
+      const firstChip = trayEl.querySelector('.claudian-plus-context-chip--image');
+      const removeEl = firstChip.querySelector('.claudian-plus-context-chip-remove');
       removeEl.dispatchEvent({ type: 'click', stopPropagation: jest.fn() });
 
       expect(mgr.getAttachedImages()).toHaveLength(1);
@@ -720,7 +780,7 @@ describe('ImageContextManager - Private Helpers', () => {
       const image = createImageAttachment({ name: 'test.png', mediaType: 'image/png', data: 'abc123' });
       manager['showFullImage'](image);
 
-      expect(mockBody.createDiv).toHaveBeenCalledWith({ cls: 'claudian-image-modal-overlay' });
+      expect(mockBody.createDiv).toHaveBeenCalledWith({ cls: 'claudian-plus-image-modal-overlay' });
     });
 
     it('should register Escape key handler and close button', () => {
@@ -745,6 +805,15 @@ describe('ImageContextManager - Private Helpers', () => {
       clickHandler({ target: overlayEl });
 
       expect(removeEventSpy).toHaveBeenCalled();
+    });
+
+    it('closes an open preview and unregisters Escape when the manager is destroyed', () => {
+      manager['showFullImage'](createImageAttachment());
+      const escHandler = addEventSpy.mock.calls[0][1];
+
+      manager.destroy();
+
+      expect(removeEventSpy).toHaveBeenCalledWith('keydown', escHandler);
     });
   });
 

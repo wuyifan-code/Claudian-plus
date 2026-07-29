@@ -1,4 +1,3 @@
-export { ConsciousnessEngine } from './ConsciousnessEngine';
 export {
   ACTIVITY_FILE,
   type ActivityEntry,
@@ -17,8 +16,9 @@ export {
   USER_FILE,
   USER_TEMPLATE,
 } from './consciousness-types';
+export { ConsciousnessEngine } from './ConsciousnessEngine';
 export { MemoryExtractor } from './MemoryExtractor';
-export { formatMemoryAppendix, wrapMemoryInjection } from './memoryPrompt';
+export { escapePromptTagCloser, formatMemoryAppendix, wrapMemoryInjection } from './memoryPrompt';
 export { MemoryStore } from './MemoryStore';
 export {
   DEFAULT_MEMORY_FILE_PATH,
@@ -32,6 +32,6 @@ export {
   DEFAULT_VAULT_KNOWLEDGE_CONFIG,
   type NoteKnowledge,
   type VaultKnowledgeConfig,
-  type VaultKnowledgeIndex,
   VaultKnowledgeEngine,
+  type VaultKnowledgeIndex,
 } from './VaultKnowledgeEngine';

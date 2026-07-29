@@ -13,7 +13,7 @@
 ## Live Output vs History
 
 - Live turn output comes from JSON-RPC notifications. `thread/start` and `thread/resume` request `experimentalRawEvents: true`.
-- `CodexNotificationRouter` projects normalized notifications and raw response items into Claudian `StreamChunk`s.
+- `CodexNotificationRouter` projects normalized notifications and raw response items into Claudian Plus `StreamChunk`s.
 - Do not reintroduce live JSONL polling unless the app-server stops emitting equivalent notifications and the tradeoff is documented with a current wire trace.
 - JSONL is the replay source for history hydration and session-file discovery.
 
@@ -37,5 +37,5 @@
 - Images are written to a temp directory, passed as local image paths, and cleaned up in `query()` `finally`.
 - `serverRequest/resolved` can auto-dismiss approval or ask-user UI without client input.
 - `CodexAuxQueryRunner` owns its own process, transport, and thread. It is independent from the chat runtime.
-- `CodexTaskResultInterpreter` is intentionally no-op because Claudian's Claude async-agent task system does not apply to Codex.
+- `CodexTaskResultInterpreter` is intentionally no-op because Claudian Plus's Claude async-agent task system does not apply to Codex.
 - Codex is opt-in and must stay disabled by default.

@@ -47,6 +47,9 @@ export class QueryBackedTitleGenerationService implements TitleGenerationService
         model: this.options.resolveModel?.(),
         systemPrompt: TITLE_GENERATION_SYSTEM_PROMPT,
       }, buildTitleGenerationPrompt(userMessage));
+      if (this.activeGenerations.get(conversationId) !== generation || abortController.signal.aborted) {
+        return;
+      }
       const title = parseTitleGenerationResponse(text);
       await this.safeCallback(
         callback,
@@ -56,6 +59,9 @@ export class QueryBackedTitleGenerationService implements TitleGenerationService
           : { success: false, error: 'Failed to parse title from response' },
       );
     } catch (error) {
+      if (this.activeGenerations.get(conversationId) !== generation || abortController.signal.aborted) {
+        return;
+      }
       await this.safeCallback(callback, conversationId, {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',

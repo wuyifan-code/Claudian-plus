@@ -10,6 +10,8 @@ export interface BuildPiLaunchSpecParams {
   model?: string | null;
   noSession?: boolean;
   noTools?: boolean;
+  obsidianBridgeUrl?: string;
+  extensions?: string[];
   providerState?: PiProviderState | null;
   settings: PiProviderSettings;
   systemPrompt?: string;
@@ -25,6 +27,14 @@ export interface PiLaunchSpec {
 }
 
 const READONLY_TOOLS = 'read,grep,find,ls';
+const READONLY_OBSIDIAN_TOOLS = [
+  'obsidian_canvas_read',
+  'obsidian_canvas_write_preview',
+  'obsidian_properties_get',
+  'obsidian_links_get',
+  'obsidian_graph_neighbors',
+  'obsidian_dataview_query',
+];
 
 export function buildPiLaunchSpec(params: BuildPiLaunchSpecParams): PiLaunchSpec {
   const args = ['--mode', 'rpc'];
@@ -42,7 +52,11 @@ export function buildPiLaunchSpec(params: BuildPiLaunchSpecParams): PiLaunchSpec
   if (params.noTools) {
     args.push('--no-tools');
   } else if (params.settings.toolMode === 'readonly') {
-    args.push('--tools', READONLY_TOOLS);
+    args.push('--tools', [READONLY_TOOLS, ...READONLY_OBSIDIAN_TOOLS].join(','));
+  }
+
+  for (const extension of params.extensions ?? []) {
+    if (extension.trim()) args.push('--extension', extension);
   }
 
   const decodedModel = typeof params.model === 'string' ? decodePiModelId(params.model) : null;
@@ -65,6 +79,8 @@ export function buildPiLaunchSpec(params: BuildPiLaunchSpecParams): PiLaunchSpec
       command: params.command,
       cwd: params.cwd,
       envText: params.envText ?? params.settings.environmentVariables,
+      obsidianBridgeUrl: params.obsidianBridgeUrl ?? '',
+      extensions: params.extensions ?? [],
     }),
   };
 }

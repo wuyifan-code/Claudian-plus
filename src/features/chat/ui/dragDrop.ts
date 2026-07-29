@@ -1,4 +1,4 @@
-import { type App,TFile, TFolder } from 'obsidian';
+import { type App, TFile, TFolder } from 'obsidian';
 
 import { getVaultPath, normalizePathForVault } from '../../../utils/path';
 
@@ -104,7 +104,19 @@ function normalizeDroppedValue(value: string): string | null {
     }
   } else if (normalized.startsWith('file://')) {
     try {
-      normalized = decodeURIComponent(new URL(normalized).pathname);
+      const url = new URL(normalized);
+      normalized = url.pathname;
+
+      // Standard Windows file URIs have a leading slash before the drive
+      // letter (`file:///C:/...`). Keeping it makes the path look like a
+      // POSIX absolute path, so it can no longer be resolved inside the vault.
+      if (/^\/[A-Za-z]:\//.test(normalized)) {
+        normalized = normalized.slice(1);
+      } else if (url.hostname && url.hostname !== 'localhost') {
+        // Preserve a network location as a UNC path instead of silently
+        // discarding its host component.
+        normalized = `//${url.hostname}${normalized}`;
+      }
     } catch {
       normalized = normalized.slice('file://'.length);
     }

@@ -13,11 +13,11 @@ import {
 
 describe('buildOpencodeManagedConfig', () => {
   it('pins OpenCode build, YOLO, safe, and plan prompts to the managed prompt file', () => {
-    expect(buildOpencodeManagedConfig({}, '/vault/.claudian/opencode/system.md', 'Yishen')).toEqual({
+    expect(buildOpencodeManagedConfig({}, '/vault/.claudian-plus/opencode/system.md', 'Yishen')).toEqual({
       $schema: 'https://opencode.ai/config.json',
       agent: {
         build: {
-          prompt: '{file:/vault/.claudian/opencode/system.md}',
+          prompt: '{file:/vault/.claudian-plus/opencode/system.md}',
         },
         [OPENCODE_YOLO_MODE_ID]: {
           mode: 'primary',
@@ -25,7 +25,7 @@ describe('buildOpencodeManagedConfig', () => {
             plan_enter: 'allow',
             question: 'allow',
           },
-          prompt: '{file:/vault/.claudian/opencode/system.md}',
+          prompt: '{file:/vault/.claudian-plus/opencode/system.md}',
         },
         [OPENCODE_SAFE_MODE_ID]: {
           mode: 'primary',
@@ -35,10 +35,10 @@ describe('buildOpencodeManagedConfig', () => {
             plan_enter: 'allow',
             question: 'allow',
           },
-          prompt: '{file:/vault/.claudian/opencode/system.md}',
+          prompt: '{file:/vault/.claudian-plus/opencode/system.md}',
         },
         plan: {
-          prompt: '{file:/vault/.claudian/opencode/system.md}',
+          prompt: '{file:/vault/.claudian-plus/opencode/system.md}',
         },
       },
       username: 'Yishen',
@@ -48,7 +48,7 @@ describe('buildOpencodeManagedConfig', () => {
   it('can create a dedicated aux agent and default it for the process', () => {
     expect(buildOpencodeManagedConfig(
       {},
-      '/vault/.claudian/opencode/auxiliary/system.md',
+      '/vault/.claudian-plus/opencode/auxiliary/system.md',
       undefined,
       [{
         definition: {
@@ -58,22 +58,22 @@ describe('buildOpencodeManagedConfig', () => {
             read: 'allow',
           },
         },
-        id: 'claudian-aux-readonly',
+        id: 'claudian-plus-aux-readonly',
       }],
-      'claudian-aux-readonly',
+      'claudian-plus-aux-readonly',
     )).toEqual({
       $schema: 'https://opencode.ai/config.json',
       agent: {
-        'claudian-aux-readonly': {
+        'claudian-plus-aux-readonly': {
           mode: 'primary',
           permission: {
             '*': 'deny',
             read: 'allow',
           },
-          prompt: '{file:/vault/.claudian/opencode/auxiliary/system.md}',
+          prompt: '{file:/vault/.claudian-plus/opencode/auxiliary/system.md}',
         },
       },
-      default_agent: 'claudian-aux-readonly',
+      default_agent: 'claudian-plus-aux-readonly',
     });
   });
 
@@ -95,7 +95,7 @@ describe('buildOpencodeManagedConfig', () => {
         },
       },
       username: 'Existing',
-    }, '/vault/.claudian/opencode/system.md')).toEqual({
+    }, '/vault/.claudian-plus/opencode/system.md')).toEqual({
       $schema: 'https://opencode.ai/config.json',
       agent: {
         build: {
@@ -104,7 +104,7 @@ describe('buildOpencodeManagedConfig', () => {
             bash: 'ask',
             edit: 'ask',
           },
-          prompt: '{file:/vault/.claudian/opencode/system.md}',
+          prompt: '{file:/vault/.claudian-plus/opencode/system.md}',
         },
         [OPENCODE_YOLO_MODE_ID]: {
           mode: 'primary',
@@ -112,7 +112,7 @@ describe('buildOpencodeManagedConfig', () => {
             plan_enter: 'allow',
             question: 'allow',
           },
-          prompt: '{file:/vault/.claudian/opencode/system.md}',
+          prompt: '{file:/vault/.claudian-plus/opencode/system.md}',
         },
         [OPENCODE_SAFE_MODE_ID]: {
           mode: 'primary',
@@ -122,10 +122,10 @@ describe('buildOpencodeManagedConfig', () => {
             plan_enter: 'allow',
             question: 'allow',
           },
-          prompt: '{file:/vault/.claudian/opencode/system.md}',
+          prompt: '{file:/vault/.claudian-plus/opencode/system.md}',
         },
         plan: {
-          prompt: '{file:/vault/.claudian/opencode/system.md}',
+          prompt: '{file:/vault/.claudian-plus/opencode/system.md}',
         },
       },
       default_agent: 'build',
@@ -137,11 +137,57 @@ describe('buildOpencodeManagedConfig', () => {
       username: 'Existing',
     });
   });
+
+  it('adds the portable Obsidian MCP server without replacing user MCP servers', () => {
+    expect(buildOpencodeManagedConfig({
+      mcp: {
+        servers: {
+          existing: { type: 'remote', url: 'https://example.test/mcp' },
+        },
+      },
+      permission: { read: 'allow' },
+    }, '/vault/.claudian-plus/opencode/system.md', undefined, undefined, undefined, {
+      nodeExecutable: 'node',
+      scriptPath: '/vault/.claudian-plus/opencode/obsidian-mcp.cjs',
+      workspaceRoot: '/vault',
+      obsidianBridge: {
+        token: 'secret-token',
+        url: 'http://127.0.0.1:43210',
+      },
+    })).toMatchObject({
+      mcp: {
+        servers: {
+          existing: { type: 'remote', url: 'https://example.test/mcp' },
+          'claudian-plus-obsidian': {
+            type: 'local',
+            command: ['node', '/vault/.claudian-plus/opencode/obsidian-mcp.cjs'],
+            environment: {
+              CLAUDIAN_PLUS_VAULT_ROOT: '/vault',
+              CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_URL: '{env:CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_URL}',
+              CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_TOKEN: '{env:CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_TOKEN}',
+            },
+            codemode: false,
+          },
+        },
+      },
+      permission: {
+        read: 'allow',
+        'claudian-plus-obsidian_canvas_write': 'ask',
+        'claudian-plus-obsidian_properties_set': 'ask',
+      },
+    });
+    expect(JSON.stringify(buildOpencodeManagedConfig({}, '/vault/.claudian-plus/opencode/system.md', undefined, undefined, undefined, {
+      nodeExecutable: 'node',
+      scriptPath: '/vault/.claudian-plus/opencode/obsidian-mcp.cjs',
+      workspaceRoot: '/vault',
+      obsidianBridge: { token: 'secret-token', url: 'http://127.0.0.1:43210' },
+    }))).not.toContain('secret-token');
+  });
 });
 
 describe('prepareOpencodeLaunchArtifacts', () => {
   it('layers the managed prompt config on top of OPENCODE_CONFIG', async () => {
-    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'claudian-opencode-artifacts-'));
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'claudian-plus-opencode-artifacts-'));
     const baseConfigPath = path.join(tmpRoot, 'opencode.base.json');
     await fs.writeFile(baseConfigPath, JSON.stringify({
       agent: {
@@ -171,10 +217,11 @@ describe('prepareOpencodeLaunchArtifacts', () => {
       workspaceRoot: tmpRoot,
     });
 
-    expect(result.configPath).toBe(path.join(tmpRoot, '.claudian', 'opencode', 'config.json'));
-    expect(result.systemPromptPath).toBe(path.join(tmpRoot, '.claudian', 'opencode', 'system.md'));
-    expect(result.configContent).toContain(`"prompt": "{file:${result.systemPromptPath}}"`);
-    const generatedConfig = JSON.parse(await fs.readFile(result.configPath, 'utf8'));
+    expect(result.configPath).toBe(path.join(tmpRoot, '.claudian-plus', 'opencode', 'config.json'));
+    expect(result.systemPromptPath).toBe(path.join(tmpRoot, '.claudian-plus', 'opencode', 'system.md'));
+    const generatedConfig = JSON.parse(result.configContent);
+    expect(generatedConfig.agent.build.prompt).toBe(`{file:${result.systemPromptPath}}`);
+    expect(JSON.parse(await fs.readFile(result.configPath, 'utf8'))).toEqual(generatedConfig);
     expect(generatedConfig).toMatchObject({
       default_agent: 'build',
       providers: {
@@ -214,7 +261,7 @@ describe('prepareOpencodeLaunchArtifacts', () => {
   });
 
   it('keeps the launch key stable when the resolved default database is later passed as OPENCODE_DB', async () => {
-    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'claudian-opencode-artifacts-'));
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'claudian-plus-opencode-artifacts-'));
     const baseParams = {
       settings: {
         customPrompt: '',
@@ -244,7 +291,7 @@ describe('prepareOpencodeLaunchArtifacts', () => {
   });
 
   it('creates the resolved OpenCode database directory before launch', async () => {
-    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'claudian-opencode-artifacts-'));
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'claudian-plus-opencode-artifacts-'));
     const xdgDataHome = path.join(tmpRoot, 'xdg-data');
     const databaseDir = path.join(xdgDataHome, 'opencode');
 
@@ -264,5 +311,28 @@ describe('prepareOpencodeLaunchArtifacts', () => {
 
     expect(result.databasePath).toBe(path.join(databaseDir, 'opencode.db'));
     await expect(fs.access(databaseDir)).resolves.toBeUndefined();
+  });
+
+  it('writes the portable Obsidian MCP sidecar when Node is available', async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'claudian-plus-opencode-artifacts-'));
+    const result = await prepareOpencodeLaunchArtifacts({
+      nodeExecutable: process.execPath,
+      runtimeEnv: { HOME: tmpRoot } as NodeJS.ProcessEnv,
+      settings: {
+        customPrompt: '',
+        mediaFolder: '',
+        userName: '',
+        vaultPath: tmpRoot,
+      },
+      workspaceRoot: tmpRoot,
+    });
+
+    expect(result.obsidianMcpPath).toBe(path.join(tmpRoot, '.claudian-plus', 'opencode', 'obsidian-mcp.cjs'));
+    const script = await fs.readFile(result.obsidianMcpPath!, 'utf8');
+    expect(script).toContain("serverInfo: { name: 'claudian-plus-obsidian'");
+    expect(JSON.parse(result.configContent).mcp.servers['claudian-plus-obsidian']).toMatchObject({
+      type: 'local',
+      command: [process.execPath, result.obsidianMcpPath],
+    });
   });
 });

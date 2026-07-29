@@ -1,3 +1,4 @@
+import { StartupProfiler } from '../../core/performance/StartupProfiler';
 import { normalizeProviderModelSelection, resolveConversationModel } from '../../core/providers/conversationModel';
 import { getRuntimeEnvironmentVariables } from '../../core/providers/providerEnvironment';
 import { ProviderRegistry } from '../../core/providers/ProviderRegistry';
@@ -5,7 +6,8 @@ import { ProviderSettingsCoordinator } from '../../core/providers/ProviderSettin
 import type { AppSessionStorage, ProviderHistoryPathContext } from '../../core/providers/types';
 import { DEFAULT_CHAT_PROVIDER_ID, type ProviderId } from '../../core/providers/types';
 import type { Conversation, ConversationMeta } from '../../core/types';
-import { extractUserDisplayContent } from '../../utils/context';
+import { mapWithConcurrency } from '../../utils/concurrency';
+import { extractUserDisplayContent, getConversationSearchText } from '../../utils/context';
 
 export interface ConversationRepositoryDeps {
   getSettings: () => Record<string, unknown>;
@@ -20,6 +22,7 @@ export class ConversationRepository {
   private hydrationPromises = new Map<string, Promise<Conversation | null>>();
   private conversationGenerations = new Map<string, number>();
   private deletedConversationIds = new Set<string>();
+  private metadataSaveTails = new Map<string, Promise<void>>();
 
   constructor(private readonly deps: ConversationRepositoryDeps) {}
 
@@ -137,6 +140,7 @@ export class ConversationRepository {
     if (pendingHydration) {
       await Promise.allSettled([pendingHydration]);
     }
+    await this.awaitPendingMetadataSave(id);
 
     if (options.deleteProviderSession !== false) {
       const vaultPath = this.deps.getVaultPath();
@@ -243,6 +247,7 @@ export class ConversationRepository {
     if (!conversation) {
       return null;
     }
+    const searchText = getConversationSearchText(conversation);
     return {
       id: conversation.id,
       providerId: conversation.providerId,
@@ -253,6 +258,7 @@ export class ConversationRepository {
       messageCount: conversation.messages.length,
       preview: this.getPreview(conversation),
       titleGenerationStatus: conversation.titleGenerationStatus,
+      ...(searchText ? { searchText } : {}),
     };
   }
 
@@ -298,13 +304,28 @@ export class ConversationRepository {
       return null;
     }
 
-    await this.reconcileProviderSession(conversation);
+    // Reconcile must run first: it may relocate the session and mutate
+    // `sessionId`/`providerState`, both of which the history read needs.
+    const reconcileSpan = StartupProfiler.start(`hydrate:reconcile-session:${conversation.providerId}`);
+    await this.reconcileProviderSession(conversation, generation);
+    StartupProfiler.finish(reconcileSpan);
     if (!this.isConversationCurrent(conversation, generation)) return null;
-    await this.ensureSelectedModel(conversation);
+
+    // `ensureSelectedModel` only reads settings + `selectedModel`; it never
+    // depends on session identity. Running it in parallel with the history
+    // read saves the model resolution latency on every active-hydration.
+    const modelSpan = StartupProfiler.start(`hydrate:ensure-model:${conversation.providerId}`);
+    const historySpan = StartupProfiler.start(`hydrate:history:${conversation.providerId}`);
+    await Promise.all([
+      this.ensureSelectedModel(conversation).finally(() => StartupProfiler.finish(modelSpan)),
+      this.hydrateProviderHistory(conversation).finally(() => StartupProfiler.finish(historySpan)),
+    ]);
     if (!this.isConversationCurrent(conversation, generation)) return null;
-    await this.hydrateProviderHistory(conversation);
-    if (!this.isConversationCurrent(conversation, generation)) return null;
+
     this.hydratedConversationIds.add(id);
+    // Persist the bounded transcript projection so future cold starts can
+    // search this conversation without hydrating the provider session again.
+    await this.save(conversation);
     return conversation;
   }
 
@@ -317,29 +338,65 @@ export class ConversationRepository {
   }
 
   list(): ConversationMeta[] {
-    return this.conversations.map(conversation => ({
-      id: conversation.id,
-      providerId: conversation.providerId,
-      title: conversation.title,
-      createdAt: conversation.createdAt,
-      updatedAt: conversation.updatedAt,
-      lastResponseAt: conversation.lastResponseAt,
-      messageCount: conversation.messages.length,
-      preview: this.getPreview(conversation),
-      titleGenerationStatus: conversation.titleGenerationStatus,
-    }));
+    return this.conversations.map(conversation => {
+      const searchText = getConversationSearchText(conversation);
+      return {
+        id: conversation.id,
+        providerId: conversation.providerId,
+        title: conversation.title,
+        createdAt: conversation.createdAt,
+        updatedAt: conversation.updatedAt,
+        lastResponseAt: conversation.lastResponseAt,
+        messageCount: conversation.messages.length,
+        preview: this.getPreview(conversation),
+        titleGenerationStatus: conversation.titleGenerationStatus,
+        ...(searchText ? { searchText } : {}),
+      };
+    });
   }
 
-  private async reconcileProviderSession(conversation: Conversation): Promise<void> {
+  /**
+   * Hydrates cold-start sessions that do not have a persisted transcript index.
+   * This is intentionally opt-in: normal startup remains metadata-only, while
+   * an explicit history search can make older sessions searchable in the
+   * background without blocking plugin startup.
+   */
+  async ensureSearchIndex(ids: string[]): Promise<void> {
+    const candidates = ids
+      .map((id) => this.getSync(id))
+      .filter((conversation): conversation is Conversation => (
+        conversation !== null
+        && conversation.messages.length === 0
+        && !conversation.searchText
+      ));
+
+    await mapWithConcurrency(candidates, async (conversation) => {
+      try {
+        await this.ensureHydrated(conversation.id);
+      } catch {
+        // A provider session can be unavailable independently of the rest of
+        // the history. Keep the searchable metadata already on disk intact.
+      }
+    }, 4);
+  }
+
+  private async reconcileProviderSession(
+    conversation: Conversation,
+    generation: number,
+  ): Promise<void> {
     const historyService = ProviderRegistry.getConversationHistoryService(conversation.providerId);
     if (!historyService.getConversationSessionAvailability) return;
 
     const vaultPath = this.deps.getVaultPath();
     const pathContext = this.getHistoryPathContext(conversation.providerId, vaultPath);
+    // Providers may hydrate and mutate the conversation while preparing a
+    // relocated session. Work on an isolated candidate until we know this
+    // cached conversation has not been replaced or updated in the meantime.
+    const relocationCandidate = this.createDetachedConversationCandidate(conversation);
     let availability;
     try {
       availability = await historyService.getConversationSessionAvailability(
-        conversation,
+        relocationCandidate,
         vaultPath,
         pathContext,
       );
@@ -347,23 +404,43 @@ export class ConversationRepository {
       return;
     }
     if (availability !== 'relocated' || !historyService.prepareRelocatedConversationSession) return;
+    if (!this.isConversationCurrent(conversation, generation)) return;
 
     const previousSessionId = conversation.sessionId;
     const previousProviderState = conversation.providerState;
     const previousResumeAtMessageId = conversation.resumeAtMessageId;
+    const previousMessages = conversation.messages;
+    let appliedRelocation = false;
     try {
       if (await historyService.prepareRelocatedConversationSession(
-        conversation,
+        relocationCandidate,
         vaultPath,
         pathContext,
       )) {
+        if (!this.isConversationCurrent(conversation, generation)) return;
+        conversation.sessionId = relocationCandidate.sessionId;
+        conversation.providerState = relocationCandidate.providerState;
+        conversation.resumeAtMessageId = relocationCandidate.resumeAtMessageId;
+        conversation.messages = relocationCandidate.messages;
+        appliedRelocation = true;
         await this.save(conversation);
       }
     } catch {
+      if (!appliedRelocation || !this.isConversationCurrent(conversation, generation)) {
+        return;
+      }
       conversation.sessionId = previousSessionId;
       conversation.providerState = previousProviderState;
       conversation.resumeAtMessageId = previousResumeAtMessageId;
+      conversation.messages = previousMessages;
     }
+  }
+
+  private createDetachedConversationCandidate(conversation: Conversation): Conversation {
+    if (typeof structuredClone === 'function') {
+      return structuredClone(conversation);
+    }
+    return JSON.parse(JSON.stringify(conversation)) as Conversation;
   }
 
   private async ensureSelectedModel(conversation: Conversation): Promise<void> {
@@ -406,7 +483,36 @@ export class ConversationRepository {
   }
 
   private save(conversation: Conversation): Promise<void> {
-    return this.deps.sessions.saveMetadata(this.deps.sessions.toSessionMetadata(conversation));
+    const id = conversation.id;
+    const previous = this.metadataSaveTails.get(id);
+    const persist = async (): Promise<void> => {
+      // A stale async branch must not re-create metadata after delete(), or
+      // write a replaced in-memory conversation back to disk.
+      if (!this.isPersistable(conversation)) return;
+      await this.deps.sessions.saveMetadata(this.deps.sessions.toSessionMetadata(conversation));
+    };
+    const save = previous
+      ? previous.catch(() => undefined).then(persist)
+      : persist();
+    this.metadataSaveTails.set(id, save);
+    void save.finally(() => {
+      if (this.metadataSaveTails.get(id) === save) {
+        this.metadataSaveTails.delete(id);
+      }
+    }).catch(() => undefined);
+    return save;
+  }
+
+  private async awaitPendingMetadataSave(id: string): Promise<void> {
+    const pending = this.metadataSaveTails.get(id);
+    if (pending) {
+      await Promise.allSettled([pending]);
+    }
+  }
+
+  private isPersistable(conversation: Conversation): boolean {
+    return !this.deletedConversationIds.has(conversation.id)
+      && this.getSync(conversation.id) === conversation;
   }
 
   private getConversationGeneration(id: string): number {

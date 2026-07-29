@@ -1,4 +1,9 @@
-import { appendCanvasContext, type CanvasSelectionContext,formatCanvasContext } from '../../../src/utils/canvas';
+import {
+  appendCanvasContext,
+  buildCanvasActionPrompt,
+  type CanvasSelectionContext,
+  formatCanvasContext,
+} from '@/utils/canvas';
 
 describe('canvas utilities', () => {
   describe('formatCanvasContext', () => {
@@ -50,5 +55,21 @@ describe('canvas utilities', () => {
       };
       expect(appendCanvasContext('hello world', context)).toBe('hello world');
     });
+  });
+});
+
+describe('buildCanvasActionPrompt', () => {
+  const context = { canvasPath: 'ideas.canvas', nodeIds: ['a1', 'b2'] };
+
+  it.each([
+    ['analyze', 'explain the relationships'],
+    ['outline', 'hierarchical outline'],
+    ['links', 'related notes in the vault'],
+    ['neighbors', 'one-hop neighboring notes'],
+  ] as const)('builds the %s action prompt', (action, expectedInstruction) => {
+    const prompt = buildCanvasActionPrompt(context, action);
+    expect(prompt).toContain('ideas.canvas');
+    expect(prompt).toContain('a1, b2');
+    expect(prompt).toContain(expectedInstruction);
   });
 });

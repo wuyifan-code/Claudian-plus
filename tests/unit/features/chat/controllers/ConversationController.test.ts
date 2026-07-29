@@ -119,6 +119,12 @@ describe('ConversationController', () => {
         expect(deps.clearQueuedMessage).toHaveBeenCalled();
       });
 
+      it('recreates the entry welcome through the renderer', async () => {
+        await controller.createNew();
+
+        expect(deps.renderer.renderMessages).toHaveBeenCalledWith([], expect.any(Function));
+      });
+
       it('should not create new conversation while streaming', async () => {
         deps.state.isStreaming = true;
 
@@ -312,20 +318,28 @@ describe('ConversationController', () => {
       expect(() => controllerWithNullWelcome.initializeWelcome()).not.toThrow();
     });
 
-    it('should only add greeting if not already present', () => {
-      const welcomeEl = deps.getWelcomeEl()!;
-      const createDivSpy = jest.spyOn(welcomeEl, 'createDiv');
-
-      // First call should add greeting
+    it('should only render welcome if greeting not already present', () => {
+      // First call should render via the renderer (creates cube + greeting)
       controller.initializeWelcome();
-      expect(createDivSpy).toHaveBeenCalledTimes(1);
+      expect(deps.renderer.renderMessages).toHaveBeenCalledTimes(1);
 
-      // Mock querySelector to return an element (greeting already exists)
-      welcomeEl.querySelector = jest.fn().mockReturnValue(createMockEl());
+      // Mock querySelector on the *current* welcomeEl (reference was updated)
+      const currentWelcomeEl = deps.getWelcomeEl()!;
+      currentWelcomeEl.querySelector = jest.fn().mockReturnValue(createMockEl());
 
-      // Second call should not add another greeting
+      // Second call should not render again
       controller.initializeWelcome();
-      expect(createDivSpy).toHaveBeenCalledTimes(1); // Still 1, not 2
+      expect(deps.renderer.renderMessages).toHaveBeenCalledTimes(1); // Still 1, not 2
+    });
+
+    it('should update welcomeEl reference after rendering', () => {
+      const before = deps.getWelcomeEl();
+
+      controller.initializeWelcome();
+
+      const after = deps.getWelcomeEl();
+      expect(deps.renderer.renderMessages).toHaveBeenCalledWith([], expect.any(Function));
+      expect(after).not.toBe(before);
     });
   });
 
@@ -415,6 +429,35 @@ describe('ConversationController', () => {
         'lazy-conv',
         expect.any(Object)
       );
+    });
+
+    it('serializes concurrent entry-point saves so only one conversation is created', async () => {
+      let resolveCreation!: (conversation: any) => void;
+      const pendingCreation = new Promise<any>((resolve) => {
+        resolveCreation = resolve;
+      });
+      (deps.plugin.createConversation as jest.Mock).mockReturnValue(pendingCreation);
+      deps.state.currentConversationId = null;
+      deps.state.messages = [{ id: '1', role: 'user', content: 'hello', timestamp: Date.now() }];
+
+      const first = controller.save();
+      const second = controller.save();
+      await Promise.resolve();
+
+      expect(deps.plugin.createConversation).toHaveBeenCalledTimes(1);
+      resolveCreation({
+        id: 'lazy-conv',
+        title: 'New Conversation',
+        messages: [],
+        sessionId: null,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      await Promise.all([first, second]);
+
+      expect(deps.plugin.createConversation).toHaveBeenCalledTimes(1);
+      expect(deps.state.currentConversationId).toBe('lazy-conv');
+      expect(deps.plugin.updateConversation).toHaveBeenCalledWith('lazy-conv', expect.any(Object));
     });
 
     it('should preserve the active runtime provider when lazily creating a conversation', async () => {
@@ -635,7 +678,7 @@ describe('ConversationController', () => {
 
         expect(dropdown.children.length).toBe(2);
         const list = dropdown.children[1];
-        expect(list.hasClass('claudian-history-list')).toBe(true);
+        expect(list.hasClass('claudian-plus-history-list')).toBe(true);
         expect(list.children.length).toBe(2);
       });
 
@@ -645,7 +688,7 @@ describe('ConversationController', () => {
         controller.updateHistoryDropdown();
 
         const list = dropdown.children[1];
-        expect(list.children[0].hasClass('claudian-history-empty')).toBe(true);
+        expect(list.children[0].hasClass('claudian-plus-history-empty')).toBe(true);
       });
 
       it('should sort conversations by lastResponseAt descending', () => {
@@ -658,7 +701,7 @@ describe('ConversationController', () => {
         controller.updateHistoryDropdown();
 
         const list = dropdown.children[1];
-        const firstTitle = list.children[0].querySelector('.claudian-history-item-title');
+        const firstTitle = list.children[0].querySelector('.claudian-plus-history-item-title');
         expect(firstTitle?.textContent).toBe('New');
       });
 
@@ -674,8 +717,61 @@ describe('ConversationController', () => {
         });
 
         const list = dropdown.children[1];
-        expect(list.querySelectorAll('.claudian-history-item')).toHaveLength(1);
-        expect(list.querySelector('.claudian-history-item-title')?.textContent).toBe('Codex setup');
+        expect(list.querySelectorAll('.claudian-plus-history-item')).toHaveLength(1);
+        expect(list.querySelector('.claudian-plus-history-item-title')?.textContent).toBe('Codex setup');
+      });
+
+      it('filters cold-start conversations by persisted transcript text', () => {
+        (deps.plugin.getConversationList as jest.Mock).mockReturnValue([
+          {
+            id: 'conv-cold',
+            title: 'Untitled session',
+            preview: 'New conversation',
+            searchText: 'Untitled session\nPlease map the vault memory architecture',
+            providerId: 'codex',
+            createdAt: 1000,
+          },
+          {
+            id: 'conv-other',
+            title: 'Release notes',
+            preview: 'A UI polish pass',
+            searchText: 'Release notes\nPolish the sidebar spacing',
+            providerId: 'claude',
+            createdAt: 2000,
+          },
+        ]);
+
+        controller.renderHistoryDropdown(dropdown, {
+          onSelectConversation: jest.fn(),
+          searchQuery: 'memory architecture',
+        });
+
+        const list = dropdown.children[1];
+        expect(list.querySelectorAll('.claudian-plus-history-item')).toHaveLength(1);
+        expect(list.querySelector('.claudian-plus-history-item-title')?.textContent).toBe('Untitled session');
+      });
+
+      it('requests missing cold-start transcript indexes for full-text search', async () => {
+        const ensureConversationSearchIndex = jest.fn().mockResolvedValue(undefined);
+        deps.plugin.ensureConversationSearchIndex = ensureConversationSearchIndex;
+        (deps.plugin.getConversationList as jest.Mock).mockReturnValue([
+          {
+            id: 'conv-cold',
+            title: 'Untitled session',
+            preview: 'New conversation',
+            providerId: 'codex',
+            createdAt: 1000,
+          },
+        ]);
+
+        controller.renderHistoryDropdown(dropdown, {
+          onSelectConversation: jest.fn(),
+          searchQuery: 'memory architecture',
+        });
+
+        expect(ensureConversationSearchIndex).toHaveBeenCalledWith(['conv-cold']);
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        expect(dropdown.querySelector('.claudian-plus-history-empty')).not.toBeNull();
       });
 
       it('should mark current conversation as active', () => {
@@ -703,7 +799,7 @@ describe('ConversationController', () => {
 
         const list = dropdown.children[1];
         const item = list.children[0];
-        const loadingEl = item.querySelector('.claudian-action-loading');
+        const loadingEl = item.querySelector('.claudian-plus-action-loading');
         expect(loadingEl).toBeTruthy();
       });
 
@@ -716,7 +812,7 @@ describe('ConversationController', () => {
 
         const list = dropdown.children[1];
         const item = list.children[0];
-        const actions = item.querySelector('.claudian-history-item-actions');
+        const actions = item.querySelector('.claudian-plus-history-item-actions');
         expect(actions).toBeTruthy();
         // regenerate button + rename button + delete button = 3 children
         expect(actions!.children.length).toBe(3);
@@ -733,7 +829,7 @@ describe('ConversationController', () => {
 
         const list = dropdown.children[1];
         const item = list.children[0];
-        const content = item.querySelector('.claudian-history-item-content');
+        const content = item.querySelector('.claudian-plus-history-item-content');
         const listeners = content?._eventListeners?.get('click');
         expect(listeners).toBeUndefined();
       });
@@ -751,7 +847,7 @@ describe('ConversationController', () => {
         const list = dropdown.children[1];
         // conv-2 is the non-current one (sorted second by lastResponseAt)
         const otherItem = list.children[1];
-        const content = otherItem.querySelector('.claudian-history-item-content');
+        const content = otherItem.querySelector('.claudian-plus-history-item-content');
         const listeners = content?._eventListeners?.get('click');
         expect(listeners).toBeDefined();
         expect(listeners!.length).toBe(1);
@@ -768,7 +864,7 @@ describe('ConversationController', () => {
 
         const list = dropdown.children[1];
         const item = list.children[0];
-        const deleteBtn = item.querySelector('.claudian-delete-btn');
+        const deleteBtn = item.querySelector('.claudian-plus-delete-btn');
         expect(deleteBtn).toBeTruthy();
 
         const clickHandlers = deleteBtn!._eventListeners?.get('click');
@@ -809,14 +905,14 @@ describe('ConversationController', () => {
         });
 
         let list = container.children[1];
-        expect(list.querySelectorAll('.claudian-history-item')).toHaveLength(25);
-        const loadMore = list.querySelector('.claudian-history-load-more');
+        expect(list.querySelectorAll('.claudian-plus-history-item')).toHaveLength(25);
+        const loadMore = list.querySelector('.claudian-plus-history-load-more');
         expect(loadMore).not.toBeNull();
 
         loadMore!.click();
         list = container.children[1];
-        expect(list.querySelectorAll('.claudian-history-item')).toHaveLength(50);
-        expect(list.querySelector('.claudian-history-load-more')).not.toBeNull();
+        expect(list.querySelectorAll('.claudian-plus-history-item')).toHaveLength(50);
+        expect(list.querySelector('.claudian-plus-history-load-more')).not.toBeNull();
       });
 
       it('does not render when the history render signal is already aborted', () => {
@@ -849,7 +945,7 @@ describe('ConversationController', () => {
 
         const list = container.children[1];
         const openItem = list.children[1];
-        const openItemDate = openItem.querySelector('.claudian-history-item-date');
+        const openItemDate = openItem.querySelector('.claudian-plus-history-item-date');
 
         expect(openItem.hasClass('open')).toBe(true);
         expect(openItem.hasClass('active')).toBe(false);
@@ -877,7 +973,7 @@ describe('ConversationController', () => {
 
         const list = container.children[1];
         const currentItem = list.children[0];
-        const currentItemDate = currentItem.querySelector('.claudian-history-item-date');
+        const currentItemDate = currentItem.querySelector('.claudian-plus-history-item-date');
 
         expect(currentItem.getAttribute('data-tab-index')).toBe('1');
         expect(currentItem.getAttribute('data-tab-location')).toBe('current-view');
@@ -902,7 +998,7 @@ describe('ConversationController', () => {
 
         const list = container.children[1];
         const openItem = list.children[1];
-        const openItemDate = openItem.querySelector('.claudian-history-item-date');
+        const openItemDate = openItem.querySelector('.claudian-plus-history-item-date');
 
         expect(openItem.getAttribute('data-tab-index')).toBe('2');
         expect(openItem.getAttribute('data-tab-location')).toBe('current-view');
@@ -927,7 +1023,7 @@ describe('ConversationController', () => {
 
         const list = container.children[1];
         const currentItem = list.children[0];
-        const currentItemDate = currentItem.querySelector('.claudian-history-item-date');
+        const currentItemDate = currentItem.querySelector('.claudian-plus-history-item-date');
 
         expect(currentItem.hasClass('active')).toBe(true);
         expect(currentItem.hasClass('running')).toBe(true);
@@ -953,7 +1049,7 @@ describe('ConversationController', () => {
 
         const list = container.children[1];
         const runningItem = list.children[1];
-        const runningItemDate = runningItem.querySelector('.claudian-history-item-date');
+        const runningItemDate = runningItem.querySelector('.claudian-plus-history-item-date');
 
         expect(runningItem.hasClass('open')).toBe(true);
         expect(runningItem.hasClass('running')).toBe(true);
@@ -988,8 +1084,8 @@ describe('ConversationController', () => {
         const list = container.children[1];
         const openOtherPaneItem = list.children[1];
         const runningOtherPaneItem = list.children[2];
-        const runningOtherPaneDate = runningOtherPaneItem.querySelector('.claudian-history-item-date');
-        const openOtherPaneDate = openOtherPaneItem.querySelector('.claudian-history-item-date');
+        const runningOtherPaneDate = runningOtherPaneItem.querySelector('.claudian-plus-history-item-date');
+        const openOtherPaneDate = openOtherPaneItem.querySelector('.claudian-plus-history-item-date');
 
         expect(runningOtherPaneItem.getAttribute('data-tab-location')).toBe('other-view');
         expect(runningOtherPaneItem.getAttribute('data-tab-index')).toBeNull();
@@ -1016,7 +1112,7 @@ describe('ConversationController', () => {
 
         const list = container.children[1];
         const closedItem = list.children[1];
-        const openInNewTabBtn = closedItem.querySelector('.claudian-open-new-tab-btn');
+        const openInNewTabBtn = closedItem.querySelector('.claudian-plus-open-new-tab-btn');
         const clickHandlers = openInNewTabBtn?._eventListeners?.get('click');
 
         expect(openInNewTabBtn).toBeTruthy();
@@ -1046,7 +1142,7 @@ describe('ConversationController', () => {
         const list = container.children[1];
         const openItem = list.children[1];
 
-        expect(openItem.querySelector('.claudian-open-new-tab-btn')).toBeNull();
+        expect(openItem.querySelector('.claudian-plus-open-new-tab-btn')).toBeNull();
       });
 
       it('should open a conversation in a new tab on modifier click when supported', async () => {
@@ -1068,7 +1164,7 @@ describe('ConversationController', () => {
 
         const list = container.children[1];
         const otherItem = list.children[1];
-        const content = otherItem.querySelector('.claudian-history-item-content');
+        const content = otherItem.querySelector('.claudian-plus-history-item-content');
         const clickHandlers = content?._eventListeners?.get('click');
         expect(clickHandlers).toBeDefined();
 
@@ -1104,7 +1200,7 @@ describe('ConversationController', () => {
 
         const list = container.children[1];
         const otherItem = list.children[1];
-        const content = otherItem.querySelector('.claudian-history-item-content');
+        const content = otherItem.querySelector('.claudian-plus-history-item-content');
         const auxClickHandlers = content?._eventListeners?.get('auxclick');
         expect(auxClickHandlers).toBeDefined();
 
@@ -1236,7 +1332,7 @@ describe('ConversationController', () => {
 
       const list = dropdown.children[1];
       const otherItem = list.children[1];
-      const content = otherItem.querySelector('.claudian-history-item-content');
+      const content = otherItem.querySelector('.claudian-plus-history-item-content');
       const clickHandlers = content?._eventListeners?.get('click');
       expect(clickHandlers).toBeDefined();
 
@@ -1261,7 +1357,7 @@ describe('ConversationController', () => {
 
       const list = dropdown.children[1];
       const item = list.children[0];
-      const actions = item.querySelector('.claudian-history-item-actions');
+      const actions = item.querySelector('.claudian-plus-history-item-actions');
       // First child is the regenerate button
       const regenerateBtn = actions!.children[0];
       const clickHandlers = regenerateBtn._eventListeners?.get('click');
@@ -1289,7 +1385,7 @@ describe('ConversationController', () => {
 
       const list = dropdown.children[1];
       const item = list.children[0];
-      const actions = item.querySelector('.claudian-history-item-actions');
+      const actions = item.querySelector('.claudian-plus-history-item-actions');
       expect(actions).toBeTruthy();
       // For non-failed items: rename is children[0], delete is children[1]
       const rBtn = actions!.children[0];
@@ -1304,7 +1400,7 @@ describe('ConversationController', () => {
       (mockInput as any).focus = jest.fn();
       (mockInput as any).select = jest.fn();
 
-      const titleEl = item.querySelector('.claudian-history-item-title');
+      const titleEl = item.querySelector('.claudian-plus-history-item-title');
       if (titleEl) {
         (titleEl as any).replaceWith = jest.fn();
       }
@@ -1316,7 +1412,7 @@ describe('ConversationController', () => {
         clickHandlers![0]({ stopPropagation: jest.fn() });
 
         expect(item.createEl).toHaveBeenCalledWith('input', {
-          cls: 'claudian-rename-input',
+          cls: 'claudian-plus-rename-input',
           attr: { type: 'text', value: 'Test Title' },
         });
         expect(titleEl!.replaceWith).toHaveBeenCalledWith(mockInput);
@@ -1336,7 +1432,7 @@ describe('ConversationController', () => {
 
       const list = dropdown.children[1];
       const item = list.children[0];
-      const deleteBtn = item.querySelector('.claudian-delete-btn');
+      const deleteBtn = item.querySelector('.claudian-plus-delete-btn');
       expect(deleteBtn).toBeTruthy();
 
       const clickHandlers = deleteBtn!._eventListeners?.get('click');
@@ -1359,7 +1455,7 @@ describe('ConversationController', () => {
 
       const list = dropdown.children[1];
       const otherItem = list.children[1]; // conv-2
-      const deleteBtn = otherItem.querySelector('.claudian-delete-btn');
+      const deleteBtn = otherItem.querySelector('.claudian-plus-delete-btn');
       const clickHandlers = deleteBtn!._eventListeners?.get('click');
 
       await clickHandlers![0]({ stopPropagation: jest.fn() });

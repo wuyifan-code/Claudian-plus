@@ -1,5 +1,5 @@
 /**
- * i18n - Internationalization service for Claudian
+ * i18n - Internationalization service for Claudian Plus
  *
  * Provides translation functionality for all UI strings.
  * Supports 10 locales with English as the default fallback.
@@ -144,6 +144,15 @@ export function setLocale(locale: Locale): boolean {
  */
 export function getLocale(): Locale {
   return currentLocale;
+}
+
+/**
+ * Small copy helper for provider-owned settings that are rendered outside the
+ * main translation dictionary. Keep product names, paths, and model IDs as-is;
+ * use this only for user-facing labels and descriptions.
+ */
+export function localeText(chinese: string, english: string): string {
+  return currentLocale.startsWith('zh') ? chinese : english;
 }
 
 /**

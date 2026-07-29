@@ -1,6 +1,7 @@
 import { type ChildProcess, spawn } from 'child_process';
 import type { Readable, Writable } from 'stream';
 
+import { formatProcessStartError } from '../../../utils/processErrors';
 import {
   resolveWindowsCmdShimSpawnSpec,
   terminateSpawnedProcess,
@@ -50,8 +51,10 @@ export class CodexAppServerProcess {
       }
     });
 
-    this.proc.on('error', () => {
+    this.proc.on('error', (error) => {
       this.alive = false;
+      const actionableError = formatProcessStartError(error, 'Codex', this.launchSpec.command);
+      this.stderrBuffer = `${this.stderrBuffer}${actionableError.message}`.slice(-STDERR_BUFFER_LIMIT);
     });
 
     this.proc.stderr?.on('data', (chunk: Buffer | string) => {
@@ -102,6 +105,7 @@ export class CodexAppServerProcess {
         if (killTimer !== null) window.clearTimeout(killTimer);
         if (finalTimer !== null) window.clearTimeout(finalTimer);
         this.proc?.off('exit', onExit);
+        this.proc?.off('error', onExit);
       };
       const finish = () => {
         cleanup();
@@ -112,6 +116,9 @@ export class CodexAppServerProcess {
       };
 
       this.proc!.once('exit', onExit);
+      // Spawn failures can arrive through `error` without a subsequent exit
+      // event. Treat either event as terminal for shutdown purposes.
+      this.proc!.once('error', onExit);
       this.killProc('SIGTERM');
 
       killTimer = window.setTimeout(() => {

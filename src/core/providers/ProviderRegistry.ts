@@ -200,6 +200,26 @@ export class ProviderRegistry {
     return this.getEnabledProviderIds(settings)[0] ?? DEFAULT_CHAT_PROVIDER_ID;
   }
 
+  static resolveDefaultChatProviderId(settings: Record<string, unknown>): ProviderId | null {
+    const configured = settings.defaultChatProviderId;
+    if (typeof configured !== 'string' || !configured.trim()) {
+      return null;
+    }
+
+    if (
+      this.getRegisteredProviderIds().includes(configured)
+      && this.isEnabled(configured, settings)
+    ) {
+      return configured;
+    }
+
+    if (this.isEnabled(DEFAULT_CHAT_PROVIDER_ID, settings)) {
+      return DEFAULT_CHAT_PROVIDER_ID;
+    }
+
+    return this.getEnabledProviderIds(settings)[0] ?? DEFAULT_CHAT_PROVIDER_ID;
+  }
+
   static resolveProviderForModel(
     model: string,
     settings: Record<string, unknown> = {},

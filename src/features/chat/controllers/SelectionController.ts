@@ -8,7 +8,7 @@ import type { ComposerContextTray } from '../ui/ComposerContextTray';
 
 const SELECTION_POLL_INTERVAL = 250;
 const INPUT_HANDOFF_GRACE_MS = 1500;
-const HIGHLIGHT_KEY = 'claudian-selection';
+const HIGHLIGHT_KEY = 'claudian-plus-selection';
 
 type CustomHighlightRegistry = {
   delete: (name: string) => boolean;
@@ -26,6 +26,7 @@ export class SelectionController {
   private storedSelection: StoredSelection | null = null;
   private inputHandoffGraceUntil: number | null = null;
   private pollInterval: number | null = null;
+  private pollWindow: Window | null = null;
   private readonly focusScopePointerDownHandler = () => {
     if (!this.storedSelection) return;
     this.inputHandoffGraceUntil = Date.now() + INPUT_HANDOFF_GRACE_MS;
@@ -51,7 +52,7 @@ export class SelectionController {
   }
 
   start(): void {
-    if (this.pollInterval) return;
+    if (this.pollInterval !== null) return;
     this.inputEl.addEventListener('pointerdown', this.focusScopePointerDownHandler);
     for (const focusScopeEl of this.focusScopeEls) {
       if (focusScopeEl !== this.inputEl) {
@@ -59,14 +60,17 @@ export class SelectionController {
       }
       focusScopeEl.addEventListener('focusin', this.focusScopeFocusInHandler);
     }
-    this.pollInterval = window.setInterval(() => this.poll(), SELECTION_POLL_INTERVAL);
+    const ownerWindow = this.inputEl.ownerDocument.defaultView ?? window;
+    this.pollWindow = ownerWindow;
+    this.pollInterval = ownerWindow.setInterval(() => this.poll(), SELECTION_POLL_INTERVAL);
   }
 
   stop(): void {
-    if (this.pollInterval) {
-      window.clearInterval(this.pollInterval);
+    if (this.pollInterval !== null) {
+      (this.pollWindow ?? window).clearInterval(this.pollInterval);
       this.pollInterval = null;
     }
+    this.pollWindow = null;
     this.inputEl.removeEventListener('pointerdown', this.focusScopePointerDownHandler);
     for (const focusScopeEl of this.focusScopeEls) {
       if (focusScopeEl !== this.inputEl) {

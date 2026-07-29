@@ -9,6 +9,7 @@ export class VaultFileCache {
   private cachedFiles: TFile[] = [];
   private dirty = true;
   private isInitialized = false;
+  private backgroundRefreshScheduled = false;
 
   constructor(
     private app: App,
@@ -16,9 +17,12 @@ export class VaultFileCache {
   ) {}
 
   initializeInBackground(): void {
-    if (this.isInitialized) return;
+    if (this.isInitialized || this.backgroundRefreshScheduled) return;
+    this.backgroundRefreshScheduled = true;
 
     window.setTimeout(() => {
+      this.backgroundRefreshScheduled = false;
+      if (this.isInitialized) return;
       this.tryRefreshFiles();
     }, 0);
   }
@@ -62,13 +66,17 @@ export class VaultFolderCache {
   private cachedFolders: TFolder[] = [];
   private dirty = true;
   private isInitialized = false;
+  private backgroundRefreshScheduled = false;
 
   constructor(private app: App) {}
 
   initializeInBackground(): void {
-    if (this.isInitialized) return;
+    if (this.isInitialized || this.backgroundRefreshScheduled) return;
+    this.backgroundRefreshScheduled = true;
 
     window.setTimeout(() => {
+      this.backgroundRefreshScheduled = false;
+      if (this.isInitialized) return;
       this.tryRefreshFolders();
     }, 0);
   }

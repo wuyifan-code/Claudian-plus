@@ -87,7 +87,7 @@ describe('CodexWorkspaceDependencyResolver', () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claudian-codex-runtime-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claudian-plus-codex-runtime-'));
   });
 
   afterEach(() => {
@@ -96,6 +96,8 @@ describe('CodexWorkspaceDependencyResolver', () => {
 
   it('resolves and describes the validated primary runtime bundle', async () => {
     const runtimeRoot = createRuntimeBundle(tempDir);
+    const targetRuntimeRoot = runtimeRoot.replace(/\\/g, '/');
+    const targetDependenciesRoot = `${targetRuntimeRoot}/dependencies`;
 
     const result = await resolveCodexWorkspaceDependencies(
       createHostRuntimeContext(tempDir),
@@ -104,17 +106,17 @@ describe('CodexWorkspaceDependencyResolver', () => {
     expect(result).toEqual(expect.objectContaining({
       bundleVersion: '26.715.12143',
       artifactToolVersion: '2.8.24',
-      runtimeRoot,
-      nodeExecutable: path.join(runtimeRoot, 'dependencies', 'node', 'bin', 'node'),
-      nodePackages: path.join(runtimeRoot, 'dependencies', 'node', 'node_modules'),
-      pythonExecutable: path.join(runtimeRoot, 'dependencies', 'python', 'bin', 'python3'),
-      pythonPackages: path.join(runtimeRoot, 'dependencies', 'python'),
-      gitExecutable: path.join(runtimeRoot, 'dependencies', 'bin', 'fallback', 'git'),
-      pnpmExecutable: path.join(runtimeRoot, 'dependencies', 'bin', 'fallback', 'pnpm'),
+      runtimeRoot: targetRuntimeRoot,
+      nodeExecutable: `${targetDependenciesRoot}/node/bin/node`,
+      nodePackages: `${targetDependenciesRoot}/node/node_modules`,
+      pythonExecutable: `${targetDependenciesRoot}/python/bin/python3`,
+      pythonPackages: `${targetDependenciesRoot}/python`,
+      gitExecutable: `${targetDependenciesRoot}/bin/fallback/git`,
+      pnpmExecutable: `${targetDependenciesRoot}/bin/fallback/pnpm`,
     }));
 
     expect(formatCodexWorkspaceDependencies(result!)).toContain(
-      `- Node.js packages: \`${path.join(runtimeRoot, 'dependencies', 'node', 'node_modules')}\``,
+      `- Node.js packages: \`${targetDependenciesRoot}/node/node_modules\``,
     );
   });
 
@@ -133,7 +135,7 @@ describe('CodexWorkspaceDependencyResolver', () => {
       },
     ));
 
-    expect(result?.runtimeRoot).toBe(explicitRuntimeRoot);
+    expect(result?.runtimeRoot).toBe(explicitRuntimeRoot.replace(/\\/g, '/'));
   });
 
   it('does not expose a partial bundle without artifact-tool', async () => {

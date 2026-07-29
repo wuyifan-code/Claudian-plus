@@ -1,39 +1,39 @@
 /* MCP Server Modal */
-.claudian-mcp-modal .modal-content {
+.claudian-plus-mcp-modal .modal-content {
   width: 480px;
   max-width: 90vw;
 }
 
-.claudian-mcp-type-fields {
+.claudian-plus-mcp-type-fields {
   margin: 12px 0;
   padding: 12px;
   background: var(--background-secondary);
   border-radius: 6px;
 }
 
-.claudian-mcp-type-fields .setting-item {
+.claudian-plus-mcp-type-fields .setting-item {
   padding: 8px 0;
   border-top: none;
 }
 
-.claudian-mcp-type-fields .setting-item:first-child {
+.claudian-plus-mcp-type-fields .setting-item:first-child {
   padding-top: 0;
 }
 
-.claudian-mcp-cmd-setting,
-.claudian-mcp-env-setting {
+.claudian-plus-mcp-cmd-setting,
+.claudian-plus-mcp-env-setting {
   flex-direction: column;
   align-items: flex-start;
 }
 
-.claudian-mcp-cmd-setting .setting-item-control,
-.claudian-mcp-env-setting .setting-item-control {
+.claudian-plus-mcp-cmd-setting .setting-item-control,
+.claudian-plus-mcp-env-setting .setting-item-control {
   width: 100%;
   margin-top: 8px;
 }
 
-.claudian-mcp-cmd-textarea,
-.claudian-mcp-env-textarea {
+.claudian-plus-mcp-cmd-textarea,
+.claudian-plus-mcp-env-textarea {
   width: 100%;
   min-height: 50px;
   resize: vertical;
@@ -45,13 +45,13 @@
   background: var(--background-primary);
 }
 
-.claudian-mcp-cmd-textarea:focus,
-.claudian-mcp-env-textarea:focus {
+.claudian-plus-mcp-cmd-textarea:focus,
+.claudian-plus-mcp-env-textarea:focus {
   border-color: var(--interactive-accent);
   outline: none;
 }
 
-.claudian-mcp-buttons {
+.claudian-plus-mcp-buttons {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
@@ -59,21 +59,21 @@
 }
 
 /* MCP Test Modal */
-.claudian-mcp-test-modal {
+.claudian-plus-mcp-test-modal {
   width: 500px;
   max-width: 90vw;
 }
 
-.claudian-mcp-test-modal .modal-content {
+.claudian-plus-mcp-test-modal .modal-content {
   padding: 0 20px 20px 20px;
 }
 
-.claudian-mcp-test-modal .modal-title {
+.claudian-plus-mcp-test-modal .modal-title {
   padding: 20px 20px 12px 20px;
   margin: 0 -20px;
 }
 
-.claudian-mcp-test-loading {
+.claudian-plus-mcp-test-loading {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -82,18 +82,18 @@
   color: var(--text-muted);
 }
 
-.claudian-mcp-test-spinner {
+.claudian-plus-mcp-test-spinner {
   width: 20px;
   height: 20px;
-  animation: claudian-spin 1s linear infinite;
+  animation: claudian-plus-spin 1s linear infinite;
 }
 
-.claudian-mcp-test-spinner svg {
+.claudian-plus-mcp-test-spinner svg {
   width: 100%;
   height: 100%;
 }
 
-.claudian-mcp-test-status {
+.claudian-plus-mcp-test-status {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -103,29 +103,29 @@
   margin-bottom: 12px;
 }
 
-.claudian-mcp-test-icon {
+.claudian-plus-mcp-test-icon {
   display: flex;
   align-items: center;
 }
 
-.claudian-mcp-test-icon svg {
+.claudian-plus-mcp-test-icon svg {
   width: 20px;
   height: 20px;
 }
 
-.claudian-mcp-test-icon.success {
+.claudian-plus-mcp-test-icon.success {
   color: var(--color-green);
 }
 
-.claudian-mcp-test-icon.error {
+.claudian-plus-mcp-test-icon.error {
   color: var(--text-error);
 }
 
-.claudian-mcp-test-text {
+.claudian-plus-mcp-test-text {
   font-weight: 500;
 }
 
-.claudian-mcp-test-error {
+.claudian-plus-mcp-test-error {
   padding: 10px 12px;
   background: rgba(var(--color-red-rgb), 0.1);
   border: 1px solid var(--text-error);
@@ -135,18 +135,18 @@
   margin-bottom: 12px;
 }
 
-.claudian-mcp-test-tools {
+.claudian-plus-mcp-test-tools {
   margin-bottom: 16px;
 }
 
-.claudian-mcp-test-tools-header {
+.claudian-plus-mcp-test-tools-header {
   font-weight: 600;
   font-size: 13px;
   margin-bottom: 8px;
   color: var(--text-muted);
 }
 
-.claudian-mcp-test-tools-list {
+.claudian-plus-mcp-test-tools-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -154,67 +154,67 @@
   overflow-y: auto;
 }
 
-.claudian-mcp-test-tool {
+.claudian-plus-mcp-test-tool {
   padding: 10px 12px;
   background: var(--background-secondary);
   border-radius: 6px;
 }
 
-.claudian-mcp-test-tool-header {
+.claudian-plus-mcp-test-tool-header {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.claudian-mcp-test-tool-icon {
+.claudian-plus-mcp-test-tool-icon {
   display: flex;
   align-items: center;
   color: var(--text-muted);
 }
 
-.claudian-mcp-test-tool-icon svg {
+.claudian-plus-mcp-test-tool-icon svg {
   width: 14px;
   height: 14px;
 }
 
-.claudian-mcp-test-tool-name {
+.claudian-plus-mcp-test-tool-name {
   font-weight: 500;
   font-size: 13px;
 }
 
-.claudian-mcp-test-tool-toggle {
+.claudian-plus-mcp-test-tool-toggle {
   margin-left: auto;
 }
 
-.claudian-mcp-test-tool-toggle .checkbox-container {
+.claudian-plus-mcp-test-tool-toggle .checkbox-container {
   display: flex;
   align-items: center;
 }
 
-.claudian-mcp-test-tool-disabled {
+.claudian-plus-mcp-test-tool-disabled {
   opacity: 0.75;
 }
 
-.claudian-mcp-test-tool-disabled .claudian-mcp-test-tool-name {
+.claudian-plus-mcp-test-tool-disabled .claudian-plus-mcp-test-tool-name {
   text-decoration: line-through;
   color: var(--text-muted);
 }
 
-.claudian-mcp-toggle-all-btn {
+.claudian-plus-mcp-toggle-all-btn {
   margin-right: 8px;
 }
 
-.claudian-mcp-toggle-all-btn.is-destructive {
+.claudian-plus-mcp-toggle-all-btn.is-destructive {
   background: rgba(var(--color-red-rgb), 0.1);
   border-color: rgba(var(--color-red-rgb), 0.3);
   color: var(--text-error);
 }
 
-.claudian-mcp-toggle-all-btn.is-destructive:hover {
+.claudian-plus-mcp-toggle-all-btn.is-destructive:hover {
   background: rgba(var(--color-red-rgb), 0.2);
 }
 
-.claudian-mcp-test-tool-desc {
+.claudian-plus-mcp-test-tool-desc {
   font-size: 12px;
   color: var(--text-muted);
   margin-top: 4px;
@@ -224,7 +224,7 @@
   overflow: hidden;
 }
 
-.claudian-mcp-test-no-tools {
+.claudian-plus-mcp-test-no-tools {
   padding: 16px;
   text-align: center;
   color: var(--text-muted);
@@ -234,7 +234,7 @@
   margin-bottom: 16px;
 }
 
-.claudian-mcp-test-buttons {
+.claudian-plus-mcp-test-buttons {
   display: flex;
   justify-content: center;
   margin-top: 16px;

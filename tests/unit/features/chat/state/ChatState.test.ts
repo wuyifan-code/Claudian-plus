@@ -392,6 +392,32 @@ describe('ChatState', () => {
       expect(clearSpy).not.toHaveBeenCalled();
       clearSpy.mockRestore();
     });
+
+    it('clears a zero-valued interval handle from its owning window', () => {
+      const chatState = new ChatState();
+      const clearInterval = jest.fn();
+      const ownerWindow = { clearInterval } as unknown as Window;
+      chatState.setFlavorTimerInterval(0, ownerWindow);
+
+      chatState.clearFlavorTimerInterval();
+
+      expect(clearInterval).toHaveBeenCalledWith(0);
+      expect(chatState.flavorTimerInterval).toBeNull();
+    });
+  });
+
+  describe('clearThinkingIndicatorTimeout', () => {
+    it('clears a zero-valued timeout handle from its owning window', () => {
+      const chatState = new ChatState();
+      const clearTimeout = jest.fn();
+      const ownerWindow = { clearTimeout } as unknown as Window;
+      chatState.setThinkingIndicatorTimeout(0, ownerWindow);
+
+      chatState.clearThinkingIndicatorTimeout();
+
+      expect(clearTimeout).toHaveBeenCalledWith(0);
+      expect(chatState.thinkingIndicatorTimeout).toBeNull();
+    });
   });
 
   describe('resetStreamingState', () => {

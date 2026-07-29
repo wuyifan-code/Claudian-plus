@@ -56,6 +56,15 @@
       "commandNoMessages": "无法分叉：对话中没有消息",
       "commandNoAssistantUuid": "无法分叉：没有带标识符的助手回复"
     },
+    "fileMenu": {
+      "add": "添加到 Claudian Plus",
+      "notReady": "Claudian Plus 聊天尚未就绪。",
+      "failed": "添加文件到 Claudian Plus 失败。"
+    },
+    "drop": {
+      "context": "拖放以添加上下文",
+      "invalid": "未找到支持的库内笔记或文件夹。"
+    },
     "bangBash": {
       "placeholder": "> 运行命令...",
       "commandPanel": "命令面板",
@@ -70,7 +79,7 @@
     }
   },
   "settings": {
-    "title": "Claudian 设置",
+    "title": "Claudian Plus 设置",
     "tabs": {
       "general": "通用",
       "claude": "Claude",
@@ -84,7 +93,7 @@
     "models": "模型",
     "experimental": "实验性功能",
     "userName": {
-      "name": "Claudian 应该如何称呼你？",
+      "name": "Claudian Plus 应该如何称呼你？",
       "desc": "用于个性化问候的用户名（留空使用通用问候）"
     },
     "excludedTags": {
@@ -200,7 +209,7 @@
     },
     "hiddenSlashCommands": {
       "name": "隐藏命令与技能",
-      "desc": "从下拉菜单中隐藏特定的命令与技能。适用于隐藏与 Claudian 无关的 Claude Code 条目。每行输入一个名称，无需前导斜杠。",
+      "desc": "从下拉菜单中隐藏特定的命令与技能。适用于隐藏与 Claudian Plus 无关的 Claude Code 条目。每行输入一个名称，无需前导斜杠。",
       "placeholder": "commit\nbuild\ntest"
     },
     "mcpServers": {
@@ -332,11 +341,130 @@
       "desc": "Write 和 Edit diff 首次出现时以展开状态显示。"
     },
     "chatViewPlacement": {
-      "name": "Claudian 打开位置",
+      "name": "Claudian Plus 打开位置",
       "desc": "选择新建聊天面板时的打开位置",
       "rightSidebar": "右侧边栏",
       "leftSidebar": "左侧边栏",
       "mainTab": "主编辑器标签页"
+    },
+    "defaultChatProvider": {
+      "name": "新对话默认提供商",
+      "desc": "用于每个新的空白标签页。现有对话保留其提供商。",
+      "followModel": "跟随所选模型"
+    },
+    "livePreviewComposer": {
+      "name": "实时预览输入框",
+      "desc": "输入时渲染支持的 Markdown 和库引用。禁用则使用纯文本输入框。重新打开聊天视图后生效。"
+    },
+    "vaultAutoContext": {
+      "name": "自动加载 Vault 上下文",
+      "desc": "为每次普通对话检索相关本地笔记并自动加入上下文。关闭后仅在手动搜索时检索。"
+    },
+    "semanticSearch": {
+      "name": "本地语义检索",
+      "desc": "可选使用本地 Ollama 或 OpenAI 兼容的向量服务重排 Vault 检索结果。服务不可用时会继续使用普通关键词检索。"
+    },
+    "autoLinkRecommendations": {
+      "name": "保存后推荐双链",
+      "desc": "保存当前 Markdown 笔记后，显示去重且有来源依据的链接候选。不会自动插入任何链接。"
+    },
+    "semanticEmbeddingEndpoint": {
+      "name": "向量服务地址",
+      "desc": "本地向量服务的基础地址。OpenAI 兼容服务使用 /v1/embeddings，Ollama 使用基础地址。"
+    },
+    "semanticEmbeddingModel": {
+      "name": "向量模型",
+      "desc": "本地向量服务中已安装的模型名称，例如 nomic-embed-text。"
+    },
+    "claudeServices": {
+      "heading": "第三方模型服务",
+      "description": "通过 Claude 接入 Anthropic 兼容服务。启用后会显示在聊天模型选择器中。",
+      "empty": "尚未配置第三方模型服务。",
+      "add": "添加模型服务",
+      "enable": "启用",
+      "disable": "停用",
+      "test": "测试连接",
+      "testing": "正在测试连接。本次会发送一次最小计费请求。",
+      "testSuccess": "连接成功，耗时 {latency} 毫秒。",
+      "testFailed": "连接失败：{error}",
+      "setDefault": "设为默认",
+      "defaultActive": "默认服务",
+      "deleteConfirm": "删除此模型服务？SecretStorage 中的密钥会保留。",
+      "costNotice": "连接测试会发送一次最小请求，可能产生少量服务费用。",
+      "modal": {
+        "add": "添加模型服务",
+        "edit": "编辑模型服务"
+      },
+      "fields": {
+        "preset": "服务模板",
+        "name": "服务名称",
+        "url": "Base URL",
+        "urlDesc": "Anthropic 兼容端点。除本机地址外必须使用 HTTPS。",
+        "auth": "认证方式",
+        "secret": "API Key",
+        "secretDesc": "在 Obsidian SecretStorage 中选择或创建密钥。",
+        "defaultModel": "默认模型 ID",
+        "lightModel": "轻量模型 ID",
+        "lightModelDesc": "用于标题生成和 Haiku 类轻任务。"
+      },
+      "auth": {
+        "bearer": "Bearer Token",
+        "apiKey": "API Key 请求头"
+      },
+      "validation": {
+        "name": "必须填写服务名称。",
+        "url": "必须填写有效的 Base URL。",
+        "https": "请使用 HTTPS；仅 localhost 可使用 HTTP。",
+        "secret": "请在 SecretStorage 中选择或创建 API Key。",
+        "defaultModel": "必须填写默认模型 ID。",
+        "lightModel": "必须填写轻量模型 ID。"
+      }
+    },
+    "agentSkills": {
+      "sectionTitle": "技能",
+      "header": "共享技能",
+      "fixedRoot": "管理于 .agents/skills",
+      "sharedExpectation": "管理 .agents/skills/ 中所有启用提供商共享的技能。",
+      "noSkills": "尚未配置共享技能。点击 + 创建一个。",
+      "skillBadge": "技能",
+      "diagnosticsTitle": "需要关注的技能",
+      "loadFailed": "无法加载共享技能。",
+      "savedRefreshFailed": "已保存，但提供商刷新失败。",
+      "validationFailed": "技能无效：{message}",
+      "collisionFailed": "名为 \"{name}\" 的技能已存在。",
+      "saveFailed": "保存共享技能失败：{message}",
+      "deleteFailed": "将共享技能移至回收站失败：{message}",
+      "staleConflict": "此技能已在别处更改；请刷新后再保存。",
+      "created": "已创建共享技能 \"{name}\"。",
+      "updated": "已更新共享技能 \"{name}\"。",
+      "deleted": "已将共享技能 \"{name}\" 移至回收站。",
+      "modal": {
+        "titleEdit": "编辑共享技能",
+        "titleAdd": "添加共享技能",
+        "name": "技能名称",
+        "nameDesc": "小写字母和数字，用单个连字符分隔",
+        "namePlaceholder": "code-reviewer",
+        "description": "描述",
+        "descriptionDesc": "提供商用于选择技能的必填可移植描述",
+        "descriptionPlaceholder": "审查代码的正确性和可维护性",
+        "instructions": "指令",
+        "instructionsDesc": "SKILL.md 必填指令",
+        "instructionsPlaceholder": "审查提供的代码并报告可执行的发现..."
+      },
+      "delete": {
+        "title": "删除共享技能",
+        "description": "整个技能文件夹（包括脚本、引用和资源）将被移至回收站。",
+        "confirm": "移至回收站"
+      }
+    },
+    "providerEnablement": {
+      "atLeastOne": "必须至少保留一个已启用的提供商。"
+    },
+    "claude": {
+      "enableProvider": {
+        "name": "启用 Claude 提供商",
+        "desc": "启用后，Claude 模型会出现在新对话的模型选择器中。现有 Claude 会话会保留。"
+      }
     },
     "cliPath": {
       "name": "Claude CLI 路径",
@@ -359,7 +487,7 @@
       },
       "installationMethod": {
         "name": "安装方式",
-        "desc": "Claudian 在 Windows 上启动 Codex 的方式。原生 Windows 使用 Windows 可执行文件路径；WSL 会在所选发行版内启动 Linux CLI。",
+        "desc": "Claudian Plus 在 Windows 上启动 Codex 的方式。原生 Windows 使用 Windows 可执行文件路径；WSL 会在所选发行版内启动 Linux CLI。",
         "nativeWindows": "原生 Windows",
         "wsl": "WSL"
       },
@@ -406,7 +534,7 @@
       },
       "mcp": {
         "descBeforeCommand": "Codex 通过自己的 CLI 管理 MCP 服务器。请使用 ",
-        "descAfterCommand": " 进行配置，它们会在 Claudian 中可用。",
+        "descAfterCommand": " 进行配置，它们会在 Claudian Plus 中可用。",
         "learnMore": "了解更多"
       },
       "environment": {

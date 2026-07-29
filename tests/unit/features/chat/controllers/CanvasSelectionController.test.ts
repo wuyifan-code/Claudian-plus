@@ -173,6 +173,21 @@ describe('CanvasSelectionController', () => {
     expect(controller.getContext()).toBeNull();
   });
 
+  it('drops a stale canvas selection when every canvas leaf closes', () => {
+    controller.start();
+    jest.advanceTimersByTime(250);
+    expect(controller.hasSelection()).toBe(true);
+
+    app.workspace.getMostRecentLeaf.mockReturnValue(null);
+    app.workspace.getLeavesOfType.mockReturnValue([]);
+    (global as any).document.activeElement = null;
+
+    jest.advanceTimersByTime(250);
+
+    expect(controller.getContext()).toBeNull();
+    expect(contextTray.clearItems).toHaveBeenCalledWith('canvas-selection');
+  });
+
   it('clear() resets state and indicator', () => {
     controller.start();
     jest.advanceTimersByTime(250);

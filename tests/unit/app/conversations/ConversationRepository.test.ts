@@ -37,6 +37,28 @@ describe('ConversationRepository hydration', () => {
     jest.restoreAllMocks();
   });
 
+  it('waits for an in-flight metadata save before deleting the conversation metadata', async () => {
+    const { repository, sessions } = createRepository();
+    let finishSave!: () => void;
+    const pendingSave = new Promise<void>((resolve) => {
+      finishSave = resolve;
+    });
+    sessions.saveMetadata.mockReturnValueOnce(pendingSave);
+
+    const updatePromise = repository.update('conversation-1', { title: 'New title' });
+    await Promise.resolve();
+    const deletePromise = repository.delete('conversation-1', { deleteProviderSession: false });
+    await Promise.resolve();
+
+    expect(sessions.deleteMetadata).not.toHaveBeenCalled();
+
+    finishSave();
+    await Promise.all([updatePromise, deletePromise]);
+
+    expect(sessions.deleteMetadata).toHaveBeenCalledWith('conversation-1');
+    expect(repository.getSync('conversation-1')).toBeNull();
+  });
+
   it('returns cached metadata without hydrating provider history', () => {
     const hydrateConversationHistory = jest.fn();
     jest.spyOn(ProviderRegistry, 'getConversationHistoryService').mockReturnValue({
@@ -89,6 +111,28 @@ describe('ConversationRepository hydration', () => {
     await expect(repository.ensureHydrated(conversation.id)).resolves.toBe(conversation);
 
     expect(hydrateConversationHistory).toHaveBeenCalledTimes(2);
+  });
+
+  it('builds and persists transcript indexes for cold-start history search', async () => {
+    const hydrateConversationHistory = jest.fn(async (conversation: Conversation) => {
+      conversation.messages = [{
+        id: 'message-1',
+        role: 'user',
+        content: 'Please map the vault memory architecture',
+        timestamp: 2,
+      }];
+    });
+    jest.spyOn(ProviderRegistry, 'getConversationHistoryService').mockReturnValue({
+      hydrateConversationHistory,
+    } as any);
+    const conversation = createConversation();
+    const { repository, sessions } = createRepository(conversation);
+
+    await repository.ensureSearchIndex([conversation.id]);
+
+    expect(hydrateConversationHistory).toHaveBeenCalledTimes(1);
+    expect(repository.list()[0].searchText).toContain('vault memory architecture');
+    expect(sessions.saveMetadata).toHaveBeenCalled();
   });
 
   it('does not return a conversation deleted while hydration is in flight', async () => {
@@ -174,6 +218,45 @@ describe('ConversationRepository hydration', () => {
     await expect(staleHydration).resolves.toBeNull();
     await expect(repository.ensureHydrated(conversation.id)).resolves.toBe(conversation);
     expect(hydrateConversationHistory).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not let a late relocated-session preparation overwrite a newer session update', async () => {
+    let markPreparationStarted!: () => void;
+    let releasePreparation!: () => void;
+    const preparationStarted = new Promise<void>((resolve) => {
+      markPreparationStarted = resolve;
+    });
+    const preparationRelease = new Promise<void>((resolve) => {
+      releasePreparation = resolve;
+    });
+    const prepareRelocatedConversationSession = jest.fn(async (candidate: Conversation) => {
+      markPreparationStarted();
+      await preparationRelease;
+      candidate.sessionId = null;
+      candidate.providerState = { previousProviderSessionIds: ['session-1'] };
+      return true;
+    });
+    jest.spyOn(ProviderRegistry, 'getConversationHistoryService').mockReturnValue({
+      getConversationSessionAvailability: jest.fn().mockResolvedValue('relocated'),
+      prepareRelocatedConversationSession,
+      hydrateConversationHistory: jest.fn(),
+    } as any);
+    const conversation = createConversation();
+    const { repository } = createRepository(conversation);
+
+    const hydration = repository.ensureHydrated(conversation.id);
+    await preparationStarted;
+    await repository.update(conversation.id, {
+      sessionId: 'session-new',
+      providerState: { source: 'new-session' },
+    });
+    releasePreparation();
+
+    await expect(hydration).resolves.toBeNull();
+    expect(repository.getSync(conversation.id)).toEqual(expect.objectContaining({
+      sessionId: 'session-new',
+      providerState: { source: 'new-session' },
+    }));
   });
 
   it('merges background metadata without replacing an already hydrated conversation', () => {

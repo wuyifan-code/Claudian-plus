@@ -1,8 +1,10 @@
 /**
- * Claudian - Context Utilities
+ * Claudian Plus - Context Utilities
  *
  * Note and context file formatting for prompts.
  */
+
+import type { Conversation } from '../core/types';
 
 const LINKED_NOTE_TAG = 'linked_note';
 const NOTE_CONTEXT_TAG_PATTERN = '(linked_note|current_note)';
@@ -18,7 +20,7 @@ const NOTE_CONTEXT_SUFFIX_REGEX = new RegExp(`\\n\\n<${NOTE_CONTEXT_TAG_PATTERN}
  * Matches: linked_note/current_note, editor_selection (with attributes), editor_cursor (with attributes),
  * context_files, canvas_selection, browser_selection
  */
-export const XML_CONTEXT_PATTERN = /\n\n<(?:linked_note|current_note|editor_selection|editor_cursor|context_files|canvas_selection|browser_selection)[\s>]/;
+export const XML_CONTEXT_PATTERN = /\n\n<(?:linked_note|current_note|editor_selection|editor_cursor|context_files|canvas_selection|browser_selection|vault_context)[\s>]/;
 const BRACKET_CONTEXT_PATTERN = /\n\[(?:Current note|Editor selection from|Browser selection from|Canvas selection from)\b/;
 
 export function formatCurrentNote(notePath: string): string {
@@ -106,7 +108,42 @@ export function extractUserQuery(prompt: string): string {
     .replace(/<context_files>[\s\S]*?<\/context_files>\s*/g, '')
     .replace(/<canvas_selection[\s\S]*?<\/canvas_selection>\s*/g, '')
     .replace(/<browser_selection[\s\S]*?<\/browser_selection>\s*/g, '')
+    .replace(/<vault_context>[\s\S]*?<\/vault_context>\s*/g, '')
     .trim();
+}
+
+/**
+ * Builds a bounded, human-readable transcript index for history search.
+ *
+ * The full messages remain provider-owned; this deliberately stores only a
+ * small plain-text projection so cold-start history search does not need to
+ * hydrate every provider session or expose hidden prompt context.
+ */
+export const MAX_CONVERSATION_SEARCH_TEXT_LENGTH = 12_000;
+
+export function buildConversationSearchText(conversation: Pick<Conversation, 'title' | 'messages'>): string {
+  const parts: string[] = [];
+  if (conversation.title.trim()) parts.push(conversation.title.trim());
+
+  for (const message of conversation.messages) {
+    if (message.isRebuiltContext || !message.content.trim()) continue;
+    const visibleContent = message.role === 'user'
+      ? (message.displayContent ?? extractUserDisplayContent(message.content) ?? message.content)
+      : message.content;
+    const normalized = visibleContent.replace(/\s+/g, ' ').trim();
+    if (normalized) parts.push(normalized);
+    if (parts.join('\n').length >= MAX_CONVERSATION_SEARCH_TEXT_LENGTH) break;
+  }
+
+  return parts.join('\n').slice(0, MAX_CONVERSATION_SEARCH_TEXT_LENGTH);
+}
+
+/** Uses the persisted cold-start index until provider messages are hydrated. */
+export function getConversationSearchText(conversation: Conversation): string {
+  if (conversation.messages.length === 0 && conversation.searchText) {
+    return conversation.searchText.slice(0, MAX_CONVERSATION_SEARCH_TEXT_LENGTH);
+  }
+  return buildConversationSearchText(conversation);
 }
 
 function formatContextFilesLine(files: string[]): string {
@@ -115,4 +152,13 @@ function formatContextFilesLine(files: string[]): string {
 
 export function appendContextFiles(prompt: string, files: string[]): string {
   return `${prompt}\n\n${formatContextFilesLine(files)}`;
+}
+
+/**
+ * Appends source-backed vault context to the provider prompt without changing
+ * the user-visible message or the persisted turn text.
+ */
+export function appendVaultContext(prompt: string, vaultContext?: string): string {
+  const trimmed = vaultContext?.trim();
+  return trimmed ? `${prompt}\n\n${trimmed}` : prompt;
 }

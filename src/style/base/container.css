@@ -1,4 +1,9 @@
-.claudian-container {
+/* Ensure the sidebar panel is never squeezed too narrow */
+.workspace-leaf-content[data-type="claudian-plus-view"] {
+  min-width: 380px;
+}
+
+.claudian-plus-container {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -7,14 +12,14 @@
   font-family: var(--font-text);
 }
 
-.claudian-provider-icon-variant--dark {
+.claudian-plus-provider-icon-variant--dark {
   display: none;
 }
 
-body.theme-dark .claudian-provider-icon-variant--light {
+body.theme-dark .claudian-plus-provider-icon-variant--light {
   display: none;
 }
 
-body.theme-dark .claudian-provider-icon-variant--dark {
+body.theme-dark .claudian-plus-provider-icon-variant--dark {
   display: inline;
 }

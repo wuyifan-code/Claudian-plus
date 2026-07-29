@@ -10,7 +10,7 @@ import { TitleGenerationService as ClaudeTitleGenerationService } from './auxili
 import { CLAUDE_PROVIDER_CAPABILITIES } from './capabilities';
 import { claudeSettingsReconciler } from './env/ClaudeSettingsReconciler';
 import { ClaudeConversationHistoryService } from './history/ClaudeConversationHistoryService';
-import { ClaudianService as ClaudeChatRuntime } from './runtime/ClaudeChatRuntime';
+import { ClaudeChatRuntime } from './runtime/ClaudeChatRuntime';
 import { ClaudeTaskResultInterpreter } from './runtime/ClaudeTaskResultInterpreter';
 import { getClaudeProviderSettings, updateClaudeProviderSettings } from './settings';
 import { claudeChatUIConfig } from './ui/ClaudeChatUIConfig';
@@ -21,7 +21,10 @@ export const claudeProviderRegistration: ProviderModule = {
   id: 'claude',
   displayName: 'Claude',
   blankTabOrder: 20,
-  isEnabled: () => true,
+  isEnabled: (settings) => getClaudeProviderSettings(settings).enabled,
+  setEnabled: (settings, enabled) => {
+    updateClaudeProviderSettings(settings, { enabled });
+  },
   capabilities: CLAUDE_PROVIDER_CAPABILITIES,
   environmentKeyPatterns: [/^ANTHROPIC_/i, /^CLAUDE_/i],
   chatUIConfig: claudeChatUIConfig,

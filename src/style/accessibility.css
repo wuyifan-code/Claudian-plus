@@ -1,49 +1,49 @@
 /* Accessibility - Focus Visible Styles */
 
 /* outline + offset + border-radius */
-.claudian-tool-header:focus-visible,
-.claudian-thinking-header:focus-visible,
-.claudian-subagent-header:focus-visible,
-.claudian-input-nav-btn:focus-visible,
-.claudian-model-btn:focus-visible,
-.claudian-thinking-current:focus-visible {
+.claudian-plus-tool-header:focus-visible,
+.claudian-plus-thinking-header:focus-visible,
+.claudian-plus-subagent-header:focus-visible,
+.claudian-plus-input-nav-btn:focus-visible,
+.claudian-plus-model-btn:focus-visible,
+.claudian-plus-thinking-current:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
 /* outline + offset only */
-.claudian-action-btn:focus-visible,
-.claudian-toggle-switch:focus-visible,
-.claudian-context-chip-main:focus-visible,
-.claudian-context-chip-remove:focus-visible,
-.claudian-context-more:focus-visible,
-.claudian-image-modal-close:focus-visible,
-.claudian-approved-remove-btn:focus-visible,
-.claudian-save-env-btn:focus-visible,
-.claudian-restore-snippet-btn:focus-visible,
-.claudian-edit-snippet-btn:focus-visible,
-.claudian-delete-snippet-btn:focus-visible,
-.claudian-cancel-btn:focus-visible,
-.claudian-save-btn:focus-visible,
-.claudian-code-lang-label:focus-visible {
+.claudian-plus-action-btn:focus-visible,
+.claudian-plus-toggle-switch:focus-visible,
+.claudian-plus-context-chip-main:focus-visible,
+.claudian-plus-context-chip-remove:focus-visible,
+.claudian-plus-context-more:focus-visible,
+.claudian-plus-image-modal-close:focus-visible,
+.claudian-plus-approved-remove-btn:focus-visible,
+.claudian-plus-save-env-btn:focus-visible,
+.claudian-plus-restore-snippet-btn:focus-visible,
+.claudian-plus-edit-snippet-btn:focus-visible,
+.claudian-plus-delete-snippet-btn:focus-visible,
+.claudian-plus-cancel-btn:focus-visible,
+.claudian-plus-save-btn:focus-visible,
+.claudian-plus-code-lang-label:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
 }
 
-.claudian-inline-preview-action:focus-visible {
+.claudian-plus-inline-preview-action:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .claudian-inline-spinner {
+  .claudian-plus-inline-spinner {
     animation: none;
   }
 }
 
 /* outline + negative offset + border-radius */
-.claudian-history-item-content:focus-visible {
+.claudian-plus-history-item-content:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: -2px;
   border-radius: 4px;

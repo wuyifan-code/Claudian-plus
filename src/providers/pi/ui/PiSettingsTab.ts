@@ -2,12 +2,13 @@ import * as fs from 'node:fs';
 
 import { Notice, Setting } from 'obsidian';
 
-import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import type {
   ProviderSettingsTabRenderer,
   ProviderSettingsTabRendererContext,
 } from '../../../core/providers/types';
+import { localeText } from '../../../i18n/i18n';
 import { renderEnvironmentSettingsSection } from '../../../shared/settings/EnvironmentSettingsSection';
+import { applyProviderEnablementToggle } from '../../../shared/settings/ProviderEnablementToggle';
 import {
   type ProviderModelPickerModel,
   type ProviderModelPickerState,
@@ -32,25 +33,21 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const hostnameKey = getHostnameKey();
     const workspace = maybeGetPiWorkspaceServices();
 
-    new Setting(container).setName('Setup').setHeading();
+    new Setting(container).setName(localeText('设置', 'Setup')).setHeading();
 
     new Setting(container)
-      .setName('Enable Pi')
-      .setDesc('Launch `pi --mode rpc` as a provider.')
+      .setName(localeText('启用 Pi', 'Enable Pi'))
+      .setDesc(localeText('以提供商模式启动 `pi --mode rpc`。', 'Launch `pi --mode rpc` as a provider.'))
       .addToggle((toggle) =>
         toggle
           .setValue(piSettings.enabled)
           .onChange(async (value) => {
-            await context.plugin.mutateSettings((settings) => {
-              ProviderSettingsCoordinator.applyProviderEnablement(settings, 'pi', value);
-            });
-            context.refreshModelSelectors();
-            context.refreshTitleGenerationModelOptions();
+            await applyProviderEnablementToggle(context, toggle, 'pi', value);
           })
       );
 
     const validationEl = container.createDiv({
-      cls: 'claudian-cli-path-validation claudian-setting-validation claudian-setting-validation-error claudian-hidden',
+      cls: 'claudian-plus-cli-path-validation claudian-plus-setting-validation claudian-plus-setting-validation-error claudian-plus-hidden',
     });
     const cliPathsByHost = { ...piSettings.cliPathsByHost };
     let cliPathInputEl: HTMLInputElement | null = null;
@@ -59,13 +56,13 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
       const error = validateCliPath(value);
       if (error) {
         validationEl.setText(error);
-        validationEl.toggleClass('claudian-hidden', false);
-        inputEl?.toggleClass('claudian-input-error', true);
+        validationEl.toggleClass('claudian-plus-hidden', false);
+        inputEl?.toggleClass('claudian-plus-input-error', true);
         return false;
       }
 
-      validationEl.toggleClass('claudian-hidden', true);
-      inputEl?.toggleClass('claudian-input-error', false);
+      validationEl.toggleClass('claudian-plus-hidden', true);
+      inputEl?.toggleClass('claudian-plus-input-error', false);
       return true;
     };
 
@@ -92,8 +89,11 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
     };
 
     new Setting(container)
-      .setName('CLI path')
-      .setDesc('Optional absolute path to the Pi CLI for this computer. Leave empty to use `pi` from PATH.')
+      .setName(localeText('CLI 路径', 'CLI path'))
+      .setDesc(localeText(
+        '此电脑上 Pi CLI 的可选绝对路径。留空则使用 PATH 中的 `pi`。',
+        'Optional absolute path to the Pi CLI for this computer. Leave empty to use `pi` from PATH.',
+      ))
       .addText((text) => {
         const currentValue = piSettings.cliPathsByHost[hostnameKey] || '';
         text
@@ -108,14 +108,14 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
         updateCliPathValidation(currentValue, text.inputEl);
       });
 
-    new Setting(container).setName('Models').setHeading();
+    new Setting(container).setName(localeText('模型', 'Models')).setHeading();
     renderPiModelPicker(container, context, settingsBag);
 
     renderEnvironmentSettingsSection({
       container,
-      desc: 'Environment variables passed only to Pi.',
-      heading: 'Environment',
-      name: 'Pi environment variables',
+      desc: localeText('仅传递给 Pi 的环境变量。', 'Environment variables passed only to Pi.'),
+      heading: localeText('环境', 'Environment'),
+      name: localeText('Pi 环境变量', 'Pi environment variables'),
       placeholder: 'PI_CODING_AGENT_SESSION_DIR=/path/to/sessions',
       plugin: context.plugin,
       scope: 'provider:pi',
@@ -140,8 +140,8 @@ function renderPiModelPicker(
 
   renderProviderModelPicker({
     container,
-    emptyCatalogText: 'No Pi models discovered yet. Click Discover to load models from Pi.',
-    failedCatalogText: 'Could not load the Pi model catalog. Check the CLI path and login state, then try again.',
+    emptyCatalogText: localeText('尚未发现 Pi 模型。点击“发现模型”从 Pi 加载模型。', 'No Pi models discovered yet. Click Discover to load models from Pi.'),
+    failedCatalogText: localeText('无法加载 Pi 模型目录。请检查 CLI 路径和登录状态后重试。', 'Could not load the Pi model catalog. Check the CLI path and login state, then try again.'),
     getState,
     async loadCatalog() {
       const result = await new PiModelDiscoveryService(context.plugin).discoverModels();
@@ -169,7 +169,7 @@ function renderPiModelPicker(
       }
       return result.models.length > 0 ? 'loaded' : 'empty';
     },
-    loadingCatalogText: 'Loading Pi model catalog...',
+    loadingCatalogText: localeText('正在加载 Pi 模型目录…', 'Loading Pi model catalog...'),
     modifier: 'pi',
     async onAliasesChange(modelAliases) {
       await context.plugin.mutateSettings((settings) => {
@@ -190,7 +190,10 @@ function renderPiModelPicker(
       context.refreshModelSelectors();
     },
     providerName: 'Pi',
-    settingDescription: 'Choose which Pi models appear in the chat selector. Filter by provider or type to search. The current session model stays pinned even if it is not selected here.',
+    settingDescription: localeText(
+      '选择在聊天模型选择器中显示的 Pi 模型。可以按提供商或类型筛选。当前会话模型即使未在此选择，也会保持固定。',
+      'Choose which Pi models appear in the chat selector. Filter by provider or type to search. The current session model stays pinned even if it is not selected here.',
+    ),
   });
 }
 
@@ -202,11 +205,11 @@ function validateCliPath(value: string): string | null {
 
   const expandedPath = expandHomePath(trimmed);
   if (!fs.existsSync(expandedPath)) {
-    return 'Path does not exist';
+    return localeText('路径不存在', 'Path does not exist');
   }
 
   if (!fs.statSync(expandedPath).isFile()) {
-    return 'Path must point to a file';
+    return localeText('路径必须指向文件', 'Path must point to a file');
   }
 
   return null;

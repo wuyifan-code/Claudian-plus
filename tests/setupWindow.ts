@@ -3,10 +3,49 @@ type TestWindow = typeof globalThis & {
   requestAnimationFrame?: (callback: FrameRequestCallback) => number;
 };
 
-// Register built-in providers so all tests can resolve provider lookups.
-// In production this runs inside onload; tests need it eagerly.
-import { registerBuiltInProviders } from '../src/providers';
-registerBuiltInProviders();
+// Register built-in providers after each test module has been evaluated.
+// Importing providers at setup-file time eagerly loads every concrete runtime
+// before a test's `jest.mock(...)` declarations can take effect. That made
+// tests which mock CLI/process boundaries spawn the host's real executables.
+// Keeping registration in a lifecycle hook preserves the production contract
+// while allowing per-suite mocks to replace provider modules safely.
+beforeAll(() => {
+  // A few subprocess unit suites intentionally replace `node:child_process`
+  // with a minimal mock. Provider registration imports the Codex WSL resolver,
+  // which legitimately needs `execFile`; do not eagerly load that unrelated
+  // provider graph into a test that is isolating spawn behavior.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const childProcess = require('node:child_process') as {
+    execFile?: unknown;
+    spawn?: unknown;
+  };
+  if (typeof childProcess.execFile !== 'function' || jest.isMockFunction(childProcess.spawn)) {
+    return;
+  }
+  // Likewise, settings/provider registration imports UI classes such as
+  // Modal. Suites that intentionally provide a narrow Obsidian mock should
+  // not be forced to implement the whole UI surface just to run a core test.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const obsidian = require('obsidian') as { Modal?: unknown };
+  if (typeof obsidian.Modal !== 'function') {
+    return;
+  }
+  // Some feature suites replace ProviderRegistry with a deliberately narrow
+  // mock. Registration is a production bootstrap concern and must not make
+  // those unit tests implement every registry method just to load the setup.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const registryModule = require('../src/core/providers/ProviderRegistry') as {
+    ProviderRegistry?: { register?: unknown };
+  };
+  if (typeof registryModule.ProviderRegistry?.register !== 'function') {
+    return;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { registerBuiltInProviders } = require('../src/providers') as {
+    registerBuiltInProviders: () => void;
+  };
+  registerBuiltInProviders();
+});
 
 const testWindow = globalThis as TestWindow;
 

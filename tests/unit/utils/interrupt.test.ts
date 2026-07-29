@@ -75,7 +75,7 @@ describe('interrupt utils', () => {
   describe('stripLegacyInterruptIndicator', () => {
     it('removes only the trailing Claudian-owned interruption marker', () => {
       const marker =
-        '<span class="claudian-interrupted">Interrupted</span> <span class="claudian-interrupted-hint">· What should Claudian do instead?</span>';
+        '<span class="claudian-plus-interrupted">Interrupted</span> <span class="claudian-plus-interrupted-hint">· What should Claudian Plus do instead?</span>';
 
       expect(stripLegacyInterruptIndicator(`Partial response\n\n${marker}`)).toEqual({
         content: 'Partial response',

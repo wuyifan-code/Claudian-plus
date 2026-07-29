@@ -2,6 +2,7 @@ import { Notice } from 'obsidian';
 
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import type { ProviderSettingsTabRendererContext } from '../../../core/providers/types';
+import { localeText } from '../../../i18n/i18n';
 import {
   type ProviderModelPickerModel,
   type ProviderModelPickerState,
@@ -48,7 +49,7 @@ export function renderCodexModelPicker(
     }
 
     const models: ProviderModelPickerModel[] = pickerOrderedModels.map(model => ({
-      ...(model.isDefault ? { catalogBadge: 'Default' } : {}),
+      ...(model.isDefault ? { catalogBadge: localeText('默认', 'Default') } : {}),
       description: model.description,
       id: model.model,
       isAvailable: true,
@@ -58,11 +59,11 @@ export function renderCodexModelPicker(
     for (const modelId of visibleModelIds) {
       if (!discoveredIds.has(modelId)) {
         models.push({
-          description: 'Selected model',
+          description: localeText('已选择的模型', 'Selected model'),
           id: modelId,
           isAvailable: false,
           name: modelId,
-          unavailableMessage: 'Not currently reported by Codex',
+          unavailableMessage: localeText('Codex 当前未报告此模型', 'Not currently reported by Codex'),
         });
       }
     }
@@ -93,8 +94,8 @@ export function renderCodexModelPicker(
   const picker = renderProviderModelPicker({
     checkCatalogFreshnessWhenCached: true,
     container,
-    emptyCatalogText: 'No Codex models discovered yet. Click Discover to query app-server.',
-    failedCatalogText: 'Could not load models from Codex app-server. Check the CLI path and login state, then try again.',
+    emptyCatalogText: localeText('尚未发现 Codex 模型。点击“发现模型”从 app-server 查询。', 'No Codex models discovered yet. Click Discover to query app-server.'),
+    failedCatalogText: localeText('无法从 Codex app-server 加载模型。请检查 CLI 路径和登录状态后重试。', 'Could not load models from Codex app-server. Check the CLI path and login state, then try again.'),
     getState,
     initiallyOpen: getCodexProviderSettings(settingsBag).discoveredModels.length === 0,
     async loadCatalog(force) {
@@ -113,13 +114,13 @@ export function renderCodexModelPicker(
         );
       }
       if (result.diagnostics) {
-        new Notice(`Codex model discovery failed: ${result.diagnostics}`);
+        new Notice(localeText(`Codex 模型发现失败：${result.diagnostics}`, `Codex model discovery failed: ${result.diagnostics}`));
         return 'failed';
       }
       context.refreshModelSelectors();
       return getCodexProviderSettings(settingsBag).discoveredModels.length > 0 ? 'loaded' : 'empty';
     },
-    loadingCatalogText: 'Loading the Codex model catalog...',
+    loadingCatalogText: localeText('正在加载 Codex 模型目录…', 'Loading the Codex model catalog...'),
     modifier: 'codex',
     async onAliasesChange(modelAliases) {
       await context.plugin.mutateSettings((settings) => {
@@ -129,8 +130,8 @@ export function renderCodexModelPicker(
     },
     onSelectedIdsChange: persistVisibleModels,
     providerName: 'Codex',
-    searchPlaceholder: 'Filter by model name, description, or ID...',
-    settingDescription: 'Choose which app-server models appear in the Codex selector. Existing session models stay pinned even when hidden here.',
+    searchPlaceholder: localeText('按模型名称、描述或 ID 筛选…', 'Filter by model name, description, or ID...'),
+    settingDescription: localeText('选择哪些 app-server 模型显示在 Codex 选择器中。即使在此隐藏，已有会话使用的模型仍会保持固定。', 'Choose which app-server models appear in the Codex selector. Existing session models stay pinned even when hidden here.'),
   });
   refreshPicker = picker.refresh.bind(picker);
 }

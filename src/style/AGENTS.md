@@ -24,9 +24,9 @@ src/style/
 
 ## Conventions
 
-- Claudian-owned classes use the `.claudian-` prefix.
+- Claudian-owned classes use the `.claudian-plus-` prefix.
 - Shared Obsidian host selectors and generic state classes may remain unprefixed.
-- Prefer BEM-lite names: `.claudian-{block}`, `.claudian-{block}-{element}`, `.claudian-{block}--{modifier}`.
+- Prefer BEM-lite names: `.claudian-plus-{block}`, `.claudian-plus-{block}-{element}`, `.claudian-plus-{block}--{modifier}`.
 - Avoid `!important` unless overriding Obsidian defaults.
 - Use Obsidian CSS variables such as `--background-*`, `--text-*`, and `--interactive-*`.
 - Use `var(--font-monospace)` for code blocks.

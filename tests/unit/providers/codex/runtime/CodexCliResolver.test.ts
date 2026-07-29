@@ -54,19 +54,23 @@ describe('CodexCliResolver', () => {
   });
 
   it('auto-detects from the runtime PATH when no configured path is valid', () => {
-    mockedExists.mockImplementation((filePath: string) => filePath === '/custom/bin/codex');
+    const runtimeBin = process.platform === 'win32' ? 'C:\\custom\\bin' : '/custom/bin';
+    const expectedPath = process.platform === 'win32'
+      ? `${runtimeBin}\\codex.exe`
+      : `${runtimeBin}/codex`;
+    mockedExists.mockImplementation((filePath: string) => filePath === expectedPath);
     mockedStat.mockImplementation((filePath: string) => ({
-      isFile: () => filePath === '/custom/bin/codex',
+      isFile: () => filePath === expectedPath,
     }));
 
     const resolver = new CodexCliResolver();
     const resolved = resolver.resolve(
       { 'other-host': '/other/codex' },
       '',
-      'PATH=/custom/bin',
+      `PATH=${runtimeBin}`,
     );
 
-    expect(resolved).toBe('/custom/bin/codex');
+    expect(resolved).toBe(expectedPath);
   });
 
   it('returns a Linux-side command in WSL mode without host filesystem validation', () => {

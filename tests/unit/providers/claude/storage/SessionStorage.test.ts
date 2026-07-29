@@ -27,15 +27,15 @@ describe('SessionStorage', () => {
   });
 
   describe('SESSIONS_PATH', () => {
-    it('should be .claudian/sessions', () => {
-      expect(SESSIONS_PATH).toBe('.claudian/sessions');
+    it('should be .claudian-plus/sessions', () => {
+      expect(SESSIONS_PATH).toBe('.claudian-plus/sessions');
     });
   });
 
   describe('getMetadataPath', () => {
     it('returns correct file path for session id', () => {
       const path = storage.getMetadataPath('session-abc');
-      expect(path).toBe('.claudian/sessions/session-abc.meta.json');
+      expect(path).toBe('.claudian-plus/sessions/session-abc.meta.json');
     });
 
     it.each(['', '.', '..', '../escape', 'nested/id', 'nested\\id', '/absolute', '%2Fescape', '%5cescape'])(
@@ -61,7 +61,7 @@ describe('SessionStorage', () => {
       await storage.saveMetadata(metadata);
 
       expect(mockAdapter.write).toHaveBeenCalledWith(
-        '.claudian/sessions/session-456.meta.json',
+        '.claudian-plus/sessions/session-456.meta.json',
         expect.any(String)
       );
 
@@ -115,7 +115,7 @@ describe('SessionStorage', () => {
       expect(result).toBeNull();
     });
 
-    it('loads legacy metadata and migrates it to .claudian', async () => {
+    it('loads legacy metadata and migrates it to .claudian-plus', async () => {
       const metadata = {
         id: 'session-legacy',
         title: 'Legacy Session',
@@ -132,7 +132,7 @@ describe('SessionStorage', () => {
 
       expect(result).toEqual(metadata);
       expect(mockAdapter.write).toHaveBeenCalledWith(
-        '.claudian/sessions/session-legacy.meta.json',
+        '.claudian-plus/sessions/session-legacy.meta.json',
         expect.any(String),
       );
       expect(mockAdapter.delete).toHaveBeenCalledWith(
@@ -152,7 +152,7 @@ describe('SessionStorage', () => {
         path === `${LEGACY_SESSIONS_PATH}/session-legacy.meta.json`
       ));
       mockAdapter.read.mockResolvedValue(JSON.stringify(metadata));
-      mockAdapter.write.mockRejectedValue(new Error('EEXIST: .claudian/sessions'));
+      mockAdapter.write.mockRejectedValue(new Error('EEXIST: .claudian-plus/sessions'));
 
       await expect(storage.loadMetadata('session-legacy')).resolves.toEqual(metadata);
       expect(mockAdapter.delete).not.toHaveBeenCalled();
@@ -230,8 +230,8 @@ describe('SessionStorage', () => {
   describe('listAllConversations - provider routing', () => {
     it('preserves providerId from metadata', async () => {
       mockAdapter.listFiles.mockResolvedValue([
-        '.claudian/sessions/claude-session.meta.json',
-        '.claudian/sessions/codex-session.meta.json',
+        '.claudian-plus/sessions/claude-session.meta.json',
+        '.claudian-plus/sessions/codex-session.meta.json',
       ]);
 
       mockAdapter.read.mockImplementation((path: string) => {
@@ -267,7 +267,7 @@ describe('SessionStorage', () => {
 
     it('defaults providerId to claude for legacy conversations', async () => {
       mockAdapter.listFiles.mockResolvedValue([
-        '.claudian/sessions/old.meta.json',
+        '.claudian-plus/sessions/old.meta.json',
       ]);
 
       mockAdapter.read.mockResolvedValue(JSON.stringify({
@@ -348,15 +348,15 @@ describe('SessionStorage', () => {
     it('deletes the meta.json file', async () => {
       await storage.deleteMetadata('session-del');
 
-      expect(mockAdapter.delete).toHaveBeenCalledWith('.claudian/sessions/session-del.meta.json');
+      expect(mockAdapter.delete).toHaveBeenCalledWith('.claudian-plus/sessions/session-del.meta.json');
     });
   });
 
   describe('listMetadata', () => {
     it('returns metadata for .meta.json files', async () => {
       mockAdapter.listFiles.mockResolvedValue([
-        '.claudian/sessions/native-1.meta.json',
-        '.claudian/sessions/native-2.meta.json',
+        '.claudian-plus/sessions/native-1.meta.json',
+        '.claudian-plus/sessions/native-2.meta.json',
       ]);
 
       mockAdapter.read.mockImplementation((path: string) => {
@@ -414,8 +414,8 @@ describe('SessionStorage', () => {
 
     it('skips files that fail to load', async () => {
       mockAdapter.listFiles.mockResolvedValue([
-        '.claudian/sessions/good.meta.json',
-        '.claudian/sessions/bad.meta.json',
+        '.claudian-plus/sessions/good.meta.json',
+        '.claudian-plus/sessions/bad.meta.json',
       ]);
 
       mockAdapter.read.mockImplementation((path: string) => {
@@ -479,6 +479,30 @@ describe('SessionStorage', () => {
       });
     });
 
+    it('rejects structurally malformed metadata before it reaches history restoration', async () => {
+      mockAdapter.listFiles.mockImplementation(async (path: string) => (
+        path === SESSIONS_PATH
+          ? [`${SESSIONS_PATH}/broken-shape.meta.json`]
+          : []
+      ));
+      mockAdapter.read.mockResolvedValue(JSON.stringify({
+        id: 'broken-shape',
+        title: null,
+        createdAt: 'not-a-timestamp',
+        updatedAt: Number.NaN,
+      }));
+      mockAdapter.exists.mockImplementation(async (path: string) => (
+        path === `${SESSIONS_PATH}/broken-shape.meta.json`
+      ));
+
+      await expect(storage.scanMetadata()).resolves.toEqual({
+        metadata: [],
+        complete: true,
+        invalidMetadataCount: 1,
+      });
+      await expect(storage.loadMetadata('broken-shape')).resolves.toBeNull();
+    });
+
     it('keeps valid legacy metadata visible when best-effort migration fails', async () => {
       mockAdapter.listFiles.mockImplementation(async (path: string) => (
         path === LEGACY_SESSIONS_PATH
@@ -491,7 +515,7 @@ describe('SessionStorage', () => {
         createdAt: 1,
         updatedAt: 2,
       }));
-      mockAdapter.write.mockRejectedValue(new Error('EEXIST: .claudian/sessions'));
+      mockAdapter.write.mockRejectedValue(new Error('EEXIST: .claudian-plus/sessions'));
 
       await expect(storage.listMetadata()).resolves.toEqual([
         expect.objectContaining({ id: 'legacy', title: 'Legacy session' }),
@@ -507,8 +531,8 @@ describe('SessionStorage', () => {
         updatedAt: 1,
       });
       mockAdapter.listFiles.mockResolvedValue([
-        '.claudian/sessions/filename-id.meta.json',
-        '.claudian/sessions/%2Funsafe.meta.json',
+        '.claudian-plus/sessions/filename-id.meta.json',
+        '.claudian-plus/sessions/%2Funsafe.meta.json',
       ]);
       mockAdapter.read.mockResolvedValue(original);
 
@@ -582,8 +606,8 @@ describe('SessionStorage', () => {
   describe('listAllConversations', () => {
     it('returns metadata from listMetadata as ConversationMeta[]', async () => {
       mockAdapter.listFiles.mockResolvedValue([
-        '.claudian/sessions/session-1.meta.json',
-        '.claudian/sessions/session-2.meta.json',
+        '.claudian-plus/sessions/session-1.meta.json',
+        '.claudian-plus/sessions/session-2.meta.json',
       ]);
 
       mockAdapter.read.mockImplementation((path: string) => {
@@ -633,7 +657,7 @@ describe('SessionStorage', () => {
 
     it('preserves titleGenerationStatus', async () => {
       mockAdapter.listFiles.mockResolvedValue([
-        '.claudian/sessions/session-status.meta.json',
+        '.claudian-plus/sessions/session-status.meta.json',
       ]);
 
       mockAdapter.read.mockResolvedValue(JSON.stringify({

@@ -49,6 +49,25 @@ describe('drag and drop vault context helpers', () => {
     ]);
   });
 
+  it('normalizes a native Windows file URI before resolving vault context', () => {
+    const dataTransfer = createDataTransfer({
+      'text/uri-list': 'file:///C:/Vault/Notes/Project%20Plan.md',
+    });
+    const app = {
+      vault: {
+        adapter: { basePath: 'C:/Vault' },
+        getAbstractFileByPath: (path: string) =>
+          path === 'Notes/Project Plan.md' ? new (TFile as any)(path) : null,
+      },
+    } as any;
+
+    const rawPaths = extractDroppedPaths(dataTransfer);
+    expect(rawPaths).toEqual(['C:/Vault/Notes/Project Plan.md']);
+    expect(resolveDroppedVaultItems(app, rawPaths)).toEqual([
+      { kind: 'file', path: 'Notes/Project Plan.md' },
+    ]);
+  });
+
   it('formats dropped items as composer mentions', () => {
     expect(buildDroppedMention({ kind: 'file', path: 'Notes/One.md' })).toBe('@Notes/One.md ');
     expect(buildDroppedMention({ kind: 'folder', path: 'Projects' })).toBe('@Projects/ ');

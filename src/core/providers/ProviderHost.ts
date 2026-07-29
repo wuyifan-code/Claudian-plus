@@ -1,8 +1,9 @@
 import type { App } from 'obsidian';
 
 import type { SharedAppStorage } from '../bootstrap/storage';
+import type { ObsidianToolBridgeHandle } from '../obsidian';
 import type { ChatRuntime } from '../runtime/ChatRuntime';
-import type { ClaudianSettings } from '../types';
+import type { ClaudianPlusSettings } from '../types';
 import type { EnvironmentScope } from '../types/settings';
 import type { ProviderCliResolutionContext, ProviderId } from './types';
 
@@ -15,16 +16,16 @@ import type { ProviderCliResolutionContext, ProviderId } from './types';
  */
 export interface ProviderHost {
   readonly app: App;
-  readonly settings: ClaudianSettings;
+  readonly settings: ClaudianPlusSettings;
   readonly storage: SharedAppStorage;
   readonly manifest?: { version?: string };
 
   saveSettings(): Promise<void>;
   mutateSettings(
-    mutation: (settings: ClaudianSettings) => void | Promise<void>,
+    mutation: (settings: ClaudianPlusSettings) => void | Promise<void>,
   ): Promise<void>;
   mutateSettingsConditionally(
-    mutation: (settings: ClaudianSettings) => boolean | Promise<boolean>,
+    mutation: (settings: ClaudianPlusSettings) => boolean | Promise<boolean>,
   ): Promise<void>;
   loadData(): Promise<unknown>;
   saveData(data: unknown): Promise<void>;
@@ -46,6 +47,9 @@ export interface ProviderHost {
 
   /** Get the consciousness injection text for system prompt, or null if disabled. */
   getConsciousnessInjectionText(): Promise<string | null>;
+
+  /** Start the loopback native Obsidian bridge for external providers, when available. */
+  ensureObsidianToolBridge?(): Promise<ObsidianToolBridgeHandle>;
 
   refreshModelSelectors?(): void;
   broadcastToActiveViewRuntimes?(

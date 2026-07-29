@@ -11,6 +11,7 @@ export class QueryBackedInstructionRefineService implements InstructionRefineSer
   private existingInstructions = '';
   private hasConversation = false;
   private modelOverride: string | undefined;
+  private requestGeneration = 0;
 
   constructor(private readonly runner: AuxQueryRunner) {}
 
@@ -20,6 +21,7 @@ export class QueryBackedInstructionRefineService implements InstructionRefineSer
   }
 
   resetConversation(): void {
+    this.invalidateActiveRequest();
     this.runner.reset();
     this.hasConversation = false;
   }
@@ -45,34 +47,55 @@ export class QueryBackedInstructionRefineService implements InstructionRefineSer
   }
 
   cancel(): void {
-    this.abortController?.abort();
-    this.abortController = null;
+    this.invalidateActiveRequest();
   }
 
   private async sendMessage(
     prompt: string,
     onProgress?: RefineProgressCallback,
   ): Promise<InstructionRefineResult> {
-    this.abortController = new AbortController();
+    this.abortController?.abort();
+    const requestGeneration = ++this.requestGeneration;
+    const abortController = new AbortController();
+    this.abortController = abortController;
 
     try {
       const text = await this.runner.query({
-        abortController: this.abortController,
+        abortController,
         model: this.modelOverride,
         onTextChunk: onProgress
-          ? (accumulatedText: string) => onProgress(parseInstructionRefineResponse(accumulatedText))
+          ? (accumulatedText: string) => {
+            if (this.requestGeneration !== requestGeneration || abortController.signal.aborted) {
+              return;
+            }
+            onProgress(parseInstructionRefineResponse(accumulatedText));
+          }
           : undefined,
         systemPrompt: buildRefineSystemPrompt(this.existingInstructions),
       }, prompt);
+      if (this.requestGeneration !== requestGeneration || abortController.signal.aborted) {
+        return { success: false, error: 'Cancelled' };
+      }
       this.hasConversation = true;
       return parseInstructionRefineResponse(text);
     } catch (error) {
+      if (this.requestGeneration !== requestGeneration || abortController.signal.aborted) {
+        return { success: false, error: 'Cancelled' };
+      }
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       };
     } finally {
-      this.abortController = null;
+      if (this.requestGeneration === requestGeneration && this.abortController === abortController) {
+        this.abortController = null;
+      }
     }
+  }
+
+  private invalidateActiveRequest(): void {
+    this.requestGeneration += 1;
+    this.abortController?.abort();
+    this.abortController = null;
   }
 }

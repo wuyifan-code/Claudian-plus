@@ -1,298 +1,594 @@
-/* ── Settings tab navigation ── */
+/* ── Settings tab navigation (Segmented Pill Design) ── */
 
-.claudian-settings-tabs {
+.claudian-plus-settings-tabs {
   display: flex;
-  gap: 2px;
-  border-bottom: 1px solid var(--background-modifier-border);
-  margin-bottom: 16px;
+  gap: 6px;
+  padding: 5px;
+  background: var(--background-secondary-alt, var(--background-secondary));
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 12px;
+  margin-bottom: 24px;
+  overflow-x: auto;
 }
 
-.claudian-settings-tab {
-  padding: 8px 16px;
+.claudian-plus-settings-tab {
+  padding: 8px 20px;
   border: none;
+  border-radius: 8px;
   background: transparent;
   color: var(--text-muted);
   font-size: var(--font-ui-small);
-  font-weight: var(--font-medium);
+  font-weight: 500;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition: color 0.15s ease, border-color 0.15s ease;
-  margin-bottom: -1px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  user-select: none;
 }
 
-.claudian-settings-tab:hover {
+.claudian-plus-settings-tab:hover {
   color: var(--text-normal);
+  background: var(--background-modifier-hover);
 }
 
-.claudian-settings-tab--active {
-  color: var(--text-normal);
-  border-bottom-color: var(--interactive-accent);
+.claudian-plus-settings-tab--active {
+  color: var(--text-on-accent, #ffffff) !important;
+  background: var(--interactive-accent) !important;
+  font-weight: 650;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.claudian-settings-tab-content {
+.claudian-plus-settings-tab-content {
   display: none;
 }
 
-.claudian-settings-tab-content--active {
+.claudian-plus-settings-tab-content--active {
   display: block;
+  animation: claudian-plus-fade-in 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes claudian-plus-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Codex placeholder */
-.claudian-settings-codex-placeholder {
+.claudian-plus-settings-codex-placeholder {
   padding: 40px 20px;
   text-align: center;
   color: var(--text-muted);
   font-size: var(--font-ui-small);
 }
 
-/* Settings page - remove separator lines from setting items */
-.claudian-settings .setting-item {
-  border-top: none;
+/* ── Card Containers & Section Cards ── */
+
+.claudian-plus-settings-card {
+  background: var(--background-primary-alt, var(--background-secondary));
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* Settings section headings (via setHeading()) */
-.claudian-settings .setting-item-heading {
-  padding-top: 18px;
-  margin-top: 12px;
-  border-top: 1px solid var(--background-modifier-border);
+.claudian-plus-settings-card:hover {
+  border-color: var(--interactive-accent-hover, var(--background-modifier-border-hover));
 }
 
-.claudian-settings .setting-item-heading:first-child {
-  padding-top: 0;
-  margin-top: 0;
-  border-top: none;
-}
-
-.claudian-settings .setting-item-heading .setting-item-name {
-  font-size: var(--font-ui-medium);
-  font-weight: var(--font-semibold);
+.claudian-plus-settings-card-header {
+  font-size: 16px;
+  font-weight: 700;
   color: var(--text-normal);
+  letter-spacing: -0.01em;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-/* Custom section descriptions - align with items */
-.claudian-sp-settings-desc,
-.claudian-mcp-settings-desc,
-.claudian-plugin-settings-desc,
-.claudian-approved-desc {
-  padding: 0 12px;
+/* Memory / knowledge settings guide: a quiet visual anchor before the switches. */
+.claudian-plus-settings-feature-guide {
+  margin: 4px 8px 12px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--interactive-accent) 24%, var(--background-modifier-border));
+  border-left: 3px solid var(--interactive-accent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--interactive-accent) 6%, var(--background-primary));
 }
 
-/* Unified icon action buttons for settings */
-.claudian-settings-action-btn {
+.claudian-plus-settings-feature-guide-title {
+  margin-bottom: 4px;
+  color: var(--text-normal);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.claudian-plus-settings-feature-guide-copy {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+/* ── Provider Capsule Pill Bar Selector ── */
+.claudian-plus-provider-pill-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 2px;
+}
+
+.claudian-plus-provider-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.claudian-plus-provider-pill:hover:not(.claudian-plus-provider-pill--active) {
+  background: var(--background-modifier-hover);
+  border-color: var(--interactive-accent-hover, var(--background-modifier-border-hover));
+}
+
+.claudian-plus-provider-pill--active {
+  background: #0084ff !important;
+  color: #ffffff !important;
+  border-color: #0084ff !important;
+  box-shadow: 0 4px 14px rgba(0, 132, 255, 0.35);
+}
+
+.claudian-plus-provider-pill-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.claudian-plus-provider-pill-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+  color: inherit;
+}
+
+.claudian-plus-provider-pill--active .claudian-plus-provider-pill-icon svg {
+  fill: #ffffff;
+  color: #ffffff;
+}
+
+.claudian-plus-provider-pill-name {
+  line-height: 1.2;
+}
+
+/* ── About Card ── */
+.claudian-plus-about-card {
+  text-align: center;
+  padding: 32px 24px;
+}
+
+.claudian-plus-about-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-normal);
+  margin-bottom: 6px;
+}
+
+.claudian-plus-about-version {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent, #ffffff);
+  margin-bottom: 16px;
+}
+
+.claudian-plus-about-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 480px;
+  margin: 0 auto 24px;
+  line-height: 1.6;
+}
+
+/* Settings page - spacious layout resetting theme boxes */
+.claudian-plus-settings .setting-item {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 16px 8px !important;
+  margin: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.claudian-plus-settings .setting-item:not(:last-child) {
+  border-bottom: 1px solid var(--background-modifier-border) !important;
+}
+
+.claudian-plus-settings .setting-item-info {
+  flex: 1;
+  min-width: 0;
+  padding-right: 12px;
+}
+
+.claudian-plus-settings .setting-item-name {
+  font-size: 14.5px !important;
+  font-weight: 650 !important;
+  color: var(--text-normal) !important;
+  line-height: 1.4 !important;
+  margin-bottom: 4px !important;
+}
+
+.claudian-plus-settings .setting-item-description {
+  font-size: 13px !important;
+  color: var(--text-muted) !important;
+  line-height: 1.5 !important;
+  opacity: 0.88;
+}
+
+.claudian-plus-settings .setting-item-control {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Settings section headings */
+.claudian-plus-settings .setting-item-heading {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 24px 4px 10px 4px !important;
+  margin: 0 !important;
+}
+
+.claudian-plus-settings .setting-item-heading:first-child {
+  padding-top: 8px !important;
+}
+
+.claudian-plus-settings .setting-item-heading .setting-item-name {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: var(--text-normal) !important;
+  letter-spacing: -0.01em;
+}
+
+/* Controls Refinement (Inputs, Selects, Textareas, Toggles) */
+.claudian-plus-settings select.dropdown,
+.claudian-plus-settings input[type="text"],
+.claudian-plus-settings textarea {
+  border-radius: 9px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  padding: 7px 12px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.claudian-plus-settings select.dropdown:focus,
+.claudian-plus-settings input[type="text"]:focus,
+.claudian-plus-settings textarea:focus {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px var(--background-modifier-border-focus, rgba(0, 132, 255, 0.2));
+  outline: none;
+}
+
+/* Slider Controls */
+.claudian-plus-settings input[type="range"] {
+  accent-color: var(--interactive-accent);
+  cursor: pointer;
+  height: 6px;
+  border-radius: 3px;
+}
+
+/* Custom section descriptions - align with items */
+.claudian-plus-sp-settings-desc,
+.claudian-plus-mcp-settings-desc,
+.claudian-plus-plugin-settings-desc,
+.claudian-plus-approved-desc {
+  padding: 0 4px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* Unified icon action buttons for settings */
+.claudian-plus-settings-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
   padding: 0;
-  border: none;
-  background: transparent;
-  border-radius: 4px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  border-radius: 8px;
   cursor: pointer;
   color: var(--text-muted);
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: all 0.15s ease;
 }
 
-.claudian-settings-action-btn:hover {
-  background: var(--background-modifier-hover);
-  color: var(--text-normal);
+.claudian-plus-settings-action-btn:hover {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent, #ffffff);
+  border-color: var(--interactive-accent);
 }
 
-.claudian-settings-action-btn svg {
+.claudian-plus-settings-action-btn svg {
   width: 14px;
   height: 14px;
 }
 
-.claudian-settings-delete-btn:hover {
-  color: var(--text-error);
+.claudian-plus-settings-delete-btn:hover {
+  background: var(--claudian-plus-error, #ef4444);
+  color: #ffffff;
+  border-color: var(--claudian-plus-error, #ef4444);
 }
 
-.claudian-setting-validation {
+.claudian-plus-setting-validation {
   font-size: var(--font-ui-smaller);
-  margin-top: -0.5em;
-  margin-bottom: 0.5em;
+  margin-top: 6px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
 }
 
-.claudian-setting-validation-error {
+.claudian-plus-setting-validation-error {
   color: var(--text-error);
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.08);
 }
 
-.claudian-setting-validation-warning {
+.claudian-plus-setting-validation-warning {
   color: var(--text-warning);
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.08);
 }
 
-.claudian-settings-cli-path-input {
+.claudian-plus-settings-cli-path-input {
   width: 100%;
 }
 
-.claudian-settings-cli-path-input.claudian-input-error {
+.claudian-plus-settings-cli-path-input.claudian-plus-input-error {
   border-color: var(--text-error);
 }
 
-/* Hotkey grid - 3 columns */
-.claudian-hotkey-grid {
+/* ── Hotkey Grid (KBD Keycap Style) ── */
+.claudian-plus-hotkey-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px 12px;
-  padding: 4px 0;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  padding: 8px 0;
 }
 
-.claudian-hotkey-item {
+.claudian-plus-hotkey-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
   cursor: pointer;
-  border-radius: 6px;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
 }
 
-.claudian-hotkey-item:hover {
+.claudian-plus-hotkey-item:hover {
   background: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+  transform: translateY(-1px);
 }
 
-.claudian-hotkey-name {
+.claudian-plus-hotkey-name {
   flex: 1;
   color: var(--text-normal);
   font-size: var(--font-ui-small);
+  font-weight: 500;
 }
 
-.claudian-hotkey-badge {
-  color: var(--text-muted);
-  font-size: var(--font-ui-smaller);
-  background: var(--background-modifier-hover);
-  padding: 2px 6px;
-  border-radius: 4px;
+.claudian-plus-hotkey-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 8px;
   font-family: var(--font-monospace);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-normal);
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 /* Media folder input width */
-.claudian-settings-media-input {
-  width: 200px;
+.claudian-plus-settings-media-input {
+  width: 220px;
 }
 
 /* ── Shared settings panel layout (used by slash-settings + agent-settings) ── */
 
-.claudian-sp-header {
+.claudian-plus-sp-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
-  padding: 0 12px;
+  padding: 0 4px;
 }
 
-.claudian-sp-label {
+.claudian-plus-sp-label {
   font-size: var(--font-ui-small);
   color: var(--text-muted);
-  font-weight: var(--font-medium);
+  font-weight: 600;
 }
 
-.claudian-sp-header-actions {
+.claudian-plus-sp-header-actions {
   display: flex;
-  gap: 4px;
+  gap: 6px;
 }
 
-.claudian-sp-empty-state {
-  padding: 20px;
+.claudian-plus-sp-header-actions button {
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-normal);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.claudian-plus-sp-header-actions button:hover {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent, #ffffff);
+  border-color: var(--interactive-accent);
+}
+
+.claudian-plus-sp-empty-state {
+  padding: 22px 18px;
   text-align: center;
   color: var(--text-muted);
-  background: var(--background-secondary);
-  border-radius: 6px;
+  background: var(--background-secondary-alt, var(--background-secondary));
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
   margin-top: 8px;
+  font-size: 13px;
 }
 
-.claudian-sp-list {
+.claudian-plus-sp-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-top: 8px;
 }
 
-.claudian-sp-item {
+.claudian-plus-sp-item {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 12px;
-  background: var(--background-secondary);
-  border-radius: 6px;
+  padding: 12px 16px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.claudian-sp-item:hover {
+.claudian-plus-sp-item:hover {
   background: var(--background-modifier-hover);
+  border-color: var(--interactive-accent-hover, var(--background-modifier-border-hover));
 }
 
-.claudian-sp-info {
+.claudian-plus-sp-info {
   flex: 1;
   min-width: 0;
 }
 
-.claudian-sp-item-header {
+.claudian-plus-sp-item-header {
   display: flex;
   align-items: baseline;
   gap: 8px;
 }
 
-.claudian-sp-item-name {
+.claudian-plus-sp-item-name {
   font-weight: 600;
   font-family: var(--font-monospace);
   color: var(--text-normal);
 }
 
-.claudian-sp-item-desc {
+.claudian-plus-sp-item-desc {
   font-size: 13px;
   color: var(--text-muted);
   margin-top: 2px;
 }
 
-.claudian-sp-item-actions {
+.claudian-plus-sp-item-actions {
   display: flex;
   gap: 4px;
   margin-left: 16px;
   flex-shrink: 0;
 }
 
-.claudian-sp-advanced-section {
+.claudian-plus-sp-advanced-section {
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
-  padding: 0 12px;
-  margin: 8px 0;
+  border-radius: 10px;
+  padding: 0 14px;
+  margin: 10px 0;
+  background: var(--background-primary);
 }
 
-.claudian-sp-advanced-summary {
+.claudian-plus-sp-advanced-summary {
   cursor: pointer;
-  padding: 8px 0;
+  padding: 10px 0;
   font-size: var(--font-ui-small);
   color: var(--text-muted);
-  font-weight: var(--font-medium);
+  font-weight: 500;
 }
 
-.claudian-sp-advanced-section[open] .claudian-sp-advanced-summary {
+.claudian-plus-sp-advanced-section[open] .claudian-plus-sp-advanced-summary {
   margin-bottom: 4px;
 }
 
-.claudian-sp-modal .modal-content {
+.claudian-plus-sp-modal .modal-content {
   max-width: 600px;
   width: auto;
+  border-radius: 14px;
 }
 
-.claudian-sp-content-area {
+.claudian-plus-sp-content-area {
   width: 100%;
   font-family: var(--font-monospace);
   font-size: 13px;
-  padding: 8px;
+  padding: 10px 12px;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
+  border-radius: 9px;
   background: var(--background-primary);
   color: var(--text-normal);
   resize: vertical;
   margin-top: 8px;
 }
 
-.claudian-sp-content-area:focus {
+.claudian-plus-sp-content-area:focus {
   outline: none;
   border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px var(--background-modifier-border-focus, rgba(0, 132, 255, 0.2));
 }
 
-.claudian-sp-modal-buttons {
+.claudian-plus-sp-modal-buttons {
   display: flex;
   gap: 8px;
   margin-top: 16px;

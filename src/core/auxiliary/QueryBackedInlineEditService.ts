@@ -15,6 +15,7 @@ export class QueryBackedInlineEditService implements InlineEditService {
   private abortController: AbortController | null = null;
   private hasConversation = false;
   private modelOverride: string | undefined;
+  private requestGeneration = 0;
 
   constructor(private readonly runner: AuxQueryRunner) {}
 
@@ -24,6 +25,7 @@ export class QueryBackedInlineEditService implements InlineEditService {
   }
 
   resetConversation(): void {
+    this.invalidateActiveRequest();
     this.runner.reset();
     this.hasConversation = false;
   }
@@ -46,28 +48,44 @@ export class QueryBackedInlineEditService implements InlineEditService {
   }
 
   cancel(): void {
-    this.abortController?.abort();
-    this.abortController = null;
+    this.invalidateActiveRequest();
   }
 
   private async sendMessage(prompt: string): Promise<InlineEditResult> {
-    this.abortController = new AbortController();
+    this.abortController?.abort();
+    const requestGeneration = ++this.requestGeneration;
+    const abortController = new AbortController();
+    this.abortController = abortController;
 
     try {
       const text = await this.runner.query({
-        abortController: this.abortController,
+        abortController,
         model: this.modelOverride,
         systemPrompt: getInlineEditSystemPrompt(),
       }, prompt);
+      if (this.requestGeneration !== requestGeneration || abortController.signal.aborted) {
+        return { success: false, error: 'Cancelled' };
+      }
       this.hasConversation = true;
       return parseInlineEditResponse(text);
     } catch (error) {
+      if (this.requestGeneration !== requestGeneration || abortController.signal.aborted) {
+        return { success: false, error: 'Cancelled' };
+      }
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       };
     } finally {
-      this.abortController = null;
+      if (this.requestGeneration === requestGeneration && this.abortController === abortController) {
+        this.abortController = null;
+      }
     }
+  }
+
+  private invalidateActiveRequest(): void {
+    this.requestGeneration += 1;
+    this.abortController?.abort();
+    this.abortController = null;
   }
 }

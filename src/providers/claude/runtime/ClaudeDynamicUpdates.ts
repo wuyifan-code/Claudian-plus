@@ -8,7 +8,7 @@ import type { McpServerManager } from '../../../core/mcp/McpServerManager';
 import type {
   ChatRuntimeQueryOptions,
 } from '../../../core/runtime/types';
-import type { ClaudianSettings, PermissionMode } from '../../../core/types/settings';
+import type { ClaudianPlusSettings, PermissionMode } from '../../../core/types/settings';
 import { toClaudeRuntimeModelId } from '../modelSelection';
 import {
   resolveEffortLevel,
@@ -25,7 +25,7 @@ export interface ClaudeDynamicUpdateDeps {
   mutateCurrentConfig: (mutate: (config: PersistentQueryConfig) => void) => void;
   getVaultPath: () => string | null;
   getCliPath: () => Promise<string | null>;
-  getScopedSettings: () => ClaudianSettings;
+  getScopedSettings: () => ClaudianPlusSettings;
   getPermissionMode: () => PermissionMode;
   resolveSDKPermissionMode: (mode: PermissionMode) => SDKPermissionMode;
   mcpManager: McpServerManager;
@@ -37,6 +37,7 @@ export interface ClaudeDynamicUpdateDeps {
   needsRestart: (newConfig: PersistentQueryConfig) => boolean;
   ensureReady: (options: ClaudeEnsureReadyOptions) => Promise<boolean>;
   setCurrentExternalContextPaths: (paths: string[]) => void;
+  getBuiltinMcpServers: () => Record<string, McpServerConfig>;
   notifyFailure: (message: string) => void;
 }
 
@@ -121,7 +122,10 @@ export async function applyClaudeDynamicUpdates(
   const mcpMentions = queryOptions?.mcpMentions || new Set<string>();
   const uiEnabledServers = queryOptions?.enabledMcpServers || new Set<string>();
   const combinedMentions = new Set([...mcpMentions, ...uiEnabledServers]);
-  const mcpServers = deps.mcpManager.getActiveServers(combinedMentions);
+  const mcpServers = {
+    ...deps.mcpManager.getActiveServers(combinedMentions),
+    ...deps.getBuiltinMcpServers(),
+  };
   const mcpServersKey = JSON.stringify(mcpServers);
 
   if (deps.getCurrentConfig() && mcpServersKey !== deps.getCurrentConfig()!.mcpServersKey) {

@@ -21,6 +21,10 @@ import {
 
 const isWindows = process.platform === 'win32';
 
+function expectedFilesystemPath(value: string): string {
+  return isWindows ? path.win32.normalize(value) : path.normalize(value);
+}
+
 describe('getVaultPath', () => {
   it('returns basePath when adapter exposes the property directly', () => {
     const mockApp = {
@@ -152,9 +156,9 @@ describe('parsePathEntries', () => {
   it('splits on platform separator', () => {
     const sep = isWindows ? ';' : ':';
     const result = parsePathEntries(`/a${sep}/b${sep}/c`);
-    expect(result).toContain('/a');
-    expect(result).toContain('/b');
-    expect(result).toContain('/c');
+    expect(result).toEqual(isWindows
+      ? ['A:\\', 'B:\\', 'C:\\']
+      : ['/a', '/b', '/c']);
   });
 
   it('filters out empty segments', () => {
@@ -215,6 +219,10 @@ describe('translateMsysPath', () => {
       expect(translateMsysPath('/D/projects')).toBe('D:\\projects');
     });
 
+    it('translates a bare MSYS drive to its root', () => {
+      expect(translateMsysPath('/c')).toBe('C:\\');
+    });
+
     it('returns non-msys path unchanged', () => {
       expect(translateMsysPath('C:\\Users\\test')).toBe('C:\\Users\\test');
     });
@@ -237,22 +245,22 @@ describe('normalizePathForFilesystem', () => {
 
   it('normalizes a regular path', () => {
     const result = normalizePathForFilesystem('/usr/local/bin');
-    expect(result).toBe('/usr/local/bin');
+    expect(result).toBe(expectedFilesystemPath('/usr/local/bin'));
   });
 
   it('normalizes path with redundant separators', () => {
     const result = normalizePathForFilesystem('/usr//local///bin');
-    expect(result).toBe('/usr/local/bin');
+    expect(result).toBe(expectedFilesystemPath('/usr/local/bin'));
   });
 
   it('normalizes path with . segments', () => {
     const result = normalizePathForFilesystem('/usr/./local/./bin');
-    expect(result).toBe('/usr/local/bin');
+    expect(result).toBe(expectedFilesystemPath('/usr/local/bin'));
   });
 
   it('normalizes path with .. segments', () => {
     const result = normalizePathForFilesystem('/usr/local/../bin');
-    expect(result).toBe('/usr/bin');
+    expect(result).toBe(expectedFilesystemPath('/usr/bin'));
   });
 
   it('expands ~ in path', () => {
@@ -451,10 +459,12 @@ describe('findClaudeCLIPath', () => {
   });
 
   it('falls back to npm cli-wrapper.cjs paths when binary not found', () => {
-    const cliWrapperPath = path.join(
-      os.homedir(), '.npm-global', 'lib', 'node_modules',
+    const cliWrapperPath = isWindows
+      ? path.join(os.homedir(), 'AppData', 'Roaming', 'npm', 'node_modules',
+        '@anthropic-ai', 'claude-code', 'cli-wrapper.cjs')
+      : path.join(os.homedir(), '.npm-global', 'lib', 'node_modules',
       '@anthropic-ai', 'claude-code', 'cli-wrapper.cjs'
-    );
+      );
 
     jest.spyOn(fs, 'existsSync').mockImplementation(
       p => String(p) === cliWrapperPath
@@ -468,10 +478,12 @@ describe('findClaudeCLIPath', () => {
   });
 
   it('keeps legacy npm cli.js fallback when cli-wrapper.cjs is absent', () => {
-    const legacyCliPath = path.join(
-      os.homedir(), '.npm-global', 'lib', 'node_modules',
+    const legacyCliPath = isWindows
+      ? path.join(os.homedir(), 'AppData', 'Roaming', 'npm', 'node_modules',
+        '@anthropic-ai', 'claude-code', 'cli.js')
+      : path.join(os.homedir(), '.npm-global', 'lib', 'node_modules',
       '@anthropic-ai', 'claude-code', 'cli.js'
-    );
+      );
 
     jest.spyOn(fs, 'existsSync').mockImplementation(
       p => String(p) === legacyCliPath
@@ -485,9 +497,10 @@ describe('findClaudeCLIPath', () => {
   });
 
   it('falls back to PATH environment when common and npm paths fail', () => {
-    const envClaudePath = '/env/specific/bin/claude';
+    const envDir = isWindows ? 'C:\\env\\specific\\bin' : '/env/specific/bin';
+    const envClaudePath = path.join(envDir, isWindows ? 'claude.exe' : 'claude');
     const originalPath = process.env.PATH;
-    process.env.PATH = `/env/specific/bin:${originalPath}`;
+    process.env.PATH = [envDir, originalPath].filter(Boolean).join(path.delimiter);
 
     jest.spyOn(fs, 'existsSync').mockImplementation(
       p => String(p) === envClaudePath

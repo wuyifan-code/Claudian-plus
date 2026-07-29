@@ -86,12 +86,18 @@ export class StreamController {
   private pendingTextRenderPromise: Promise<void> | null = null;
   private resolvePendingTextRender: (() => void) | null = null;
   private isTextRenderRunning = false;
+  private textRenderGeneration = 0;
   private pendingThinkingRenderFrame: ScheduledAnimationFrame | null = null;
   private pendingThinkingRenderPromise: Promise<void> | null = null;
   private resolvePendingThinkingRender: (() => void) | null = null;
   private isThinkingRenderRunning = false;
+  private thinkingRenderGeneration = 0;
   private pendingToolOutputFrames = new Map<string, ScheduledAnimationFrame>();
   private pendingScrollFrame: ScheduledAnimationFrame | null = null;
+  private pendingAsyncSubagentRetryTimers = new Set<{
+    id: number;
+    ownerWindow: Window;
+  }>();
 
   // Provider lifecycle agent tracking (spawn → wait/close lifecycle)
   private lifecycleSubagentStates = new Map<string, SubagentState>(); // spawn callId → SubagentState
@@ -281,13 +287,13 @@ export class StreamController {
         // If already rendered, update the header name + summary
         const toolEl = state.toolCallElements.get(chunk.id);
         if (toolEl) {
-          const nameEl = toolEl.querySelector('.claudian-tool-name')
-            ?? toolEl.querySelector('.claudian-write-edit-name');
+          const nameEl = toolEl.querySelector('.claudian-plus-tool-name')
+            ?? toolEl.querySelector('.claudian-plus-write-edit-name');
           if (nameEl) {
             nameEl.setText(getToolName(existingToolCall.name, existingToolCall.input));
           }
-          const summaryEl = toolEl.querySelector('.claudian-tool-summary')
-            ?? toolEl.querySelector('.claudian-write-edit-summary');
+          const summaryEl = toolEl.querySelector('.claudian-plus-tool-summary')
+            ?? toolEl.querySelector('.claudian-plus-write-edit-summary');
           if (summaryEl) {
             summaryEl.setText(getToolSummary(existingToolCall.name, existingToolCall.input));
           }
@@ -689,7 +695,7 @@ export class StreamController {
     this.hideThinkingIndicator();
 
     if (!state.currentTextEl) {
-      state.currentTextEl = state.currentContentEl.createDiv({ cls: 'claudian-text-block' });
+      state.currentTextEl = state.currentContentEl.createDiv({ cls: 'claudian-plus-text-block' });
       state.currentTextContent = '';
     }
 
@@ -727,14 +733,22 @@ export class StreamController {
       });
     }
 
-    if (this.pendingTextRenderFrame === null && !this.isTextRenderRunning) {
+    this.scheduleTextRenderFrame();
+
+    return this.pendingTextRenderPromise;
+  }
+
+  private scheduleTextRenderFrame(): void {
+    if (
+      this.pendingTextRenderPromise
+      && this.pendingTextRenderFrame === null
+      && !this.isTextRenderRunning
+    ) {
       this.pendingTextRenderFrame = scheduleAnimationFrame(() => {
         this.pendingTextRenderFrame = null;
         void this.renderPendingText();
       }, this.getStreamingRenderWindow());
     }
-
-    return this.pendingTextRenderPromise;
   }
 
   private async flushPendingTextRender(): Promise<void> {
@@ -753,6 +767,7 @@ export class StreamController {
   private async renderPendingText(): Promise<void> {
     if (this.isTextRenderRunning) return;
     this.isTextRenderRunning = true;
+    const renderGeneration = this.textRenderGeneration;
 
     const { state, renderer } = this.deps;
     const textEl = state.currentTextEl;
@@ -766,7 +781,9 @@ export class StreamController {
         } else {
           await renderer.renderContent(textEl, content);
         }
-        this.scrollToBottom();
+        if (renderGeneration === this.textRenderGeneration) {
+          this.scrollToBottom();
+        }
       }
     } catch {
       // MessageRenderer owns user-visible render fallback; keep stream state moving.
@@ -774,11 +791,16 @@ export class StreamController {
       this.isTextRenderRunning = false;
     }
 
+    // A new conversation can begin while markdown rendering awaits. Its
+    // pending promise belongs to the new generation and must never be
+    // resolved or cleared by this stale render.
+    if (renderGeneration !== this.textRenderGeneration) {
+      this.scheduleTextRenderFrame();
+      return;
+    }
+
     if (state.currentTextEl === textEl && state.currentTextContent !== content) {
-      this.pendingTextRenderFrame = scheduleAnimationFrame(() => {
-        this.pendingTextRenderFrame = null;
-        void this.renderPendingText();
-      }, this.getStreamingRenderWindow());
+      this.scheduleTextRenderFrame();
       return;
     }
 
@@ -789,6 +811,7 @@ export class StreamController {
   }
 
   private cancelPendingTextRender(): void {
+    this.textRenderGeneration += 1;
     if (this.pendingTextRenderFrame !== null) {
       cancelScheduledAnimationFrame(this.pendingTextRenderFrame);
       this.pendingTextRenderFrame = null;
@@ -877,14 +900,22 @@ export class StreamController {
       });
     }
 
-    if (this.pendingThinkingRenderFrame === null && !this.isThinkingRenderRunning) {
+    this.scheduleThinkingRenderFrame();
+
+    return this.pendingThinkingRenderPromise;
+  }
+
+  private scheduleThinkingRenderFrame(): void {
+    if (
+      this.pendingThinkingRenderPromise
+      && this.pendingThinkingRenderFrame === null
+      && !this.isThinkingRenderRunning
+    ) {
       this.pendingThinkingRenderFrame = scheduleAnimationFrame(() => {
         this.pendingThinkingRenderFrame = null;
         void this.renderPendingThinking();
       }, this.getThinkingRenderWindow());
     }
-
-    return this.pendingThinkingRenderPromise;
   }
 
   private async flushPendingThinkingRender(): Promise<void> {
@@ -903,6 +934,7 @@ export class StreamController {
   private async renderPendingThinking(): Promise<void> {
     if (this.isThinkingRenderRunning) return;
     this.isThinkingRenderRunning = true;
+    const renderGeneration = this.thinkingRenderGeneration;
 
     const { state, renderer } = this.deps;
     const thinkingState = state.currentThinkingState;
@@ -916,7 +948,9 @@ export class StreamController {
         } else {
           await renderer.renderContent(thinkingState.contentEl, content);
         }
-        this.scrollToBottom();
+        if (renderGeneration === this.thinkingRenderGeneration) {
+          this.scrollToBottom();
+        }
       }
     } catch {
       // MessageRenderer owns user-visible render fallback; keep stream state moving.
@@ -924,11 +958,13 @@ export class StreamController {
       this.isThinkingRenderRunning = false;
     }
 
+    if (renderGeneration !== this.thinkingRenderGeneration) {
+      this.scheduleThinkingRenderFrame();
+      return;
+    }
+
     if (state.currentThinkingState === thinkingState && thinkingState && thinkingState.content !== content) {
-      this.pendingThinkingRenderFrame = scheduleAnimationFrame(() => {
-        this.pendingThinkingRenderFrame = null;
-        void this.renderPendingThinking();
-      }, this.getThinkingRenderWindow());
+      this.scheduleThinkingRenderFrame();
       return;
     }
 
@@ -939,6 +975,7 @@ export class StreamController {
   }
 
   private cancelPendingThinkingRender(): void {
+    this.thinkingRenderGeneration += 1;
     if (this.pendingThinkingRenderFrame !== null) {
       cancelScheduledAnimationFrame(this.pendingThinkingRenderFrame);
       this.pendingThinkingRenderFrame = null;
@@ -1279,7 +1316,12 @@ export class StreamController {
     if (attempt >= StreamController.ASYNC_SUBAGENT_RESULT_RETRY_DELAYS_MS.length) return;
 
     const delay = StreamController.ASYNC_SUBAGENT_RESULT_RETRY_DELAYS_MS[attempt];
-    window.setTimeout(() => {
+    const ownerWindow = this.getMessagesWindow() ?? window;
+    const scheduledRetry = { id: 0, ownerWindow };
+    scheduledRetry.id = ownerWindow.setTimeout(() => {
+      this.pendingAsyncSubagentRetryTimers.delete(scheduledRetry);
+      // Avoid enqueueing old work after a tab or runtime has been recycled.
+      if (!this.ownsAsyncSubagent(subagent, runtime, providerSessionId)) return;
       const work = () => this.retryAsyncSubagentResult(
         subagent,
         runtime,
@@ -1291,6 +1333,14 @@ export class StreamController {
         : work();
       void pending?.catch(() => undefined);
     }, delay);
+    this.pendingAsyncSubagentRetryTimers.add(scheduledRetry);
+  }
+
+  private cancelPendingAsyncSubagentRetries(): void {
+    for (const { id, ownerWindow } of this.pendingAsyncSubagentRetryTimers) {
+      ownerWindow.clearTimeout(id);
+    }
+    this.pendingAsyncSubagentRetryTimers.clear();
   }
 
   private async retryAsyncSubagentResult(
@@ -1409,7 +1459,7 @@ export class StreamController {
     if (!state.currentContentEl) return;
 
     // Clear any existing timeout
-    if (state.thinkingIndicatorTimeout) {
+    if (state.thinkingIndicatorTimeout !== null) {
       const timerWindow = state.currentContentEl.ownerDocument.defaultView ?? window;
       state.clearThinkingIndicatorTimeout(timerWindow);
     }
@@ -1434,19 +1484,19 @@ export class StreamController {
       if (!state.currentContentEl || state.thinkingEl || state.currentThinkingState) return;
 
       const cls = overrideCls
-        ? `claudian-thinking ${overrideCls}`
-        : 'claudian-thinking';
+        ? `claudian-plus-thinking ${overrideCls}`
+        : 'claudian-plus-thinking';
       state.thinkingEl = state.currentContentEl.createDiv({ cls });
       const text = overrideText || FLAVOR_TEXTS[Math.floor(Math.random() * FLAVOR_TEXTS.length)];
       state.thinkingEl.createSpan({ text });
 
       // Create timer span with initial value
-      const timerSpan = state.thinkingEl.createSpan({ cls: 'claudian-thinking-hint' });
+      const timerSpan = state.thinkingEl.createSpan({ cls: 'claudian-plus-thinking-hint' });
       const updateTimer = () => {
-        if (!state.responseStartTime) return;
+        if (state.responseStartTime === null) return;
         // Check if element is still connected to DOM (prevents orphaned interval updates)
         if (!timerSpan.isConnected) {
-          if (state.flavorTimerInterval) {
+          if (state.flavorTimerInterval !== null) {
             state.clearFlavorTimerInterval();
           }
           return;
@@ -1457,7 +1507,7 @@ export class StreamController {
       updateTimer(); // Initial update
 
       // Start interval to update timer every second
-      if (state.flavorTimerInterval) {
+      if (state.flavorTimerInterval !== null) {
         state.clearFlavorTimerInterval();
       }
       const thinkingWindow = state.currentContentEl.ownerDocument.defaultView ?? timerWindow;
@@ -1471,7 +1521,7 @@ export class StreamController {
     const { state } = this.deps;
 
     // Cancel any pending show timeout
-    if (state.thinkingIndicatorTimeout) {
+    if (state.thinkingIndicatorTimeout !== null) {
       const activeWindow = this.deps.getMessagesEl().ownerDocument.defaultView ?? window;
       state.clearThinkingIndicatorTimeout(activeWindow);
     }
@@ -1493,8 +1543,8 @@ export class StreamController {
     const { state } = this.deps;
     if (!state.currentContentEl) return;
     this.hideThinkingIndicator();
-    const el = state.currentContentEl.createDiv({ cls: 'claudian-compact-boundary' });
-    el.createSpan({ cls: 'claudian-compact-boundary-label', text: 'Conversation compacted' });
+    const el = state.currentContentEl.createDiv({ cls: 'claudian-plus-compact-boundary' });
+    el.createSpan({ cls: 'claudian-plus-compact-boundary-label', text: 'Conversation compacted' });
   }
 
   // ============================================
@@ -1609,6 +1659,7 @@ export class StreamController {
     this.cancelPendingThinkingRender();
     this.cancelPendingToolOutputRenders();
     this.cancelPendingScroll();
+    this.cancelPendingAsyncSubagentRetries();
     this.hideThinkingIndicator();
     state.currentContentEl = null;
     state.currentTextEl = null;

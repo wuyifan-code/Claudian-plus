@@ -1219,8 +1219,12 @@ describe('Obsidian CLI path integration', () => {
     const result = mod.getEnhancedPath();
     const segments = result.split(':');
 
-    expect(segments).toContain('/Applications/Obsidian.app/Contents/MacOS');
-    expect(segments).not.toContain('/Applications/Obsidian.app/Contents/Frameworks/Obsidian Helper (Renderer).app/Contents/MacOS');
+    expect(segments).toContain(path.join('/Applications/Obsidian.app', 'Contents', 'MacOS'));
+    expect(segments).not.toContain(path.join(
+      '/Applications/Obsidian.app/Contents/Frameworks/Obsidian Helper (Renderer).app',
+      'Contents',
+      'MacOS',
+    ));
   });
 
   it('does not add transient Linux AppImage mount dirs', () => {
@@ -1235,6 +1239,6 @@ describe('Obsidian CLI path integration', () => {
 
     expect(segments).not.toContain(appImageDir);
     expect(segments).toContain('/usr/local/bin');
-    expect(segments).toContain('/home/test/.local/bin');
+    expect(segments).toContain(path.join('/home/test', '.local', 'bin'));
   });
 });

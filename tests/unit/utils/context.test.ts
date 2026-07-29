@@ -1,6 +1,7 @@
 import {
   appendContextFiles,
   appendCurrentNote,
+  appendVaultContext,
   extractContentBeforeXmlContext,
   extractUserDisplayContent,
   extractUserQuery,
@@ -275,6 +276,11 @@ describe('extractUserQuery', () => {
       expect(extractUserQuery(prompt)).toBe('Query end');
     });
 
+    it('strips vault_context tags', () => {
+      const prompt = 'Query <vault_context>source excerpt</vault_context> end';
+      expect(extractUserQuery(prompt)).toBe('Query end');
+    });
+
     it('strips multiple tag types', () => {
       const prompt = '<linked_note>a.md</linked_note>Query<context_files>b.md</context_files>';
       expect(extractUserQuery(prompt)).toBe('Query');
@@ -311,5 +317,16 @@ describe('appendContextFiles', () => {
   it('handles empty file array', () => {
     const result = appendContextFiles('Query', []);
     expect(result).toBe('Query\n\n<context_files>\n\n</context_files>');
+  });
+});
+
+describe('appendVaultContext', () => {
+  it('appends non-empty source context with a stable separator', () => {
+    expect(appendVaultContext('Query', '<vault_context>source</vault_context>'))
+      .toBe('Query\n\n<vault_context>source</vault_context>');
+  });
+
+  it('does not append empty context', () => {
+    expect(appendVaultContext('Query', '  ')).toBe('Query');
   });
 });

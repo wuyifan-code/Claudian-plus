@@ -10,6 +10,7 @@ import type {
   McpStdioServerConfig,
 } from '../../core/types';
 import { DEFAULT_MCP_SERVER, getMcpServerType } from '../../core/types';
+import { localeText } from '../../i18n/i18n';
 import { parseCommand } from '../../utils/mcp';
 
 export class McpServerModal extends Modal {
@@ -71,14 +72,14 @@ export class McpServerModal extends Modal {
   }
 
   onOpen() {
-    this.setTitle(this.existingServer ? 'Edit MCP Server' : 'Add MCP Server');
-    this.modalEl.addClass('claudian-mcp-modal');
+    this.setTitle(this.existingServer ? localeText('编辑 MCP 服务器', 'Edit MCP Server') : localeText('添加 MCP 服务器', 'Add MCP Server'));
+    this.modalEl.addClass('claudian-plus-mcp-modal');
 
     const { contentEl } = this;
 
     new Setting(contentEl)
-      .setName('Server name')
-      .setDesc('Unique identifier for this server')
+      .setName(localeText('服务器名称', 'Server name'))
+      .setDesc(localeText('此服务器的唯一标识符', 'Unique identifier for this server'))
       .addText((text) => {
         this.nameInputEl = text.inputEl;
         text.setValue(this.serverName);
@@ -90,12 +91,12 @@ export class McpServerModal extends Modal {
       });
 
     new Setting(contentEl)
-      .setName('Type')
-      .setDesc('Server connection type')
+      .setName(localeText('类型', 'Type'))
+      .setDesc(localeText('服务器连接类型', 'Server connection type'))
       .addDropdown((dropdown) => {
-        dropdown.addOption('stdio', 'Stdio (local command)');
-        dropdown.addOption('sse', 'Sse (server-sent events)');
-        dropdown.addOption('http', 'HTTP (HTTP endpoint)');
+        dropdown.addOption('stdio', localeText('Stdio（本地命令）', 'Stdio (local command)'));
+        dropdown.addOption('sse', localeText('SSE（服务器推送事件）', 'Sse (server-sent events)'));
+        dropdown.addOption('http', localeText('HTTP（HTTP 端点）', 'HTTP (HTTP endpoint)'));
         dropdown.setValue(this.serverType);
         dropdown.onChange((value) => {
           this.serverType = value as McpServerType;
@@ -103,12 +104,12 @@ export class McpServerModal extends Modal {
         });
       });
 
-    this.typeFieldsEl = contentEl.createDiv({ cls: 'claudian-mcp-type-fields' });
+    this.typeFieldsEl = contentEl.createDiv({ cls: 'claudian-plus-mcp-type-fields' });
     this.renderTypeFields();
 
     new Setting(contentEl)
-      .setName('Enabled')
-      .setDesc('Whether this server is active')
+      .setName(localeText('启用', 'Enabled'))
+      .setDesc(localeText('是否启用此服务器', 'Whether this server is active'))
       .addToggle((toggle) => {
         toggle.setValue(this.enabled);
         toggle.onChange((value) => {
@@ -117,8 +118,8 @@ export class McpServerModal extends Modal {
       });
 
     new Setting(contentEl)
-      .setName('Context-saving mode')
-      .setDesc('Hide tools from agent unless @-mentioned (saves context window)')
+      .setName(localeText('节省上下文模式', 'Context-saving mode'))
+      .setDesc(localeText('除非通过 @ 提及，否则不向代理显示工具（节省上下文窗口）', 'Hide tools from agent unless @-mentioned (saves context window)'))
       .addToggle((toggle) => {
         toggle.setValue(this.contextSaving);
         toggle.onChange((value) => {
@@ -126,17 +127,17 @@ export class McpServerModal extends Modal {
         });
       });
 
-    const buttonContainer = contentEl.createDiv({ cls: 'claudian-mcp-buttons' });
+    const buttonContainer = contentEl.createDiv({ cls: 'claudian-plus-mcp-buttons' });
 
     const cancelBtn = buttonContainer.createEl('button', {
-      text: 'Cancel',
-      cls: 'claudian-cancel-btn',
+      text: localeText('取消', 'Cancel'),
+      cls: 'claudian-plus-cancel-btn',
     });
     cancelBtn.addEventListener('click', () => this.close());
 
     const saveBtn = buttonContainer.createEl('button', {
-      text: this.existingServer ? 'Update' : 'Add',
-      cls: 'claudian-save-btn mod-cta',
+      text: this.existingServer ? localeText('更新', 'Update') : localeText('添加', 'Add'),
+      cls: 'claudian-plus-save-btn mod-cta',
     });
     saveBtn.addEventListener('click', () => this.save());
   }
@@ -156,12 +157,12 @@ export class McpServerModal extends Modal {
     if (!this.typeFieldsEl) return;
 
     const cmdSetting = new Setting(this.typeFieldsEl)
-      .setName('Command')
-      .setDesc('Full command with arguments');
-    cmdSetting.settingEl.addClass('claudian-mcp-cmd-setting');
+      .setName(localeText('命令', 'Command'))
+      .setDesc(localeText('包含参数的完整命令', 'Full command with arguments'));
+    cmdSetting.settingEl.addClass('claudian-plus-mcp-cmd-setting');
 
     const cmdTextarea = cmdSetting.controlEl.createEl('textarea', {
-      cls: 'claudian-mcp-cmd-textarea',
+      cls: 'claudian-plus-mcp-cmd-textarea',
     });
     cmdTextarea.value = this.command;
     cmdTextarea.placeholder = 'Docker exec -i mcp-server python -m src.server';
@@ -171,12 +172,12 @@ export class McpServerModal extends Modal {
     });
 
     const envSetting = new Setting(this.typeFieldsEl)
-      .setName('Environment variables')
-      .setDesc('Key=value per line (optional)');
-    envSetting.settingEl.addClass('claudian-mcp-env-setting');
+      .setName(localeText('环境变量', 'Environment variables'))
+      .setDesc(localeText('每行一个 Key=value（可选）', 'Key=value per line (optional)'));
+    envSetting.settingEl.addClass('claudian-plus-mcp-env-setting');
 
     const envTextarea = envSetting.controlEl.createEl('textarea', {
-      cls: 'claudian-mcp-env-textarea',
+      cls: 'claudian-plus-mcp-env-textarea',
     });
     envTextarea.value = this.env;
     envTextarea.placeholder = 'API_key=your-key';
@@ -191,7 +192,7 @@ export class McpServerModal extends Modal {
 
     new Setting(this.typeFieldsEl)
       .setName('URL')
-      .setDesc(this.serverType === 'sse' ? 'SSE endpoint URL' : 'HTTP endpoint URL')
+      .setDesc(this.serverType === 'sse' ? localeText('SSE 端点 URL', 'SSE endpoint URL') : localeText('HTTP 端点 URL', 'HTTP endpoint URL'))
       .addText((text) => {
         text.setValue(this.url);
         text.setPlaceholder('HTTP://localhost:3000/sse');
@@ -202,12 +203,12 @@ export class McpServerModal extends Modal {
       });
 
     const headersSetting = new Setting(this.typeFieldsEl)
-      .setName('Headers')
-      .setDesc('HTTP headers (key=value per line)');
-    headersSetting.settingEl.addClass('claudian-mcp-env-setting');
+      .setName(localeText('请求头', 'Headers'))
+      .setDesc(localeText('HTTP 请求头（每行一个 key=value）', 'HTTP headers (key=value per line)'));
+    headersSetting.settingEl.addClass('claudian-plus-mcp-env-setting');
 
     const headersTextarea = headersSetting.controlEl.createEl('textarea', {
-      cls: 'claudian-mcp-env-textarea',
+      cls: 'claudian-plus-mcp-env-textarea',
     });
     headersTextarea.value = this.headers;
     headersTextarea.placeholder = 'Authorization=bearer token\ncontent-type=application/JSON';
@@ -231,13 +232,13 @@ export class McpServerModal extends Modal {
   private save() {
     const name = this.serverName.trim();
     if (!name) {
-      new Notice('Please enter a server name');
+      new Notice(localeText('请输入服务器名称', 'Please enter a server name'));
       this.nameInputEl?.focus();
       return;
     }
 
     if (!/^[a-zA-Z0-9._-]+$/.test(name)) {
-      new Notice('Server name can only contain letters, numbers, dots, hyphens, and underscores');
+      new Notice(localeText('服务器名称只能包含字母、数字、点、连字符和下划线', 'Server name can only contain letters, numbers, dots, hyphens, and underscores'));
       this.nameInputEl?.focus();
       return;
     }
@@ -247,7 +248,7 @@ export class McpServerModal extends Modal {
     if (this.serverType === 'stdio') {
       const fullCommand = this.command.trim();
       if (!fullCommand) {
-        new Notice('Please enter a command');
+        new Notice(localeText('请输入命令', 'Please enter a command'));
         return;
       }
 
@@ -267,7 +268,7 @@ export class McpServerModal extends Modal {
     } else {
       const url = this.url.trim();
       if (!url) {
-        new Notice('Please enter a URL');
+        new Notice(localeText('请输入 URL', 'Please enter a URL'));
         return;
       }
 

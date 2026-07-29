@@ -1,12 +1,12 @@
 import { DEFAULT_MEMORY_FILE_PATH, DEFAULT_MEMORY_MAX_INJECTION_CHARS } from '../../core/memory/types';
 import { getDefaultHiddenProviderCommands } from '../../core/providers/commands/hiddenCommands';
 import { DEFAULT_REASONING_VALUE } from '../../core/providers/reasoning';
-import { type ClaudianSettings } from '../../core/types/settings';
+import { type ClaudianPlusSettings } from '../../core/types/settings';
 import { getBuiltInProviderDefaultConfigs } from '../../providers/defaultProviderConfigs';
 
 export const ENHANCED_DEFAULT_CODEX_MODEL = 'gpt-5.6-sol';
 
-function getEnhancedProviderDefaultConfigs(): ClaudianSettings['providerConfigs'] {
+function getEnhancedProviderDefaultConfigs(): ClaudianPlusSettings['providerConfigs'] {
   const providerConfigs = getBuiltInProviderDefaultConfigs();
   providerConfigs.codex = {
     ...providerConfigs.codex,
@@ -15,7 +15,7 @@ function getEnhancedProviderDefaultConfigs(): ClaudianSettings['providerConfigs'
   return providerConfigs;
 }
 
-export const DEFAULT_CLAUDIAN_SETTINGS: ClaudianSettings = {
+export const DEFAULT_CLAUDIAN_PLUS_SETTINGS: ClaudianPlusSettings = {
   userName: '',
 
   // A fresh install must not grant an agent approval-free access to the whole
@@ -33,6 +33,11 @@ export const DEFAULT_CLAUDIAN_SETTINGS: ClaudianSettings = {
   mediaFolder: '',
   systemPrompt: '',
   persistentExternalContextPaths: [],
+  vaultAutoContextEnabled: true,
+  semanticSearchEnabled: false,
+  semanticEmbeddingEndpoint: 'http://127.0.0.1:11434',
+  semanticEmbeddingModel: 'nomic-embed-text',
+  vaultAutoLinkRecommendationsEnabled: false,
 
   sharedEnvironmentVariables: '',
   envSnippets: [],

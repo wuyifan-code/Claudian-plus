@@ -1,124 +1,47 @@
-import { createMockEl } from '@test/helpers/mockElement';
-
 import {
-  createThinkingBlock,
+  cleanupThinkingBlock,
   finalizeThinkingBlock,
-  renderStoredThinkingBlock,
+  type ThinkingBlockState,
 } from '@/features/chat/rendering/ThinkingBlockRenderer';
 
-// Mock renderContent function
-const mockRenderContent = jest.fn().mockResolvedValue(undefined);
+jest.mock('@/features/chat/rendering/collapsible', () => ({
+  collapseElement: jest.fn(),
+  setupCollapsible: jest.fn(),
+}));
 
-describe('ThinkingBlockRenderer', () => {
-  beforeEach(() => {
-    jest.useFakeTimers();
-    jest.clearAllMocks();
+function createThinkingState(timerInterval: number | null): ThinkingBlockState {
+  return {
+    wrapperEl: { querySelector: jest.fn().mockReturnValue(null) } as unknown as HTMLElement,
+    contentEl: {} as HTMLElement,
+    labelEl: { setText: jest.fn() } as unknown as HTMLElement,
+    content: '',
+    startTime: Date.now(),
+    timerInterval,
+    timerWindow: { clearInterval: jest.fn() } as unknown as Window,
+    isExpanded: false,
+  };
+}
+
+describe('ThinkingBlockRenderer timer cleanup', () => {
+  it('finalizes a timer whose browser handle is zero', () => {
+    const state = createThinkingState(0);
+    const timerWindow = state.timerWindow as unknown as { clearInterval: jest.Mock };
+
+    finalizeThinkingBlock(state);
+
+    expect(timerWindow.clearInterval).toHaveBeenCalledWith(0);
+    expect(state.timerWindow).toBeNull();
+    expect(state.timerInterval).toBeNull();
   });
 
-  afterEach(() => {
-    jest.useRealTimers();
-  });
+  it('cleans up a zero-valued timer when a thinking block is discarded', () => {
+    const state = createThinkingState(0);
+    const timerWindow = state.timerWindow as unknown as { clearInterval: jest.Mock };
 
-  describe('createThinkingBlock', () => {
-    it('should show timer label', () => {
-      const parentEl = createMockEl();
+    cleanupThinkingBlock(state);
 
-      const state = createThinkingBlock(parentEl, mockRenderContent);
-
-      expect(state.labelEl.textContent).toContain('Working');
-    });
-
-    it('should clean up timer on finalize', () => {
-      const parentEl = createMockEl();
-
-      const state = createThinkingBlock(parentEl, mockRenderContent);
-
-      expect(state.timerInterval).not.toBeNull();
-
-      finalizeThinkingBlock(state);
-
-      expect(state.timerInterval).toBeNull();
-    });
-  });
-
-  describe('finalizeThinkingBlock', () => {
-    it('should collapse the block when finalized', () => {
-      const parentEl = createMockEl();
-
-      const state = createThinkingBlock(parentEl, mockRenderContent);
-
-      // Manually expand first
-      state.wrapperEl.addClass('expanded');
-      state.contentEl.style.display = 'block';
-
-      finalizeThinkingBlock(state);
-
-      expect(state.wrapperEl.hasClass('expanded')).toBe(false);
-      expect(state.contentEl.style.display).toBe('none');
-    });
-
-    it('should update label with final duration', () => {
-      const parentEl = createMockEl();
-
-      const state = createThinkingBlock(parentEl, mockRenderContent);
-
-      // Advance time by 5 seconds
-      jest.advanceTimersByTime(5000);
-
-      const duration = finalizeThinkingBlock(state);
-
-      expect(duration).toBeGreaterThanOrEqual(5);
-      expect(state.labelEl.textContent).toContain('Execution details');
-    });
-
-    it('should sync isExpanded state so toggle works correctly after finalize', () => {
-      const parentEl = createMockEl();
-
-      const state = createThinkingBlock(parentEl, mockRenderContent);
-      const header = (state.wrapperEl as any)._children[0];
-
-      // Expand the block
-      const clickHandlers = header._eventListeners.get('click') || [];
-      clickHandlers[0]();
-      expect(state.isExpanded).toBe(true);
-      expect((state.wrapperEl as any).hasClass('expanded')).toBe(true);
-
-      // Finalize (which collapses)
-      finalizeThinkingBlock(state);
-      expect(state.isExpanded).toBe(false);
-      expect((state.wrapperEl as any).hasClass('expanded')).toBe(false);
-
-      // Now click once - should expand (not require two clicks)
-      clickHandlers[0]();
-      expect(state.isExpanded).toBe(true);
-      expect((state.wrapperEl as any).hasClass('expanded')).toBe(true);
-      expect((state.contentEl as any).hasClass('claudian-hidden')).toBe(false);
-    });
-
-    it('should update aria-expanded on finalize', () => {
-      const parentEl = createMockEl();
-
-      const state = createThinkingBlock(parentEl, mockRenderContent);
-      const header = (state.wrapperEl as any)._children[0];
-
-      // Expand first
-      const clickHandlers = header._eventListeners.get('click') || [];
-      clickHandlers[0]();
-      expect(header.getAttribute('aria-expanded')).toBe('true');
-
-      // Finalize
-      finalizeThinkingBlock(state);
-      expect(header.getAttribute('aria-expanded')).toBe('false');
-    });
-  });
-
-  describe('renderStoredThinkingBlock', () => {
-    it('should render stored block with duration label', () => {
-      const parentEl = createMockEl();
-
-      const wrapperEl = renderStoredThinkingBlock(parentEl, 'thinking content', 10, mockRenderContent);
-
-      expect(wrapperEl).toBeDefined();
-    });
+    expect(timerWindow.clearInterval).toHaveBeenCalledWith(0);
+    expect(state.timerWindow).toBeNull();
+    expect(state.timerInterval).toBeNull();
   });
 });

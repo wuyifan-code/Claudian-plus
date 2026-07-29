@@ -107,7 +107,7 @@ export function buildInlineEditInputDecorations(options: {
   const lineStart = options.doc.lineAt(options.inputPos).from;
   return Decoration.set([
     Decoration.line({
-      class: 'claudian-inline-input-line',
+      class: 'claudian-plus-inline-input-line',
     }).range(lineStart),
     Decoration.widget({
       widget: options.widget,
@@ -213,11 +213,11 @@ function mergeAdjacentDiffOps(ops: DiffOp[]): DiffOp[] {
 function getDiffBlockClass(type: DiffOp['type']): string {
   switch (type) {
     case 'delete':
-      return 'claudian-diff-del';
+      return 'claudian-plus-diff-del';
     case 'insert':
-      return 'claudian-diff-ins';
+      return 'claudian-plus-diff-ins';
     default:
-      return 'claudian-diff-equal';
+      return 'claudian-plus-diff-equal';
   }
 }
 
@@ -306,7 +306,8 @@ export class InlineEditModal {
     private view: MarkdownView,
     private editContext: InlineEditContext,
     private notePath: string,
-    private getExternalContexts: () => string[] = () => []
+    private getExternalContexts: () => string[] = () => [],
+    private readonly initialInstruction = '',
   ) {}
 
   async openAndWait(): Promise<{ decision: InlineEditDecision; editedText?: string }> {
@@ -357,6 +358,7 @@ export class InlineEditModal {
         this.getExternalContexts,
         resolve,
         providerContext,
+        this.initialInstruction,
       );
       activeController = this.controller;
       this.controller.show();
@@ -367,6 +369,7 @@ export class InlineEditModal {
 export class InlineEditSession {
   private inputEl: HTMLInputElement | null = null;
   private spinnerEl: HTMLElement | null = null;
+  private cancelButtonEl: HTMLButtonElement | null = null;
   private agentReplyEl: HTMLElement | null = null;
   private containerEl: HTMLElement | null = null;
   private editedText: string | null = null;
@@ -400,6 +403,7 @@ export class InlineEditSession {
     private getExternalContexts: () => string[],
     private resolve: (result: { decision: InlineEditDecision; editedText?: string }) => void,
     providerContext?: InlineEditProviderContext,
+    private readonly initialInstruction = '',
   ) {
     const resolvedProviderContext = providerContext ?? resolveInlineEditProviderContext(plugin);
     const providerId = resolvedProviderContext.providerId;
@@ -521,15 +525,15 @@ export class InlineEditSession {
 
   createInputDOM(): HTMLElement {
     const ownerDocument = this.getOwnerDocument();
-    const container = createDiv({ cls: 'claudian-inline-input-container' });
+    const container = createDiv({ cls: 'claudian-plus-inline-input-container' });
     this.containerEl = container;
 
-    this.agentReplyEl = container.createDiv({ cls: 'claudian-inline-agent-reply claudian-hidden' });
+    this.agentReplyEl = container.createDiv({ cls: 'claudian-plus-inline-agent-reply claudian-plus-hidden' });
 
-    const inputWrap = container.createDiv({ cls: 'claudian-inline-input-wrap' });
+    const inputWrap = container.createDiv({ cls: 'claudian-plus-inline-input-wrap' });
 
     const inputEl = inputWrap.createEl('input', {
-      cls: 'claudian-inline-input',
+      cls: 'claudian-plus-inline-input',
       attr: {
         type: 'text',
         placeholder: this.mode === 'cursor' ? 'Insert instructions...' : 'Edit instructions...',
@@ -537,8 +541,26 @@ export class InlineEditSession {
       },
     });
     this.inputEl = inputEl;
+    if (this.initialInstruction.trim()) {
+      inputEl.value = this.initialInstruction.trim();
+    }
 
-    this.spinnerEl = inputWrap.createDiv({ cls: 'claudian-inline-spinner claudian-hidden' });
+    this.spinnerEl = inputWrap.createDiv({ cls: 'claudian-plus-inline-spinner claudian-plus-hidden' });
+
+    const cancelButton = inputWrap.createEl('button', {
+      cls: 'claudian-plus-inline-cancel claudian-plus-hidden',
+      text: 'Cancel',
+      attr: {
+        type: 'button',
+        'aria-label': 'Cancel inline agent request',
+      },
+    });
+    cancelButton.addEventListener('click', (event: MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.cancelGeneration();
+    });
+    this.cancelButtonEl = cancelButton;
 
     const inlineCatalog = ProviderWorkspaceRegistry.getCommandCatalog(this.resolvedProviderId);
     this.slashCommandDropdown = new SlashCommandDropdown(
@@ -580,15 +602,20 @@ export class InlineEditSession {
     inputEl.addEventListener('input', () => this.mentionDropdown?.handleInputChange());
 
     window.setTimeout(() => inputEl.focus(), 50);
+    if (this.initialInstruction.trim()) {
+      window.setTimeout(() => {
+        void this.generate();
+      }, 60);
+    }
     return container;
   }
 
   createDiffPreviewDOM(diffOps: DiffOp[]): HTMLElement {
-    const previewEl = createDiv({ cls: 'claudian-inline-diff-preview' });
+    const previewEl = createDiv({ cls: 'claudian-plus-inline-diff-preview' });
 
-    const bodyEl = previewEl.createDiv({ cls: 'claudian-inline-diff-preview-body markdown-rendered' });
+    const bodyEl = previewEl.createDiv({ cls: 'claudian-plus-inline-diff-preview-body markdown-rendered' });
 
-    const actionsEl = previewEl.createDiv({ cls: 'claudian-inline-preview-actions' });
+    const actionsEl = previewEl.createDiv({ cls: 'claudian-plus-inline-preview-actions' });
     actionsEl.setAttribute('role', 'toolbar');
     actionsEl.setAttribute('aria-label', 'Inline edit actions');
     actionsEl.appendChild(this.createPreviewActionButton('Reject', 'reject', () => this.reject()));
@@ -604,7 +631,7 @@ export class InlineEditSession {
     onClick: () => void
   ): HTMLButtonElement {
     const button = createEl('button', {
-      cls: `claudian-inline-preview-action ${variant}`,
+      cls: `claudian-plus-inline-preview-action ${variant}`,
       text: label,
       attr: {
         type: 'button',
@@ -636,7 +663,7 @@ export class InlineEditSession {
     for (const document of buildMarkdownDiffDocuments(diffOps)) {
       if (!document.markdown) continue;
 
-      const opEl = container.createDiv({ cls: `claudian-diff-block ${getDiffBlockClass(document.type)}` });
+      const opEl = container.createDiv({ cls: `claudian-plus-diff-block ${getDiffBlockClass(document.type)}` });
       await this.renderMarkdownPreview(opEl, document.markdown);
     }
   }
@@ -675,7 +702,8 @@ export class InlineEditSession {
     this.removeSelectionListeners();
 
     this.inputEl.disabled = true;
-    this.spinnerEl.removeClass('claudian-hidden');
+    this.spinnerEl.removeClass('claudian-plus-hidden');
+    this.cancelButtonEl?.removeClass('claudian-plus-hidden');
 
     const contextFiles = this.resolveContextFilesFromMessage(userMessage);
 
@@ -712,7 +740,8 @@ export class InlineEditSession {
       return;
     } finally {
       if (this.isGenerationActive(generation)) {
-        this.spinnerEl?.addClass('claudian-hidden');
+        this.spinnerEl?.addClass('claudian-plus-hidden');
+        this.cancelButtonEl?.addClass('claudian-plus-hidden');
       }
     }
 
@@ -752,7 +781,7 @@ export class InlineEditSession {
     const renderVersion = ++this.agentReplyRenderVersion;
     const renderedEl = this.agentReplyEl.createDiv();
 
-    replyEl.removeClass('claudian-hidden');
+    replyEl.removeClass('claudian-plus-hidden');
     replyEl.empty();
     void this.renderMarkdownPreview(renderedEl, message).then(() => {
       if (renderVersion !== this.agentReplyRenderVersion || replyEl !== this.agentReplyEl) {
@@ -767,6 +796,21 @@ export class InlineEditSession {
     if (!this.inputEl) return;
     this.inputEl.disabled = false;
     this.inputEl.placeholder = errorMessage;
+    this.updatePositionsFromEditor();
+    this.updateHighlight();
+    this.attachSelectionListeners();
+    this.inputEl.focus();
+  }
+
+  /** Cancels the current request while keeping the inline editor available for retry. */
+  private cancelGeneration(): void {
+    if (this.settled || !this.inputEl?.disabled) return;
+    this.generation += 1;
+    this.inlineEditService.cancel();
+    this.spinnerEl?.addClass('claudian-plus-hidden');
+    this.cancelButtonEl?.addClass('claudian-plus-hidden');
+    this.inputEl.disabled = false;
+    this.inputEl.placeholder = 'Request cancelled — try again';
     this.updatePositionsFromEditor();
     this.updateHighlight();
     this.attachSelectionListeners();
@@ -895,6 +939,7 @@ export class InlineEditSession {
 
     this.mentionDropdown?.destroy();
     this.mentionDropdown = null;
+    this.cancelButtonEl = null;
 
     if (activeController === this) {
       activeController = null;

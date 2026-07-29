@@ -59,7 +59,7 @@ export const CHAT_VIEW_PLACEMENTS = [
   'main-tab',
 ] as const;
 
-/** Workspace location used when opening the Claudian chat view. */
+/** Workspace location used when opening the Claudian Plus chat view. */
 export type ChatViewPlacement = typeof CHAT_VIEW_PLACEMENTS[number];
 
 /** Result from instruction refinement agent query. */
@@ -83,13 +83,13 @@ export type HostnameCliPaths = Record<string, string>;
 export type ProviderConfigMap = Partial<Record<string, Record<string, unknown>>>;
 
 /**
- * Application settings stored in .claudian/claudian-settings.json.
+ * Application settings stored in .claudian-plus/claudian-plus-settings.json.
  *
  * Provider-specific fields (model, thinkingBudget, effortLevel, serviceTier, etc.) use
  * `string` here.  The active provider casts internally when it needs
  * narrower types.
  */
-export interface ClaudianSettings {
+export interface ClaudianPlusSettings {
   // User preferences
   userName: string;
 
@@ -109,6 +109,20 @@ export interface ClaudianSettings {
   mediaFolder: string;
   systemPrompt: string;
   persistentExternalContextPaths: string[];
+  /** Automatically retrieve relevant vault notes for each normal chat turn. */
+  vaultAutoContextEnabled?: boolean;
+  /** Enable the lightweight vault knowledge summary injected into awareness context. */
+  vaultKnowledgeEnabled?: boolean;
+  /** Enable periodic Markdown vault review reports. */
+  vaultReviewEnabled?: boolean;
+  /** Enable semantic reranking through an explicitly configured local endpoint. */
+  semanticSearchEnabled?: boolean;
+  /** Ollama or OpenAI-compatible embeddings endpoint. */
+  semanticEmbeddingEndpoint?: string;
+  /** Embedding model name understood by the configured local endpoint. */
+  semanticEmbeddingModel?: string;
+  /** Show source-backed link candidates after saving the active Markdown note. */
+  vaultAutoLinkRecommendationsEnabled?: boolean;
 
   // Environment
   sharedEnvironmentVariables: string;

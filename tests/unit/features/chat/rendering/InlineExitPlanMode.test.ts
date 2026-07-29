@@ -24,16 +24,16 @@ function fireKeyDown(root: any, key: string, isComposing = false): void {
 }
 
 function findRoot(container: any): any {
-  return container.querySelector('.claudian-plan-approval-inline');
+  return container.querySelector('.claudian-plus-plan-approval-inline');
 }
 
 function findItems(root: any): any[] {
-  return root.querySelectorAll('claudian-ask-item');
+  return root.querySelectorAll('claudian-plus-ask-item');
 }
 
 describe('InlineExitPlanMode', () => {
   it('resolves with approve-new-session and includes plan content when readable', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claudian-'));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claudian-plus-'));
     const plansDir = path.join(tmpDir, '.claude', 'plans');
     fs.mkdirSync(plansDir, { recursive: true });
     const planFilePath = path.join(plansDir, 'plan.md');
@@ -60,7 +60,7 @@ describe('InlineExitPlanMode', () => {
     const root = findRoot(container);
     expect(root).toBeTruthy();
     expect(root.getEventListenerCount('keydown')).toBe(1);
-    expect(container.querySelector('.claudian-plan-permissions-list')).toBeTruthy();
+    expect(container.querySelector('.claudian-plus-plan-permissions-list')).toBeTruthy();
     expect(renderContent).toHaveBeenCalled();
 
     fireKeyDown(root, 'Enter');
@@ -90,7 +90,7 @@ describe('InlineExitPlanMode', () => {
 
     const root = findRoot(container);
     expect(root).toBeTruthy();
-    expect(container.querySelector('.claudian-plan-read-error')).toBeTruthy();
+    expect(container.querySelector('.claudian-plus-plan-read-error')).toBeTruthy();
 
     fireKeyDown(root, 'Enter');
     expect(resolve).toHaveBeenCalledWith({
@@ -116,7 +116,7 @@ describe('InlineExitPlanMode', () => {
 
     const root = findRoot(container);
     expect(root).toBeTruthy();
-    expect(container.querySelector('.claudian-plan-read-error')).toBeTruthy();
+    expect(container.querySelector('.claudian-plus-plan-read-error')).toBeTruthy();
 
     fireKeyDown(root, 'Enter');
     expect(resolve).toHaveBeenCalledWith({
@@ -157,7 +157,7 @@ describe('InlineExitPlanMode', () => {
 
     const items = findItems(root);
     const feedbackRow = items[2];
-    const feedbackInput = feedbackRow.querySelector('claudian-ask-custom-text');
+    const feedbackInput = feedbackRow.querySelector('claudian-plus-ask-custom-text');
 
     expect(resolve).not.toHaveBeenCalled();
 
@@ -180,7 +180,7 @@ describe('InlineExitPlanMode', () => {
     widget.render();
 
     const root = findRoot(container);
-    const feedbackInput = findItems(root)[2].querySelector('claudian-ask-custom-text');
+    const feedbackInput = findItems(root)[2].querySelector('claudian-plus-ask-custom-text');
     feedbackInput.value = 'composing text';
     feedbackInput.dispatchEvent('focus');
 
@@ -205,5 +205,35 @@ describe('InlineExitPlanMode', () => {
 
     widget.destroy();
     expect(resolve).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels the deferred focus frame and ignores it after destruction', () => {
+    const container = createMockEl();
+    let runFrame!: FrameRequestCallback;
+    const ownerWindow = globalThis.window as any;
+    const originalRequestAnimationFrame = ownerWindow.requestAnimationFrame;
+    const originalCancelAnimationFrame = ownerWindow.cancelAnimationFrame;
+    ownerWindow.requestAnimationFrame = jest.fn((callback: FrameRequestCallback) => {
+      runFrame = callback;
+      return 18;
+    });
+    ownerWindow.cancelAnimationFrame = jest.fn();
+    try {
+      const widget = new InlineExitPlanMode(container, {}, jest.fn());
+
+      widget.render();
+      const root = findRoot(container);
+      root.focus = jest.fn();
+      root.scrollIntoView = jest.fn();
+      widget.destroy();
+      runFrame(0);
+
+      expect(ownerWindow.cancelAnimationFrame).toHaveBeenCalledWith(18);
+      expect(root.focus).not.toHaveBeenCalled();
+      expect(root.scrollIntoView).not.toHaveBeenCalled();
+    } finally {
+      ownerWindow.requestAnimationFrame = originalRequestAnimationFrame;
+      ownerWindow.cancelAnimationFrame = originalCancelAnimationFrame;
+    }
   });
 });

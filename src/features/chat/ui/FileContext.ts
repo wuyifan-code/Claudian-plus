@@ -1,5 +1,5 @@
 import type { App, EventRef } from 'obsidian';
-import { Notice, TFile } from 'obsidian';
+import { Notice, TFile, TFolder } from 'obsidian';
 
 import type { McpServerManager } from '../../../core/mcp/McpServerManager';
 import type { AgentMentionProvider } from '../../../shared/mention/MentionDropdownController';
@@ -114,11 +114,19 @@ export class FileContextManager {
     );
 
     this.deleteEventRef = this.app.vault.on('delete', (file) => {
-      if (file instanceof TFile) this.handleFileDeleted(file.path);
+      if (file instanceof TFile) {
+        this.handleFileDeleted(file.path);
+      } else if (file instanceof TFolder) {
+        this.handleFolderDeleted(file.path);
+      }
     });
 
     this.renameEventRef = this.app.vault.on('rename', (file, oldPath) => {
-      if (file instanceof TFile) this.handleFileRenamed(oldPath, file.path);
+      if (file instanceof TFile) {
+        this.handleFileRenamed(oldPath, file.path);
+      } else if (file instanceof TFolder) {
+        this.handleFolderRenamed(oldPath, file.path);
+      }
     });
   }
 
@@ -359,6 +367,77 @@ export class FileContextManager {
     if (needsUpdate) {
       this.refreshContextChips();
     }
+  }
+
+  /** Keeps attached folder context valid when Obsidian moves a folder tree. */
+  private handleFolderRenamed(oldPath: string, newPath: string): void {
+    const normalizedOld = this.normalizePathForVault(oldPath);
+    const normalizedNew = this.normalizePathForVault(newPath);
+    if (!normalizedOld || !normalizedNew) return;
+
+    let needsUpdate = false;
+    if (this.currentNotePath && this.isPathWithinFolder(this.currentNotePath, normalizedOld)) {
+      this.currentNotePath = this.replaceFolderPrefix(
+        this.currentNotePath,
+        normalizedOld,
+        normalizedNew,
+      );
+      needsUpdate = true;
+    }
+
+    for (const attachedPath of this.state.getAttachedFiles()) {
+      if (!this.isPathWithinFolder(attachedPath, normalizedOld)) continue;
+      this.state.detachFile(attachedPath);
+      this.state.attachFile(this.replaceFolderPrefix(attachedPath, normalizedOld, normalizedNew));
+      needsUpdate = true;
+    }
+
+    for (const attachedPath of this.state.getAttachedFolders()) {
+      if (!this.isPathWithinFolder(attachedPath, normalizedOld)) continue;
+      this.state.detachFolder(attachedPath);
+      this.state.attachFolder(this.replaceFolderPrefix(attachedPath, normalizedOld, normalizedNew));
+      needsUpdate = true;
+    }
+
+    if (needsUpdate) {
+      this.refreshContextChips();
+    }
+  }
+
+  /** Drops folder context (and direct file attachments inside it) after deletion. */
+  private handleFolderDeleted(deletedPath: string): void {
+    const normalizedPath = this.normalizePathForVault(deletedPath);
+    if (!normalizedPath) return;
+
+    let needsUpdate = false;
+    if (this.currentNotePath && this.isPathWithinFolder(this.currentNotePath, normalizedPath)) {
+      this.currentNotePath = null;
+      needsUpdate = true;
+    }
+
+    for (const attachedPath of this.state.getAttachedFiles()) {
+      if (!this.isPathWithinFolder(attachedPath, normalizedPath)) continue;
+      this.state.detachFile(attachedPath);
+      needsUpdate = true;
+    }
+
+    for (const attachedPath of this.state.getAttachedFolders()) {
+      if (!this.isPathWithinFolder(attachedPath, normalizedPath)) continue;
+      this.state.detachFolder(attachedPath);
+      needsUpdate = true;
+    }
+
+    if (needsUpdate) {
+      this.refreshContextChips();
+    }
+  }
+
+  private isPathWithinFolder(path: string, folderPath: string): boolean {
+    return path === folderPath || path.startsWith(`${folderPath}/`);
+  }
+
+  private replaceFolderPrefix(path: string, oldFolderPath: string, newFolderPath: string): string {
+    return `${newFolderPath}${path.slice(oldFolderPath.length)}`;
   }
 
   // ========================================

@@ -48,6 +48,7 @@ export class SlashCommandDropdown {
   private providerEntriesFetched = false;
 
   private requestId = 0;
+  private destroyed = false;
 
   constructor(
     containerEl: HTMLElement,
@@ -68,6 +69,7 @@ export class SlashCommandDropdown {
   }
 
   setEnabled(enabled: boolean): void {
+    if (this.destroyed) return;
     this.enabled = enabled;
     if (!enabled) {
       this.hide();
@@ -90,7 +92,7 @@ export class SlashCommandDropdown {
   }
 
   handleInputChange(): void {
-    if (!this.enabled) return;
+    if (this.destroyed || !this.enabled) return;
 
     const text = this.getInputValue();
     const cursorPos = this.getCursorPosition();
@@ -133,7 +135,7 @@ export class SlashCommandDropdown {
   }
 
   handleKeydown(e: KeyboardEvent): boolean {
-    if (!this.enabled || !this.isVisible()) return false;
+    if (this.destroyed || !this.enabled || !this.isVisible()) return false;
 
     switch (e.key) {
       case 'ArrowDown':
@@ -165,6 +167,7 @@ export class SlashCommandDropdown {
   }
 
   hide(): void {
+    if (this.destroyed) return;
     if (this.dropdownEl) {
       this.dropdownEl.removeClass('visible');
     }
@@ -173,6 +176,11 @@ export class SlashCommandDropdown {
   }
 
   destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    // Invalidate provider catalog reads that may still be awaiting I/O.
+    this.requestId += 1;
+    this.filteredItems = [];
     this.inputEl.removeEventListener('input', this.onInput);
     if (this.dropdownEl) {
       this.dropdownEl.remove();
@@ -204,12 +212,13 @@ export class SlashCommandDropdown {
   }
 
   private async showDropdown(searchText: string, isAtPosition0 = true): Promise<void> {
+    if (this.destroyed) return;
     const currentRequest = ++this.requestId;
     const searchLower = searchText.toLowerCase();
 
     await this.fetchProviderEntries(currentRequest);
 
-    if (currentRequest !== this.requestId) return;
+    if (this.destroyed || currentRequest !== this.requestId) return;
 
     const includeBuiltIns = isAtPosition0 && this.activeTriggerChar === '/';
     const allItems = this.buildItemList(includeBuiltIns);
@@ -221,7 +230,7 @@ export class SlashCommandDropdown {
       )
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    if (currentRequest !== this.requestId) return;
+    if (this.destroyed || currentRequest !== this.requestId) return;
 
     if (searchText.length > 0 && this.filteredItems.length === 0) {
       this.hide();
@@ -237,13 +246,13 @@ export class SlashCommandDropdown {
 
     try {
       const entries = await this.getProviderEntries();
-      if (currentRequest !== this.requestId) return;
+      if (this.destroyed || currentRequest !== this.requestId) return;
       if (entries.length > 0) {
         this.cachedProviderEntries = entries;
         this.providerEntriesFetched = true;
       }
     } catch {
-      if (currentRequest !== this.requestId) return;
+      if (this.destroyed || currentRequest !== this.requestId) return;
     }
   }
 
@@ -309,6 +318,7 @@ export class SlashCommandDropdown {
   }
 
   private render(): void {
+    if (this.destroyed) return;
     if (!this.dropdownEl) {
       this.dropdownEl = this.createDropdownElement();
     }
@@ -316,27 +326,27 @@ export class SlashCommandDropdown {
     this.dropdownEl.empty();
 
     if (this.filteredItems.length === 0) {
-      const emptyEl = this.dropdownEl.createDiv({ cls: 'claudian-slash-empty' });
+      const emptyEl = this.dropdownEl.createDiv({ cls: 'claudian-plus-slash-empty' });
       emptyEl.setText('No matching commands');
     } else {
       for (let i = 0; i < this.filteredItems.length; i++) {
         const item = this.filteredItems[i];
-        const itemEl = this.dropdownEl.createDiv({ cls: 'claudian-slash-item' });
+        const itemEl = this.dropdownEl.createDiv({ cls: 'claudian-plus-slash-item' });
 
         if (i === this.selectedIndex) {
           itemEl.addClass('selected');
         }
 
-        const nameEl = itemEl.createSpan({ cls: 'claudian-slash-name' });
+        const nameEl = itemEl.createSpan({ cls: 'claudian-plus-slash-name' });
         nameEl.setText(`${item.displayPrefix}${item.name}`);
 
         if (item.argumentHint) {
-          const hintEl = itemEl.createSpan({ cls: 'claudian-slash-hint' });
+          const hintEl = itemEl.createSpan({ cls: 'claudian-plus-slash-hint' });
           hintEl.setText(normalizeArgumentHint(item.argumentHint));
         }
 
         if (item.description) {
-          const descEl = itemEl.createDiv({ cls: 'claudian-slash-desc' });
+          const descEl = itemEl.createDiv({ cls: 'claudian-plus-slash-desc' });
           descEl.setText(item.description);
         }
 
@@ -362,10 +372,10 @@ export class SlashCommandDropdown {
   private createDropdownElement(): HTMLElement {
     if (this.isFixed) {
       return this.containerEl.createDiv({
-        cls: 'claudian-slash-dropdown claudian-slash-dropdown-fixed',
+        cls: 'claudian-plus-slash-dropdown claudian-plus-slash-dropdown-fixed',
       });
     } else {
-      return this.containerEl.createDiv({ cls: 'claudian-slash-dropdown' });
+      return this.containerEl.createDiv({ cls: 'claudian-plus-slash-dropdown' });
     }
   }
 
@@ -373,10 +383,12 @@ export class SlashCommandDropdown {
     if (!this.dropdownEl || !this.isFixed) return;
 
     const inputRect = this.inputEl.getBoundingClientRect();
+    const ownerWindow = this.inputEl.ownerDocument?.defaultView;
+    const viewportHeight = ownerWindow?.innerHeight ?? window.innerHeight;
     this.dropdownEl.setCssProps({
-      '--claudian-fixed-dropdown-bottom': `${window.innerHeight - inputRect.top + 4}px`,
-      '--claudian-fixed-dropdown-left': `${inputRect.left}px`,
-      '--claudian-fixed-dropdown-width': `${Math.max(inputRect.width, 280)}px`,
+      '--claudian-plus-fixed-dropdown-bottom': `${viewportHeight - inputRect.top + 4}px`,
+      '--claudian-plus-fixed-dropdown-left': `${inputRect.left}px`,
+      '--claudian-plus-fixed-dropdown-width': `${Math.max(inputRect.width, 280)}px`,
     });
   }
 
@@ -387,7 +399,7 @@ export class SlashCommandDropdown {
   }
 
   private updateSelection(): void {
-    const items = this.dropdownEl?.querySelectorAll('.claudian-slash-item');
+    const items = this.dropdownEl?.querySelectorAll('.claudian-plus-slash-item');
     items?.forEach((item, index) => {
       if (index === this.selectedIndex) {
         item.addClass('selected');

@@ -37,7 +37,10 @@ const IMPLICIT_PATTERNS: Array<{
   // Personal info
   { pattern: /我叫(.{2,10})/, category: 'Personal', extract: m => `名字是${m[1]}` },
   { pattern: /我的名字是(.{2,10})/, category: 'Personal', extract: m => `名字是${m[1]}` },
-  { pattern: /(?:my\s+name\s+is|i'm|i\s+am)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i, category: 'Personal', extract: m => `Name is ${m[1]}` },
+  // Only treat a proper-cased name after an explicit name phrase as personal
+  // information. A broad `i am` rule incorrectly captured "I am working..."
+  // as a person's name.
+  { pattern: /(?:[Mm]y\s+name\s+is|I['’]m|I\s+am)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/, category: 'Personal', extract: m => `Name is ${m[1]}` },
   // Project context
   { pattern: /(?:我们|我的)?项目(?:用的是|使用|采用)(.{3,30})/, category: 'Project Context', extract: m => `项目使用${m[1]}` },
   { pattern: /(?:我们|我的)?技术栈(?:是|为)(.{3,30})/, category: 'Project Context', extract: m => `技术栈是${m[1]}` },

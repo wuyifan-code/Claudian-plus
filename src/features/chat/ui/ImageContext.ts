@@ -24,9 +24,23 @@ export class ImageContextManager {
   private contextTray: ComposerContextTray;
   private ownedContextTray: ComposerContextTray | null = null;
   private inputEl: HTMLTextAreaElement;
+  private inputWrapper: HTMLElement | null = null;
   private dropOverlay: HTMLElement | null = null;
   private attachedImages: Map<string, ImageAttachment> = new Map();
+  /** Invalidates asynchronous file reads when the composer attachment state resets. */
+  private attachmentGeneration = 0;
   private enabled = true;
+  private destroyed = false;
+  private activeImageModal: { close: () => void } | null = null;
+  private readonly dragEnterHandler = (event: DragEvent) => this.handleDragEnter(event);
+  private readonly dragOverHandler = (event: DragEvent) => this.handleDragOver(event);
+  private readonly dragLeaveHandler = (event: DragEvent) => this.handleDragLeave(event);
+  private readonly dropHandler = (event: DragEvent) => {
+    void this.handleDrop(event);
+  };
+  private readonly pasteHandler = (event: ClipboardEvent) => {
+    void this.handlePaste(event);
+  };
 
   constructor(
     containerEl: HTMLElement,
@@ -40,7 +54,7 @@ export class ImageContextManager {
     this.callbacks = callbacks;
     const ownedTrayContainer = contextTray
       ? null
-      : (previewContainerEl ?? containerEl).createDiv({ cls: 'claudian-context-row' });
+      : (previewContainerEl ?? containerEl).createDiv({ cls: 'claudian-plus-context-row' });
     this.contextTray = contextTray ?? new ComposerContextTray(ownedTrayContainer!);
     if (!contextTray) {
       this.ownedContextTray = this.contextTray;
@@ -51,6 +65,7 @@ export class ImageContextManager {
   }
 
   setEnabled(enabled: boolean): void {
+    if (this.destroyed) return;
     this.enabled = enabled;
     if (!enabled && this.attachedImages.size > 0) {
       this.clearImages();
@@ -66,6 +81,8 @@ export class ImageContextManager {
   }
 
   clearImages() {
+    if (this.destroyed) return;
+    this.attachmentGeneration += 1;
     this.attachedImages.clear();
     this.updateImagePreview();
     this.callbacks.onImagesChanged?.();
@@ -73,6 +90,8 @@ export class ImageContextManager {
 
   /** Sets images directly (used for queued messages). */
   setImages(images: ImageAttachment[]) {
+    if (this.destroyed) return;
+    this.attachmentGeneration += 1;
     this.attachedImages.clear();
     for (const image of images) {
       this.attachedImages.set(image.id, image);
@@ -82,17 +101,31 @@ export class ImageContextManager {
   }
 
   destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    this.attachmentGeneration += 1;
+    this.inputWrapper?.removeEventListener('dragenter', this.dragEnterHandler);
+    this.inputWrapper?.removeEventListener('dragover', this.dragOverHandler);
+    this.inputWrapper?.removeEventListener('dragleave', this.dragLeaveHandler);
+    this.inputWrapper?.removeEventListener('drop', this.dropHandler);
+    this.inputWrapper = null;
+    this.inputEl.removeEventListener('paste', this.pasteHandler);
+    this.dropOverlay?.remove();
+    this.dropOverlay = null;
+    this.closeActiveImageModal();
+    this.attachedImages.clear();
     this.contextTray.clearItems('images');
     this.ownedContextTray?.destroy();
     this.ownedContextTray = null;
   }
 
   private setupDragAndDrop() {
-    const inputWrapper = this.containerEl.querySelector('.claudian-input-wrapper') as HTMLElement;
+    const inputWrapper = this.containerEl.querySelector('.claudian-plus-input-wrapper') as HTMLElement;
     if (!inputWrapper) return;
 
-    this.dropOverlay = inputWrapper.createDiv({ cls: 'claudian-drop-overlay' });
-    const dropContent = this.dropOverlay.createDiv({ cls: 'claudian-drop-content' });
+    this.inputWrapper = inputWrapper;
+    this.dropOverlay = inputWrapper.createDiv({ cls: 'claudian-plus-drop-overlay' });
+    const dropContent = this.dropOverlay.createDiv({ cls: 'claudian-plus-drop-content' });
     const svg = dropContent.createSvg('svg');
     svg.setAttribute('viewBox', '0 0 24 24');
     svg.setAttribute('width', '32');
@@ -113,15 +146,14 @@ export class ImageContextManager {
 
     const dropZone = inputWrapper;
 
-    dropZone.addEventListener('dragenter', (e) => this.handleDragEnter(e));
-    dropZone.addEventListener('dragover', (e) => this.handleDragOver(e));
-    dropZone.addEventListener('dragleave', (e) => this.handleDragLeave(e));
-    dropZone.addEventListener('drop', (e) => {
-      void this.handleDrop(e);
-    });
+    dropZone.addEventListener('dragenter', this.dragEnterHandler);
+    dropZone.addEventListener('dragover', this.dragOverHandler);
+    dropZone.addEventListener('dragleave', this.dragLeaveHandler);
+    dropZone.addEventListener('drop', this.dropHandler);
   }
 
   private handleDragEnter(e: DragEvent) {
+    if (this.destroyed) return;
     e.preventDefault();
     e.stopPropagation();
 
@@ -133,15 +165,17 @@ export class ImageContextManager {
   }
 
   private handleDragOver(e: DragEvent) {
+    if (this.destroyed) return;
     e.preventDefault();
     e.stopPropagation();
   }
 
   private handleDragLeave(e: DragEvent) {
+    if (this.destroyed) return;
     e.preventDefault();
     e.stopPropagation();
 
-    const inputWrapper = this.containerEl.querySelector('.claudian-input-wrapper');
+    const inputWrapper = this.containerEl.querySelector('.claudian-plus-input-wrapper');
     if (!inputWrapper) {
       this.dropOverlay?.removeClass('visible');
       return;
@@ -159,6 +193,7 @@ export class ImageContextManager {
   }
 
   private async handleDrop(e: DragEvent) {
+    if (this.destroyed) return;
     e.preventDefault();
     e.stopPropagation();
     this.dropOverlay?.removeClass('visible');
@@ -193,24 +228,25 @@ export class ImageContextManager {
   }
 
   private setupPasteHandler() {
-    this.inputEl.addEventListener('paste', (e) => {
-      void (async (): Promise<void> => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
+    this.inputEl.addEventListener('paste', this.pasteHandler);
+  }
 
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.type.startsWith('image/')) {
-          e.preventDefault();
-          const file = item.getAsFile();
-          if (file) {
-            await this.addImageFromFile(file, 'paste');
-          }
-          return;
+  private async handlePaste(e: ClipboardEvent): Promise<void> {
+    if (this.destroyed) return;
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          await this.addImageFromFile(file, 'paste');
         }
+        return;
       }
-      })();
-    });
+    }
   }
 
   private isImageFile(file: File): boolean {
@@ -223,6 +259,7 @@ export class ImageContextManager {
   }
 
   private async addImageFromFile(file: File, source: 'paste' | 'drop'): Promise<boolean> {
+    if (this.destroyed) return false;
     if (!this.enabled) {
       new Notice('Image attachments are not supported by this provider.');
       return false;
@@ -240,7 +277,9 @@ export class ImageContextManager {
     }
 
     try {
+      const attachmentGeneration = this.attachmentGeneration;
       const base64 = await this.fileToBase64(file);
+      if (this.destroyed || attachmentGeneration !== this.attachmentGeneration) return false;
 
       const attachment: ImageAttachment = {
         id: this.generateId(),
@@ -272,6 +311,7 @@ export class ImageContextManager {
   // ============================================
 
   private updateImagePreview() {
+    if (this.destroyed) return;
     if (this.attachedImages.size === 0) {
       this.contextTray.clearItems('images');
       return;
@@ -294,9 +334,11 @@ export class ImageContextManager {
   }
 
   private showFullImage(image: ImageAttachment) {
+    if (this.destroyed) return;
+    this.closeActiveImageModal();
     const ownerDocument = this.containerEl.ownerDocument ?? window.document;
-    const overlay = ownerDocument.body.createDiv({ cls: 'claudian-image-modal-overlay' });
-    const modal = overlay.createDiv({ cls: 'claudian-image-modal' });
+    const overlay = ownerDocument.body.createDiv({ cls: 'claudian-plus-image-modal-overlay' });
+    const modal = overlay.createDiv({ cls: 'claudian-plus-image-modal' });
 
     modal.createEl('img', {
       attr: {
@@ -305,7 +347,7 @@ export class ImageContextManager {
       },
     });
 
-    const closeBtn = modal.createDiv({ cls: 'claudian-image-modal-close' });
+    const closeBtn = modal.createDiv({ cls: 'claudian-plus-image-modal-close' });
     closeBtn.setText('\u00D7');
 
     const handleEsc = (e: KeyboardEvent) => {
@@ -314,9 +356,15 @@ export class ImageContextManager {
       }
     };
 
+    let closed = false;
     const close = () => {
+      if (closed) return;
+      closed = true;
       ownerDocument.removeEventListener('keydown', handleEsc);
       overlay.remove();
+      if (this.activeImageModal?.close === close) {
+        this.activeImageModal = null;
+      }
     };
 
     closeBtn.addEventListener('click', close);
@@ -324,6 +372,12 @@ export class ImageContextManager {
       if (e.target === overlay) close();
     });
     ownerDocument.addEventListener('keydown', handleEsc);
+    this.activeImageModal = { close };
+  }
+
+  private closeActiveImageModal(): void {
+    this.activeImageModal?.close();
+    this.activeImageModal = null;
   }
 
   private generateId(): string {

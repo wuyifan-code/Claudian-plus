@@ -3,6 +3,7 @@ import type {
   Options,
   PermissionMode as SDKPermissionMode,
 } from '@anthropic-ai/claude-agent-sdk';
+import type { McpSdkServerConfigWithInstance } from '@anthropic-ai/claude-agent-sdk';
 
 import type { McpServerManager } from '../../../core/mcp/McpServerManager';
 import {
@@ -11,7 +12,7 @@ import {
   type SystemPromptSettings,
 } from '../../../core/prompt/mainAgent';
 import type { AppPluginManager } from '../../../core/providers/types';
-import type { ClaudianSettings, PermissionMode } from '../../../core/types/settings';
+import type { ClaudianPlusSettings, PermissionMode } from '../../../core/types/settings';
 import { toClaudeRuntimeModelId } from '../modelSelection';
 import {
   type ClaudeSafeMode,
@@ -31,12 +32,14 @@ import {
 export interface QueryOptionsContext {
   vaultPath: string;
   cliPath: string;
-  settings: ClaudianSettings;
+  settings: ClaudianPlusSettings;
   customEnv: Record<string, string>;
   enhancedPath: string;
   mcpManager: McpServerManager;
   pluginManager: AppPluginManager;
   memoryAppendix?: string;
+  /** Built-in in-process tools for the current Obsidian vault. */
+  obsidianMcpServer?: McpSdkServerConfigWithInstance;
 }
 
 export interface PersistentQueryContext extends QueryOptionsContext {
@@ -78,7 +81,7 @@ export class QueryOptionsBuilder {
     if (currentConfig.settingSources !== newConfig.settingSources) return true;
     if (currentConfig.claudeCliPath !== newConfig.claudeCliPath) return true;
 
-    // Note: Permission mode is handled dynamically via setPermissionMode() in ClaudianService.
+    // Note: Permission mode is handled dynamically via setPermissionMode() in ClaudeChatRuntime.
     // Since allowDangerouslySkipPermissions is always true, both directions work without restart.
 
     if (currentConfig.enableChrome !== newConfig.enableChrome) return true;
@@ -156,6 +159,14 @@ export class QueryOptionsBuilder {
     if (ctx.hooks) options.hooks = ctx.hooks;
     options.enableFileCheckpointing = true;
 
+    const activeMcpServers = ctx.mcpManager.getActiveServers(new Set<string>());
+    if (ctx.obsidianMcpServer || Object.keys(activeMcpServers).length > 0) {
+      options.mcpServers = {
+        ...activeMcpServers,
+        ...(ctx.obsidianMcpServer ? { obsidian: ctx.obsidianMcpServer } : {}),
+      };
+    }
+
     if (ctx.resume) {
       options.resume = ctx.resume.sessionId;
       if (ctx.resume.sessionAt) {
@@ -186,8 +197,11 @@ export class QueryOptionsBuilder {
     const combinedMentions = new Set([...mcpMentions, ...uiEnabledServers]);
     const mcpServers = ctx.mcpManager.getActiveServers(combinedMentions);
 
-    if (Object.keys(mcpServers).length > 0) {
-      options.mcpServers = mcpServers;
+    if (Object.keys(mcpServers).length > 0 || ctx.obsidianMcpServer) {
+      options.mcpServers = {
+        ...mcpServers,
+        ...(ctx.obsidianMcpServer ? { obsidian: ctx.obsidianMcpServer } : {}),
+      };
     }
 
     const disallowedMcpTools = ctx.mcpManager.getDisallowedMcpTools(combinedMentions);
@@ -296,7 +310,7 @@ export class QueryOptionsBuilder {
 
   private static applyThinking(
     options: Options,
-    settings: ClaudianSettings,
+    settings: ClaudianPlusSettings,
     model: string
   ): void {
     const effortLevel = resolveEffortLevel(model, settings.effortLevel);

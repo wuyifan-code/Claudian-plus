@@ -1,7 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { CLAUDIAN_STORAGE_PATH } from '../../../core/bootstrap/StoragePaths';
+import { CLAUDIAN_PLUS_STORAGE_PATH } from '../../../core/bootstrap/StoragePaths';
+import { buildPortableObsidianMcpScript } from '../../../core/obsidian/portableToolRuntime';
 import {
   buildSystemPrompt,
   computeSystemPromptKey,
@@ -22,6 +23,7 @@ export interface OpencodeLaunchArtifacts {
   databasePath: string | null;
   launchKey: string;
   systemPromptPath: string;
+  obsidianMcpPath?: string;
 }
 
 export interface OpencodeManagedAgentConfig {
@@ -66,6 +68,13 @@ export interface PrepareOpencodeLaunchArtifactsParams {
   systemPromptKey?: string;
   systemPromptText?: string;
   userName?: string;
+  /** Node executable used to launch the dependency-free Obsidian MCP sidecar. */
+  nodeExecutable?: string;
+  /** Optional loopback bridge to the in-process Obsidian API. */
+  obsidianBridge?: {
+    token: string;
+    url: string;
+  };
   workspaceRoot: string;
 }
 
@@ -74,7 +83,7 @@ export async function prepareOpencodeLaunchArtifacts(
 ): Promise<OpencodeLaunchArtifacts> {
   const artifactsDir = path.join(
     params.workspaceRoot,
-    CLAUDIAN_STORAGE_PATH,
+    CLAUDIAN_PLUS_STORAGE_PATH,
     params.artifactsSubdir ?? 'opencode',
   );
   const systemPromptPath = path.join(artifactsDir, 'system.md');
@@ -90,6 +99,9 @@ export async function prepareOpencodeLaunchArtifacts(
     params.runtimeEnv.OPENCODE_CONFIG,
     params.workspaceRoot,
   );
+  const obsidianMcpPath = params.nodeExecutable
+    ? path.join(artifactsDir, 'obsidian-mcp.cjs')
+    : undefined;
   const configContent = `${JSON.stringify(
     buildOpencodeManagedConfig(
       baseConfig,
@@ -97,6 +109,14 @@ export async function prepareOpencodeLaunchArtifacts(
       params.userName ?? params.settings?.userName,
       params.managedAgents,
       params.defaultAgentId,
+      obsidianMcpPath && params.nodeExecutable
+        ? {
+          nodeExecutable: params.nodeExecutable,
+          scriptPath: obsidianMcpPath,
+          workspaceRoot: params.workspaceRoot,
+          obsidianBridge: params.obsidianBridge,
+        }
+        : undefined,
     ),
     null,
     2,
@@ -105,6 +125,9 @@ export async function prepareOpencodeLaunchArtifacts(
 
   await fs.mkdir(artifactsDir, { recursive: true });
   await ensureOpencodeDatabaseDirectory(databasePath);
+  if (obsidianMcpPath) {
+    await writeIfChanged(obsidianMcpPath, buildPortableObsidianMcpScript());
+  }
   await writeIfChanged(systemPromptPath, systemPrompt);
   await writeIfChanged(configPath, configContent);
 
@@ -116,9 +139,12 @@ export async function prepareOpencodeLaunchArtifacts(
       promptKey,
       configContent,
       databasePath ?? '',
+      obsidianMcpPath ?? '',
+      params.obsidianBridge?.url ?? '',
       params.runtimeEnv.XDG_DATA_HOME ?? '',
     ].join('::'),
     systemPromptPath,
+    ...(obsidianMcpPath ? { obsidianMcpPath } : {}),
   };
 }
 
@@ -136,6 +162,15 @@ export function buildOpencodeManagedConfig(
   userName?: string,
   managedAgents: readonly OpencodeManagedAgentConfig[] = DEFAULT_OPENCODE_MANAGED_AGENT_CONFIGS,
   defaultAgentId?: string,
+  portableObsidianMcp?: {
+    nodeExecutable: string;
+    obsidianBridge?: {
+      token: string;
+      url: string;
+    };
+    scriptPath: string;
+    workspaceRoot: string;
+  },
 ): Record<string, unknown> {
   const config: Record<string, unknown> = {
     ...baseConfig,
@@ -172,6 +207,43 @@ export function buildOpencodeManagedConfig(
   const trimmedUserName = userName?.trim();
   if (trimmedUserName) {
     config.username = trimmedUserName;
+  }
+
+  if (portableObsidianMcp) {
+    const mcp = isPlainObject(config.mcp) ? { ...config.mcp } : {};
+    const servers = isPlainObject(mcp.servers) ? { ...mcp.servers } : {};
+    const existingObsidianServer = isPlainObject(servers['claudian-plus-obsidian'])
+      ? servers['claudian-plus-obsidian']
+      : {};
+    const existingEnvironment = isPlainObject(existingObsidianServer.environment)
+      ? existingObsidianServer.environment
+      : {};
+    servers['claudian-plus-obsidian'] = {
+      ...existingObsidianServer,
+      type: 'local',
+      command: [portableObsidianMcp.nodeExecutable, portableObsidianMcp.scriptPath],
+      environment: {
+        ...existingEnvironment,
+        CLAUDIAN_PLUS_VAULT_ROOT: portableObsidianMcp.workspaceRoot,
+        ...(portableObsidianMcp.obsidianBridge
+          ? {
+            // Keep the ephemeral token out of the generated config file. OpenCode
+            // resolves `{env:NAME}` when launching the local MCP process.
+            CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_URL: '{env:CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_URL}',
+            CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_TOKEN: '{env:CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_TOKEN}',
+          }
+          : {}),
+      },
+      codemode: false,
+    };
+    config.mcp = { ...mcp, servers };
+
+    const permission = isPlainObject(config.permission) ? { ...config.permission } : {};
+    // OpenCode keeps hyphens when normalizing MCP server names, so these keys
+    // match `claudian-plus-obsidian_<tool>` exactly.
+    permission['claudian-plus-obsidian_canvas_write'] = 'ask';
+    permission['claudian-plus-obsidian_properties_set'] = 'ask';
+    config.permission = permission;
   }
 
   return config;

@@ -72,6 +72,10 @@ import type {
 import { CodexDynamicToolRegistry } from './CodexDynamicToolRegistry';
 import type { CodexLaunchSpec } from './codexLaunchTypes';
 import { CodexNotificationRouter } from './CodexNotificationRouter';
+import {
+  CODEX_OBSIDIAN_TOOL_VERSION,
+  createCodexObsidianTools,
+} from './CodexObsidianTools';
 import { CodexRpcTransport } from './CodexRpcTransport';
 import { type CodexRuntimeContext, createCodexRuntimeContext } from './CodexRuntimeContext';
 import { CodexServerRequestRouter } from './CodexServerRequestRouter';
@@ -120,10 +124,10 @@ function resolveCodexServiceTier(
 }
 
 const LEGACY_WORKSPACE_DEPENDENCY_NOTICE =
-  'This conversation was created before Claudian added Codex workspace dependency tools. It can continue for other tasks, but skills that require load_workspace_dependencies are unavailable in this thread. Start a new conversation to use them.';
+  'This conversation was created before Claudian Plus added Codex workspace dependency tools. It can continue for other tasks, but skills that require load_workspace_dependencies are unavailable in this thread. Start a new conversation to use them.';
 
 const LEGACY_WORKSPACE_DEPENDENCY_INSTRUCTIONS =
-  'This thread predates Claudian client-hosted workspace dependency tools. If the user requests a skill that requires load_workspace_dependencies, explain that they must start a new conversation in Claudian. Do not emulate the tool, search for dependency paths, or install replacement dependencies.';
+  'This thread predates Claudian Plus client-hosted workspace dependency tools. If the user requests a skill that requires load_workspace_dependencies, explain that they must start a new conversation in Claudian Plus. Do not emulate the tool, search for dependency paths, or install replacement dependencies.';
 
 function isMissingCodexThreadError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
@@ -170,6 +174,7 @@ export class CodexChatRuntime implements ChatRuntime {
   private loadedThreadId: string | null = null;
   private currentThreadPath: string | null = null;
   private workspaceDependencyToolVersion: number | null = null;
+  private obsidianToolVersion: number | null = null;
   private legacyWorkspaceDependencyNoticeKeys = new Set<string>();
   private pendingTurnNotifications: Array<{ method: string; params: unknown }> = [];
 
@@ -233,6 +238,7 @@ export class CodexChatRuntime implements ChatRuntime {
       this.loadedThreadId = null;
       this.currentThreadPath = null;
       this.workspaceDependencyToolVersion = null;
+      this.obsidianToolVersion = null;
       this.pendingFork = null;
       return;
     }
@@ -240,6 +246,7 @@ export class CodexChatRuntime implements ChatRuntime {
     this.setCurrentConversationModel(conversation.selectedModel);
     const state = getCodexState(conversation.providerState);
     this.workspaceDependencyToolVersion = state.workspaceDependencyToolVersion ?? null;
+    this.obsidianToolVersion = state.obsidianToolVersion ?? null;
 
     // Pending fork: store fork metadata, don't set the source thread as our session
     if (state.forkSource && !state.threadId && !conversation.sessionId) {
@@ -296,8 +303,10 @@ export class CodexChatRuntime implements ChatRuntime {
   ): Promise<boolean> {
     this.assertLifecycleCurrent(generation);
     const promptSettings = this.getSystemPromptSettings();
-    const memoryAppendix = await this.plugin.getMemoryInjectionText();
-    const consciousnessAppendix = await this.plugin.getConsciousnessInjectionText();
+    const [memoryAppendix, consciousnessAppendix] = await Promise.all([
+      this.plugin.getMemoryInjectionText(),
+      this.plugin.getConsciousnessInjectionText(),
+    ]);
     const combinedAppendix = [memoryAppendix, consciousnessAppendix].filter(Boolean).join('\n\n') || undefined;
     const promptKey = computeSystemPromptKey(promptSettings, { memoryAppendix: combinedAppendix });
     const launchSpec = await resolveCodexAppServerLaunchSpec(this.plugin, this.providerId);
@@ -351,8 +360,10 @@ export class CodexChatRuntime implements ChatRuntime {
     const providerSettings = this.getProviderSettings();
     const model = this.resolveModel(queryOptions, providerSettings);
     const promptSettings = this.getSystemPromptSettings();
-    const memoryAppendix = await this.plugin.getMemoryInjectionText();
-    const consciousnessAppendix = await this.plugin.getConsciousnessInjectionText();
+    const [memoryAppendix, consciousnessAppendix] = await Promise.all([
+      this.plugin.getMemoryInjectionText(),
+      this.plugin.getConsciousnessInjectionText(),
+    ]);
     const combinedAppendix = [memoryAppendix, consciousnessAppendix].filter(Boolean).join('\n\n') || undefined;
     const promptText = buildSystemPrompt(promptSettings, { memoryAppendix: combinedAppendix });
 
@@ -458,6 +469,7 @@ export class CodexChatRuntime implements ChatRuntime {
           baseInstructions,
           experimentalRawEvents: true,
           persistExtendedHistory: true,
+          dynamicTools: this.dynamicToolRegistry.getThreadStartSpecs(),
         });
 
         if (numTurnsToRollback > 0) {
@@ -502,6 +514,7 @@ export class CodexChatRuntime implements ChatRuntime {
           baseInstructions,
           experimentalRawEvents: true,
           persistExtendedHistory: true,
+          dynamicTools: this.dynamicToolRegistry.getThreadStartSpecs(),
         });
         threadId = resumeResult.thread.id;
         threadTargetPath = resumeResult.thread.path ?? null;
@@ -840,6 +853,11 @@ export class CodexChatRuntime implements ChatRuntime {
           : {}
       ),
       ...(
+        this.obsidianToolVersion !== null
+          ? { obsidianToolVersion: this.obsidianToolVersion }
+          : {}
+      ),
+      ...(
         existingState?.forkSourceSessionFilePath
           ? { forkSourceSessionFilePath: existingState.forkSourceSessionFilePath }
           : {}
@@ -885,6 +903,7 @@ export class CodexChatRuntime implements ChatRuntime {
     this.loadedThreadId = null;
     this.currentThreadPath = null;
     this.workspaceDependencyToolVersion = null;
+    this.obsidianToolVersion = null;
     this.legacyWorkspaceDependencyNoticeKeys.clear();
     this.currentTurnId = null;
     this.currentQueryThreadId = null;
@@ -1008,6 +1027,14 @@ export class CodexChatRuntime implements ChatRuntime {
     this.dynamicToolRegistry = new CodexDynamicToolRegistry();
     const workspaceDependencyTool = createCodexWorkspaceDependencyTool(this.runtimeContext);
     this.dynamicToolRegistry.register(workspaceDependencyTool);
+    const obsidianTools = createCodexObsidianTools(
+      this.plugin.app,
+      () => this.approvalCallback,
+    );
+    for (const tool of obsidianTools) {
+      this.dynamicToolRegistry.register(tool);
+    }
+    this.obsidianToolVersion = CODEX_OBSIDIAN_TOOL_VERSION;
     this.serverRequestRouter.setDynamicToolRegistry(this.dynamicToolRegistry);
     this.clientConfigKey = clientConfigKey;
   }
@@ -1107,6 +1134,7 @@ export class CodexChatRuntime implements ChatRuntime {
     this.launchSpec = null;
     this.runtimeContext = null;
     this.dynamicToolRegistry = new CodexDynamicToolRegistry();
+    this.obsidianToolVersion = null;
     this.serverRequestRouter.setDynamicToolRegistry(null);
     this.notificationRouter = null;
     this.currentTurnId = null;
@@ -1352,7 +1380,7 @@ export class CodexChatRuntime implements ChatRuntime {
 
     try {
       if (images && images.length > 0) {
-        tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claudian-codex-images-'));
+        tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claudian-plus-codex-images-'));
         for (let i = 0; i < images.length; i++) {
           const img = images[i];
           if (!img.mediaType.startsWith('image/')) continue;

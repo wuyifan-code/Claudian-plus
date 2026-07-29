@@ -254,6 +254,33 @@ describe('StreamController - Text Content', () => {
       );
     });
 
+    it('renders a new text block after a reset interrupts an earlier async render', async () => {
+      let releaseOldRender!: () => void;
+      const oldRender = new Promise<void>(resolve => {
+        releaseOldRender = resolve;
+      });
+      const oldTextEl = createMockEl();
+      const nextContentEl = createMockEl();
+      deps.state.currentTextEl = oldTextEl;
+      (deps.renderer.renderContent as jest.Mock).mockImplementationOnce(() => oldRender);
+
+      await controller.appendText('old text');
+      jest.advanceTimersByTime(16);
+      await Promise.resolve();
+
+      controller.resetStreamingState();
+      deps.state.currentContentEl = nextContentEl;
+      await controller.appendText('new text');
+      const newTextEl = deps.state.currentTextEl;
+      releaseOldRender();
+      await Promise.resolve();
+      await Promise.resolve();
+      jest.advanceTimersByTime(16);
+      await Promise.resolve();
+
+      expect(deps.renderer.renderContent).toHaveBeenLastCalledWith(newTextEl, 'new text');
+    });
+
     it('should defer math rendering during live text renders', async () => {
       deps.state.currentTextEl = createMockEl();
 
@@ -1004,6 +1031,17 @@ describe('StreamController - Text Content', () => {
       expect(deps.state.flavorTimerInterval).toBeNull();
     });
 
+    it('clears a zero-valued pending indicator timeout when hiding', () => {
+      const clearTimeout = jest.fn();
+      const ownerWindow = { clearTimeout } as unknown as Window;
+      deps.state.setThinkingIndicatorTimeout(0, ownerWindow);
+
+      controller.hideThinkingIndicator();
+
+      expect(clearTimeout).toHaveBeenCalledWith(0);
+      expect(deps.state.thinkingIndicatorTimeout).toBeNull();
+    });
+
     it('uses the content owner window for thinking timers', () => {
       const ownerSetTimeout = jest.fn<ReturnType<Window['setTimeout']>, Parameters<Window['setTimeout']>>(
         (callback, timeout) => globalThis.setTimeout(callback, timeout) as unknown as number,
@@ -1453,6 +1491,41 @@ describe('StreamController - Text Content', () => {
 
       expect(deps.renderer.renderContent).toHaveBeenCalledTimes(1);
       expect(deps.renderer.renderContent).toHaveBeenCalledWith(contentEl, 'Let me think');
+    });
+
+    it('renders new thinking after a reset interrupts an earlier async render', async () => {
+      const { createThinkingBlock } = jest.requireMock('@/features/chat/rendering/ThinkingBlockRenderer');
+      let releaseOldRender!: () => void;
+      const oldRender = new Promise<void>(resolve => {
+        releaseOldRender = resolve;
+      });
+      const oldThinkingEl = createMockEl();
+      const newThinkingEl = createMockEl();
+      createThinkingBlock
+        .mockReturnValueOnce({
+          wrapperEl: createMockEl(), contentEl: oldThinkingEl, labelEl: createMockEl(),
+          content: '', startTime: Date.now(),
+        })
+        .mockReturnValueOnce({
+          wrapperEl: createMockEl(), contentEl: newThinkingEl, labelEl: createMockEl(),
+          content: '', startTime: Date.now(),
+        });
+      (deps.renderer.renderContent as jest.Mock).mockImplementationOnce(() => oldRender);
+
+      await controller.appendThinking('old thinking');
+      jest.advanceTimersByTime(16);
+      await Promise.resolve();
+
+      controller.resetStreamingState();
+      deps.state.currentContentEl = createMockEl();
+      await controller.appendThinking('new thinking');
+      releaseOldRender();
+      await Promise.resolve();
+      await Promise.resolve();
+      jest.advanceTimersByTime(16);
+      await Promise.resolve();
+
+      expect(deps.renderer.renderContent).toHaveBeenLastCalledWith(newThinkingEl, 'new thinking');
     });
 
     it('should defer math rendering during live thinking renders', async () => {
@@ -2154,6 +2227,48 @@ describe('StreamController - Text Content', () => {
       expect(deps.subagentManager.refreshAsyncSubagent).toHaveBeenCalledWith(completedSubagent);
       expect(persistConversation).toHaveBeenCalledTimes(1);
     });
+
+    it('cancels a scheduled async result retry when streaming state is reset', async () => {
+      const runtime = deps.getAgentService!() as any;
+      const msg = createTestMessage();
+      const enqueueBackgroundWork = jest.fn((work: () => Promise<void>) => work());
+      Object.assign(deps, { enqueueBackgroundWork });
+
+      const completedSubagent = {
+        id: 'task-reset-retry',
+        description: 'Background task',
+        prompt: 'Do work',
+        mode: 'async',
+        status: 'completed',
+        toolCalls: [],
+        isExpanded: false,
+        asyncStatus: 'completed',
+        agentId: 'agent-reset-retry',
+        result: 'Intermediate line',
+      };
+
+      (deps.subagentManager.isLinkedAgentOutputTool as jest.Mock).mockReturnValueOnce(true);
+      (deps.subagentManager.handleAgentOutputToolResult as jest.Mock).mockReturnValueOnce(completedSubagent);
+      (deps.subagentManager.getByTaskId as jest.Mock).mockImplementation(
+        (taskId: string) => taskId === completedSubagent.id ? completedSubagent : undefined,
+      );
+      runtime.loadSubagentToolCalls.mockResolvedValueOnce([]);
+      runtime.loadSubagentFinalResult.mockResolvedValueOnce(null);
+
+      await controller.handleStreamChunk(
+        { type: 'tool_result', id: 'agent-out-reset-retry', content: 'agent result' },
+        msg,
+      );
+
+      expect(runtime.loadSubagentFinalResult).toHaveBeenCalledTimes(1);
+      controller.resetStreamingState();
+
+      jest.advanceTimersByTime(3000);
+      await Promise.resolve();
+
+      expect(enqueueBackgroundWork).not.toHaveBeenCalled();
+      expect(runtime.loadSubagentFinalResult).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('Tool header update on input re-dispatch', () => {
@@ -2174,9 +2289,9 @@ describe('StreamController - Text Content', () => {
       // Manually set up a rendered tool element with name + summary children
       // (the mock renderToolCall doesn't actually populate toolCallElements)
       const toolEl = createMockEl();
-      const nameChild = toolEl.createDiv({ cls: 'claudian-tool-name' });
+      const nameChild = toolEl.createDiv({ cls: 'claudian-plus-tool-name' });
       nameChild.setText('Read');
-      const summaryChild = toolEl.createDiv({ cls: 'claudian-tool-summary' });
+      const summaryChild = toolEl.createDiv({ cls: 'claudian-plus-tool-summary' });
       summaryChild.setText('test.md');
       deps.state.toolCallElements.set('read-1', toolEl);
 
@@ -2449,6 +2564,21 @@ describe('StreamController - Text Content', () => {
 
       clearIntervalSpy.mockRestore();
     });
+
+    it('clears a zero-valued pre-existing interval before creating a replacement', () => {
+      jest.advanceTimersByTime(1);
+      deps.state.responseStartTime = performance.now();
+      const activeWindow = deps.state.currentContentEl!.ownerDocument.defaultView!;
+      const clearIntervalSpy = jest.spyOn(activeWindow, 'clearInterval');
+      deps.state.setFlavorTimerInterval(0, activeWindow);
+
+      controller.showThinkingIndicator();
+      jest.advanceTimersByTime(500);
+
+      expect(clearIntervalSpy).toHaveBeenCalledWith(0);
+      expect(deps.state.flavorTimerInterval).not.toBeNull();
+      clearIntervalSpy.mockRestore();
+    });
   });
 
   describe('appendThinking - no currentContentEl', () => {
@@ -2464,6 +2594,19 @@ describe('StreamController - Text Content', () => {
   });
 
   describe('showThinkingIndicator - responseStartTime null in timer', () => {
+    it('updates timer text when responseStartTime is zero', () => {
+      deps.state.responseStartTime = 0;
+
+      controller.showThinkingIndicator();
+      jest.advanceTimersByTime(500);
+
+      const timerSpan = deps.state.thinkingEl!.children[1];
+      Object.defineProperty(timerSpan, 'isConnected', { value: true, configurable: true });
+      jest.advanceTimersByTime(1000);
+
+      expect((timerSpan as any).textContent).toContain('esc to interrupt');
+    });
+
     it('should not update timer text when responseStartTime is null', () => {
       // Advance fake clock so performance.now() returns non-zero
       jest.advanceTimersByTime(1);

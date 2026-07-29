@@ -54,8 +54,21 @@ describe('PiLaunchSpec', () => {
       'rpc',
       '--no-session',
       '--tools',
-      'read,grep,find,ls',
+      'read,grep,find,ls,obsidian_canvas_read,obsidian_canvas_write_preview,obsidian_properties_get,obsidian_links_get,obsidian_graph_neighbors,obsidian_dataview_query',
     ]);
+  });
+
+  it('passes extension paths through to the Pi runtime and launch key', () => {
+    const spec = buildPiLaunchSpec({
+      command: 'pi',
+      cwd: '/vault',
+      extensions: ['/vault/.claudian-plus/pi/obsidian-tools.mjs'],
+      settings: baseSettings,
+    });
+
+    expect(spec.args).toContain('--extension');
+    expect(spec.args).toContain('/vault/.claudian-plus/pi/obsidian-tools.mjs');
+    expect(spec.launchKey).toContain('obsidian-tools.mjs');
   });
 
   it('uses no-tools for passive auxiliary launches', () => {

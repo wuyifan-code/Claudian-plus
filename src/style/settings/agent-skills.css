@@ -1,0 +1,57 @@
+.claudian-plus-agent-skills-help {
+  padding: 0 12px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.claudian-plus-agent-skills-help p {
+  margin: 0 0 8px;
+}
+
+.claudian-plus-agent-skill-instructions {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 220px;
+  margin-top: 8px;
+  resize: vertical;
+  font-family: var(--font-monospace);
+}
+
+.claudian-plus-agent-skill-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.claudian-plus-agent-skills-diagnostics {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--background-modifier-error);
+  border-radius: 6px;
+  background: var(--background-modifier-error-hover);
+}
+
+.claudian-plus-agent-skills-diagnostics-title {
+  margin-bottom: 8px;
+  color: var(--text-error);
+  font-weight: var(--font-semibold);
+}
+
+.claudian-plus-agent-skills-diagnostic {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.claudian-plus-agent-skills-error {
+  padding: 12px;
+  color: var(--text-error);
+}
+
+.claudian-plus-agent-skill-delete-description {
+  color: var(--text-warning);
+}

@@ -69,25 +69,25 @@ export interface MockElement {
 }
 
 const CLASS_DISPLAY: Record<string, string> = {
-  'claudian-context-meter': 'flex',
-  'claudian-mcp-selector': 'flex',
-  'claudian-mode-selector': 'flex',
-  'claudian-permission-toggle': 'flex',
-  'claudian-service-tier-toggle': 'flex',
-  'claudian-status-panel-bash': 'block',
-  'claudian-status-panel-bash-content': 'block',
-  'claudian-status-panel-bash-entry-content': 'block',
-  'claudian-status-panel-content': 'block',
-  'claudian-status-panel-todos': 'block',
-  'claudian-tab-content': 'flex',
-  'claudian-thinking-budget': 'flex',
-  'claudian-thinking-effort': 'flex',
+  'claudian-plus-context-meter': 'flex',
+  'claudian-plus-mcp-selector': 'flex',
+  'claudian-plus-mode-selector': 'flex',
+  'claudian-plus-permission-toggle': 'flex',
+  'claudian-plus-service-tier-toggle': 'flex',
+  'claudian-plus-status-panel-bash': 'block',
+  'claudian-plus-status-panel-bash-content': 'block',
+  'claudian-plus-status-panel-bash-entry-content': 'block',
+  'claudian-plus-status-panel-content': 'block',
+  'claudian-plus-status-panel-todos': 'block',
+  'claudian-plus-tab-content': 'flex',
+  'claudian-plus-thinking-budget': 'flex',
+  'claudian-plus-thinking-effort': 'flex',
 };
 
 const DISPLAY_CLASSES = new Set([
-  'claudian-hidden',
-  'claudian-visible-block',
-  'claudian-visible-flex',
+  'claudian-plus-hidden',
+  'claudian-plus-visible-block',
+  'claudian-plus-visible-flex',
   ...Object.keys(CLASS_DISPLAY),
 ]);
 
@@ -101,9 +101,9 @@ export function createMockEl(tag = 'div'): any {
   let textContent = '';
 
   const resolveDisplay = (): string | null => {
-    if (classes.has('claudian-hidden')) return 'none';
-    if (classes.has('claudian-visible-flex')) return 'flex';
-    if (classes.has('claudian-visible-block')) return 'block';
+    if (classes.has('claudian-plus-hidden')) return 'none';
+    if (classes.has('claudian-plus-visible-flex')) return 'flex';
+    if (classes.has('claudian-plus-visible-block')) return 'block';
 
     for (const [cls, display] of Object.entries(CLASS_DISPLAY)) {
       if (classes.has(cls)) return display;

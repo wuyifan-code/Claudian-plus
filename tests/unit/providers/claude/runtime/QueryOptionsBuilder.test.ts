@@ -1,4 +1,4 @@
-import type { ClaudianSettings } from '@/core/types/settings';
+import type { ClaudianPlusSettings } from '@/core/types/settings';
 import type { QueryOptionsContext } from '@/providers/claude/runtime/ClaudeQueryOptionsBuilder';
 import { QueryOptionsBuilder } from '@/providers/claude/runtime/ClaudeQueryOptionsBuilder';
 import type { PersistentQueryConfig } from '@/providers/claude/runtime/types';
@@ -34,7 +34,7 @@ function createMockPluginManager() {
 }
 
 // Create a mock settings object
-function createMockSettings(overrides: Partial<ClaudianSettings> = {}): ClaudianSettings {
+function createMockSettings(overrides: Partial<ClaudianPlusSettings> = {}): ClaudianPlusSettings {
   return {
     permissions: [],
     permissionMode: 'yolo',
@@ -57,7 +57,7 @@ function createMockSettings(overrides: Partial<ClaudianSettings> = {}): Claudian
     claudeCliPath: '',
     enableChrome: false,
     ...overrides,
-  } as ClaudianSettings;
+  } as ClaudianPlusSettings;
 }
 
 function createMockPersistentQueryConfig(
@@ -638,6 +638,38 @@ describe('QueryOptionsBuilder', () => {
   });
 
   describe('buildColdStartQueryOptions', () => {
+    it('keeps the built-in Obsidian MCP server alongside user MCP servers', () => {
+      const mcpManager = createMockMcpManager();
+      mcpManager.getActiveServers.mockReturnValue({
+        'test-server': { command: 'test', args: [] },
+      });
+      const obsidianMcpServer = { type: 'sdk', name: 'obsidian', instance: {} } as any;
+
+      const ctx = {
+        ...createMockContext({ mcpManager, obsidianMcpServer }),
+        abortController: new AbortController(),
+        hooks: {},
+        mcpMentions: new Set(['test-server']),
+        hasEditorContext: false,
+      };
+      const options = QueryOptionsBuilder.buildColdStartQueryOptions(ctx);
+
+      expect(options.mcpServers).toEqual({
+        'test-server': { command: 'test', args: [] },
+        obsidian: obsidianMcpServer,
+      });
+    });
+
+    it('registers the built-in Obsidian MCP server for persistent queries', () => {
+      const obsidianMcpServer = { type: 'sdk', name: 'obsidian', instance: {} } as any;
+      const options = QueryOptionsBuilder.buildPersistentQueryOptions({
+        ...createMockContext({ obsidianMcpServer }),
+        abortController: new AbortController(),
+      });
+
+      expect(options.mcpServers?.obsidian).toBe(obsidianMcpServer);
+    });
+
     it('includes MCP servers when available', () => {
       const mcpManager = createMockMcpManager();
       mcpManager.getActiveServers.mockReturnValue({

@@ -1,8 +1,8 @@
 /* Inline Edit (CM6 decorations) */
 
 /* Selection highlight (shared by inline edit and chat) */
-.cm-line .claudian-selection-highlight,
-.claudian-selection-highlight.claudian-selection-highlight {
+.cm-line .claudian-plus-selection-highlight,
+.claudian-plus-selection-highlight.claudian-plus-selection-highlight {
   background: var(--text-selection);
   border-radius: 2px;
   padding: 3px 0;
@@ -10,18 +10,18 @@
 }
 
 /* Preview mode selection highlight via CSS Custom Highlight API */
-::highlight(claudian-selection) {
+::highlight(claudian-plus-selection) {
   background: var(--text-selection);
 }
 
 /* CM6 widget container - ensure transparent background */
 .markdown-source-view.mod-cm6 .cm-widgetBuffer,
-.markdown-source-view.mod-cm6 .cm-line.claudian-inline-input-line {
+.markdown-source-view.mod-cm6 .cm-line.claudian-plus-inline-input-line {
   background: transparent;
 }
 
 /* Input container - fully transparent */
-.claudian-inline-input-container {
+.claudian-plus-inline-input-container {
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -30,7 +30,7 @@
 }
 
 /* Input wrapper - contains input and spinner */
-.claudian-inline-input-wrap {
+.claudian-plus-inline-input-wrap {
   flex: 1;
   position: relative;
   background: transparent;
@@ -38,7 +38,7 @@
 }
 
 /* Input - fully transparent */
-.claudian-inline-input-wrap input.claudian-inline-input {
+.claudian-plus-inline-input-wrap input.claudian-plus-inline-input {
   width: 100%;
   padding: 4px 8px;
   padding-inline-end: 30px;
@@ -52,22 +52,22 @@
   font-size: var(--font-ui-small, 13px);
 }
 
-.claudian-inline-input-wrap input.claudian-inline-input:focus,
-.claudian-inline-input-wrap input.claudian-inline-input:focus-visible {
+.claudian-plus-inline-input-wrap input.claudian-plus-inline-input:focus,
+.claudian-plus-inline-input-wrap input.claudian-plus-inline-input:focus-visible {
   outline: none;
   box-shadow: none;
 }
 
-.claudian-inline-input-wrap input.claudian-inline-input::placeholder {
+.claudian-plus-inline-input-wrap input.claudian-plus-inline-input::placeholder {
   color: var(--text-faint);
 }
 
-.claudian-inline-input-wrap input.claudian-inline-input:disabled {
+.claudian-plus-inline-input-wrap input.claudian-plus-inline-input:disabled {
   opacity: 0.6;
 }
 
 /* Spinner - inside input box on end side */
-.claudian-inline-spinner {
+.claudian-plus-inline-spinner {
   position: absolute;
   inset-inline-end: 8px;
   top: 50%;
@@ -75,14 +75,34 @@
   height: 14px;
   margin-top: -7px;
   border: 2px solid var(--background-modifier-border);
-  border-top-color: var(--claudian-brand);
+  border-top-color: var(--claudian-plus-brand);
   border-radius: 50%;
   box-sizing: border-box;
-  animation: claudian-spin 0.8s linear infinite;
+  animation: claudian-plus-spin 0.8s linear infinite;
+}
+
+.claudian-plus-inline-cancel {
+  position: absolute;
+  inset-inline-end: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  min-height: 22px;
+  padding: 1px 6px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 5px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.claudian-plus-inline-cancel:hover {
+  color: var(--text-normal);
+  border-color: var(--interactive-accent);
 }
 
 /* Agent reply - shown when agent asks clarifying question */
-.claudian-inline-agent-reply {
+.claudian-plus-inline-agent-reply {
   padding: 8px;
   margin-bottom: 4px;
   background: transparent;
@@ -98,17 +118,17 @@
   word-wrap: break-word;
 }
 
-.claudian-inline-agent-reply > :first-child,
-.claudian-inline-diff-preview-body > :first-child {
+.claudian-plus-inline-agent-reply > :first-child,
+.claudian-plus-inline-diff-preview-body > :first-child {
   margin-top: 0;
 }
 
-.claudian-inline-agent-reply > :last-child,
-.claudian-inline-diff-preview-body > :last-child {
+.claudian-plus-inline-agent-reply > :last-child,
+.claudian-plus-inline-diff-preview-body > :last-child {
   margin-bottom: 0;
 }
 
-.claudian-inline-diff-preview {
+.claudian-plus-inline-diff-preview {
   margin: 4px 0 6px;
   padding: 8px 10px;
   border: 1px solid var(--background-modifier-border);
@@ -118,7 +138,7 @@
   overflow: hidden;
 }
 
-.claudian-inline-diff-preview-body {
+.claudian-plus-inline-diff-preview-body {
   font-family: var(--font-text);
   font-size: var(--font-text-size);
   line-height: var(--line-height-normal);
@@ -127,116 +147,116 @@
   --heading-spacing: 0.5rem;
 }
 
-.claudian-inline-diff-preview img {
+.claudian-plus-inline-diff-preview img {
   max-width: 100%;
   height: auto;
 }
 
-.claudian-inline-diff-preview .markdown-rendered p {
+.claudian-plus-inline-diff-preview .markdown-rendered p {
   margin: 0 0 6px;
 }
 
-.claudian-inline-diff-preview .markdown-rendered p:last-child {
+.claudian-plus-inline-diff-preview .markdown-rendered p:last-child {
   margin-bottom: 0;
 }
 
-.claudian-inline-diff-preview .markdown-rendered h1,
-.claudian-inline-diff-preview .markdown-rendered h2,
-.claudian-inline-diff-preview .markdown-rendered h3,
-.claudian-inline-diff-preview .markdown-rendered h4,
-.claudian-inline-diff-preview .markdown-rendered h5,
-.claudian-inline-diff-preview .markdown-rendered h6 {
+.claudian-plus-inline-diff-preview .markdown-rendered h1,
+.claudian-plus-inline-diff-preview .markdown-rendered h2,
+.claudian-plus-inline-diff-preview .markdown-rendered h3,
+.claudian-plus-inline-diff-preview .markdown-rendered h4,
+.claudian-plus-inline-diff-preview .markdown-rendered h5,
+.claudian-plus-inline-diff-preview .markdown-rendered h6 {
   margin: 0 0 6px;
   line-height: 1.25;
 }
 
-.claudian-inline-diff-preview .markdown-rendered h1:first-child,
-.claudian-inline-diff-preview .markdown-rendered h2:first-child,
-.claudian-inline-diff-preview .markdown-rendered h3:first-child,
-.claudian-inline-diff-preview .markdown-rendered h4:first-child,
-.claudian-inline-diff-preview .markdown-rendered h5:first-child,
-.claudian-inline-diff-preview .markdown-rendered h6:first-child {
+.claudian-plus-inline-diff-preview .markdown-rendered h1:first-child,
+.claudian-plus-inline-diff-preview .markdown-rendered h2:first-child,
+.claudian-plus-inline-diff-preview .markdown-rendered h3:first-child,
+.claudian-plus-inline-diff-preview .markdown-rendered h4:first-child,
+.claudian-plus-inline-diff-preview .markdown-rendered h5:first-child,
+.claudian-plus-inline-diff-preview .markdown-rendered h6:first-child {
   margin-top: 0;
 }
 
-.claudian-inline-diff-preview .markdown-rendered ul,
-.claudian-inline-diff-preview .markdown-rendered ol {
+.claudian-plus-inline-diff-preview .markdown-rendered ul,
+.claudian-plus-inline-diff-preview .markdown-rendered ol {
   margin: 2px 0 8px;
   padding-inline-start: 1.5em;
 }
 
-.claudian-inline-diff-preview .markdown-rendered li {
+.claudian-plus-inline-diff-preview .markdown-rendered li {
   margin: 2px 0;
 }
 
-.claudian-inline-diff-preview .markdown-rendered li > p {
+.claudian-plus-inline-diff-preview .markdown-rendered li > p {
   margin: 0;
 }
 
-.claudian-inline-diff-preview .markdown-rendered pre,
-.claudian-inline-diff-preview .markdown-rendered table,
-.claudian-inline-diff-preview .markdown-rendered blockquote {
+.claudian-plus-inline-diff-preview .markdown-rendered pre,
+.claudian-plus-inline-diff-preview .markdown-rendered table,
+.claudian-plus-inline-diff-preview .markdown-rendered blockquote {
   margin: 2px 0 8px;
 }
 
-.claudian-inline-diff-preview .markdown-rendered .el-h1,
-.claudian-inline-diff-preview .markdown-rendered .el-h2,
-.claudian-inline-diff-preview .markdown-rendered .el-h3,
-.claudian-inline-diff-preview .markdown-rendered .el-h4,
-.claudian-inline-diff-preview .markdown-rendered .el-h5,
-.claudian-inline-diff-preview .markdown-rendered .el-h6,
-.claudian-inline-diff-preview .markdown-rendered .el-p,
-.claudian-inline-diff-preview .markdown-rendered .el-ul,
-.claudian-inline-diff-preview .markdown-rendered .el-ol,
-.claudian-inline-diff-preview .markdown-rendered .el-pre,
-.claudian-inline-diff-preview .markdown-rendered .el-table,
-.claudian-inline-diff-preview .markdown-rendered .el-blockquote {
+.claudian-plus-inline-diff-preview .markdown-rendered .el-h1,
+.claudian-plus-inline-diff-preview .markdown-rendered .el-h2,
+.claudian-plus-inline-diff-preview .markdown-rendered .el-h3,
+.claudian-plus-inline-diff-preview .markdown-rendered .el-h4,
+.claudian-plus-inline-diff-preview .markdown-rendered .el-h5,
+.claudian-plus-inline-diff-preview .markdown-rendered .el-h6,
+.claudian-plus-inline-diff-preview .markdown-rendered .el-p,
+.claudian-plus-inline-diff-preview .markdown-rendered .el-ul,
+.claudian-plus-inline-diff-preview .markdown-rendered .el-ol,
+.claudian-plus-inline-diff-preview .markdown-rendered .el-pre,
+.claudian-plus-inline-diff-preview .markdown-rendered .el-table,
+.claudian-plus-inline-diff-preview .markdown-rendered .el-blockquote {
   margin-block-start: 0;
   margin-block-end: 6px;
 }
 
-.claudian-inline-markdown-fallback {
+.claudian-plus-inline-markdown-fallback {
   white-space: pre-wrap;
   word-wrap: break-word;
 }
 
-.claudian-diff-block {
+.claudian-plus-diff-block {
   border-radius: 4px;
   padding: 2px 4px;
 }
 
-.claudian-diff-block + .claudian-diff-block {
+.claudian-plus-diff-block + .claudian-plus-diff-block {
   margin-top: 2px;
 }
 
-.claudian-diff-block > :first-child {
+.claudian-plus-diff-block > :first-child {
   margin-top: 0;
 }
 
-.claudian-diff-block > :last-child {
+.claudian-plus-diff-block > :last-child {
   margin-bottom: 0;
 }
 
-.claudian-diff-del:not(.claudian-diff-block) {
+.claudian-plus-diff-del:not(.claudian-plus-diff-block) {
   background: rgba(255, 80, 80, 0.2);
   text-decoration: line-through;
   color: var(--text-muted);
 }
 
-.claudian-diff-ins:not(.claudian-diff-block) {
+.claudian-plus-diff-ins:not(.claudian-plus-diff-block) {
   background: rgba(80, 200, 80, 0.2);
 }
 
-.claudian-diff-block.claudian-diff-del {
+.claudian-plus-diff-block.claudian-plus-diff-del {
   background: rgba(255, 80, 80, 0.14);
   color: var(--text-muted);
 }
 
-.claudian-diff-block.claudian-diff-ins {
+.claudian-plus-diff-block.claudian-plus-diff-ins {
   background: rgba(80, 200, 80, 0.14);
 }
 
-.claudian-inline-preview-actions {
+.claudian-plus-inline-preview-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
@@ -245,7 +265,7 @@
   border-top: 1px solid var(--background-modifier-border);
 }
 
-.claudian-inline-preview-actions button.claudian-inline-preview-action {
+.claudian-plus-inline-preview-actions button.claudian-plus-inline-preview-action {
   min-height: 28px;
   padding: 4px 10px;
   border: 1px solid var(--background-modifier-border);
@@ -259,20 +279,20 @@
   cursor: pointer;
 }
 
-.claudian-inline-preview-actions button.claudian-inline-preview-action:hover {
+.claudian-plus-inline-preview-actions button.claudian-plus-inline-preview-action:hover {
   background: var(--background-modifier-hover);
 }
 
-.claudian-inline-preview-actions button.claudian-inline-preview-action.reject {
+.claudian-plus-inline-preview-actions button.claudian-plus-inline-preview-action.reject {
   color: var(--color-red);
 }
 
-.claudian-inline-preview-actions button.claudian-inline-preview-action.accept {
+.claudian-plus-inline-preview-actions button.claudian-plus-inline-preview-action.accept {
   border-color: var(--interactive-accent);
   background: var(--interactive-accent);
   color: var(--text-on-accent);
 }
 
-.claudian-inline-preview-actions button.claudian-inline-preview-action.accept:hover {
+.claudian-plus-inline-preview-actions button.claudian-plus-inline-preview-action.accept:hover {
   background: var(--interactive-accent-hover);
 }

@@ -5,7 +5,8 @@ import type { AuxQueryConfig, AuxQueryRunner } from '../../../core/auxiliary/Aux
 import { getRuntimeEnvironmentText } from '../../../core/providers/providerEnvironment';
 import type { ProviderHost } from '../../../core/providers/ProviderHost';
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
-import { getVaultPath } from '../../../utils/path';
+import { findNodeExecutable, getEnhancedPath } from '../../../utils/env';
+import { getVaultPath, isPathWithinDirectory } from '../../../utils/path';
 import {
   AcpClientConnection,
   AcpJsonRpcTransport,
@@ -34,8 +35,8 @@ interface OpencodeAuxQueryRunnerOptions {
 }
 
 const OPENCODE_AUX_AGENT_IDS: Record<OpencodeAuxAgentProfile, string> = {
-  passive: 'claudian-aux-passive',
-  readonly: 'claudian-aux-readonly',
+  passive: 'claudian-plus-aux-passive',
+  readonly: 'claudian-plus-aux-readonly',
 };
 
 const OPENCODE_AUX_READ_PERMISSION = Object.freeze({
@@ -170,12 +171,22 @@ export class OpencodeAuxQueryRunner implements AuxQueryRunner {
 
     const settings = this.plugin.settings as unknown as Record<string, unknown>;
     const runtimeEnv = buildOpencodeRuntimeEnv(settings, resolvedCliPath);
+    const nodeExecutable = findNodeExecutable(getEnhancedPath(runtimeEnv.PATH, resolvedCliPath)) ?? undefined;
+    const obsidianBridge = nodeExecutable && this.plugin.ensureObsidianToolBridge
+      ? await this.plugin.ensureObsidianToolBridge().catch(() => undefined)
+      : undefined;
+    if (obsidianBridge) {
+      runtimeEnv.CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_URL = obsidianBridge.url;
+      runtimeEnv.CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_TOKEN = obsidianBridge.token;
+    }
     const auxAgentId = OPENCODE_AUX_AGENT_IDS[this.options.agentProfile];
     const artifacts = await prepareOpencodeLaunchArtifacts({
       artifactsSubdir: `opencode/auxiliary/${this.options.artifactPurpose}`,
       defaultAgentId: auxAgentId,
       managedAgents: [buildOpencodeAuxAgentConfig(this.options.agentProfile)],
       runtimeEnv,
+      nodeExecutable,
+      obsidianBridge,
       systemPromptKey: systemPrompt,
       systemPromptText: systemPrompt,
       userName: typeof settings.userName === 'string' ? settings.userName : undefined,
@@ -269,7 +280,7 @@ export class OpencodeAuxQueryRunner implements AuxQueryRunner {
 
     this.connection = new AcpClientConnection({
       clientInfo: {
-        name: 'claudian-aux',
+        name: 'claudian-plus-aux',
         version: this.plugin.manifest?.version ?? '0.0.0',
       },
       delegate: {
@@ -368,12 +379,10 @@ export class OpencodeAuxQueryRunner implements AuxQueryRunner {
     const resolvedPath = path.isAbsolute(rawPath)
       ? path.resolve(rawPath)
       : path.resolve(cwd, rawPath);
-    const relative = path.relative(cwd, resolvedPath);
-    if (relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))) {
-      return resolvedPath;
+    if (!isPathWithinDirectory(resolvedPath, cwd, cwd)) {
+      throw new Error('OpenCode aux read access is limited to the current workspace.');
     }
-
-    throw new Error('OpenCode aux read access is limited to the current workspace.');
+    return resolvedPath;
   }
 }
 
@@ -382,7 +391,7 @@ function buildOpencodeAuxAgentConfig(profile: OpencodeAuxAgentProfile): Opencode
   if (profile === 'readonly') {
     return {
       definition: {
-        description: 'Internal Claudian read-only agent for OpenCode auxiliary tasks.',
+        description: 'Internal Claudian Plus read-only agent for OpenCode auxiliary tasks.',
         mode: 'primary',
         permission: {
           '*': 'deny',
@@ -402,7 +411,7 @@ function buildOpencodeAuxAgentConfig(profile: OpencodeAuxAgentProfile): Opencode
 
   return {
     definition: {
-      description: 'Internal Claudian no-tool agent for OpenCode auxiliary tasks.',
+        description: 'Internal Claudian Plus no-tool agent for OpenCode auxiliary tasks.',
       mode: 'primary',
       permission: {
         '*': 'deny',

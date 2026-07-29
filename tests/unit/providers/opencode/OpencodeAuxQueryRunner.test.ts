@@ -1,5 +1,7 @@
 import '@/providers';
 
+import * as path from 'node:path';
+
 import { AcpClientConnection, AcpJsonRpcTransport, AcpSubprocess } from '@/providers/acp';
 import { OpencodeAuxQueryRunner } from '@/providers/opencode/runtime/OpencodeAuxQueryRunner';
 import { prepareOpencodeLaunchArtifacts } from '@/providers/opencode/runtime/OpencodeLaunchArtifacts';
@@ -46,7 +48,7 @@ function createMockPlugin(settings: Record<string, unknown> = {}) {
     app: {
       vault: {
         adapter: {
-          basePath: '/tmp/claudian-test-vault',
+          basePath: '/tmp/claudian-plus-test-vault',
         },
       },
     },
@@ -132,11 +134,11 @@ describe('OpencodeAuxQueryRunner', () => {
     MockAcpJsonRpcTransport.mockImplementation(() => mockTransport as any);
     MockAcpSubprocess.mockImplementation(() => mockProcess as any);
     mockPrepareOpencodeLaunchArtifacts.mockResolvedValue({
-      configPath: '/tmp/claudian-opencode-aux/config.json',
-      configContent: '{"default_agent":"claudian-aux-passive"}\n',
+      configPath: '/tmp/claudian-plus-opencode-aux/config.json',
+      configContent: '{"default_agent":"claudian-plus-aux-passive"}\n',
       databasePath: null,
       launchKey: 'launch-key',
-      systemPromptPath: '/tmp/claudian-opencode-aux/system.md',
+      systemPromptPath: '/tmp/claudian-plus-opencode-aux/system.md',
     });
   });
 
@@ -154,20 +156,20 @@ describe('OpencodeAuxQueryRunner', () => {
 
     expect(mockPrepareOpencodeLaunchArtifacts).toHaveBeenCalledWith(expect.objectContaining({
       artifactsSubdir: 'opencode/auxiliary/title-gen',
-      defaultAgentId: 'claudian-aux-passive',
-      managedAgents: [expect.objectContaining({ id: 'claudian-aux-passive' })],
+      defaultAgentId: 'claudian-plus-aux-passive',
+      managedAgents: [expect.objectContaining({ id: 'claudian-plus-aux-passive' })],
       systemPromptKey: 'Use this custom system prompt.',
       systemPromptText: 'Use this custom system prompt.',
     }));
     expect(mockConnection.newSession).toHaveBeenCalledWith({
-      cwd: '/tmp/claudian-test-vault',
+      cwd: '/tmp/claudian-plus-test-vault',
       mcpServers: [],
     });
     expect(mockConnection.setConfigOption).toHaveBeenCalledWith({
       configId: 'mode',
       sessionId: 'session-1',
       type: 'select',
-      value: 'claudian-aux-passive',
+      value: 'claudian-plus-aux-passive',
     });
     expect(mockConnection.setConfigOption).toHaveBeenCalledWith({
       configId: 'model',
@@ -262,7 +264,7 @@ describe('OpencodeAuxQueryRunner', () => {
       configId: 'mode',
       sessionId: 'session-1',
       type: 'select',
-      value: 'claudian-aux-passive',
+      value: 'claudian-plus-aux-passive',
     });
   });
 
@@ -345,13 +347,13 @@ describe('OpencodeAuxQueryRunner', () => {
       allowReadTextFile: true,
     });
 
-    (runner as any).sessionCwds.set('session-1', '/tmp/claudian-test-vault');
+    (runner as any).sessionCwds.set('session-1', '/tmp/claudian-plus-test-vault');
 
     expect(() => (runner as any).resolveSessionPath('session-1', '/tmp/outside.md')).toThrow(
       'OpenCode aux read access is limited to the current workspace.',
     );
-    expect((runner as any).resolveSessionPath('session-1', '/tmp/claudian-test-vault/notes/today.md')).toBe(
-      '/tmp/claudian-test-vault/notes/today.md',
+    expect((runner as any).resolveSessionPath('session-1', '/tmp/claudian-plus-test-vault/notes/today.md')).toBe(
+      path.resolve('/tmp/claudian-plus-test-vault/notes/today.md'),
     );
   });
 });

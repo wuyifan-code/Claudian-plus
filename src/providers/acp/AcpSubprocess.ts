@@ -1,6 +1,7 @@
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
 import type { Readable, Writable } from 'node:stream';
 
+import { formatProcessStartError } from '../../utils/processErrors';
 import {
   resolveWindowsCmdShimSpawnSpec,
   terminateSpawnedProcess,
@@ -70,8 +71,9 @@ export class AcpSubprocess {
     });
 
     proc.on('error', (error) => {
-      this.closeError = error;
-      this.notifyClose(error);
+      const actionableError = formatProcessStartError(error, 'OpenCode', this.launchSpec.command);
+      this.closeError = actionableError;
+      this.notifyClose(actionableError);
     });
 
     proc.on('exit', (code, signal) => {
@@ -122,9 +124,14 @@ export class AcpSubprocess {
         if (killTimer !== null) window.clearTimeout(killTimer);
         if (finalTimer !== null) window.clearTimeout(finalTimer);
         proc.off('exit', onClose);
+        proc.off('error', onClose);
       };
 
       proc.once('exit', onClose);
+      // ENOENT/EACCES can surface as an error without a reliable exit event.
+      // Resolve teardown from either terminal signal so a failed launch cannot
+      // leave the provider shutdown promise hanging.
+      proc.once('error', onClose);
       this.killProc(proc, 'SIGTERM');
     });
   }

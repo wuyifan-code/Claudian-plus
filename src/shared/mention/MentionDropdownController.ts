@@ -57,6 +57,9 @@ export class MentionDropdownController {
   private activeMentionSearchText: string | null = null;
   private fixed: boolean;
   private debounceTimer: number | null = null;
+  private debounceTimerWindow: Window | null = null;
+  private preScanTimer: number | null = null;
+  private preScanTimerWindow: Window | null = null;
   private destroyed = false;
 
   constructor(
@@ -71,11 +74,11 @@ export class MentionDropdownController {
     this.fixed = options.fixed ?? false;
 
     this.dropdown = new SelectableDropdown<MentionItem>(this.containerEl, {
-      listClassName: 'claudian-mention-dropdown',
-      itemClassName: 'claudian-mention-item',
-      emptyClassName: 'claudian-mention-empty',
+      listClassName: 'claudian-plus-mention-dropdown',
+      itemClassName: 'claudian-plus-mention-item',
+      emptyClassName: 'claudian-plus-mention-empty',
       fixed: this.fixed,
-      fixedClassName: 'claudian-mention-dropdown-fixed',
+      fixedClassName: 'claudian-plus-mention-dropdown-fixed',
     });
   }
 
@@ -93,10 +96,16 @@ export class MentionDropdownController {
   }
 
   preScanExternalContexts(): void {
+    if (this.destroyed || this.preScanTimer !== null) return;
     const externalContexts = this.callbacks.getExternalContexts() || [];
     if (externalContexts.length === 0) return;
 
-    window.setTimeout(() => {
+    const ownerWindow = this.getOwnerWindow();
+    this.preScanTimerWindow = ownerWindow;
+    this.preScanTimer = ownerWindow.setTimeout(() => {
+      this.preScanTimer = null;
+      this.preScanTimerWindow = null;
+      if (this.destroyed) return;
       try {
         externalContextScanner.scanPaths(externalContexts);
       } catch {
@@ -123,9 +132,15 @@ export class MentionDropdownController {
     if (this.destroyed) return;
     this.destroyed = true;
     if (this.debounceTimer !== null) {
-      window.clearTimeout(this.debounceTimer);
+      (this.debounceTimerWindow ?? this.getOwnerWindow()).clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
     }
+    this.debounceTimerWindow = null;
+    if (this.preScanTimer !== null) {
+      (this.preScanTimerWindow ?? this.getOwnerWindow()).clearTimeout(this.preScanTimer);
+      this.preScanTimer = null;
+    }
+    this.preScanTimerWindow = null;
     this.activeMentionSearchText = null;
     this.mentionStartIndex = -1;
     this.agentLoadPromise = null;
@@ -151,11 +166,17 @@ export class MentionDropdownController {
   }
 
   handleInputChange(): void {
+    if (this.destroyed) return;
     if (this.debounceTimer !== null) {
-      window.clearTimeout(this.debounceTimer);
+      (this.debounceTimerWindow ?? this.getOwnerWindow()).clearTimeout(this.debounceTimer);
     }
 
-    this.debounceTimer = window.setTimeout(() => {
+    const ownerWindow = this.getOwnerWindow();
+    this.debounceTimerWindow = ownerWindow;
+    this.debounceTimer = ownerWindow.setTimeout(() => {
+      this.debounceTimer = null;
+      this.debounceTimerWindow = null;
+      if (this.destroyed) return;
       const text = this.inputEl.value;
       this.updateMcpMentionsFromText(text);
 
@@ -180,6 +201,10 @@ export class MentionDropdownController {
       this.activeMentionSearchText = searchText;
       this.showMentionDropdown(searchText);
     }, 200);
+  }
+
+  private getOwnerWindow(): Window {
+    return this.inputEl.ownerDocument?.defaultView ?? window;
   }
 
   handleKeydown(e: KeyboardEvent): boolean {
@@ -533,7 +558,7 @@ export class MentionDropdownController {
         }
       },
       renderItem: (item, itemEl) => {
-        const iconEl = itemEl.createSpan({ cls: 'claudian-mention-icon' });
+        const iconEl = itemEl.createSpan({ cls: 'claudian-plus-mention-icon' });
         switch (item.type) {
           case 'mcp-server':
             appendMcpIcon(iconEl);
@@ -553,44 +578,44 @@ export class MentionDropdownController {
             setIcon(iconEl, 'file-text');
         }
 
-        const textEl = itemEl.createSpan({ cls: 'claudian-mention-text' });
+        const textEl = itemEl.createSpan({ cls: 'claudian-plus-mention-text' });
 
         switch (item.type) {
           case 'mcp-server':
-            textEl.createSpan({ cls: 'claudian-mention-name' }).setText(`@${item.name}`);
+            textEl.createSpan({ cls: 'claudian-plus-mention-name' }).setText(`@${item.name}`);
             break;
           case 'agent-folder':
             textEl.createSpan({
-              cls: 'claudian-mention-name claudian-mention-name-agent-folder',
+              cls: 'claudian-plus-mention-name claudian-plus-mention-name-agent-folder',
             }).setText(`@${item.name}/`);
             break;
           case 'agent': {
             // Show ID (which is namespaced for plugin agents) for consistency with inserted text
             textEl.createSpan({
-              cls: 'claudian-mention-name claudian-mention-name-agent',
+              cls: 'claudian-plus-mention-name claudian-plus-mention-name-agent',
             }).setText(`@${item.id}`);
             if (item.description) {
-              textEl.createSpan({ cls: 'claudian-mention-agent-desc' }).setText(item.description);
+              textEl.createSpan({ cls: 'claudian-plus-mention-agent-desc' }).setText(item.description);
             }
             break;
           }
           case 'context-folder':
             textEl.createSpan({
-              cls: 'claudian-mention-name claudian-mention-name-folder',
+              cls: 'claudian-plus-mention-name claudian-plus-mention-name-folder',
             }).setText(`@${item.name}/`);
             break;
           case 'context-file':
             textEl.createSpan({
-              cls: 'claudian-mention-name claudian-mention-name-context',
+              cls: 'claudian-plus-mention-name claudian-plus-mention-name-context',
             }).setText(item.name);
             break;
           case 'folder':
             textEl.createSpan({
-              cls: 'claudian-mention-name claudian-mention-name-folder',
+              cls: 'claudian-plus-mention-name claudian-plus-mention-name-folder',
             }).setText(`@${item.path}/`);
             break;
           default:
-            textEl.createSpan({ cls: 'claudian-mention-path' }).setText(item.path || item.name);
+            textEl.createSpan({ cls: 'claudian-plus-mention-path' }).setText(item.path || item.name);
         }
       },
       onItemClick: (item, index, e) => {
@@ -617,10 +642,12 @@ export class MentionDropdownController {
     if (!dropdownEl) return;
 
     const inputRect = this.inputEl.getBoundingClientRect();
+    const ownerWindow = this.inputEl.ownerDocument?.defaultView;
+    const viewportHeight = ownerWindow?.innerHeight ?? window.innerHeight;
     dropdownEl.setCssProps({
-      '--claudian-fixed-dropdown-bottom': `${window.innerHeight - inputRect.top + 4}px`,
-      '--claudian-fixed-dropdown-left': `${inputRect.left}px`,
-      '--claudian-fixed-dropdown-width': `${Math.max(inputRect.width, 280)}px`,
+      '--claudian-plus-fixed-dropdown-bottom': `${viewportHeight - inputRect.top + 4}px`,
+      '--claudian-plus-fixed-dropdown-left': `${inputRect.left}px`,
+      '--claudian-plus-fixed-dropdown-width': `${Math.max(inputRect.width, 280)}px`,
     });
   }
 

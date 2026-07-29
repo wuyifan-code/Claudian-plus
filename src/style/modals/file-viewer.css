@@ -1,0 +1,61 @@
+/* File Viewer Modal Styles */
+
+.claudian-plus-file-viewer-modal {
+  width: min(800px, 90vw);
+  max-width: 900px;
+}
+
+.claudian-plus-file-viewer-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  padding-bottom: 8px;
+}
+
+.claudian-plus-file-viewer-tab-btn {
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.claudian-plus-file-viewer-tab-btn:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.claudian-plus-file-viewer-tab-btn.active {
+  color: var(--text-normal);
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-weight: 500;
+}
+
+.claudian-plus-file-viewer-path {
+  font-family: var(--font-monospace);
+  font-size: 11px;
+  color: var(--text-muted);
+  word-break: break-all;
+  margin-bottom: 12px;
+  padding: 6px 10px;
+  background: var(--background-secondary);
+  border-radius: 4px;
+}
+
+.claudian-plus-file-viewer-textarea {
+  width: 100%;
+  font-family: var(--font-monospace);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px;
+  border-radius: 6px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  resize: vertical;
+  min-height: 320px;
+}

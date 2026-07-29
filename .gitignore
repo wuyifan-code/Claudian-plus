@@ -1,4 +1,5 @@
 # Build output
+/main.js
 # Built assets – committed for Obsidian distribution.
 .codex-vendor/
 *.js.map
@@ -89,6 +90,7 @@ sandbox/
 dev
 .context/
 CLAUDE.local.md
+.reasonix/
 
 # Lock files (uncomment based on package manager)
 # yarn.lock

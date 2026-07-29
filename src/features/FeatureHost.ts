@@ -10,9 +10,10 @@ import type {
 import type { ProviderHost } from '../core/providers/ProviderHost';
 import type { AppTabManagerState, ProviderId } from '../core/providers/types';
 import type { VaultRetrievalService } from '../core/retrieval/VaultRetrievalService';
+import type { VaultReviewService } from '../core/retrieval/VaultReviewService';
 import type { ChatRuntime } from '../core/runtime/ChatRuntime';
 import type { AgentSkillRepository } from '../core/skills/AgentSkillRepository';
-import type { ClaudianSettings, Conversation, ConversationMeta } from '../core/types';
+import type { ClaudianPlusSettings, Conversation, ConversationMeta } from '../core/types';
 import type { ComposerEnhancement } from './chat/composer/types';
 import type { TabData, TabId, TabManagerViewHost } from './chat/tabs/types';
 
@@ -37,9 +38,10 @@ export interface FeatureViewHost extends TabManagerViewHost {
 export interface FeatureHost {
   readonly app: App;
   readonly providerHost: ProviderHost;
-  readonly settings: ClaudianSettings;
+  readonly settings: ClaudianPlusSettings;
   readonly storage: SharedAppStorage;
   readonly vaultRetrievalService?: VaultRetrievalService;
+  readonly vaultReviewService?: VaultReviewService;
   readonly memoryExtractor: MemoryExtractor;
 
   /** Get the memory store for saving/loading user memories. */
@@ -52,8 +54,10 @@ export interface FeatureHost {
   getVaultKnowledgeEngine(): VaultKnowledgeEngine;
 
   mutateSettings(
-    mutation: (settings: ClaudianSettings) => void | Promise<void>,
+    mutation: (settings: ClaudianPlusSettings) => void | Promise<void>,
   ): Promise<void>;
+  /** Applies settings that affect the optional semantic retrieval provider. */
+  refreshSemanticRetrieval?(): void;
   getActiveEnvironmentVariables(providerId?: ProviderId): string;
 
   /** Notifies providers that shared vault agent skills changed. */
@@ -85,6 +89,8 @@ export interface FeatureHost {
   getCachedConversation(id: string): Conversation | null;
   getConversationSync(id: string): Conversation | null;
   getConversationList(): ConversationMeta[];
+  /** Builds missing cold-start transcript indexes for explicit history search. */
+  ensureConversationSearchIndex?(ids: string[]): Promise<void>;
 
   persistTabManagerState(state: AppTabManagerState): Promise<void>;
   getView(): FeatureViewHost | null;

@@ -1,6 +1,8 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 
+import { CLAUDIAN_PLUS_STORAGE_PATH } from '../../../core/bootstrap/StoragePaths';
+import { ensurePortablePiExtension } from '../../../core/obsidian/portableToolRuntime';
 import {
   buildSystemPrompt,
   computeSystemPromptKey,
@@ -305,17 +307,30 @@ export class PiChatRuntime implements ChatRuntime {
 
     const hasSessionTarget = Boolean(this.sessionId || this.sessionFile);
     const promptSettings = this.getSystemPromptSettings(cwd);
-    const memoryAppendix = await this.plugin.getMemoryInjectionText();
-    const consciousnessAppendix = await this.plugin.getConsciousnessInjectionText();
+    const [memoryAppendix, consciousnessAppendix] = await Promise.all([
+      this.plugin.getMemoryInjectionText(),
+      this.plugin.getConsciousnessInjectionText(),
+    ]);
     const combinedAppendix = [memoryAppendix, consciousnessAppendix].filter(Boolean).join('\n\n') || undefined;
     const systemPrompt = buildSystemPrompt(promptSettings, { memoryAppendix: combinedAppendix });
+    const obsidianBridge = this.plugin.ensureObsidianToolBridge
+      ? await this.plugin.ensureObsidianToolBridge().catch(() => undefined)
+      : undefined;
+    const obsidianExtensionPath = this.ensureObsidianExtension(cwd);
     const noSession = !allowSessionCreation && !hasSessionTarget;
+    const env = this.buildRuntimeEnv(runtimeEnvText);
+    if (obsidianBridge) {
+      env.CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_URL = obsidianBridge.url;
+      env.CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_TOKEN = obsidianBridge.token;
+    }
     const launchSpec = buildPiLaunchSpec({
       command: resolvedCliPath,
       cwd,
-      env: this.buildRuntimeEnv(runtimeEnvText),
+      env,
       envText: runtimeEnvText,
       noSession,
+      obsidianBridgeUrl: obsidianBridge?.url,
+      extensions: [obsidianExtensionPath],
       providerState: this.getCurrentProviderState(),
       settings,
       systemPrompt,
@@ -329,6 +344,8 @@ export class PiChatRuntime implements ChatRuntime {
       promptKey: computeSystemPromptKey(promptSettings, { memoryAppendix: memoryAppendix ?? undefined }),
       systemPrompt,
       toolMode: settings.toolMode,
+      obsidianExtensionPath,
+      obsidianBridgeUrl: obsidianBridge?.url,
     });
     const sessionTargetChanged = sessionTarget !== this.currentSessionTarget;
     const canSwitchSessionTarget = sessionTargetChanged && this.isSwitchableSessionFile(this.sessionFile);
@@ -380,6 +397,11 @@ export class PiChatRuntime implements ChatRuntime {
     }
     this.setReady(true);
     return true;
+  }
+
+  private ensureObsidianExtension(cwd: string): string {
+    const extensionPath = path.join(cwd, CLAUDIAN_PLUS_STORAGE_PATH, 'pi', 'obsidian-tools.mjs');
+    return ensurePortablePiExtension(extensionPath);
   }
 
   async *query(

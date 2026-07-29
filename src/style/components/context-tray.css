@@ -1,5 +1,5 @@
 /* Composer context tray */
-.claudian-context-row {
+.claudian-plus-context-row {
   display: none;
   align-items: center;
   flex-wrap: wrap;
@@ -10,11 +10,11 @@
   padding: 8px 8px 0;
 }
 
-.claudian-context-row.has-content {
+.claudian-plus-context-row.has-content {
   display: flex;
 }
 
-.claudian-context-chip {
+.claudian-plus-context-chip {
   display: inline-flex;
   align-items: center;
   flex: 0 1 auto;
@@ -33,11 +33,11 @@
   line-height: 1;
 }
 
-.claudian-context-chip:hover {
+.claudian-plus-context-chip:hover {
   background: var(--background-modifier-hover);
 }
 
-.claudian-context-chip-main {
+.claudian-plus-context-chip-main {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -57,10 +57,10 @@
 }
 
 /* Obsidian applies a button surface to clickable note and image labels. */
-.claudian-context-chip > button.claudian-context-chip-main,
-.claudian-context-chip > button.claudian-context-chip-main:hover,
-.claudian-context-chip > button.claudian-context-chip-main:focus,
-.claudian-context-chip > button.claudian-context-chip-main:active {
+.claudian-plus-context-chip > button.claudian-plus-context-chip-main,
+.claudian-plus-context-chip > button.claudian-plus-context-chip-main:hover,
+.claudian-plus-context-chip > button.claudian-plus-context-chip-main:focus,
+.claudian-plus-context-chip > button.claudian-plus-context-chip-main:active {
   appearance: none;
   margin: 0;
   border: 0;
@@ -70,7 +70,7 @@
   cursor: pointer;
 }
 
-.claudian-context-chip-icon {
+.claudian-plus-context-chip-icon {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -80,12 +80,12 @@
   color: var(--text-muted);
 }
 
-.claudian-context-chip-icon svg {
+.claudian-plus-context-chip-icon svg {
   width: 12px;
   height: 12px;
 }
 
-.claudian-context-chip-label {
+.claudian-plus-context-chip-label {
   min-width: 0;
   overflow: hidden;
   color: var(--text-normal);
@@ -93,7 +93,7 @@
   white-space: nowrap;
 }
 
-.claudian-context-chip-remove {
+.claudian-plus-context-chip-remove {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -113,9 +113,9 @@
   transition: color 0.15s ease, background 0.15s ease;
 }
 
-.claudian-context-chip > button.claudian-context-chip-remove,
-.claudian-context-chip > button.claudian-context-chip-remove:focus,
-.claudian-context-chip > button.claudian-context-chip-remove:active {
+.claudian-plus-context-chip > button.claudian-plus-context-chip-remove,
+.claudian-plus-context-chip > button.claudian-plus-context-chip-remove:focus,
+.claudian-plus-context-chip > button.claudian-plus-context-chip-remove:active {
   appearance: none;
   margin: 0;
   border: 0;
@@ -124,18 +124,18 @@
   box-shadow: none;
 }
 
-.claudian-context-chip > button.claudian-context-chip-remove:hover {
+.claudian-plus-context-chip > button.claudian-plus-context-chip-remove:hover {
   border: 0;
   background: var(--background-modifier-hover);
   color: var(--text-normal);
   box-shadow: none;
 }
 
-.claudian-context-chip--overflow-hidden {
+.claudian-plus-context-chip--overflow-hidden {
   display: none;
 }
 
-.claudian-context-more {
+.claudian-plus-context-more {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -153,7 +153,7 @@
   box-shadow: none;
 }
 
-.claudian-context-more:hover {
+.claudian-plus-context-more:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
   box-shadow: none;
