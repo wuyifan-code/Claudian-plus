@@ -1,46 +1,75 @@
 # Claudian Plus
 
-[![GitHub release](https://img.shields.io/github/v/release/wuyifan-code/Claudian-plus)](https://github.com/wuyifan-code/Claudian-plus/releases)
-[![License](https://img.shields.io/github/license/wuyifan-code/Claudian-plus)](LICENSE)
-[![Obsidian](https://img.shields.io/badge/Obsidian-desktop-purple)](https://obsidian.md)
+<p align="center">
+  <img src="docs/assets/claudian-plus-overview.png" alt="Claudian Plus inside Obsidian" width="1120">
+</p>
 
-[简体中文](README_ZH.md)
+<p align="center">
+  <strong>A Codex-first AI workspace for people who think in notes.</strong><br>
+  Chat with local agents, bring your Vault into context, and turn conversations into durable knowledge.
+</p>
 
-Claudian Plus is a Codex-first AI workspace for Obsidian. It keeps conversations, provider sessions, local memory, and vault context in your vault while supporting Codex, Claude, OpenCode, and Pi as separate provider runtimes.
+<p align="center">
+  <a href="https://github.com/wuyifan-code/Claudian-plus/releases"><img src="https://img.shields.io/github/v/release/wuyifan-code/Claudian-plus?display_name=tag&sort=semver" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/wuyifan-code/Claudian-plus" alt="License"></a>
+  <a href="https://obsidian.md/"><img src="https://img.shields.io/badge/Obsidian-desktop-purple" alt="Obsidian desktop"></a>
+  <a href="https://github.com/wuyifan-code/Claudian-plus/actions"><img src="https://img.shields.io/github/actions/workflow/status/wuyifan-code/Claudian-plus/ci.yml?branch=main&label=checks" alt="Checks"></a>
+</p>
 
-## What is included
+<p align="center"><a href="README_ZH.md">简体中文</a></p>
 
-- Multi-tab conversations with search, restore, fork, rewind, provider-native history, and a floating conversation outline.
-- Codex as the default provider, with model discovery and a default preference for `gpt-5.6-sol` when available.
-- Local memory and awareness files, opt-in automatic memory extraction, and periodic source-backed vault reviews with recurring-topic, open-loop, and link-activity signals.
-- Persistent local vault retrieval with incremental invalidation, `/vault-search`, `/insight`, source previews, and automatic context injection.
-- Obsidian-native context: `@note`, `@folder`, drag-and-drop files, image attachments, editor selection actions, and File Explorer actions.
-- Provider-native Obsidian tools for Canvas, Properties, links, graph neighbors, and read-only Dataview queries. Canvas selections also have a right-click **Suggest neighboring notes** panel with direction, source notes, open, and explicit link-insert actions. Codex and Claude use in-process Obsidian adapters; OpenCode receives a managed local MCP sidecar and Pi receives a managed RPC extension. Writes remain vault-scoped and require provider approval, return a structured diff, and can be undone with **Undo last Canvas write** during the current Obsidian session.
-- Vault health diagnostics, retrieval-index rebuild, provider CLI health checks, and actionable missing-CLI errors.
-- Provider-specific permissions and capabilities. The plugin does not assume feature parity between runtimes.
+Claudian Plus keeps the power of coding agents close to your notes. It combines Codex, Claude, OpenCode, and Pi in one desktop-only Obsidian workspace while keeping conversations, memory, retrieval indexes, and provider sessions local to your Vault.
 
-The retrieval layer is deliberately local-first: the default index combines lexical matching, CJK n-grams, path/heading/link/recency signals, and a lightweight character n-gram reranker. Optional semantic reranking can be enabled in settings with a local Ollama (`/api/embed`) or OpenAI-compatible (`/v1/embeddings`) service. It is disabled by default, never sends vault content to a remote service automatically, and falls back to lexical search when the local endpoint is unavailable.
+## Why Claudian Plus?
 
-OpenCode and Pi run outside Obsidian's JavaScript process. Their managed adapters therefore provide a file-backed compatibility layer: the OpenCode sidecar uses only Node built-ins, while the Pi extension reuses the TypeBox package already shipped by Pi. Frontmatter queries are Dataview-compatible for common `FROM` use cases, but they do not call the Dataview plugin API. When a provider cannot start Node, its native chat remains available and the external tool layer is skipped.
+Most AI chat tools forget the context that matters. Claudian Plus starts from the opposite assumption: your notes are the workspace, the conversation is a working session, and useful conclusions should remain discoverable after the chat is closed.
 
-## Requirements
+| You want to… | Claudian Plus gives you… |
+| --- | --- |
+| Work with the agent you already use | Codex-first defaults, provider-native sessions, model discovery, and separate permission flows |
+| Keep the Vault in the loop | `@note` / `@folder` context, drag-and-drop files, images, editor selection, File Explorer actions, Canvas, Properties, and links |
+| Find something you discussed last month | Local conversation history search, restore, fork, rewind, and provider-native replay |
+| Build a second brain without a cloud index | Opt-in memory, awareness files, incremental Vault retrieval, source previews, and optional local embeddings |
+| Stay oriented in a long conversation | A compact floating outline that surfaces user prompts and assistant headings while collapsing thought/tool noise |
 
-- Obsidian desktop 1.11.4 or newer.
-- At least one provider CLI installed and authenticated:
-  - [Codex CLI](https://github.com/openai/codex) (`codex`)
-  - [Claude Code](https://claude.ai/claude-code) (`claude`)
-  - [OpenCode](https://opencode.ai/) (`opencode`)
-  - [Pi](https://github.com/badlogic/pi-mono) (`pi`)
-- Node.js is required only when building from source.
+## Highlights
+
+### Codex-first, provider-aware
+
+Codex is the default agent when available, with a preference for `gpt-5.6-sol` when the local CLI exposes it. Claude, OpenCode, and Pi remain first-class alternatives, but each provider keeps its own capabilities, history format, permissions, and runtime boundary.
+
+### Local memory and retrieval
+
+- Opt-in automatic memory extraction and explicit remember/forget commands.
+- Awareness files for long-term memory, user profile, short-term context, and activity.
+- Incremental Vault retrieval with lexical, CJK n-gram, path, heading, link, recency, and character n-gram signals.
+- `/vault-search` for source-backed search and `/insight` for a cited insight workflow.
+- Optional semantic reranking through a local Ollama or OpenAI-compatible embeddings endpoint. It is disabled by default and falls back to local lexical search.
+
+### Native Obsidian context
+
+Bring context into the composer with `@note`, `@folder`, drag-and-drop, image attachments, and File Explorer actions. Provider-native tools can read and, with approval, update Canvas, Properties, links, and graph neighbors. Writes remain Vault-scoped, show a structured diff, and support session-level undo where available.
+
+### A calmer chat surface
+
+The floating outline is designed for navigation, not decoration: prompt markers and assistant headings stay visible, while thoughts and tool output remain collapsed in the chat body. Choose the bars or dots style from settings.
+
+### One workspace for agent resources
+
+Manage MCP servers, slash commands, Skills, subagents, provider enablement, and environment snippets from the same settings surface. UI language follows the selected Obsidian locale.
 
 ## Install from a release
 
 1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/wuyifan-code/Claudian-plus/releases/latest).
 2. Create `<vault>/.obsidian/plugins/claudian-plus/`.
 3. Copy the three files into that directory.
-4. Enable **Claudian Plus** in Obsidian Settings → Community plugins.
+4. In Obsidian, open **Settings → Community plugins** and enable **Claudian Plus**.
+
+Claudian Plus is desktop-only because it integrates with local agent CLIs and desktop filesystem capabilities.
 
 ## Build from source
+
+Requirements: Node.js 24 and at least one supported provider CLI.
 
 ```bash
 git clone https://github.com/wuyifan-code/Claudian-plus.git
@@ -50,58 +79,64 @@ npm run typecheck
 npm run build
 ```
 
-To copy build output directly into a vault, set `OBSIDIAN_VAULT` in `.env.local`:
+To copy the production build directly into a Vault, set `OBSIDIAN_VAULT` in `.env.local`:
 
 ```text
 OBSIDIAN_VAULT=D:\\Obsidian\\My Vault
 ```
 
-Then run `npm run build`.
+Then run `npm run build` again. The build copies the three plugin files into `<vault>/.obsidian/plugins/claudian-plus/`.
 
 ## First run
 
-1. Install and authenticate one provider CLI. Codex is the default provider when it is available.
-2. Open Claudian Plus settings and enter an absolute CLI path if Obsidian cannot inherit your shell `PATH`.
+1. Install and authenticate a provider CLI. Codex is the default provider when it is available.
+2. Open **Claudian Plus → Settings**. If Obsidian does not inherit your shell `PATH`, set the provider's absolute CLI path.
 3. Keep the permission mode at `normal` until you understand the provider-specific approval flow.
-4. Enable memory, automatic vault context, and periodic review only if you want those local features.
-5. For semantic retrieval, install an embedding model in a local service (for example `nomic-embed-text` in Ollama), enable **Local semantic search**, and set the endpoint/model in settings. The first indexing pass runs in the background and can be monitored from **Open vault health**.
-6. If you want source-backed link candidates after saving the active note, enable **Link suggestions after save**. Suggestions are deduplicated and preview-only; no link is inserted without clicking **Insert link**.
-7. To explore a Canvas cluster, select file or linked-note nodes, right-click the Canvas, and choose **Suggest neighboring notes**. The panel reads only Obsidian's resolved link graph and never writes without an explicit click.
+4. Enable memory, automatic Vault context, review, and link suggestions only when you want those features.
+5. For semantic retrieval, run a local embedding service such as Ollama, enable **Local semantic search**, and configure the endpoint/model in settings.
 
-## Useful commands
+## Useful commands and workflows
 
-- **Open chat view**
-- **Quick agent input**
-- **Open vault health**
-- **Undo last Canvas write** (current Obsidian session)
-- **Rebuild vault retrieval index**
-- **Check provider CLI health**
-- **Generate vault review**
-- **Open memory file**
-- **Scan vault knowledge**
+- **Open chat view** — open the main Claudian Plus workspace.
+- **Quick agent input** — send a focused request with the current editor context.
+- **Search conversations** — filter saved history by title, provider, model, date, or first message.
+- **Open vault health** — inspect retrieval, provider, and Vault diagnostics.
+- **Rebuild vault retrieval index** — rebuild the local source index after a large Vault change.
+- **Open memory file** / **Scan vault knowledge** — inspect or refresh the local memory layer.
+- **Undo last Canvas write** — undo an approved Canvas operation during the current Obsidian session.
 
-Inside the composer, use `/vault-search query` for source search and `/insight topic` for a source-grounded insight prompt. Vault files and folders can also be dragged into the composer or added from the File Explorer context menu.
+Inside the composer, use `/vault-search <query>` for source search and `/insight <topic>` for a source-grounded insight task. You can drag a note or folder into the composer at any time.
 
-## Privacy and safety
+## Privacy, permissions, and storage
 
-The plugin has no telemetry service. Provider requests are sent to the selected local CLI/runtime according to that provider's own configuration. Retrieval and memory data are stored locally under `.claudian-plus/`. Vault paths are validated before structure tools run, and Canvas/Properties writes require approval.
+Claudian Plus has no telemetry service. Provider requests are sent only through the provider, CLI, SDK, MCP server, or embedding endpoint that you explicitly configure. Vault retrieval and memory data are stored locally under `.claudian-plus/`.
 
-Existing `.claudian/` data is read and migrated on first save. Do not run an old Claudian build and Claudian Plus against the same vault at the same time.
+The plugin reads legacy `.claudian/` data and migrates it to `.claudian-plus/` when the relevant data is next saved. Do not run an old Claudian build and Claudian Plus against the same Vault at the same time. Agent tools can read files, run commands, and modify approved Vault data; review the active provider and permission mode before working with sensitive notes.
 
 ## Verification
 
 ```bash
 npm run typecheck
 npm run lint
-npm run test:unit
+npm run test
 npm run test:architecture
 npm run build
+npm run check:performance
 ```
 
-## Acknowledgements
+## Upstream projects, licenses, and thanks
 
-Claudian Plus is an enhanced fork of [Claudian](https://github.com/YishenTu/claudian). Thanks to Yishen Tu and the Claudian contributors.
+Claudian Plus is built on the work of two upstream projects. Their authors and license terms remain part of this distribution:
+
+| Upstream project | Original author | License | Contribution to Claudian Plus |
+| --- | --- | --- | --- |
+| [Claudian](https://github.com/YishenTu/claudian) | [Yishen Tu](https://github.com/YishenTu) | [MIT](https://github.com/YishenTu/claudian/blob/main/LICENSE) | Core Obsidian agent workspace, provider architecture, chat/session foundation, and the original Claudian workflows |
+| [Codian](https://github.com/BCS1037/codian) | [BCS1037 / BCS](https://github.com/BCS1037) | [AGPL-3.0](https://github.com/BCS1037/codian/blob/main/LICENSE) | Adapted live composer, File Explorer actions, shared Skills management, provider service settings, and related UX improvements |
+
+Thank you to Yishen Tu, BCS, and both project communities for publishing the ideas and code that made this fork possible. See [NOTICE](NOTICE) for the file-level attribution summary.
+
+This repository contains original work together with code under different upstream licenses. The MIT license applies to the Claudian-derived and original portions; Codian-derived portions retain the AGPL-3.0 obligations described by their upstream license. If you redistribute or modify those portions, follow the applicable upstream terms.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+See [LICENSE](LICENSE) and [NOTICE](NOTICE). The upstream license terms above are part of this distribution.

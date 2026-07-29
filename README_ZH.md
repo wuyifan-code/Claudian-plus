@@ -1,5 +1,11 @@
 # Claudian Plus
 
+<p align="center">
+  <img src="docs/assets/claudian-plus-overview.png" alt="Claudian Plus 在 Obsidian 中的工作区" width="1120">
+</p>
+
+<p align="center"><strong>让 Agent 靠近你的笔记，让对话沉淀为可检索的知识。</strong></p>
+
 [![GitHub release](https://img.shields.io/github/v/release/wuyifan-code/Claudian-plus)](https://github.com/wuyifan-code/Claudian-plus/releases)
 [![License](https://img.shields.io/github/license/wuyifan-code/Claudian-plus)](LICENSE)
 
@@ -99,7 +105,16 @@ npm run build
 
 ## 致谢
 
-Claudian Plus 是 [Claudian](https://github.com/YishenTu/claudian) 的增强分支，感谢 Yishen Tu 和 Claudian 社区贡献者。
+Claudian Plus 建立在两个上游项目之上。它们的原作者、许可证和贡献如下：
+
+| 上游仓库 | 原作者 | 开源协议 | 在 Claudian Plus 中的贡献 |
+| --- | --- | --- | --- |
+| [Claudian](https://github.com/YishenTu/claudian) | [Yishen Tu](https://github.com/YishenTu) | [MIT](https://github.com/YishenTu/claudian/blob/main/LICENSE) | Obsidian Agent 工作区、Provider 架构、聊天/会话基础和原始工作流 |
+| [Codian](https://github.com/BCS1037/codian) | [BCS1037 / BCS](https://github.com/BCS1037) | [AGPL-3.0](https://github.com/BCS1037/codian/blob/main/LICENSE) | Live Composer、文件浏览器动作、Skills 管理、Provider 服务设置等适配功能 |
+
+感谢 Yishen Tu、BCS 以及两个项目的社区贡献者。详细的文件级来源说明见 [NOTICE](NOTICE)。
+
+本仓库同时包含原创代码、Claudian 的 MIT 许可代码和 Codian 的 AGPL-3.0 许可代码。重新分发或修改 Codian 来源部分时，请遵守其上游许可证义务。
 
 ## 许可证
 

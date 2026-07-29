@@ -7,7 +7,7 @@ the GNU Affero General Public License, version 3 (AGPL-3.0).
 
 The following features were ported from Codian and adapted to this codebase:
 
-- File explorer "Add to Claudian" context menu (src/features/chat/fileMenu.ts)
+- File explorer "Add to Claudian Plus" context menu (src/features/chat/fileMenu.ts)
 - Default chat provider selection for blank tabs
 - Claude third-party model service endpoints and SecretStorage integration
   (src/providers/claude/services/, src/providers/claude/ui/ClaudeServiceSettings.ts)
