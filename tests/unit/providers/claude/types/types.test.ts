@@ -7,9 +7,9 @@ import type {
   ToolCallInfo
 } from '@/core/types';
 import {
-  VIEW_TYPE_CLAUDIAN
+  VIEW_TYPE_CLAUDIAN_PLUS
 } from '@/core/types';
-import type { ClaudianSettings } from '@/core/types/settings';
+import type { ClaudianPlusSettings } from '@/core/types/settings';
 import { getClaudeProviderSettings } from '@/providers/claude/settings';
 import {
   CONTEXT_WINDOW_1M,
@@ -27,9 +27,9 @@ import {
 } from '@/providers/claude/types/settings';
 
 describe('types.ts', () => {
-  describe('VIEW_TYPE_CLAUDIAN', () => {
+  describe('VIEW_TYPE_CLAUDIAN_PLUS', () => {
     it('should be defined as the correct view type', () => {
-      expect(VIEW_TYPE_CLAUDIAN).toBe('claudian-plus-view');
+      expect(VIEW_TYPE_CLAUDIAN_PLUS).toBe('claudian-plus-view');
     });
   });
 
@@ -72,9 +72,9 @@ describe('types.ts', () => {
     });
   });
 
-  describe('ClaudianSettings type', () => {
+  describe('ClaudianPlusSettings type', () => {
     it('should be assignable with valid settings', () => {
-      const settings: ClaudianSettings = {
+      const settings: ClaudianPlusSettings = {
         userName: '',
         model: 'haiku',
         enableAutoTitleGeneration: true,
@@ -122,7 +122,7 @@ describe('types.ts', () => {
         savedProviderPermissionMode: {},
         pendingProviderSessionInvalidations: {},
         memoryEnabled: true,
-        memoryFilePath: '.claudian/memory.md',
+        memoryFilePath: '.claudian-plus/memory.md',
         memoryMaxInjectionChars: 1500,
         consciousnessEnabled: true,
         consciousnessAutoMemory: true,
@@ -133,7 +133,7 @@ describe('types.ts', () => {
     });
 
     it('should accept custom model strings', () => {
-      const settings: ClaudianSettings = {
+      const settings: ClaudianPlusSettings = {
         userName: '',
         model: 'anthropic/custom-model-v1',
         enableAutoTitleGeneration: true,
@@ -181,7 +181,7 @@ describe('types.ts', () => {
         savedProviderPermissionMode: {},
         pendingProviderSessionInvalidations: {},
         memoryEnabled: true,
-        memoryFilePath: '.claudian/memory.md',
+        memoryFilePath: '.claudian-plus/memory.md',
         memoryMaxInjectionChars: 1500,
         consciousnessEnabled: true,
         consciousnessAutoMemory: true,
@@ -191,7 +191,7 @@ describe('types.ts', () => {
     });
 
     it('should accept optional lastClaudeModel and lastCustomModel', () => {
-      const settings: ClaudianSettings = {
+      const settings: ClaudianPlusSettings = {
         userName: '',
         model: 'sonnet',
         enableAutoTitleGeneration: true,
@@ -241,7 +241,7 @@ describe('types.ts', () => {
         savedProviderPermissionMode: {},
         pendingProviderSessionInvalidations: {},
         memoryEnabled: true,
-        memoryFilePath: '.claudian/memory.md',
+        memoryFilePath: '.claudian-plus/memory.md',
         memoryMaxInjectionChars: 1500,
         consciousnessEnabled: true,
         consciousnessAutoMemory: true,

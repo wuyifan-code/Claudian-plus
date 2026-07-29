@@ -8,6 +8,7 @@ export interface CodexProviderState {
   forkSourceTranscriptRootPath?: string;
   forkSource?: ForkSource;
   workspaceDependencyToolVersion?: number;
+  obsidianToolVersion?: number;
 }
 
 export function getCodexState(

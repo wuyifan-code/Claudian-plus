@@ -6,6 +6,18 @@ export interface MemoryEntry {
   source: 'user-explicit' | 'user-implicit';
   createdAt: number;
   updatedAt: number;
+  /** Optional provenance for audit and user review. */
+  sourceContext?: MemorySourceContext;
+}
+
+/** Provenance metadata explaining where a memory came from. */
+export interface MemorySourceContext {
+  /** Conversation or session ID where the memory was extracted. */
+  conversationId?: string;
+  /** Brief description of the extraction trigger. */
+  trigger?: string;
+  /** Whether the user explicitly confirmed this memory. */
+  userConfirmed?: boolean;
 }
 
 /** Result from the memory extraction process. */
@@ -20,13 +32,14 @@ export interface MemoryStoreOptions {
 }
 
 /** Default path for the memory file within the vault. */
-export const DEFAULT_MEMORY_FILE_PATH = '.claudian/memory.md';
+export const DEFAULT_MEMORY_FILE_PATH = '.claudian-plus/memory.md';
+export const LEGACY_MEMORY_FILE_PATH = '.claudian/memory.md';
 
 /** Default maximum characters to inject into system prompt. */
 export const DEFAULT_MEMORY_MAX_INJECTION_CHARS = 1500;
 
 /** Template header written when creating a new memory file. */
-export const MEMORY_FILE_TEMPLATE = `# Claudian Memory
+export const MEMORY_FILE_TEMPLATE = `# Claudian Plus Memory
 
 This file stores long-term user preferences and context extracted from conversations.
 You can edit this file directly to add, modify, or remove memories.

@@ -81,8 +81,64 @@ jest.mock('obsidian', () => {
     }
   }
 
+  class MockModal {
+    app: unknown;
+    contentEl = {
+      empty: jest.fn(),
+      createDiv: jest.fn(() => createElement()),
+    };
+    constructor(app: unknown) {
+      this.app = app;
+    }
+    setTitle() {
+      return this;
+    }
+    open() {
+      return this;
+    }
+    close() {
+      return this;
+    }
+  }
+
+  class MockButtonComponent {
+    setButtonText() {
+      return this;
+    }
+    setCta() {
+      return this;
+    }
+    setWarning() {
+      return this;
+    }
+    setDisabled() {
+      return this;
+    }
+    onClick() {
+      return this;
+    }
+  }
+
+  class MockSecretComponent {
+    setValue() {
+      return this;
+    }
+    onChange() {
+      return this;
+    }
+  }
+
+  class MockNotice {
+    constructor(_message: unknown) {}
+  }
+
   return {
     Setting: MockSetting,
+    Modal: MockModal,
+    ButtonComponent: MockButtonComponent,
+    SecretComponent: MockSecretComponent,
+    Notice: MockNotice,
+    setIcon: jest.fn(),
   };
 });
 
@@ -121,6 +177,7 @@ jest.mock('@/providers/claude/ui/SlashCommandSettings', () => ({
 
 jest.mock('@/i18n/i18n', () => ({
   t: (key: string) => key,
+  localeText: (chinese: string, _english: string) => chinese,
 }));
 
 jest.mock('@/utils/env', () => {

@@ -67,6 +67,16 @@ describe('encodeClaudeTurn', () => {
     expect(result.persistedContent).toContain('notes/test.md');
   });
 
+  it('adds vault context to the prompt without changing persisted content', () => {
+    const result = encodeClaudeTurn({
+      text: 'Explain this topic',
+      vaultContext: '<vault_context>\nSource: notes/topic.md\n</vault_context>',
+    }, mcpManager);
+
+    expect(result.prompt).toContain('<vault_context>');
+    expect(result.persistedContent).toBe('Explain this topic');
+  });
+
   it('should append editor selection context', () => {
     const request: ChatTurnRequest = {
       text: 'explain this',

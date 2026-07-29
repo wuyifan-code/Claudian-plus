@@ -8,8 +8,8 @@ import {
 import type { ProviderHost } from '../../core/providers/ProviderHost';
 import { ProviderRegistry } from '../../core/providers/ProviderRegistry';
 import type { EnvironmentScope, EnvSnippet } from '../../core/types';
-import { VIEW_TYPE_CLAUDIAN } from '../../core/types/chat';
-import { t } from '../../i18n/i18n';
+import { VIEW_TYPE_CLAUDIAN_PLUS } from '../../core/types/chat';
+import { localeText, t } from '../../i18n/i18n';
 import { formatContextLimit, parseContextLimit, parseEnvironmentVariables } from '../../utils/env';
 import { confirmDelete } from '../modals/ConfirmModal';
 
@@ -37,7 +37,7 @@ export class EnvSnippetModal extends Modal {
     const { contentEl } = this;
     this.setTitle(this.snippet ? t('settings.envSnippets.modal.titleEdit') : t('settings.envSnippets.modal.titleSave'));
 
-    this.modalEl.addClass('claudian-env-snippet-modal');
+    this.modalEl.addClass('claudian-plus-env-snippet-modal');
 
     let nameEl: HTMLInputElement;
     let descEl: HTMLInputElement;
@@ -110,11 +110,11 @@ export class EnvSnippetModal extends Modal {
       const uniqueModelIds = ProviderRegistry.getCustomModelIds(envVars);
 
       if (uniqueModelIds.size === 0) {
-        contextLimitsContainer.addClass('claudian-hidden');
+        contextLimitsContainer.addClass('claudian-plus-hidden');
         return;
       }
 
-      contextLimitsContainer.removeClass('claudian-hidden');
+      contextLimitsContainer.removeClass('claudian-plus-hidden');
 
       const existingLimits = this.snippet?.contextLimits ?? this.plugin.settings.customContextLimits ?? {};
       const existingAliases = this.snippet?.modelAliases ?? this.plugin.settings.customModelAliases ?? {};
@@ -129,27 +129,27 @@ export class EnvSnippetModal extends Modal {
       });
 
       for (const modelId of uniqueModelIds) {
-        const row = contextLimitsContainer.createDiv({ cls: 'claudian-snippet-limit-row' });
-        row.createSpan({ text: modelId, cls: 'claudian-snippet-limit-model' });
-        row.createSpan({ cls: 'claudian-snippet-limit-spacer' });
+        const row = contextLimitsContainer.createDiv({ cls: 'claudian-plus-snippet-limit-row' });
+        row.createSpan({ text: modelId, cls: 'claudian-plus-snippet-limit-model' });
+        row.createSpan({ cls: 'claudian-plus-snippet-limit-spacer' });
 
         const aliasInput = row.createEl('input', {
           type: 'text',
           placeholder: t('settings.customModelAliases.placeholder'),
-          cls: 'claudian-snippet-alias-input',
+          cls: 'claudian-plus-snippet-alias-input',
         });
         aliasInput.value = existingAliases[modelId] ?? '';
-        aliasInput.setAttribute('aria-label', `Alias for ${modelId}`);
-        aliasInput.title = 'Custom label shown in the model selector. Leave empty to use the default.';
+        aliasInput.setAttribute('aria-label', localeText(`为 ${modelId} 设置别名`, `Alias for ${modelId}`));
+        aliasInput.title = localeText('显示在模型选择器中的自定义标签。留空则使用默认值。', 'Custom label shown in the model selector. Leave empty to use the default.');
         modelAliasInputs.set(modelId, aliasInput);
 
         const input = row.createEl('input', {
           type: 'text',
           placeholder: '200k',
-          cls: 'claudian-snippet-limit-input',
+          cls: 'claudian-plus-snippet-limit-input',
         });
         input.value = existingLimits[modelId] ? formatContextLimit(existingLimits[modelId]) : '';
-        input.setAttribute('aria-label', `Context window for ${modelId}`);
+        input.setAttribute('aria-label', localeText(`${modelId} 的上下文窗口`, `Context window for ${modelId}`));
         contextLimitInputs.set(modelId, input);
       }
     };
@@ -182,23 +182,23 @@ export class EnvSnippetModal extends Modal {
         text.inputEl.rows = 8;
         text.inputEl.addEventListener('blur', () => renderContextLimitFields());
       });
-    envVarsSetting.settingEl.addClass('claudian-env-snippet-setting');
-    envVarsSetting.controlEl.addClass('claudian-env-snippet-control');
+    envVarsSetting.settingEl.addClass('claudian-plus-env-snippet-setting');
+    envVarsSetting.controlEl.addClass('claudian-plus-env-snippet-control');
 
-    contextLimitsContainer = contentEl.createDiv({ cls: 'claudian-snippet-context-limits' });
+    contextLimitsContainer = contentEl.createDiv({ cls: 'claudian-plus-snippet-context-limits' });
     renderContextLimitFields();
 
-    const buttonContainer = contentEl.createDiv({ cls: 'claudian-snippet-buttons' });
+    const buttonContainer = contentEl.createDiv({ cls: 'claudian-plus-snippet-buttons' });
 
     const cancelBtn = buttonContainer.createEl('button', {
       text: t('settings.envSnippets.modal.cancel'),
-      cls: 'claudian-cancel-btn'
+      cls: 'claudian-plus-cancel-btn'
     });
     cancelBtn.addEventListener('click', () => this.close());
 
     const saveBtn = buttonContainer.createEl('button', {
       text: this.snippet ? t('settings.envSnippets.modal.update') : t('settings.envSnippets.modal.save'),
-      cls: 'claudian-save-btn'
+      cls: 'claudian-plus-save-btn'
     });
     saveBtn.addEventListener('click', () => saveSnippet());
 
@@ -234,11 +234,11 @@ export class EnvSnippetManager {
   private render() {
     this.containerEl.empty();
 
-    const headerEl = this.containerEl.createDiv({ cls: 'claudian-snippet-header' });
-    headerEl.createSpan({ text: t('settings.envSnippets.name'), cls: 'claudian-snippet-label' });
+    const headerEl = this.containerEl.createDiv({ cls: 'claudian-plus-snippet-header' });
+    headerEl.createSpan({ text: t('settings.envSnippets.name'), cls: 'claudian-plus-snippet-label' });
 
     const saveBtn = headerEl.createEl('button', {
-      cls: 'claudian-settings-action-btn',
+      cls: 'claudian-plus-settings-action-btn',
       attr: { 'aria-label': t('settings.envSnippets.addBtn') },
     });
     setIcon(saveBtn, 'plus');
@@ -249,31 +249,31 @@ export class EnvSnippetManager {
     const snippets = this.plugin.settings.envSnippets.filter((snippet) => this.shouldDisplaySnippet(snippet));
 
     if (snippets.length === 0) {
-      const emptyEl = this.containerEl.createDiv({ cls: 'claudian-snippet-empty' });
+      const emptyEl = this.containerEl.createDiv({ cls: 'claudian-plus-snippet-empty' });
       emptyEl.setText(t('settings.envSnippets.noSnippets'));
       return;
     }
 
-    const listEl = this.containerEl.createDiv({ cls: 'claudian-snippet-list' });
+    const listEl = this.containerEl.createDiv({ cls: 'claudian-plus-snippet-list' });
 
     for (const snippet of snippets) {
-      const itemEl = listEl.createDiv({ cls: 'claudian-snippet-item' });
+      const itemEl = listEl.createDiv({ cls: 'claudian-plus-snippet-item' });
 
-      const infoEl = itemEl.createDiv({ cls: 'claudian-snippet-info' });
+      const infoEl = itemEl.createDiv({ cls: 'claudian-plus-snippet-info' });
 
-      const nameEl = infoEl.createDiv({ cls: 'claudian-snippet-name' });
+      const nameEl = infoEl.createDiv({ cls: 'claudian-plus-snippet-name' });
       nameEl.setText(snippet.name);
 
       if (snippet.description) {
-        const descEl = infoEl.createDiv({ cls: 'claudian-snippet-description' });
+        const descEl = infoEl.createDiv({ cls: 'claudian-plus-snippet-description' });
         descEl.setText(snippet.description);
       }
 
-      const actionsEl = itemEl.createDiv({ cls: 'claudian-snippet-actions' });
+      const actionsEl = itemEl.createDiv({ cls: 'claudian-plus-snippet-actions' });
 
       const restoreBtn = actionsEl.createEl('button', {
-        cls: 'claudian-settings-action-btn',
-        attr: { 'aria-label': 'Insert' },
+        cls: 'claudian-plus-settings-action-btn',
+        attr: { 'aria-label': localeText('插入', 'Insert') },
       });
       setIcon(restoreBtn, 'clipboard-paste');
       restoreBtn.addEventListener('click', () => {
@@ -281,14 +281,14 @@ export class EnvSnippetManager {
         try {
           await this.insertSnippet(snippet);
         } catch {
-          new Notice('Failed to insert snippet');
+          new Notice(localeText('插入片段失败', 'Failed to insert snippet'));
         }
         })();
       });
 
       const editBtn = actionsEl.createEl('button', {
-        cls: 'claudian-settings-action-btn',
-        attr: { 'aria-label': 'Edit' },
+        cls: 'claudian-plus-settings-action-btn',
+        attr: { 'aria-label': localeText('编辑', 'Edit') },
       });
       setIcon(editBtn, 'pencil');
       editBtn.addEventListener('click', () => {
@@ -296,18 +296,18 @@ export class EnvSnippetManager {
       });
 
       const deleteBtn = actionsEl.createEl('button', {
-        cls: 'claudian-settings-action-btn claudian-settings-delete-btn',
-        attr: { 'aria-label': 'Delete' },
+        cls: 'claudian-plus-settings-action-btn claudian-plus-settings-delete-btn',
+        attr: { 'aria-label': localeText('删除', 'Delete') },
       });
       setIcon(deleteBtn, 'trash-2');
       deleteBtn.addEventListener('click', () => {
         void (async (): Promise<void> => {
         try {
-          if (await confirmDelete(this.plugin.app, `Delete environment snippet "${snippet.name}"?`)) {
+          if (await confirmDelete(this.plugin.app, localeText(`确定删除环境片段“${snippet.name}”？`, `Delete environment snippet "${snippet.name}"?`))) {
             await this.deleteSnippet(snippet);
           }
         } catch {
-          new Notice('Failed to delete snippet');
+          new Notice(localeText('删除片段失败', 'Failed to delete snippet'));
         }
         })();
       });
@@ -326,7 +326,7 @@ export class EnvSnippetManager {
             settings.envSnippets.push(snippet);
           });
           this.render();
-          new Notice(`Environment snippet "${snippet.name}" saved`);
+          new Notice(localeText(`环境片段“${snippet.name}”已保存`, `Environment snippet "${snippet.name}" saved`));
         })();
       }
     );
@@ -378,7 +378,7 @@ export class EnvSnippetManager {
     });
 
     this.onContextLimitsChange?.();
-    const view = this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN)[0]?.view as {
+    const view = this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN_PLUS)[0]?.view as {
       refreshModelSelector?(): void;
     } | undefined;
     view?.refreshModelSelector?.();
@@ -401,7 +401,7 @@ export class EnvSnippetManager {
               }
             });
             this.render();
-            new Notice(`Environment snippet "${updatedSnippet.name}" updated`);
+            new Notice(localeText(`环境片段“${updatedSnippet.name}”已更新`, `Environment snippet "${updatedSnippet.name}" updated`));
           }
         })();
       }
@@ -414,7 +414,7 @@ export class EnvSnippetManager {
       settings.envSnippets = settings.envSnippets.filter(s => s.id !== snippet.id);
     });
     this.render();
-    new Notice(`Environment snippet "${snippet.name}" deleted`);
+    new Notice(localeText(`环境片段“${snippet.name}”已删除`, `Environment snippet "${snippet.name}" deleted`));
   }
 
   public refresh() {
@@ -430,7 +430,7 @@ export class EnvSnippetManager {
   }
 
   private syncTextareaValue(scope: EnvironmentScope, value: string): void {
-    const selector = `.claudian-settings-env-textarea[data-env-scope="${scope}"]`;
+    const selector = `.claudian-plus-settings-env-textarea[data-env-scope="${scope}"]`;
     const envTextarea = (this.containerEl.ownerDocument ?? window.document).querySelector<HTMLTextAreaElement>(selector);
     if (envTextarea) {
       envTextarea.value = value;

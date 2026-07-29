@@ -70,7 +70,7 @@ export class McpStorage {
     for (const server of servers) {
       mcpServers[server.name] = server.config;
 
-      // Only store Claudian metadata if different from defaults
+      // Only store Claudian Plus metadata if different from defaults
       const meta: {
         enabled?: boolean;
         contextSaving?: boolean;
@@ -116,15 +116,15 @@ export class McpStorage {
     const file: Record<string, unknown> = existing ? { ...existing } : {};
     file.mcpServers = mcpServers;
 
-    const existingClaudian =
+    const existingClaudianPlus =
       existing && typeof existing._claudian === 'object'
         ? (existing._claudian as Record<string, unknown>)
         : null;
 
     if (Object.keys(claudianServers).length > 0) {
-      file._claudian = { ...(existingClaudian ?? {}), servers: claudianServers };
-    } else if (existingClaudian) {
-      const rest = { ...existingClaudian };
+      file._claudian = { ...(existingClaudianPlus ?? {}), servers: claudianServers };
+    } else if (existingClaudianPlus) {
+      const rest = { ...existingClaudianPlus };
       delete rest.servers;
       if (Object.keys(rest).length > 0) {
         file._claudian = rest;

@@ -450,6 +450,7 @@ export interface ThreadResumeParams {
   baseInstructions?: string;
   experimentalRawEvents?: boolean;
   persistExtendedHistory?: boolean;
+  dynamicTools?: LegacyDynamicToolSpec[];
 }
 
 export type ThreadResumeResult = ThreadStartResult;

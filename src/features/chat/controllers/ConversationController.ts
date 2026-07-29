@@ -4,7 +4,7 @@ import type { TitleGenerationService } from '../../../core/providers/types';
 import type { ChatRuntime } from '../../../core/runtime/ChatRuntime';
 import type { ChatRewindMode } from '../../../core/runtime/types';
 import type { Conversation } from '../../../core/types';
-import { t } from '../../../i18n/i18n';
+import { localeText, t } from '../../../i18n/i18n';
 import { confirm } from '../../../shared/modals/ConfirmModal';
 import { extractUserDisplayContent } from '../../../utils/context';
 import type { FeatureHost } from '../../FeatureHost';
@@ -49,6 +49,8 @@ export interface ConversationControllerDeps {
   clearQueuedMessage: () => void;
   getTitleGenerationService: () => TitleGenerationService | null;
   getStatusPanel: () => StatusPanel | null;
+  /** Notifies the live-preview composer that the conversation was reset (input cleared). */
+  onConversationReset?: () => void;
   getAgentService?: () => ChatRuntime | null;
   getSelectedModel?: () => string | null;
   ensureServiceForConversation?: (conversation: Conversation | null) => Promise<void>;
@@ -88,6 +90,10 @@ export class ConversationController {
   private deps: ConversationControllerDeps;
   private callbacks: ConversationCallbacks;
   private historySearchQuery = '';
+  private historySearchIndexedIds = new Set<string>();
+  private historySearchIndexingPromise: Promise<void> | null = null;
+  private historySearchRefresh: { onRerender: () => void; signal?: AbortSignal } | null = null;
+  private saveTail: Promise<void> | null = null;
 
   constructor(deps: ConversationControllerDeps, callbacks: ConversationCallbacks = {}) {
     this.deps = deps;
@@ -109,7 +115,7 @@ export class ConversationController {
    * first message is sent. This prevents empty conversations cluttering history.
    */
   async createNew(options: { force?: boolean } = {}): Promise<void> {
-    const { plugin, state, subagentManager } = this.deps;
+    const { plugin, state, subagentManager, renderer } = this.deps;
     const force = !!options.force;
     if (state.isStreaming && !force) return;
     if (state.isCreatingConversation) return;
@@ -168,18 +174,16 @@ export class ConversationController {
         plugin.settings.persistentExternalContextPaths || []
       );
 
-      const messagesEl = this.deps.getMessagesEl();
-      messagesEl.empty();
-
-      // Recreate welcome element first (before StatusPanel for consistent ordering)
-      const welcomeEl = messagesEl.createDiv({ cls: 'claudian-welcome' });
-      welcomeEl.createDiv({ cls: 'claudian-welcome-greeting', text: this.getGreeting() });
+      // Let the renderer replace the prior welcome surface. This is important
+      // for the interactive cube, which owns animation and WebGL resources.
+      const welcomeEl = renderer.renderMessages([], () => this.getGreeting());
       this.deps.setWelcomeEl(welcomeEl);
 
       // Remount StatusPanel to restore state for new conversation
       this.deps.getStatusPanel()?.remount();
 
       this.deps.getInputEl().value = '';
+      this.deps.onConversationReset?.();
 
       const fileCtx = this.deps.getFileContextManager();
       fileCtx?.resetForNewConversation();
@@ -291,6 +295,7 @@ export class ConversationController {
       if (this.deps.isDisposed?.()) return;
 
       this.deps.getInputEl().value = '';
+      this.deps.onConversationReset?.();
       this.deps.clearQueuedMessage();
 
       this.restoreConversation(conversation);
@@ -418,7 +423,24 @@ export class ConversationController {
    * For native sessions (new conversations with sessionId from SDK),
    * only metadata is saved - the SDK handles message persistence.
    */
-  async save(updateLastResponse = false, options?: SaveOptions): Promise<void> {
+  save(updateLastResponse = false, options?: SaveOptions): Promise<void> {
+    const previousSave = this.saveTail;
+    // Start the first save immediately so UI actions that await it retain their
+    // existing timing. Only overlapping saves wait their turn.
+    const save = previousSave
+      ? previousSave.catch(() => undefined).then(() => this.saveNow(updateLastResponse, options))
+      : this.saveNow(updateLastResponse, options);
+    const tail = save.catch(() => undefined);
+    this.saveTail = tail;
+    void save.finally(() => {
+      if (this.saveTail === tail) {
+        this.saveTail = null;
+      }
+    }).catch(() => undefined);
+    return save;
+  }
+
+  private async saveNow(updateLastResponse: boolean, options?: SaveOptions): Promise<void> {
     const { plugin, state } = this.deps;
 
     // Entry point with no messages - nothing to save
@@ -601,12 +623,12 @@ export class ConversationController {
 
     container.empty();
 
-    const dropdownHeader = container.createDiv({ cls: 'claudian-history-header' });
+    const dropdownHeader = container.createDiv({ cls: 'claudian-plus-history-header' });
     dropdownHeader.createSpan({ text: 'Conversations' });
     const searchInput = dropdownHeader.createEl('input', {
-      cls: 'claudian-history-search',
+      cls: 'claudian-plus-history-search',
       type: 'search',
-      placeholder: 'Search title or first message',
+      placeholder: 'Search title or conversation text',
       value: options.searchQuery ?? this.historySearchQuery,
       attr: { 'aria-label': 'Search conversations' },
     });
@@ -619,23 +641,24 @@ export class ConversationController {
         searchQuery: query,
         visibleCount: options.pageSize,
       });
-      const nextInput = container.querySelector<HTMLInputElement>('.claudian-history-search');
+      const nextInput = container.querySelector<HTMLInputElement>('.claudian-plus-history-search');
       if (nextInput) {
         nextInput.focus();
         nextInput.setSelectionRange(cursor, cursor);
       }
     });
 
-    const list = container.createDiv({ cls: 'claudian-history-list' });
+    const list = container.createDiv({ cls: 'claudian-plus-history-list' });
     const allConversations = plugin.getConversationList();
 
     if (allConversations.length === 0) {
-      list.createDiv({ cls: 'claudian-history-empty', text: 'No conversations' });
+      list.createDiv({ cls: 'claudian-plus-history-empty', text: 'No conversations' });
       return;
     }
 
     // Sort by lastResponseAt (fallback to createdAt) descending
     const searchQuery = (options.searchQuery ?? this.historySearchQuery).trim().toLowerCase();
+    this.queueHistorySearchIndex(allConversations, searchQuery, options);
     const conversations = [...allConversations]
       .filter((conversation) => {
         if (!searchQuery) return true;
@@ -643,15 +666,29 @@ export class ConversationController {
           conversation.title,
           conversation.preview,
           conversation.providerId,
+          conversation.searchText,
         ].join(' ').toLowerCase();
         return haystack.includes(searchQuery);
       })
       .sort((a, b) => {
       return (b.lastResponseAt ?? b.createdAt) - (a.lastResponseAt ?? a.createdAt);
-      });
+    });
     if (conversations.length === 0) {
-      list.createDiv({ cls: 'claudian-history-empty', text: 'No matching conversations' });
+      if (!this.historySearchIndexingPromise) {
+        list.createDiv({ cls: 'claudian-plus-history-empty', text: 'No matching conversations' });
+      } else {
+        list.createDiv({
+          cls: 'claudian-plus-history-search-status',
+          text: localeText('正在索引历史会话…', 'Indexing conversation history…'),
+        });
+      }
       return;
+    }
+    if (this.historySearchIndexingPromise) {
+      list.createDiv({
+        cls: 'claudian-plus-history-search-status',
+        text: localeText('正在索引历史会话…', 'Indexing conversation history…'),
+      });
     }
     const pageSize = Math.max(1, options.pageSize ?? DEFAULT_HISTORY_PAGE_SIZE);
     const visibleCount = Math.max(pageSize, options.visibleCount ?? pageSize);
@@ -667,7 +704,7 @@ export class ConversationController {
       const isOpen = openState === 'open';
       const item = list.createDiv({
         cls: [
-          'claudian-history-item',
+          'claudian-plus-history-item',
           isCurrent ? 'active' : '',
           isOpen ? 'open' : '',
           isRunning ? 'running' : '',
@@ -680,14 +717,14 @@ export class ConversationController {
         item.setAttribute('data-tab-index', String(conversationStatus.tabIndex));
       }
 
-      const iconEl = item.createDiv({ cls: 'claudian-history-item-icon' });
+      const iconEl = item.createDiv({ cls: 'claudian-plus-history-item-icon' });
       setIcon(iconEl, this.getHistoryItemIcon(openState, isRunning));
 
-      const content = item.createDiv({ cls: 'claudian-history-item-content' });
-      const titleEl = content.createDiv({ cls: 'claudian-history-item-title', text: conv.title });
+      const content = item.createDiv({ cls: 'claudian-plus-history-item-content' });
+      const titleEl = content.createDiv({ cls: 'claudian-plus-history-item-title', text: conv.title });
       titleEl.setAttribute('title', conv.title);
       content.createDiv({
-        cls: 'claudian-history-item-date',
+        cls: 'claudian-plus-history-item-date',
         text: this.getHistoryItemStatusText(conversationStatus, conv.lastResponseAt ?? conv.createdAt),
       });
 
@@ -737,15 +774,15 @@ export class ConversationController {
         this.showHistoryContextMenu(item, conv.id, conv.title, isCurrent, options, e);
       });
 
-      const actions = item.createDiv({ cls: 'claudian-history-item-actions' });
+      const actions = item.createDiv({ cls: 'claudian-plus-history-item-actions' });
 
       // Show regenerate button if title generation failed, or loading indicator if pending
       if (conv.titleGenerationStatus === 'pending') {
-        const loadingEl = actions.createSpan({ cls: 'claudian-action-btn claudian-action-loading' });
+        const loadingEl = actions.createSpan({ cls: 'claudian-plus-action-btn claudian-plus-action-loading' });
         setIcon(loadingEl, 'loader-2');
         loadingEl.setAttribute('aria-label', 'Generating title...');
       } else if (conv.titleGenerationStatus === 'failed') {
-        const regenerateBtn = actions.createEl('button', { cls: 'claudian-action-btn' });
+        const regenerateBtn = actions.createEl('button', { cls: 'claudian-plus-action-btn' });
         setIcon(regenerateBtn, 'refresh-cw');
         regenerateBtn.setAttribute('aria-label', 'Regenerate title');
         regenerateBtn.addEventListener('click', (e) => {
@@ -759,7 +796,7 @@ export class ConversationController {
 
       if (openState === 'closed' && options.onOpenConversationInNewTab) {
         const openInNewTabBtn = actions.createEl('button', {
-          cls: 'claudian-action-btn claudian-open-new-tab-btn',
+          cls: 'claudian-plus-action-btn claudian-plus-open-new-tab-btn',
         });
         setIcon(openInNewTabBtn, 'square-plus');
         openInNewTabBtn.setAttribute('aria-label', 'Open in new tab');
@@ -775,7 +812,7 @@ export class ConversationController {
         });
       }
 
-      const renameBtn = actions.createEl('button', { cls: 'claudian-action-btn' });
+      const renameBtn = actions.createEl('button', { cls: 'claudian-plus-action-btn' });
       setIcon(renameBtn, 'pencil');
       renameBtn.setAttribute('aria-label', 'Rename');
       renameBtn.addEventListener('click', (e) => {
@@ -783,7 +820,7 @@ export class ConversationController {
         this.showRenameInput(item, conv.id, conv.title);
       });
 
-      const deleteBtn = actions.createEl('button', { cls: 'claudian-action-btn claudian-delete-btn' });
+      const deleteBtn = actions.createEl('button', { cls: 'claudian-plus-action-btn claudian-plus-delete-btn' });
       setIcon(deleteBtn, 'trash-2');
       deleteBtn.setAttribute('aria-label', 'Delete');
       deleteBtn.addEventListener('click', (e) => {
@@ -800,7 +837,7 @@ export class ConversationController {
 
     if (visibleConversations.length < conversations.length && !options.signal?.aborted) {
       const loadMoreButton = list.createEl('button', {
-        cls: 'claudian-history-load-more',
+        cls: 'claudian-plus-history-load-more',
         text: `Load more (${conversations.length - visibleConversations.length} remaining)`,
       });
       loadMoreButton.addEventListener('click', () => {
@@ -811,6 +848,42 @@ export class ConversationController {
         });
       });
     }
+  }
+
+  private queueHistorySearchIndex(
+    conversations: ReturnType<FeatureHost['getConversationList']>,
+    searchQuery: string,
+    options: HistoryRenderOptions,
+  ): void {
+    const plugin = this.deps.plugin;
+    if (!plugin.ensureConversationSearchIndex || !searchQuery || options.signal?.aborted) {
+      return;
+    }
+
+    const missingIds = conversations
+      .filter((conversation) => (
+        !conversation.searchText && !this.historySearchIndexedIds.has(conversation.id)
+      ))
+      .map((conversation) => conversation.id);
+    this.historySearchRefresh = { onRerender: options.onRerender, signal: options.signal };
+    if (missingIds.length === 0 || this.historySearchIndexingPromise) {
+      return;
+    }
+
+    for (const id of missingIds) {
+      this.historySearchIndexedIds.add(id);
+    }
+
+    this.historySearchIndexingPromise = plugin.ensureConversationSearchIndex(missingIds)
+      .catch(() => undefined)
+      .finally(() => {
+        this.historySearchIndexingPromise = null;
+        const refresh = this.historySearchRefresh;
+        this.historySearchRefresh = null;
+        if (!refresh?.signal?.aborted && !this.deps.isDisposed?.()) {
+          refresh?.onRerender();
+        }
+      });
   }
 
   private getHistoryConversationStatus(
@@ -967,11 +1040,11 @@ export class ConversationController {
 
   /** Shows inline rename input for a conversation. */
   private showRenameInput(item: HTMLElement, convId: string, currentTitle: string): void {
-    const titleEl = item.querySelector('.claudian-history-item-title') as HTMLElement;
+    const titleEl = item.querySelector('.claudian-plus-history-item-title') as HTMLElement;
     if (!titleEl) return;
 
     const input = item.createEl('input', {
-      cls: 'claudian-rename-input',
+      cls: 'claudian-plus-rename-input',
       attr: { type: 'text', value: currentTitle },
     });
 
@@ -1032,7 +1105,7 @@ export class ConversationController {
     // Time-specific greetings
     const getTimeGreetings = (): string[] => {
       if (hour >= 5 && hour < 12) {
-        return [personalize('Good morning'), 'Coffee and Claudian time?'];
+        return [personalize('Good morning'), 'Coffee and Claudian Plus time?'];
       } else if (hour >= 12 && hour < 18) {
         return [personalize('Good afternoon'), personalize('Hey there'), personalize("How's it going") + '?'];
       } else if (hour >= 18 && hour < 22) {
@@ -1069,9 +1142,9 @@ export class ConversationController {
     if (!welcomeEl) return;
 
     if (this.deps.state.messages.length === 0) {
-      welcomeEl.removeClass('claudian-hidden');
+      welcomeEl.removeClass('claudian-plus-hidden');
     } else {
-      welcomeEl.addClass('claudian-hidden');
+      welcomeEl.addClass('claudian-plus-hidden');
     }
   }
 
@@ -1088,9 +1161,12 @@ export class ConversationController {
     fileCtx?.resetForNewConversation();
     fileCtx?.autoAttachActiveFile();
 
-    // Only add greeting if not already present
-    if (!welcomeEl.querySelector('.claudian-welcome-greeting')) {
-      welcomeEl.createDiv({ cls: 'claudian-welcome-greeting', text: this.getGreeting() });
+    // Only render if not already present
+    if (!welcomeEl.querySelector('.claudian-plus-welcome-greeting')) {
+      // Delegate to the renderer so the constellation cube is created
+      // through the same code path as startNewConversation().
+      const newWelcomeEl = this.deps.renderer.renderMessages([], () => this.getGreeting());
+      this.deps.setWelcomeEl(newWelcomeEl);
     }
 
     this.updateWelcomeVisibility();
@@ -1174,12 +1250,12 @@ export class ConversationController {
   }
 
   // ============================================
-  // History Dropdown Rendering (for ClaudianView)
+  // History Dropdown Rendering (for Claudian Plus View)
   // ============================================
 
   /**
    * Renders the history dropdown content to a provided container.
-   * Used by ClaudianView to render the dropdown with custom selection callback.
+   * Used by Claudian Plus View to render the dropdown with custom selection callback.
    */
   renderHistoryDropdown(
     container: HTMLElement,

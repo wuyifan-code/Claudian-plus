@@ -6,6 +6,7 @@ import type { AppMcpStorage } from '../../core/providers/types';
 import { isNotifiedMutationError } from '../../core/storage/NotifiedMutationError';
 import type { ManagedMcpServer, McpServerConfig, McpServerType } from '../../core/types';
 import { DEFAULT_MCP_SERVER, getMcpServerType } from '../../core/types';
+import { localeText } from '../../i18n/i18n';
 import { confirmDelete } from '../modals/ConfirmModal';
 import { McpServerModal } from './McpServerModal';
 import { McpTestModal } from './McpTestModal';
@@ -39,37 +40,37 @@ export class McpSettingsManager {
   private render() {
     this.containerEl.empty();
 
-    const headerEl = this.containerEl.createDiv({ cls: 'claudian-mcp-header' });
-    headerEl.createSpan({ text: 'MCP Servers', cls: 'claudian-mcp-label' });
+    const headerEl = this.containerEl.createDiv({ cls: 'claudian-plus-mcp-header' });
+    headerEl.createSpan({ text: localeText('MCP 服务器', 'MCP Servers'), cls: 'claudian-plus-mcp-label' });
 
-    const addContainer = headerEl.createDiv({ cls: 'claudian-mcp-add-container' });
+    const addContainer = headerEl.createDiv({ cls: 'claudian-plus-mcp-add-container' });
     const addBtn = addContainer.createEl('button', {
-      cls: 'claudian-settings-action-btn',
-      attr: { 'aria-label': 'Add' },
+      cls: 'claudian-plus-settings-action-btn',
+      attr: { 'aria-label': localeText('添加', 'Add') },
     });
     setIcon(addBtn, 'plus');
 
-    const dropdown = addContainer.createDiv({ cls: 'claudian-mcp-add-dropdown' });
+    const dropdown = addContainer.createDiv({ cls: 'claudian-plus-mcp-add-dropdown' });
 
-    const stdioOption = dropdown.createDiv({ cls: 'claudian-mcp-add-option' });
-    setIcon(stdioOption.createSpan({ cls: 'claudian-mcp-add-option-icon' }), 'terminal');
-    stdioOption.createSpan({ text: 'stdio (local command)' });
+    const stdioOption = dropdown.createDiv({ cls: 'claudian-plus-mcp-add-option' });
+    setIcon(stdioOption.createSpan({ cls: 'claudian-plus-mcp-add-option-icon' }), 'terminal');
+    stdioOption.createSpan({ text: localeText('stdio（本地命令）', 'stdio (local command)') });
     stdioOption.addEventListener('click', () => {
       dropdown.removeClass('is-visible');
       this.openModal(null, 'stdio');
     });
 
-    const httpOption = dropdown.createDiv({ cls: 'claudian-mcp-add-option' });
-    setIcon(httpOption.createSpan({ cls: 'claudian-mcp-add-option-icon' }), 'globe');
-    httpOption.createSpan({ text: 'http / sse (remote)' });
+    const httpOption = dropdown.createDiv({ cls: 'claudian-plus-mcp-add-option' });
+    setIcon(httpOption.createSpan({ cls: 'claudian-plus-mcp-add-option-icon' }), 'globe');
+    httpOption.createSpan({ text: localeText('http / sse（远程）', 'http / sse (remote)') });
     httpOption.addEventListener('click', () => {
       dropdown.removeClass('is-visible');
       this.openModal(null, 'http');
     });
 
-    const importOption = dropdown.createDiv({ cls: 'claudian-mcp-add-option' });
-    setIcon(importOption.createSpan({ cls: 'claudian-mcp-add-option-icon' }), 'clipboard-paste');
-    importOption.createSpan({ text: 'Import from clipboard' });
+    const importOption = dropdown.createDiv({ cls: 'claudian-plus-mcp-add-option' });
+    setIcon(importOption.createSpan({ cls: 'claudian-plus-mcp-add-option-icon' }), 'clipboard-paste');
+    importOption.createSpan({ text: localeText('从剪贴板导入', 'Import from clipboard') });
     importOption.addEventListener('click', () => {
       dropdown.removeClass('is-visible');
       void this.importFromClipboard();
@@ -85,57 +86,57 @@ export class McpSettingsManager {
     });
 
     if (this.servers.length === 0) {
-      const emptyEl = this.containerEl.createDiv({ cls: 'claudian-mcp-empty' });
-      emptyEl.setText('No mcp servers configured. Click "add" to add one.');
+      const emptyEl = this.containerEl.createDiv({ cls: 'claudian-plus-mcp-empty' });
+      emptyEl.setText(localeText('尚未配置 MCP 服务器。点击“添加”来创建一个。', 'No mcp servers configured. Click "add" to add one.'));
       return;
     }
 
-    const listEl = this.containerEl.createDiv({ cls: 'claudian-mcp-list' });
+    const listEl = this.containerEl.createDiv({ cls: 'claudian-plus-mcp-list' });
     for (const server of this.servers) {
       this.renderServerItem(listEl, server);
     }
   }
 
   private renderServerItem(listEl: HTMLElement, server: ManagedMcpServer) {
-    const itemEl = listEl.createDiv({ cls: 'claudian-mcp-item' });
+    const itemEl = listEl.createDiv({ cls: 'claudian-plus-mcp-item' });
     if (!server.enabled) {
-      itemEl.addClass('claudian-mcp-item-disabled');
+      itemEl.addClass('claudian-plus-mcp-item-disabled');
     }
 
-    const statusEl = itemEl.createDiv({ cls: 'claudian-mcp-status' });
+    const statusEl = itemEl.createDiv({ cls: 'claudian-plus-mcp-status' });
     statusEl.addClass(
-      server.enabled ? 'claudian-mcp-status-enabled' : 'claudian-mcp-status-disabled'
+      server.enabled ? 'claudian-plus-mcp-status-enabled' : 'claudian-plus-mcp-status-disabled'
     );
 
-    const infoEl = itemEl.createDiv({ cls: 'claudian-mcp-info' });
+    const infoEl = itemEl.createDiv({ cls: 'claudian-plus-mcp-info' });
 
-    const nameRow = infoEl.createDiv({ cls: 'claudian-mcp-name-row' });
+    const nameRow = infoEl.createDiv({ cls: 'claudian-plus-mcp-name-row' });
 
-    const nameEl = nameRow.createSpan({ cls: 'claudian-mcp-name' });
+    const nameEl = nameRow.createSpan({ cls: 'claudian-plus-mcp-name' });
     nameEl.setText(server.name);
 
     const serverType = getMcpServerType(server.config);
-    const typeEl = nameRow.createSpan({ cls: 'claudian-mcp-type-badge' });
+    const typeEl = nameRow.createSpan({ cls: 'claudian-plus-mcp-type-badge' });
     typeEl.setText(serverType);
 
     if (server.contextSaving) {
-      const csEl = nameRow.createSpan({ cls: 'claudian-mcp-context-saving-badge' });
+      const csEl = nameRow.createSpan({ cls: 'claudian-plus-mcp-context-saving-badge' });
       csEl.setText('@');
-      csEl.setAttribute('title', 'Context-saving: mention with @' + server.name + ' to enable');
+      csEl.setAttribute('title', localeText(`节省上下文：使用 @${server.name} 提及以启用`, 'Context-saving: mention with @' + server.name + ' to enable'));
     }
 
-    const previewEl = infoEl.createDiv({ cls: 'claudian-mcp-preview' });
+    const previewEl = infoEl.createDiv({ cls: 'claudian-plus-mcp-preview' });
     if (server.description) {
       previewEl.setText(server.description);
     } else {
       previewEl.setText(this.getServerPreview(server, serverType));
     }
 
-    const actionsEl = itemEl.createDiv({ cls: 'claudian-mcp-actions' });
+    const actionsEl = itemEl.createDiv({ cls: 'claudian-plus-mcp-actions' });
 
     const testBtn = actionsEl.createEl('button', {
-      cls: 'claudian-mcp-action-btn',
-      attr: { 'aria-label': 'Verify (show tools)' },
+      cls: 'claudian-plus-mcp-action-btn',
+      attr: { 'aria-label': localeText('验证（显示工具）', 'Verify (show tools)') },
     });
     setIcon(testBtn, 'zap');
     testBtn.addEventListener('click', () => {
@@ -143,31 +144,31 @@ export class McpSettingsManager {
     });
 
     const toggleBtn = actionsEl.createEl('button', {
-      cls: 'claudian-mcp-action-btn',
-      attr: { 'aria-label': server.enabled ? 'Disable' : 'Enable' },
+      cls: 'claudian-plus-mcp-action-btn',
+      attr: { 'aria-label': server.enabled ? localeText('禁用', 'Disable') : localeText('启用', 'Enable') },
     });
     setIcon(toggleBtn, server.enabled ? 'toggle-right' : 'toggle-left');
     toggleBtn.addEventListener('click', () => {
       void this.toggleServer(server).catch((error: unknown) => {
-        this.showMutationError(error, 'Failed to update MCP server');
+        this.showMutationError(error, localeText('更新 MCP 服务器失败', 'Failed to update MCP server'));
       });
     });
 
     const editBtn = actionsEl.createEl('button', {
-      cls: 'claudian-mcp-action-btn',
-      attr: { 'aria-label': 'Edit' },
+      cls: 'claudian-plus-mcp-action-btn',
+      attr: { 'aria-label': localeText('编辑', 'Edit') },
     });
     setIcon(editBtn, 'pencil');
     editBtn.addEventListener('click', () => this.openModal(server));
 
     const deleteBtn = actionsEl.createEl('button', {
-      cls: 'claudian-mcp-action-btn claudian-mcp-delete-btn',
-      attr: { 'aria-label': 'Delete' },
+      cls: 'claudian-plus-mcp-action-btn claudian-plus-mcp-delete-btn',
+      attr: { 'aria-label': localeText('删除', 'Delete') },
     });
     setIcon(deleteBtn, 'trash-2');
     deleteBtn.addEventListener('click', () => {
       void this.deleteServer(server).catch((error: unknown) => {
-        this.showMutationError(error, 'Failed to delete MCP server');
+        this.showMutationError(error, localeText('删除 MCP 服务器失败', 'Failed to delete MCP server'));
       });
     });
   }
@@ -191,7 +192,7 @@ export class McpSettingsManager {
       const result = await testMcpServer(server);
       modal.setResult(result);
     } catch (error) {
-      modal.setError(error instanceof Error ? error.message : 'Verification failed');
+      modal.setError(error instanceof Error ? error.message : localeText('验证失败', 'Verification failed'));
     }
   }
 
@@ -214,7 +215,7 @@ export class McpSettingsManager {
       await this.broadcastMcpReload();
     } catch {
       // Save succeeded but reload failed - don't rollback since disk has correct state
-      new Notice('Setting saved but reload failed. Changes will apply on next session.');
+      new Notice(localeText('设置已保存，但重新加载失败。更改将在下次会话生效。', 'Setting saved but reload failed. Changes will apply on next session.'));
     }
   }
 
@@ -259,7 +260,7 @@ export class McpSettingsManager {
       existing,
       (server) => {
         void this.saveServer(server, existing).catch((error: unknown) => {
-          this.showMutationError(error, 'Failed to save MCP server');
+          this.showMutationError(error, localeText('保存 MCP 服务器失败', 'Failed to save MCP server'));
         });
       },
       initialType
@@ -271,13 +272,13 @@ export class McpSettingsManager {
     try {
       const text = await navigator.clipboard.readText();
       if (!text.trim()) {
-        new Notice('Clipboard is empty');
+        new Notice(localeText('剪贴板为空', 'Clipboard is empty'));
         return;
       }
 
       const parsed = tryParseClipboardConfig(text);
       if (!parsed || parsed.servers.length === 0) {
-        new Notice('No valid mcp configuration found in clipboard');
+        new Notice(localeText('剪贴板中未找到有效的 MCP 配置', 'No valid mcp configuration found in clipboard'));
         return;
       }
 
@@ -289,7 +290,7 @@ export class McpSettingsManager {
           null,
           (savedServer) => {
             void this.saveServer(savedServer, null).catch((error: unknown) => {
-              this.showMutationError(error, 'Failed to save MCP server');
+              this.showMutationError(error, localeText('保存 MCP 服务器失败', 'Failed to save MCP server'));
             });
           },
           type,
@@ -297,7 +298,7 @@ export class McpSettingsManager {
         );
         modal.open();
         if (parsed.needsName) {
-          new Notice('Enter a name for the server');
+          new Notice(localeText('请输入服务器名称', 'Enter a name for the server'));
         }
         return;
       }
@@ -305,7 +306,7 @@ export class McpSettingsManager {
       await this.importServers(parsed.servers);
     } catch (error) {
       if (!isNotifiedMutationError(error)) {
-        new Notice('Failed to read clipboard');
+        new Notice(localeText('读取剪贴板失败', 'Failed to read clipboard'));
       }
     }
   }
@@ -318,7 +319,7 @@ export class McpSettingsManager {
         if (server.name !== existing.name) {
           const conflict = this.servers.find((s) => s.name === server.name);
           if (conflict) {
-            new Notice(`Server "${server.name}" already exists`);
+            new Notice(localeText(`服务器“${server.name}”已存在`, `Server "${server.name}" already exists`));
             return;
           }
         }
@@ -327,7 +328,7 @@ export class McpSettingsManager {
     } else {
       const conflict = this.servers.find((s) => s.name === server.name);
       if (conflict) {
-        new Notice(`Server "${server.name}" already exists`);
+        new Notice(localeText(`服务器“${server.name}”已存在`, `Server "${server.name}" already exists`));
         return;
       }
       this.servers.push(server);
@@ -341,7 +342,9 @@ export class McpSettingsManager {
     }
     await this.broadcastMcpReload();
     this.render();
-    new Notice(existing ? `MCP server "${server.name}" updated` : `MCP server "${server.name}" added`);
+    new Notice(existing
+      ? localeText(`MCP 服务器“${server.name}”已更新`, `MCP server "${server.name}" updated`)
+      : localeText(`MCP 服务器“${server.name}”已添加`, `MCP server "${server.name}" added`));
   }
 
   private async importServers(servers: Array<{ name: string; config: McpServerConfig }>) {
@@ -372,7 +375,7 @@ export class McpSettingsManager {
     }
 
     if (added.length === 0) {
-      new Notice('No new mcp servers imported');
+      new Notice(localeText('没有导入新的 MCP 服务器', 'No new mcp servers imported'));
       return;
     }
 
@@ -385,9 +388,9 @@ export class McpSettingsManager {
     await this.broadcastMcpReload();
     this.render();
 
-    let message = `Imported ${added.length} MCP server${added.length > 1 ? 's' : ''}`;
+    let message = localeText(`已导入 ${added.length} 个 MCP 服务器`, `Imported ${added.length} MCP server${added.length > 1 ? 's' : ''}`);
     if (skipped.length > 0) {
-      message += ` (${skipped.length} skipped)`;
+      message += localeText(`（跳过 ${skipped.length} 个）`, ` (${skipped.length} skipped)`);
     }
     new Notice(message);
   }
@@ -403,11 +406,13 @@ export class McpSettingsManager {
     }
     await this.broadcastMcpReload();
     this.render();
-    new Notice(`MCP server "${server.name}" ${server.enabled ? 'enabled' : 'disabled'}`);
+    new Notice(server.enabled
+      ? localeText(`MCP 服务器“${server.name}”已启用`, `MCP server "${server.name}" enabled`)
+      : localeText(`MCP 服务器“${server.name}”已禁用`, `MCP server "${server.name}" disabled`));
   }
 
   private async deleteServer(server: ManagedMcpServer) {
-    if (!(await confirmDelete(this.app, `Delete MCP server "${server.name}"?`))) {
+    if (!(await confirmDelete(this.app, localeText(`确定删除 MCP 服务器“${server.name}”？`, `Delete MCP server "${server.name}"?`)))) {
       return;
     }
 
@@ -421,7 +426,7 @@ export class McpSettingsManager {
     }
     await this.broadcastMcpReload();
     this.render();
-    new Notice(`MCP server "${server.name}" deleted`);
+    new Notice(localeText(`MCP 服务器“${server.name}”已删除`, `MCP server "${server.name}" deleted`));
   }
 
   /** Refresh the server list (call after external changes). */

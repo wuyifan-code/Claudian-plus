@@ -1,0 +1,97 @@
+.claudian-plus-canvas-neighbors-modal {
+  width: min(680px, calc(100vw - 48px));
+}
+
+.claudian-plus-canvas-neighbors-description {
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  margin-bottom: 12px;
+}
+
+.claudian-plus-canvas-neighbors-hint {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  margin-top: 4px;
+}
+
+.claudian-plus-canvas-neighbors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(58vh, 560px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.claudian-plus-canvas-neighbors-item {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: var(--background-secondary);
+}
+
+.claudian-plus-canvas-neighbors-item-header {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.claudian-plus-canvas-neighbors-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  color: var(--text-accent);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.claudian-plus-canvas-neighbors-source:hover {
+  text-decoration: underline;
+}
+
+.claudian-plus-canvas-neighbors-source span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claudian-plus-canvas-neighbors-meta,
+.claudian-plus-canvas-neighbors-via {
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.claudian-plus-canvas-neighbors-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.claudian-plus-canvas-neighbors-batch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  margin: 12px 0;
+}
+
+.claudian-plus-canvas-neighbors-batch-actions button {
+  font-size: var(--font-ui-smaller);
+}
+
+.claudian-plus-canvas-neighbors-add,
+.claudian-plus-canvas-neighbors-add-all,
+.claudian-plus-canvas-neighbors-undo-canvas {
+  font-size: var(--font-ui-smaller);
+}
+
+.claudian-plus-canvas-neighbors-empty,
+.claudian-plus-canvas-neighbors-loading {
+  color: var(--text-muted);
+  padding: 14px 0;
+}

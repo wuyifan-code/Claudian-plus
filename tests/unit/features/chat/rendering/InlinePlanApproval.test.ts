@@ -135,5 +135,35 @@ describe('InlinePlanApproval', () => {
       approval.destroy();
       expect(resolve).toHaveBeenCalledTimes(1);
     });
+
+    it('cancels the deferred focus frame and ignores it after destruction', () => {
+      const container = createMockEl();
+      let runFrame!: FrameRequestCallback;
+      const ownerWindow = globalThis.window as any;
+      const originalRequestAnimationFrame = ownerWindow.requestAnimationFrame;
+      const originalCancelAnimationFrame = ownerWindow.cancelAnimationFrame;
+      ownerWindow.requestAnimationFrame = jest.fn((callback: FrameRequestCallback) => {
+        runFrame = callback;
+        return 19;
+      });
+      ownerWindow.cancelAnimationFrame = jest.fn();
+      try {
+        const approval = new InlinePlanApproval(container as any, jest.fn());
+
+        approval.render();
+        const root = (approval as any).rootEl;
+        root.focus = jest.fn();
+        root.scrollIntoView = jest.fn();
+        approval.destroy();
+        runFrame(0);
+
+        expect(ownerWindow.cancelAnimationFrame).toHaveBeenCalledWith(19);
+        expect(root.focus).not.toHaveBeenCalled();
+        expect(root.scrollIntoView).not.toHaveBeenCalled();
+      } finally {
+        ownerWindow.requestAnimationFrame = originalRequestAnimationFrame;
+        ownerWindow.cancelAnimationFrame = originalCancelAnimationFrame;
+      }
+    });
   });
 });

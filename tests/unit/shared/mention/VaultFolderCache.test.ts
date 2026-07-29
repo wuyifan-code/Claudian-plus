@@ -91,6 +91,22 @@ describe('VaultFolderCache', () => {
     expect(getAllLoadedFiles).toHaveBeenCalledTimes(1);
   });
 
+  it('coalesces pending folder initialization and skips it after a synchronous read', () => {
+    jest.useFakeTimers();
+    const getAllLoadedFiles = jest.fn(() => [createFolder('src')]);
+    const app = {
+      vault: { getAllLoadedFiles },
+    } as any;
+    const cache = new VaultFolderCache(app);
+
+    cache.initializeInBackground();
+    cache.initializeInBackground();
+    cache.getFolders();
+    jest.runOnlyPendingTimers();
+
+    expect(getAllLoadedFiles).toHaveBeenCalledTimes(1);
+  });
+
   it('returns stale folders if reload fails', () => {
     const getAllLoadedFiles = jest
       .fn()

@@ -1,10 +1,10 @@
 /* Floating conversation outline — fixed, vertically centered on the left */
-.claudian-messages-wrapper {
-  container-name: claudian-chat;
+.claudian-plus-messages-wrapper {
+  container-name: claudian-plus-chat;
   container-type: inline-size;
 }
 
-.claudian-nav-sidebar {
+.claudian-plus-nav-sidebar {
   position: fixed;
   top: 50%;
   left: 8px;
@@ -18,14 +18,14 @@
   transition: opacity 200ms ease;
 }
 
-.claudian-nav-sidebar.visible {
+.claudian-plus-nav-sidebar.visible {
   opacity: 1;
   pointer-events: auto;
 }
 
 /* ── Outline track (tick-mark rail) ── */
 
-.claudian-nav-outline-track {
+.claudian-plus-nav-outline-track {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -34,13 +34,13 @@
   padding: 6px 8px;
 }
 
-.claudian-nav-outline-track:empty {
+.claudian-plus-nav-outline-track:empty {
   display: none;
 }
 
 /* ── Tick-mark marker ── */
 
-button.claudian-nav-outline-marker {
+button.claudian-plus-nav-outline-marker {
   all: unset;
   box-sizing: border-box;
   position: relative;
@@ -54,7 +54,7 @@ button.claudian-nav-outline-marker {
   transition: opacity 180ms ease;
 }
 
-button.claudian-nav-outline-marker::before {
+button.claudian-plus-nav-outline-marker::before {
   position: absolute;
   left: 50%;
   top: 50%;
@@ -72,11 +72,11 @@ button.claudian-nav-outline-marker::before {
 }
 
 /* Active state: bar extends to the left and highlights */
-button.claudian-nav-outline-marker.is-active {
+button.claudian-plus-nav-outline-marker.is-active {
   opacity: 1;
 }
 
-button.claudian-nav-outline-marker.is-active::before {
+button.claudian-plus-nav-outline-marker.is-active::before {
   width: 14px;
   height: 3px;
   background: var(--text-accent);
@@ -87,26 +87,26 @@ button.claudian-nav-outline-marker.is-active::before {
 }
 
 /* Hover state */
-button.claudian-nav-outline-marker:hover,
-button.claudian-nav-outline-marker:focus-visible {
+button.claudian-plus-nav-outline-marker:hover,
+button.claudian-plus-nav-outline-marker:focus-visible {
   opacity: 0.85;
 }
 
-button.claudian-nav-outline-marker:hover::before,
-button.claudian-nav-outline-marker:focus-visible::before {
+button.claudian-plus-nav-outline-marker:hover::before,
+button.claudian-plus-nav-outline-marker:focus-visible::before {
   width: 10px;
   height: 3px;
   background: var(--text-muted);
 }
 
 /* Dim non-interacted markers when hovering the rail */
-.claudian-nav-sidebar:hover button.claudian-nav-outline-marker:not(:hover):not(.is-active):not(:focus-visible) {
+.claudian-plus-nav-sidebar:hover button.claudian-plus-nav-outline-marker:not(:hover):not(.is-active):not(:focus-visible) {
   opacity: 0.2;
 }
 
 /* ── Dot marker (dot mode only) ── */
 
-.claudian-nav-outline-dot {
+.claudian-plus-nav-outline-dot {
   display: none;
   position: absolute;
   left: 50%;
@@ -123,23 +123,23 @@ button.claudian-nav-outline-marker:focus-visible::before {
   pointer-events: none;
 }
 
-.claudian-nav-outline-dot-mode button.claudian-nav-outline-marker::before {
+.claudian-plus-nav-outline-dot-mode button.claudian-plus-nav-outline-marker::before {
   display: none;
 }
 
-.claudian-nav-outline-dot-mode button.claudian-nav-outline-marker .claudian-nav-outline-dot {
+.claudian-plus-nav-outline-dot-mode button.claudian-plus-nav-outline-marker .claudian-plus-nav-outline-dot {
   display: block;
   top: 50%;
   width: 6px;
   height: 6px;
 }
 
-.claudian-nav-outline-dot-mode button.claudian-nav-outline-marker:hover .claudian-nav-outline-dot {
+.claudian-plus-nav-outline-dot-mode button.claudian-plus-nav-outline-marker:hover .claudian-plus-nav-outline-dot {
   width: 10px;
   height: 10px;
 }
 
-.claudian-nav-outline-dot-mode button.claudian-nav-outline-marker.is-active .claudian-nav-outline-dot {
+.claudian-plus-nav-outline-dot-mode button.claudian-plus-nav-outline-marker.is-active .claudian-plus-nav-outline-dot {
   width: 12px;
   height: 12px;
   background: var(--text-accent);
@@ -150,10 +150,10 @@ button.claudian-nav-outline-marker:focus-visible::before {
 
 /* ── Preview tooltip ── */
 
-.claudian-nav-outline-preview {
+.claudian-plus-nav-outline-preview {
   position: fixed;
   left: calc(28px + 24px);
-  top: var(--claudian-outline-preview-top, 0);
+  top: var(--claudian-plus-outline-preview-top, 0);
   z-index: 101;
   display: flex;
   flex-direction: column;
@@ -173,10 +173,10 @@ button.claudian-nav-outline-marker:focus-visible::before {
   pointer-events: none;
   /* Spring slide for vertical movement */
   transition: transform 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
-  animation: claudian-outline-card-fade-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: claudian-plus-outline-card-fade-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.claudian-nav-outline-preview::before {
+.claudian-plus-nav-outline-preview::before {
   position: absolute;
   top: 12px;
   left: -5px;
@@ -189,7 +189,7 @@ button.claudian-nav-outline-marker:focus-visible::before {
   transform: rotate(-45deg);
 }
 
-.claudian-nav-outline-preview-badge {
+.claudian-plus-nav-outline-preview-badge {
   position: absolute;
   top: 10px;
   right: 10px;
@@ -207,7 +207,7 @@ button.claudian-nav-outline-marker:focus-visible::before {
   letter-spacing: 0.04em;
 }
 
-.claudian-nav-outline-preview-title {
+.claudian-plus-nav-outline-preview-title {
   min-width: 0;
   padding-right: 26px;
   color: var(--text-normal);
@@ -221,7 +221,7 @@ button.claudian-nav-outline-marker:focus-visible::before {
   overflow: hidden;
 }
 
-.claudian-nav-outline-preview-excerpt {
+.claudian-plus-nav-outline-preview-excerpt {
   display: -webkit-box;
   overflow: hidden;
   color: var(--text-muted);
@@ -231,36 +231,36 @@ button.claudian-nav-outline-marker:focus-visible::before {
   -webkit-line-clamp: 4;
 }
 
-@keyframes claudian-outline-card-fade-in {
+@keyframes claudian-plus-outline-card-fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
 
-.claudian-nav-outline-preview-leaving {
-  animation: claudian-outline-card-fade-out 120ms ease forwards;
+.claudian-plus-nav-outline-preview-leaving {
+  animation: claudian-plus-outline-card-fade-out 120ms ease forwards;
   pointer-events: none;
 }
 
-@keyframes claudian-outline-card-fade-out {
+@keyframes claudian-plus-outline-card-fade-out {
   from { opacity: 1; }
   to   { opacity: 0; }
 }
 
 /* ── Responsive ── */
 
-@container claudian-chat (max-width: 479px) {
-  .claudian-nav-sidebar { left: 4px; }
-  .claudian-nav-outline-preview { left: calc(28px + 18px); }
+@container claudian-plus-chat (max-width: 479px) {
+  .claudian-plus-nav-sidebar { left: 4px; }
+  .claudian-plus-nav-outline-preview { left: calc(28px + 18px); }
 }
 
 @media (pointer: coarse) {
-  .claudian-nav-outline-preview { display: none; }
+  .claudian-plus-nav-outline-preview { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .claudian-nav-outline-marker::before,
-  .claudian-nav-outline-preview,
-  .claudian-nav-outline-dot {
+  .claudian-plus-nav-outline-marker::before,
+  .claudian-plus-nav-outline-preview,
+  .claudian-plus-nav-outline-dot {
     transition: none;
     animation: none;
   }

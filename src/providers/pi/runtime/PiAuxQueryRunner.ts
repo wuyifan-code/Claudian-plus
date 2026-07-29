@@ -1,4 +1,8 @@
+import * as path from 'node:path';
+
 import type { AuxQueryConfig, AuxQueryRunner } from '../../../core/auxiliary/AuxQueryRunner';
+import { CLAUDIAN_PLUS_STORAGE_PATH } from '../../../core/bootstrap/StoragePaths';
+import { ensurePortablePiExtension } from '../../../core/obsidian/portableToolRuntime';
 import { getRuntimeEnvironmentText } from '../../../core/providers/providerEnvironment';
 import type { ProviderHost } from '../../../core/providers/ProviderHost';
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
@@ -163,6 +167,16 @@ export class PiAuxQueryRunner implements AuxQueryRunner {
       ...process.env,
       ...parseEnvironmentVariables(envText),
     };
+    const obsidianBridge = this.options.profile === 'readonly' && this.plugin.ensureObsidianToolBridge
+      ? await this.plugin.ensureObsidianToolBridge().catch(() => undefined)
+      : undefined;
+    if (obsidianBridge) {
+      env.CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_URL = obsidianBridge.url;
+      env.CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_TOKEN = obsidianBridge.token;
+    }
+    const obsidianExtensionPath = this.options.profile === 'readonly'
+      ? ensurePortablePiExtension(path.join(cwd, CLAUDIAN_PLUS_STORAGE_PATH, 'pi', 'obsidian-tools.mjs'))
+      : undefined;
     const launchSpec = buildPiLaunchSpec({
       command,
       cwd,
@@ -170,6 +184,8 @@ export class PiAuxQueryRunner implements AuxQueryRunner {
       envText,
       noSession: true,
       noTools: this.options.profile === 'passive',
+      obsidianBridgeUrl: obsidianBridge?.url,
+      extensions: obsidianExtensionPath ? [obsidianExtensionPath] : undefined,
       settings: {
         ...settings,
         toolMode: this.options.profile === 'readonly' ? 'readonly' : settings.toolMode,

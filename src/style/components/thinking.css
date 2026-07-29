@@ -1,43 +1,43 @@
-.claudian-thinking {
-  color: var(--claudian-brand);
+.claudian-plus-thinking {
+  color: var(--claudian-plus-brand);
   font-style: italic;
   padding: 4px 0;
   text-align: start;
   animation: thinking-pulse 1.5s ease-in-out infinite;
 }
 
-.claudian-thinking.claudian-thinking--compact {
-  color: var(--claudian-compact);
+.claudian-plus-thinking.claudian-plus-thinking--compact {
+  color: var(--claudian-plus-compact);
 }
 
-.claudian-thinking-hint {
+.claudian-plus-thinking-hint {
   color: var(--text-muted);
   font-style: normal;
   font-variant-numeric: tabular-nums;
 }
 
-.claudian-thinking-block {
+.claudian-plus-thinking-block {
   margin: 4px 0;
   color: var(--text-muted);
 }
 
-.claudian-text-block+.claudian-thinking-block {
+.claudian-plus-text-block+.claudian-plus-thinking-block {
   margin-top: 8px;
 }
 
-.claudian-thinking-block+.claudian-text-block {
+.claudian-plus-thinking-block+.claudian-plus-text-block {
   margin-top: 8px;
 }
 
-.claudian-thinking-block+.claudian-tool-call {
+.claudian-plus-thinking-block+.claudian-plus-tool-call {
   margin-top: 8px;
 }
 
-.claudian-tool-call+.claudian-thinking-block {
+.claudian-plus-tool-call+.claudian-plus-thinking-block {
   margin-top: 8px;
 }
 
-.claudian-thinking-header {
+.claudian-plus-thinking-header {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -49,12 +49,12 @@
   transition: color 120ms ease;
 }
 
-.claudian-thinking-header:hover,
-.claudian-thinking-header:focus-visible {
+.claudian-plus-thinking-header:hover,
+.claudian-plus-thinking-header:focus-visible {
   color: var(--text-muted);
 }
 
-.claudian-thinking-label {
+.claudian-plus-thinking-label {
   flex: 1;
   font-size: 11px;
   font-weight: 500;
@@ -63,7 +63,7 @@
 }
 
 /* Thinking block content - tree-branch style */
-.claudian-thinking-content {
+.claudian-plus-thinking-content {
   padding: 3px 0;
   padding-inline-start: 24px;
   font-size: 12px;
@@ -75,24 +75,24 @@
   margin-inline-start: 7px;
 }
 
-.claudian-thinking-content p {
+.claudian-plus-thinking-content p {
   margin: 0 0 8px 0;
 }
 
-.claudian-thinking-content p:last-child {
+.claudian-plus-thinking-content p:last-child {
   margin-bottom: 0;
 }
 
-.claudian-thinking-content .claudian-code-wrapper {
+.claudian-plus-thinking-content .claudian-plus-code-wrapper {
   margin: 8px 0;
 }
 
-.claudian-thinking-content .claudian-code-wrapper pre {
+.claudian-plus-thinking-content .claudian-plus-code-wrapper pre {
   padding: 8px 10px;
   border-radius: 4px;
 }
 
-.claudian-thinking-content code {
+.claudian-plus-thinking-content code {
   font-family: var(--font-monospace);
   font-size: 12px;
 }

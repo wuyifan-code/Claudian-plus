@@ -1,6 +1,6 @@
-import type { VaultFileAdapter } from '@/core/storage/VaultFileAdapter';
 import { MemoryStore } from '@/core/memory/MemoryStore';
 import { DEFAULT_MEMORY_FILE_PATH, MEMORY_FILE_TEMPLATE } from '@/core/memory/types';
+import type { VaultFileAdapter } from '@/core/storage/VaultFileAdapter';
 
 function createMockAdapter(files: Record<string, string> = {}): VaultFileAdapter {
   const store = { ...files };
@@ -37,7 +37,7 @@ describe('MemoryStore', () => {
     });
 
     it('parses markdown with categories and list items', async () => {
-      const content = `# Claudian Memory
+      const content = `# ClaudianPlus Memory
 
 ## User Preferences
 - Prefers Chinese communication
@@ -46,7 +46,7 @@ describe('MemoryStore', () => {
 ## Project Context
 - Working on an Obsidian plugin
 `;
-      const adapter = createMockAdapter({ '.claudian/memory.md': content });
+      const adapter = createMockAdapter({ '.claudian-plus/memory.md': content });
       const store = new MemoryStore(adapter);
       const entries = await store.load();
 
@@ -66,21 +66,21 @@ describe('MemoryStore', () => {
     });
 
     it('handles file with no entries gracefully', async () => {
-      const adapter = createMockAdapter({ '.claudian/memory.md': MEMORY_FILE_TEMPLATE });
+      const adapter = createMockAdapter({ '.claudian-plus/memory.md': MEMORY_FILE_TEMPLATE });
       const store = new MemoryStore(adapter);
       const entries = await store.load();
       expect(entries).toEqual([]);
     });
 
     it('skips HTML comments in memory file', async () => {
-      const content = `# Claudian Memory
+      const content = `# ClaudianPlus Memory
 
 ## User Preferences
 - Prefers dark mode
 <!-- This is a comment -->
 - Likes TypeScript
 `;
-      const adapter = createMockAdapter({ '.claudian/memory.md': content });
+      const adapter = createMockAdapter({ '.claudian-plus/memory.md': content });
       const store = new MemoryStore(adapter);
       const entries = await store.load();
 
@@ -90,14 +90,14 @@ describe('MemoryStore', () => {
     });
 
     it('supports different list markers (-, *, +)', async () => {
-      const content = `# Claudian Memory
+      const content = `# ClaudianPlus Memory
 
 ## User Preferences
 - Item with dash
 * Item with asterisk
 + Item with plus
 `;
-      const adapter = createMockAdapter({ '.claudian/memory.md': content });
+      const adapter = createMockAdapter({ '.claudian-plus/memory.md': content });
       const store = new MemoryStore(adapter);
       const entries = await store.load();
 
@@ -108,12 +108,12 @@ describe('MemoryStore', () => {
     });
 
     it('handles indented list items', async () => {
-      const content = `# Claudian Memory
+      const content = `# ClaudianPlus Memory
 
 ## User Preferences
   - Indented item
 `;
-      const adapter = createMockAdapter({ '.claudian/memory.md': content });
+      const adapter = createMockAdapter({ '.claudian-plus/memory.md': content });
       const store = new MemoryStore(adapter);
       const entries = await store.load();
 
@@ -143,7 +143,7 @@ describe('MemoryStore', () => {
     });
 
     it('appends to existing entries', async () => {
-      const content = `# Claudian Memory
+      const content = `# ClaudianPlus Memory
 
 ## User Preferences
 - Existing memory
@@ -151,7 +151,7 @@ describe('MemoryStore', () => {
 ## Project Context
 
 `;
-      const adapter = createMockAdapter({ '.claudian/memory.md': content });
+      const adapter = createMockAdapter({ '.claudian-plus/memory.md': content });
       const store = new MemoryStore(adapter);
 
       await store.add({
@@ -165,6 +165,29 @@ describe('MemoryStore', () => {
       expect(written).toContain('- Existing memory');
       expect(written).toContain('- New memory');
     });
+
+    it('atomically suppresses concurrent normalized duplicates', async () => {
+      const adapter = createMockAdapter();
+      const store = new MemoryStore(adapter);
+
+      await Promise.all([
+        store.add({
+          category: 'User Preferences',
+          content: 'Prefers dark mode',
+          source: 'user-explicit',
+        }),
+        store.add({
+          category: 'User Preferences',
+          content: '  prefers   DARK mode  ',
+          source: 'user-implicit',
+        }),
+      ]);
+
+      await expect(store.load()).resolves.toMatchObject([
+        { content: 'Prefers dark mode' },
+      ]);
+      await expect(store.load()).resolves.toHaveLength(1);
+    });
   });
 
   describe('buildInjectionText', () => {
@@ -176,7 +199,7 @@ describe('MemoryStore', () => {
     });
 
     it('returns formatted text grouped by category', async () => {
-      const content = `# Claudian Memory
+      const content = `# ClaudianPlus Memory
 
 ## User Preferences
 - Prefers dark mode
@@ -184,7 +207,7 @@ describe('MemoryStore', () => {
 ## Project Context
 - Uses TypeScript
 `;
-      const adapter = createMockAdapter({ '.claudian/memory.md': content });
+      const adapter = createMockAdapter({ '.claudian-plus/memory.md': content });
       const store = new MemoryStore(adapter);
       const result = await store.buildInjectionText();
 
@@ -195,19 +218,35 @@ describe('MemoryStore', () => {
     });
 
     it('respects maxInjectionChars limit', async () => {
-      const content = `# Claudian Memory
+      const content = `# ClaudianPlus Memory
 
 ## User Preferences
 - First memory entry that is somewhat long
 - Second memory entry that is also long
 - Third memory entry that is very long indeed
 `;
-      const adapter = createMockAdapter({ '.claudian/memory.md': content });
+      const adapter = createMockAdapter({ '.claudian-plus/memory.md': content });
       const store = new MemoryStore(adapter, { maxInjectionChars: 80 });
       const result = await store.buildInjectionText();
 
       expect(result).not.toBeNull();
       expect(result!.length).toBeLessThanOrEqual(80);
+      expect(result).not.toMatch(/- Third memory entry that is very long indeed$/);
+    });
+
+    it('does not cut a memory item in the middle when truncating', async () => {
+      const content = `# ClaudianPlus Memory
+
+## User Preferences
+- First memory
+- Second memory
+`;
+      const adapter = createMockAdapter({ '.claudian-plus/memory.md': content });
+      const store = new MemoryStore(adapter, { maxInjectionChars: 40 });
+
+      const result = await store.buildInjectionText();
+
+      expect(result).toBe('### User Preferences\n- First memory');
     });
   });
 
@@ -225,7 +264,7 @@ describe('MemoryStore', () => {
 
   describe('remove', () => {
     it('removes entries matching the search term', async () => {
-      const content = `# Claudian Memory
+      const content = `# ClaudianPlus Memory
 
 ## User Preferences
 - Prefers dark mode
@@ -234,7 +273,7 @@ describe('MemoryStore', () => {
 ## Project Context
 - Working on an Obsidian plugin
 `;
-      const adapter = createMockAdapter({ '.claudian/memory.md': content });
+      const adapter = createMockAdapter({ '.claudian-plus/memory.md': content });
       const store = new MemoryStore(adapter);
 
       const removedCount = await store.remove('dark mode');
@@ -246,7 +285,7 @@ describe('MemoryStore', () => {
     });
 
     it('removes multiple entries matching the search term', async () => {
-      const content = `# Claudian Memory
+      const content = `# ClaudianPlus Memory
 
 ## User Preferences
 - Prefers dark mode
@@ -255,7 +294,7 @@ describe('MemoryStore', () => {
 ## Project Context
 
 `;
-      const adapter = createMockAdapter({ '.claudian/memory.md': content });
+      const adapter = createMockAdapter({ '.claudian-plus/memory.md': content });
       const store = new MemoryStore(adapter);
 
       const removedCount = await store.remove('dark mode');
@@ -264,7 +303,7 @@ describe('MemoryStore', () => {
     });
 
     it('returns 0 when no entries match', async () => {
-      const content = `# Claudian Memory
+      const content = `# ClaudianPlus Memory
 
 ## User Preferences
 - Prefers dark mode
@@ -272,7 +311,7 @@ describe('MemoryStore', () => {
 ## Project Context
 
 `;
-      const adapter = createMockAdapter({ '.claudian/memory.md': content });
+      const adapter = createMockAdapter({ '.claudian-plus/memory.md': content });
       const store = new MemoryStore(adapter);
 
       const removedCount = await store.remove('light mode');
@@ -289,8 +328,23 @@ describe('MemoryStore', () => {
       expect(removedCount).toBe(0);
     });
 
+    it('does not remove everything for an empty search term', async () => {
+      const content = `# ClaudianPlus Memory
+
+## User Preferences
+- Keep this memory
+`;
+      const adapter = createMockAdapter({ '.claudian-plus/memory.md': content });
+      const store = new MemoryStore(adapter);
+
+      const removedCount = await store.remove('   ');
+
+      expect(removedCount).toBe(0);
+      await expect(store.load()).resolves.toHaveLength(1);
+    });
+
     it('is case-insensitive', async () => {
-      const content = `# Claudian Memory
+      const content = `# ClaudianPlus Memory
 
 ## User Preferences
 - Prefers DARK MODE
@@ -298,7 +352,7 @@ describe('MemoryStore', () => {
 ## Project Context
 
 `;
-      const adapter = createMockAdapter({ '.claudian/memory.md': content });
+      const adapter = createMockAdapter({ '.claudian-plus/memory.md': content });
       const store = new MemoryStore(adapter);
 
       const removedCount = await store.remove('dark mode');

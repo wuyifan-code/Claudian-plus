@@ -46,15 +46,15 @@ function createConversation(
 
 function getRenderedItems(containerEl: any): { title: string; isCurrent: boolean }[] {
   const dropdownEl = containerEl.children.find(
-    (c: any) => c.hasClass('claudian-resume-dropdown')
+    (c: any) => c.hasClass('claudian-plus-resume-dropdown')
   );
   if (!dropdownEl) return [];
-  const items = dropdownEl.querySelectorAll('.claudian-resume-item');
+  const items = dropdownEl.querySelectorAll('.claudian-plus-resume-item');
   return items.map((item: any) => {
     // Check direct children for content div, then find title inside
     let title = '';
     for (const child of item.children) {
-      const found = child.querySelector?.('.claudian-resume-item-title');
+      const found = child.querySelector?.('.claudian-plus-resume-item-title');
       if (found) {
         title = found.textContent ?? '';
         break;
@@ -92,7 +92,7 @@ describe('ResumeSessionDropdown', () => {
       );
 
       const dropdownEl = containerEl.children.find(
-        (c: any) => c.hasClass('claudian-resume-dropdown')
+        (c: any) => c.hasClass('claudian-plus-resume-dropdown')
       );
       expect(dropdownEl).toBeDefined();
       expect(dropdownEl.hasClass('visible')).toBe(true);
@@ -134,9 +134,9 @@ describe('ResumeSessionDropdown', () => {
       );
 
       const dropdownEl = containerEl.children.find(
-        (c: any) => c.hasClass('claudian-resume-dropdown')
+        (c: any) => c.hasClass('claudian-plus-resume-dropdown')
       );
-      const emptyEl = dropdownEl?.querySelector('.claudian-resume-empty');
+      const emptyEl = dropdownEl?.querySelector('.claudian-plus-resume-empty');
       expect(emptyEl).toBeDefined();
       expect(emptyEl?.textContent).toBe('No conversations');
 
@@ -162,7 +162,7 @@ describe('ResumeSessionDropdown', () => {
 
       // Hide it first
       const dropdownEl = containerEl.children.find(
-        (c: any) => c.hasClass('claudian-resume-dropdown')
+        (c: any) => c.hasClass('claudian-plus-resume-dropdown')
       );
       dropdownEl.removeClass('visible');
 
@@ -322,9 +322,9 @@ describe('ResumeSessionDropdown', () => {
       );
 
       const dropdownEl = containerEl.children.find(
-        (c: any) => c.hasClass('claudian-resume-dropdown')
+        (c: any) => c.hasClass('claudian-plus-resume-dropdown')
       );
-      const items = dropdownEl.querySelectorAll('.claudian-resume-item');
+      const items = dropdownEl.querySelectorAll('.claudian-plus-resume-item');
       // Find a non-current item (conv-2 is first, conv-1 is current)
       const nonCurrentItem = items.find((i: any) => !i.hasClass('current'));
       nonCurrentItem?.dispatchEvent('click');
@@ -340,9 +340,9 @@ describe('ResumeSessionDropdown', () => {
       );
 
       const dropdownEl = containerEl.children.find(
-        (c: any) => c.hasClass('claudian-resume-dropdown')
+        (c: any) => c.hasClass('claudian-plus-resume-dropdown')
       );
-      const items = dropdownEl.querySelectorAll('.claudian-resume-item');
+      const items = dropdownEl.querySelectorAll('.claudian-plus-resume-item');
       // conv-2 is first after sorting and is current
       const currentItem = items.find((i: any) => i.hasClass('current'));
       currentItem?.dispatchEvent('click');

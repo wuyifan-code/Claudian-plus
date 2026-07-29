@@ -434,7 +434,7 @@ describe('SelectionController', () => {
 
       expect(showSelectionHighlight).not.toHaveBeenCalled();
       expect(mockHighlights.set).toHaveBeenCalledWith(
-        'claudian-selection',
+        'claudian-plus-selection',
         expect.any(Object),
       );
     });
@@ -458,7 +458,7 @@ describe('SelectionController', () => {
       controller.showHighlight();
 
       expect(mockHighlights.set).toHaveBeenCalledWith(
-        'claudian-selection',
+        'claudian-plus-selection',
         expect.any(Object),
       );
     });
@@ -549,7 +549,7 @@ describe('SelectionController', () => {
       );
       jest.advanceTimersByTime(250);
 
-      expect(mockHighlights.delete).toHaveBeenCalledWith('claudian-selection');
+      expect(mockHighlights.delete).toHaveBeenCalledWith('claudian-plus-selection');
     });
 
     it('skips CSS highlight for disconnected DOM ranges', () => {
@@ -604,7 +604,7 @@ describe('SelectionController', () => {
       controller.showHighlight();
 
       expect(mockHighlights.set).toHaveBeenCalledWith(
-        'claudian-selection',
+        'claudian-plus-selection',
         { ranges: [secondRange] },
       );
     });

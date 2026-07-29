@@ -211,18 +211,18 @@ describe('CodexModelPicker', () => {
     renderCodexModelPicker(createElement() as any, context, { refreshModelCatalog } as any);
 
     const actionButton = findElement(element =>
-      element.classes.has('claudian-provider-model-picker-action')
+      element.classes.has('claudian-plus-provider-model-picker-action')
     );
     expect(actionButton.trigger('click')).toEqual([undefined]);
 
     const catalog = findElement(element =>
-      element.classes.has('claudian-provider-model-picker-catalog')
+      element.classes.has('claudian-plus-provider-model-picker-catalog')
     );
     catalog.open = true;
     expect(catalog.trigger('toggle')).toEqual([undefined]);
 
     const aliasInput = findElement(element =>
-      element.classes.has('claudian-provider-model-picker-selected-alias')
+      element.classes.has('claudian-plus-provider-model-picker-selected-alias')
     );
     expect(aliasInput.trigger('blur')).toEqual([undefined]);
 
@@ -231,7 +231,7 @@ describe('CodexModelPicker', () => {
     expect(checkbox.trigger('change')).toEqual([undefined]);
 
     const removeButton = findElement(element =>
-      element.classes.has('claudian-provider-model-picker-selected-remove')
+      element.classes.has('claudian-plus-provider-model-picker-selected-remove')
     );
     expect(removeButton.trigger('click')).toEqual([undefined]);
 
@@ -267,7 +267,7 @@ describe('CodexModelPicker', () => {
     renderCodexModelPicker(createElement() as any, context, {} as any);
 
     const aliasInput = findElement(element =>
-      element.classes.has('claudian-provider-model-picker-selected-alias')
+      element.classes.has('claudian-plus-provider-model-picker-selected-alias')
       && element.attrs['aria-label'] === 'Alias for GPT-5.5'
     );
     aliasInput.value = 'Primary';
@@ -293,7 +293,7 @@ describe('CodexModelPicker', () => {
       modelCatalogCoordinator: { ensureFresh },
     } as any);
 
-    findElement(element => element.classes.has('claudian-provider-model-picker-action'))
+    findElement(element => element.classes.has('claudian-plus-provider-model-picker-action'))
       .trigger('click');
     await flushPromises();
 
@@ -314,7 +314,7 @@ describe('CodexModelPicker', () => {
       modelCatalogCoordinator: { ensureFresh },
     } as any);
 
-    findElement(element => element.classes.has('claudian-provider-model-picker-action'))
+    findElement(element => element.classes.has('claudian-plus-provider-model-picker-action'))
       .trigger('click');
     await flushPromises();
 
@@ -358,7 +358,7 @@ describe('CodexModelPicker', () => {
     } as any);
 
     const catalog = findElement(element =>
-      element.classes.has('claudian-provider-model-picker-catalog')
+      element.classes.has('claudian-plus-provider-model-picker-catalog')
     );
     catalog.open = true;
     catalog.trigger('toggle');

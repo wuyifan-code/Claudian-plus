@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import type { Readable, Writable } from 'node:stream';
 
 import { getEnhancedPath } from '../../../utils/env';
+import { formatProcessStartError } from '../../../utils/processErrors';
 import {
   resolveWindowsCmdShimSpawnSpec,
   terminateSpawnedProcess,
@@ -74,8 +75,9 @@ export class PiSubprocess {
     });
 
     proc.on('error', (error) => {
-      this.closeError = error;
-      this.notifyClose(error);
+      const actionableError = formatProcessStartError(error, 'Pi', this.launchSpec.command);
+      this.closeError = actionableError;
+      this.notifyClose(actionableError);
     });
 
     proc.on('exit', (code, signal) => {
@@ -126,9 +128,13 @@ export class PiSubprocess {
         if (killTimer !== null) window.clearTimeout(killTimer);
         if (finalTimer !== null) window.clearTimeout(finalTimer);
         proc.off('exit', onClose);
+        proc.off('error', onClose);
       };
 
       proc.once('exit', onClose);
+      // A failed executable may emit only `error`; teardown must still finish
+      // instead of waiting through both kill timers.
+      proc.once('error', onClose);
       this.killProc(proc, 'SIGTERM');
     });
   }

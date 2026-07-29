@@ -35,13 +35,13 @@ function createMockCallbacks(overrides: Partial<SlashCommandDropdownCallbacks> =
 
 function getRenderedItems(containerEl: any): { name: string; description: string }[] {
   const dropdownEl = containerEl.children.find(
-    (c: any) => c.hasClass('claudian-slash-dropdown')
+    (c: any) => c.hasClass('claudian-plus-slash-dropdown')
   );
   if (!dropdownEl) return [];
-  const items = dropdownEl.querySelectorAll('.claudian-slash-item');
+  const items = dropdownEl.querySelectorAll('.claudian-plus-slash-item');
   return items.map((item: any) => {
-    const nameSpan = item.children.find((c: any) => c.hasClass('claudian-slash-name'));
-    const descDiv = item.children.find((c: any) => c.hasClass('claudian-slash-desc'));
+    const nameSpan = item.children.find((c: any) => c.hasClass('claudian-plus-slash-name'));
+    const descDiv = item.children.find((c: any) => c.hasClass('claudian-plus-slash-desc'));
     return {
       name: nameSpan?.textContent?.replace(/^\//, '') ?? '',
       description: descDiv?.textContent ?? '',
@@ -110,6 +110,29 @@ describe('SlashCommandDropdown', () => {
       );
       expect(dropdownWithHidden).toBeInstanceOf(SlashCommandDropdown);
       dropdownWithHidden.destroy();
+    });
+  });
+
+  describe('fixed positioning', () => {
+    it('uses the input owner window viewport in a pop-out view', () => {
+      const fixedInput = createMockInput();
+      fixedInput.ownerDocument = { defaultView: { innerHeight: 640 } };
+      fixedInput.getBoundingClientRect = jest.fn(() => ({ top: 200, left: 24, width: 180 }));
+      const fixedDropdown = new SlashCommandDropdown(
+        containerEl,
+        fixedInput,
+        callbacks,
+        { fixed: true },
+      );
+      const dropdownEl = createMockEl();
+      (fixedDropdown as any).dropdownEl = dropdownEl;
+
+      (fixedDropdown as any).positionFixed();
+
+      expect(dropdownEl.style['--claudian-plus-fixed-dropdown-bottom']).toBe('444px');
+      expect(dropdownEl.style['--claudian-plus-fixed-dropdown-left']).toBe('24px');
+      expect(dropdownEl.style['--claudian-plus-fixed-dropdown-width']).toBe('280px');
+      fixedDropdown.destroy();
     });
   });
 
@@ -434,6 +457,29 @@ describe('SlashCommandDropdown', () => {
     it('should remove input event listener', () => {
       dropdown.destroy();
       expect(inputEl.removeEventListener).toHaveBeenCalledWith('input', expect.any(Function));
+    });
+
+    it('does not recreate a menu when provider commands resolve after destruction', async () => {
+      let resolveEntries: (entries: ProviderCommandEntry[]) => void;
+      const entriesPromise = new Promise<ProviderCommandEntry[]>((resolve) => {
+        resolveEntries = resolve;
+      });
+      const delayedDropdown = new SlashCommandDropdown(
+        containerEl,
+        inputEl,
+        callbacks,
+        { providerConfig: CLAUDE_CONFIG, getProviderEntries: jest.fn(() => entriesPromise) },
+      );
+      inputEl.value = '/';
+      inputEl.selectionStart = 1;
+      delayedDropdown.handleInputChange();
+
+      delayedDropdown.destroy();
+      resolveEntries!([makeEntry('late-command')]);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(getRenderedCommandNames(containerEl)).toEqual([]);
     });
   });
 

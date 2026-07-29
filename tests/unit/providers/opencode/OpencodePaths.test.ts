@@ -13,11 +13,11 @@ describe('OpencodePaths', () => {
     expect(resolveOpencodeDataDir({
       HOME: '/home/tester',
       XDG_DATA_HOME: '/tmp/xdg-data',
-    } as NodeJS.ProcessEnv)).toBe('/tmp/xdg-data/opencode');
+    } as NodeJS.ProcessEnv)).toBe(path.join('/tmp/xdg-data', 'opencode'));
   });
 
   it('falls back to the existing resolved database when persisted metadata points at a missing path', () => {
-    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'claudian-opencode-paths-'));
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'claudian-plus-opencode-paths-'));
     const xdgDataHome = path.join(tmpRoot, 'xdg-data');
     const dbDir = path.join(xdgDataHome, 'opencode');
     const dbPath = path.join(dbDir, 'opencode.db');

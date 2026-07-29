@@ -104,11 +104,15 @@ export interface InputControllerDeps {
   getInputContainerEl: () => HTMLElement;
   generateId: () => string;
   resetInputHeight: () => void;
+  /** Notifies the live-preview composer that the draft was consumed (input cleared). */
+  onDraftConsumed?: () => void;
   getAuxiliaryModel?: () => string | null;
   getAgentService?: () => ChatRuntime | null;
   getSubagentManager: () => SubagentManager;
   /** Tab-level provider fallback for blank tabs (derived from draft model). */
   getTabProviderId?: () => ProviderId;
+  /** Rejects delayed UI actions after the owning tab starts teardown. */
+  isDisposed?: () => boolean;
   /** Returns true if ready. */
   ensureServiceInitialized?: () => Promise<boolean>;
   openConversation?: (conversationId: string) => Promise<void>;
@@ -261,7 +265,7 @@ export class InputController {
 
       // Then try implicit extraction (auto-detect important info) when auto-memory is enabled
       let implicitResult = { entries: [] as typeof explicitResult.entries };
-      if (plugin.settings.consciousnessAutoMemory) {
+      if (plugin.settings.consciousnessEnabled && plugin.settings.consciousnessAutoMemory) {
         implicitResult = plugin.memoryExtractor.extractImplicit(message, [
           ...existingEntries,
           ...explicitResult.entries,
@@ -314,6 +318,8 @@ export class InputController {
   }
 
   private async executeSendMessage(options?: SendMessageOptions): Promise<void> {
+    if (this.deps.isDisposed?.()) return;
+
     const {
       plugin,
       state,
@@ -347,6 +353,7 @@ export class InputController {
       if (shouldUseInput) {
         inputEl.value = '';
         this.deps.resetInputHeight();
+        this.deps.onDraftConsumed?.();
       }
       await this.executeBuiltInCommand(builtInCmd.command, builtInCmd.args);
       return;
@@ -360,13 +367,16 @@ export class InputController {
       const editorContext = selectionController.getContext();
       const browserContext = browserSelectionController?.getContext() ?? null;
       const canvasContext = canvasSelectionController.getContext();
-      const { displayContent, turnRequest } = this.buildTurnSubmission({
+      const submission = this.buildTurnSubmission({
         content,
         images,
         editorContextOverride: editorContext,
         browserContextOverride: browserContext,
         canvasContextOverride: canvasContext,
       });
+      const { displayContent, turnRequest } = this.shouldAutoRetrieveVaultContext(content)
+        ? await this.addVaultContext(submission, content)
+        : submission;
       state.queuedMessage = this.mergeQueuedMessages(
         state.queuedMessage,
         this.createQueuedMessage(displayContent, turnRequest),
@@ -375,6 +385,7 @@ export class InputController {
       if (shouldUseInput) {
         inputEl.value = '';
         this.deps.resetInputHeight();
+        this.deps.onDraftConsumed?.();
       }
       if (shouldUseInput) {
         imageContextManager?.clearImages();
@@ -386,6 +397,7 @@ export class InputController {
     if (shouldUseInput) {
       inputEl.value = '';
       this.deps.resetInputHeight();
+      this.deps.onDraftConsumed?.();
     }
     state.isStreaming = true;
     state.cancelRequested = false;
@@ -397,7 +409,8 @@ export class InputController {
     // Hide welcome message when sending first message
     const welcomeEl = this.deps.getWelcomeEl();
     if (welcomeEl) {
-      welcomeEl.addClass('claudian-hidden');
+      welcomeEl.addClass('claudian-plus-hidden');
+      renderer.pauseWelcomeAnimation?.();
     }
 
     fileContextManager?.startSession();
@@ -413,18 +426,24 @@ export class InputController {
       imageContextManager?.clearImages();
     }
 
-    const turnSubmission = options?.turnRequestOverride
-      ? {
+    let turnSubmission: { displayContent: string; turnRequest: ChatTurnRequest };
+    if (options?.turnRequestOverride) {
+      turnSubmission = {
         displayContent: content,
         turnRequest: cloneChatTurnRequest(options.turnRequestOverride),
-      }
-      : this.buildTurnSubmission({
+      };
+    } else {
+      const submission = this.buildTurnSubmission({
         content,
         images: imagesForMessage,
         editorContextOverride: options?.editorContextOverride,
         browserContextOverride: options?.browserContextOverride,
         canvasContextOverride: options?.canvasContextOverride,
       });
+      turnSubmission = this.shouldAutoRetrieveVaultContext(content)
+        ? await this.addVaultContext(submission, content)
+        : submission;
+    }
     const { displayContent, turnRequest } = turnSubmission;
     const messagesBeforeTurn = state.messages;
     const hadPendingConversationSave = state.hasPendingConversationSave;
@@ -474,7 +493,7 @@ export class InputController {
 
     streamController.showThinkingIndicator(
       isCompact ? 'Compacting...' : undefined,
-      isCompact ? 'claudian-thinking--compact' : undefined,
+      isCompact ? 'claudian-plus-thinking--compact' : undefined,
     );
     state.responseStartTime = performance.now();
 
@@ -575,11 +594,11 @@ export class InputController {
             this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
           }
           const notice = resolution === 'deleted'
-            ? 'The provider session no longer exists. Its Claudian record was removed; send again to start a new session.'
+            ? 'The provider session no longer exists. Its Claudian Plus record was removed; send again to start a new session.'
             : resolution === 'reset'
-              ? 'The provider session no longer exists. Claudian preserved the recoverable history; send again to rebuild the session.'
+              ? 'The provider session no longer exists. Claudian Plus preserved the recoverable history; send again to rebuild the session.'
               : resolution === 'preserved'
-                ? 'The provider session no longer exists. Claudian preserved its record because the remaining history could not be verified.'
+              ? 'The provider session no longer exists. Claudian Plus preserved its record because the remaining history could not be verified.'
                 : 'The provider session no longer exists. Send again to start a new session.';
           new Notice(notice);
           wasInvalidated = true;
@@ -596,8 +615,18 @@ export class InputController {
         );
       }
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      await streamController.appendText(`\n\n**Error:** ${errorMsg}`);
+      // Cancelling a provider stream frequently rejects its async iterator instead of
+      // yielding a final chunk. Treat that as an interruption, not a user-visible
+      // error. A tab/conversation switch can do the same after bumping the generation;
+      // never let an obsolete turn append into the newly rendered conversation.
+      if (state.streamGeneration !== streamGeneration || this.deps.isDisposed?.()) {
+        wasInvalidated = true;
+      } else if (state.cancelRequested) {
+        wasInterrupted = true;
+      } else {
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        await streamController.appendText(`\n\n**Error:** ${errorMsg}`);
+      }
     } finally {
       const finalAssistantMsg = this.activeStreamingAssistantMessage ?? assistantMsg;
       const turnMetadata = agentService.consumeTurnMetadata();
@@ -636,10 +665,10 @@ export class InputController {
             finalAssistantMsg.durationFlavorWord = flavorWord;
             // Add footer to live message in DOM
             if (state.currentContentEl) {
-              const footerEl = state.currentContentEl.createDiv({ cls: 'claudian-response-footer' });
+              const footerEl = state.currentContentEl.createDiv({ cls: 'claudian-plus-response-footer' });
               footerEl.createSpan({
                 text: `* ${flavorWord} for ${formatDurationMmSs(durationSeconds)}`,
-                cls: 'claudian-baked-duration',
+                cls: 'claudian-plus-baked-duration',
               });
             }
           }
@@ -759,16 +788,16 @@ export class InputController {
     if (visibleQueuedMessage) {
       const isPendingSteerOnly = !state.queuedMessage && !!this.pendingSteerMessage;
       indicatorEl.createSpan({
-        cls: 'claudian-queue-indicator-text',
+        cls: 'claudian-plus-queue-indicator-text',
         text: `${isPendingSteerOnly ? '⌙ Steering: ' : '⌙ Queued: '}${this.getQueuedMessageDisplay(visibleQueuedMessage)}`,
       });
 
       if (state.queuedMessage) {
-        const actionsEl = indicatorEl.createDiv({ cls: 'claudian-queue-indicator-actions' });
+        const actionsEl = indicatorEl.createDiv({ cls: 'claudian-plus-queue-indicator-actions' });
 
         if (this.canSteerQueuedMessage()) {
           const steerButton = actionsEl.createEl('button', {
-            cls: 'claudian-queue-indicator-action',
+            cls: 'claudian-plus-queue-indicator-action',
             text: this.steerInFlight ? 'Steering...' : 'Steer Now',
           });
           steerButton.setAttribute('type', 'button');
@@ -803,13 +832,13 @@ export class InputController {
         });
       }
 
-      indicatorEl.addClass('claudian-visible-flex');
-      indicatorEl.removeClass('claudian-hidden');
+      indicatorEl.addClass('claudian-plus-visible-flex');
+      indicatorEl.removeClass('claudian-plus-hidden');
       return;
     }
 
-    indicatorEl.removeClass('claudian-visible-flex');
-    indicatorEl.addClass('claudian-hidden');
+    indicatorEl.removeClass('claudian-plus-visible-flex');
+    indicatorEl.addClass('claudian-plus-hidden');
   }
 
   clearQueuedMessage(): void {
@@ -887,8 +916,10 @@ export class InputController {
     state.queuedMessage = null;
     this.updateQueueIndicator();
 
-    window.setTimeout(
+    const ownerWindow = this.deps.getInputEl().ownerDocument?.defaultView ?? window;
+    ownerWindow.setTimeout(
       () => {
+        if (this.deps.isDisposed?.()) return;
         void this.sendMessage({
           content: queuedMessage.content,
           images: queuedMessage.images,
@@ -938,7 +969,6 @@ export class InputController {
       ? fileContextManager.transformContextMentions(options.content)
       : options.content;
     const enabledMcpServers = mcpServerSelector?.getEnabledServers();
-
     return {
       displayContent: options.content,
       turnRequest: {
@@ -956,6 +986,38 @@ export class InputController {
           : undefined,
       },
     };
+  }
+
+  private shouldAutoRetrieveVaultContext(content: string): boolean {
+    return !/^\/compact(\s|$)/i.test(content)
+      && this.deps.plugin.vaultRetrievalService !== undefined
+      && (this.deps.plugin.vaultRetrievalService.isReady?.() ?? true)
+      && (this.deps.plugin.settings.vaultAutoContextEnabled ?? true);
+  }
+
+  private async addVaultContext(
+    submission: { displayContent: string; turnRequest: ChatTurnRequest },
+    content: string,
+  ): Promise<{ displayContent: string; turnRequest: ChatTurnRequest }> {
+    const retrievalService = this.deps.plugin.vaultRetrievalService;
+    if (!retrievalService) return submission;
+
+    try {
+      const vaultContext = await retrievalService.buildChatContext(content);
+      return vaultContext
+        ? {
+          ...submission,
+          turnRequest: {
+            ...submission.turnRequest,
+            vaultContext,
+          },
+        }
+        : submission;
+    } catch {
+      // Retrieval is an enhancement; a transient vault/index failure must not
+      // prevent the user's message from reaching the selected provider.
+      return submission;
+    }
   }
 
   private getQueuedMessageDisplay(message: QueuedMessage | null): string {
@@ -982,7 +1044,7 @@ export class InputController {
     label: string,
   ): HTMLElement {
     const button = parentEl.createEl('button', {
-      cls: 'claudian-queue-indicator-icon-action',
+      cls: 'claudian-plus-queue-indicator-icon-action',
       attr: {
         'aria-label': label,
         title: label,
@@ -1167,7 +1229,7 @@ export class InputController {
   private activateStreamingAssistantMessage(message: ChatMessage): void {
     const { state, renderer } = this.deps;
     const msgEl = renderer.addMessage(message);
-    const contentEl = msgEl.querySelector<HTMLElement>('.claudian-message-content');
+    const contentEl = msgEl.querySelector<HTMLElement>('.claudian-plus-message-content');
 
     if (!contentEl) {
       return;
@@ -1328,7 +1390,8 @@ export class InputController {
     this.deps.getSubagentManager().resetStreamingState();
 
     if (messagesBeforeTurn.length === 0) {
-      this.deps.getWelcomeEl()?.removeClass('claudian-hidden');
+      this.deps.getWelcomeEl()?.removeClass('claudian-plus-hidden');
+      renderer.resumeWelcomeAnimation?.();
     }
   }
 
@@ -1438,11 +1501,14 @@ export class InputController {
     if (!(plugin.settings.enableAutoScroll ?? true)) return;
     if (!state.autoScrollEnabled) return;
 
-    window.requestAnimationFrame(() => {
+    const messagesEl = this.deps.getMessagesEl();
+    const ownerWindow = messagesEl.ownerDocument?.defaultView ?? window;
+    ownerWindow.requestAnimationFrame(() => {
+      if (this.deps.isDisposed?.()) return;
       if (!(this.deps.plugin.settings.enableAutoScroll ?? true)) return;
       if (!this.deps.state.autoScrollEnabled) return;
+      if (messagesEl.isConnected === false) return;
 
-      const messagesEl = this.deps.getMessagesEl();
       messagesEl.scrollTop = messagesEl.scrollHeight;
     });
   }
@@ -1558,7 +1624,7 @@ export class InputController {
 
   async handleApprovalRequest(
     toolName: string,
-    _input: Record<string, unknown>,
+    toolInput: Record<string, unknown>,
     description: string,
     approvalOptions?: ApprovalCallbackOptions,
   ): Promise<ApprovalDecision> {
@@ -1569,26 +1635,37 @@ export class InputController {
     }
 
     // Build header element, then detach — InlineAskUserQuestion will re-attach it
-    const headerEl = parentEl.createDiv({ cls: 'claudian-ask-approval-info' });
+    const headerEl = parentEl.createDiv({ cls: 'claudian-plus-ask-approval-info' });
     headerEl.remove();
 
-    const toolEl = headerEl.createDiv({ cls: 'claudian-ask-approval-tool' });
-    const iconEl = toolEl.createSpan({ cls: 'claudian-ask-approval-icon' });
+    const toolEl = headerEl.createDiv({ cls: 'claudian-plus-ask-approval-tool' });
+    const iconEl = toolEl.createSpan({ cls: 'claudian-plus-ask-approval-icon' });
     iconEl.setAttribute('aria-hidden', 'true');
     setToolIcon(iconEl, toolName);
-    toolEl.createSpan({ text: toolName, cls: 'claudian-ask-approval-tool-name' });
+    toolEl.createSpan({ text: toolName, cls: 'claudian-plus-ask-approval-tool-name' });
 
     if (approvalOptions?.decisionReason) {
-      headerEl.createDiv({ text: approvalOptions.decisionReason, cls: 'claudian-ask-approval-reason' });
+      headerEl.createDiv({ text: approvalOptions.decisionReason, cls: 'claudian-plus-ask-approval-reason' });
     }
     if (approvalOptions?.blockedPath) {
-      headerEl.createDiv({ text: approvalOptions.blockedPath, cls: 'claudian-ask-approval-blocked-path' });
+      headerEl.createDiv({ text: approvalOptions.blockedPath, cls: 'claudian-plus-ask-approval-blocked-path' });
     }
     if (approvalOptions?.agentID) {
-      headerEl.createDiv({ text: `Agent: ${approvalOptions.agentID}`, cls: 'claudian-ask-approval-agent' });
+      headerEl.createDiv({ text: `Agent: ${approvalOptions.agentID}`, cls: 'claudian-plus-ask-approval-agent' });
     }
 
-    headerEl.createDiv({ text: description, cls: 'claudian-ask-approval-desc' });
+    const isCanvasWrite = toolName.toLowerCase().endsWith('canvas_write');
+    if (isCanvasWrite) {
+      const previewEl = headerEl.createDiv({ cls: 'claudian-plus-canvas-write-preview' });
+      const previewHeader = previewEl.createDiv({ cls: 'claudian-plus-canvas-write-preview-header' });
+      previewHeader.createSpan({ text: 'Canvas changes', cls: 'claudian-plus-canvas-write-preview-title' });
+      if (typeof toolInput.path === 'string' && toolInput.path.trim()) {
+        previewHeader.createSpan({ text: toolInput.path, cls: 'claudian-plus-canvas-write-preview-path' });
+      }
+      previewEl.createEl('pre', { text: description, cls: 'claudian-plus-canvas-write-preview-diff' });
+    } else {
+      headerEl.createDiv({ text: description, cls: 'claudian-plus-ask-approval-desc' });
+    }
 
     const decisionOptions = approvalOptions?.decisionOptions ?? DEFAULT_APPROVAL_DECISION_OPTIONS;
     const optionDecisionMap = new Map<string, ApprovalDecision>();
@@ -1808,21 +1885,21 @@ export class InputController {
 
   private hideInputContainer(inputContainerEl: HTMLElement): void {
     this.inputContainerHideDepth++;
-    inputContainerEl.addClass('claudian-hidden');
+    inputContainerEl.addClass('claudian-plus-hidden');
   }
 
   private restoreInputContainer(inputContainerEl: HTMLElement): void {
     if (this.inputContainerHideDepth <= 0) return;
     this.inputContainerHideDepth--;
     if (this.inputContainerHideDepth === 0) {
-      inputContainerEl.removeClass('claudian-hidden');
+      inputContainerEl.removeClass('claudian-plus-hidden');
     }
   }
 
   private resetInputContainerVisibility(): void {
     if (this.inputContainerHideDepth > 0) {
       this.inputContainerHideDepth = 0;
-      this.deps.getInputContainerEl().removeClass('claudian-hidden');
+      this.deps.getInputContainerEl().removeClass('claudian-plus-hidden');
     }
   }
 

@@ -270,7 +270,7 @@ interface TestWorkspaceRuntime {
 }
 
 function createTestWorkspaceRuntime(): TestWorkspaceRuntime {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'claudian-chat-runtime-'));
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'claudian-plus-chat-runtime-'));
   const runtimeRoot = path.join(
     home,
     '.cache',
@@ -651,12 +651,23 @@ describe('CodexChatRuntime', () => {
       try {
         await collectChunks(runtime.query(createTurn('create a workbook')));
 
-        expect(findCall('thread/start')[1].dynamicTools).toEqual([{
-          namespace: 'codex_app',
-          name: 'load_workspace_dependencies',
-          description: expect.any(String),
-          inputSchema: expect.any(Object),
-        }]);
+        expect(findCall('thread/start')[1].dynamicTools).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            namespace: 'codex_app',
+            name: 'load_workspace_dependencies',
+            description: expect.any(String),
+            inputSchema: expect.any(Object),
+          }),
+          ...[
+            'canvas_read',
+            'canvas_write',
+            'properties_get',
+            'properties_set',
+            'links_get',
+            'graph_neighbors',
+            'dataview_query',
+          ].map(name => expect.objectContaining({ namespace: 'obsidian', name })),
+        ]));
 
         const response = await emitServerRequest('item/tool/call', 'request-1', {
           threadId: 'thread-dynamic-tool',
@@ -690,12 +701,21 @@ describe('CodexChatRuntime', () => {
     it('advertises the workspace dependency tool and returns a blocker for an incomplete runtime', async () => {
       await collectChunks(runtime.query(createTurn('hi')));
 
-      expect(findCall('thread/start')[1].dynamicTools).toEqual([
+      expect(findCall('thread/start')[1].dynamicTools).toEqual(expect.arrayContaining([
         expect.objectContaining({
           namespace: 'codex_app',
           name: 'load_workspace_dependencies',
         }),
-      ]);
+        ...[
+          'canvas_read',
+          'canvas_write',
+          'properties_get',
+          'properties_set',
+          'links_get',
+          'graph_neighbors',
+          'dataview_query',
+        ].map(name => expect.objectContaining({ namespace: 'obsidian', name })),
+      ]));
       expect(serverRequestHandlers.has('item/tool/call')).toBe(true);
 
       const response = await emitServerRequest('item/tool/call', 'request-missing-runtime', {

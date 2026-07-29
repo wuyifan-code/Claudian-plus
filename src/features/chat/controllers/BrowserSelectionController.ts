@@ -16,7 +16,9 @@ export class BrowserSelectionController {
   private onVisibilityChange: (() => void) | null;
   private storedSelection: BrowserSelectionContext | null = null;
   private pollInterval: number | null = null;
-  private pollInFlight = false;
+  private pollWindow: Window | null = null;
+  private pollInFlightGeneration: number | null = null;
+  private pollGeneration = 0;
 
   constructor(
     app: App,
@@ -31,23 +33,30 @@ export class BrowserSelectionController {
   }
 
   start(): void {
-    if (this.pollInterval) return;
-    this.pollInterval = window.setInterval(() => {
-      void this.poll();
+    if (this.pollInterval !== null) return;
+    this.pollGeneration += 1;
+    const generation = this.pollGeneration;
+    const ownerWindow = this.inputEl.ownerDocument.defaultView ?? window;
+    this.pollWindow = ownerWindow;
+    this.pollInterval = ownerWindow.setInterval(() => {
+      void this.poll(generation);
     }, BROWSER_SELECTION_POLL_INTERVAL);
   }
 
   stop(): void {
-    if (this.pollInterval) {
-      window.clearInterval(this.pollInterval);
+    this.pollGeneration += 1;
+    this.pollInFlightGeneration = null;
+    if (this.pollInterval !== null) {
+      (this.pollWindow ?? window).clearInterval(this.pollInterval);
       this.pollInterval = null;
     }
+    this.pollWindow = null;
     this.clear();
   }
 
-  private async poll(): Promise<void> {
-    if (this.pollInFlight) return;
-    this.pollInFlight = true;
+  private async poll(generation: number): Promise<void> {
+    if (generation !== this.pollGeneration || this.pollInFlightGeneration === generation) return;
+    this.pollInFlightGeneration = generation;
     try {
       const browserView = this.getActiveBrowserView();
       if (!browserView) {
@@ -56,6 +65,9 @@ export class BrowserSelectionController {
       }
 
       const selectedText = await this.extractSelectedText(browserView.containerEl);
+      if (generation !== this.pollGeneration) {
+        return;
+      }
       if (selectedText) {
         const nextContext = this.buildContext(browserView.view, browserView.viewType, browserView.containerEl, selectedText);
         if (!this.isSameSelection(nextContext, this.storedSelection)) {
@@ -68,7 +80,9 @@ export class BrowserSelectionController {
     } catch {
       // Ignore transient polling errors to keep selection tracking resilient.
     } finally {
-      this.pollInFlight = false;
+      if (this.pollInFlightGeneration === generation) {
+        this.pollInFlightGeneration = null;
+      }
     }
   }
 
@@ -126,13 +140,17 @@ export class BrowserSelectionController {
     const activeEl = doc.activeElement;
     if (!activeEl || !scopeEl.contains(activeEl)) return null;
 
-    if (activeEl.instanceOf(HTMLTextAreaElement) || activeEl.instanceOf(HTMLInputElement)) {
-      const { value, selectionStart, selectionEnd } = activeEl;
-      if (typeof selectionStart !== 'number' || typeof selectionEnd !== 'number' || selectionStart === selectionEnd) return null;
-      return value.slice(selectionStart, selectionEnd).trim() || null;
-    }
+    // `instanceof HTMLInputElement` uses the main renderer's constructor and
+    // fails for inputs hosted in an Obsidian pop-out window. Tag names retain
+    // the same semantics across document realms.
+    const tagName = activeEl.tagName.toLowerCase();
+    if (tagName !== 'textarea' && tagName !== 'input') return null;
 
-    return null;
+    const input = activeEl as HTMLTextAreaElement | HTMLInputElement;
+    const { value, selectionStart, selectionEnd } = input;
+    if (typeof selectionStart !== 'number' || typeof selectionEnd !== 'number' || selectionStart === selectionEnd) return null;
+    return value.slice(selectionStart, selectionEnd).trim() || null;
+
   }
 
   private extractSelectionFromIframes(containerEl: HTMLElement): string | null {

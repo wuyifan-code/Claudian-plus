@@ -14,6 +14,14 @@ async function flushMicrotasks(): Promise<void> {
   await Promise.resolve();
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((innerResolve) => {
+    resolve = innerResolve;
+  });
+  return { promise, resolve };
+}
+
 describe('BrowserSelectionController', () => {
   let controller: BrowserSelectionController;
   let app: any;
@@ -156,5 +164,71 @@ describe('BrowserSelectionController', () => {
 
     expect(extractSpy).toHaveBeenCalled();
     expect(controller.hasSelection()).toBe(false);
+  });
+
+  it('ignores a late async selection result after tracking stops', async () => {
+    const deferred = createDeferred<string | null>();
+    jest.spyOn(controller as any, 'extractSelectedText').mockReturnValue(deferred.promise);
+
+    controller.start();
+    jest.advanceTimersByTime(250);
+    controller.stop();
+    deferred.resolve('late web selection');
+    await flushMicrotasks();
+
+    expect(controller.getContext()).toBeNull();
+    expect(contextTray.setItems).not.toHaveBeenCalled();
+  });
+
+  it('resumes polling after a tab is reactivated while an old webview read is pending', async () => {
+    const deferred = createDeferred<string | null>();
+    const extractSpy = jest.spyOn(controller as any, 'extractSelectedText')
+      .mockReturnValueOnce(deferred.promise)
+      .mockResolvedValueOnce('new tab selection');
+
+    controller.start();
+    jest.advanceTimersByTime(250);
+    controller.stop();
+    controller.start();
+    jest.advanceTimersByTime(250);
+    await flushMicrotasks();
+
+    expect(extractSpy).toHaveBeenCalledTimes(2);
+    expect(controller.getContext()?.selectedText).toBe('new tab selection');
+
+    deferred.resolve('stale tab selection');
+    await flushMicrotasks();
+    expect(controller.getContext()?.selectedText).toBe('new tab selection');
+  });
+
+  it('uses the composer window to own its polling interval', () => {
+    const popupWindow = {
+      setInterval: jest.fn().mockReturnValue(42),
+      clearInterval: jest.fn(),
+    } as unknown as Window;
+    Object.defineProperty(inputEl, 'ownerDocument', {
+      value: { defaultView: popupWindow },
+      configurable: true,
+    });
+    controller = new BrowserSelectionController(app, contextTray as any, inputEl);
+
+    controller.start();
+    controller.stop();
+
+    expect(popupWindow.setInterval).toHaveBeenCalledWith(expect.any(Function), 250);
+    expect(popupWindow.clearInterval).toHaveBeenCalledWith(42);
+  });
+
+  it('reads a browser input selection without relying on the main-window constructor', () => {
+    const popupInput = {
+      tagName: 'TEXTAREA',
+      value: 'popup selection',
+      selectionStart: 0,
+      selectionEnd: 5,
+    };
+    const popupDocument = { activeElement: popupInput } as unknown as Document;
+    const scope = { contains: jest.fn().mockReturnValue(true) } as unknown as HTMLElement;
+
+    expect((controller as any).extractSelectionFromActiveInput(popupDocument, scope)).toBe('popup');
   });
 });

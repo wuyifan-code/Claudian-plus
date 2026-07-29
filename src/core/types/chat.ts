@@ -9,7 +9,7 @@ export interface ForkSource {
 }
 
 /** View type identifier for Obsidian. */
-export const VIEW_TYPE_CLAUDIAN = 'claudian-plus-view';
+export const VIEW_TYPE_CLAUDIAN_PLUS = 'claudian-plus-view';
 
 /** Supported image media types for attachments. */
 export type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
@@ -68,6 +68,8 @@ export interface Conversation {
   title: string;
   createdAt: number;
   updatedAt: number;
+  /** Cold-start transcript index restored from session metadata. */
+  searchText?: string;
   /** Timestamp when the last agent response completed. */
   lastResponseAt?: number;
   sessionId: string | null;
@@ -100,6 +102,8 @@ export interface ConversationMeta {
   lastResponseAt?: number;
   messageCount: number;
   preview: string;
+  /** Bounded searchable transcript used by the history search without hydrating the session. */
+  searchText?: string;
   /** Status of AI title generation. */
   titleGenerationStatus?: 'pending' | 'success' | 'failed';
 }
@@ -115,6 +119,8 @@ export interface SessionMetadata {
   titleGenerationStatus?: 'pending' | 'success' | 'failed';
   createdAt: number;
   updatedAt: number;
+  /** Bounded searchable transcript used by the history search without hydrating the session. */
+  searchText?: string;
   lastResponseAt?: number;
   /** Session ID used for provider resume (may be cleared when invalidated). */
   sessionId?: string | null;

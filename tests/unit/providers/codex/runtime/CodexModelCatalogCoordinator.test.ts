@@ -1,7 +1,10 @@
 import type { ProviderHost } from '@/core/providers/ProviderHost';
 import type { CodexDiscoveredModel } from '@/providers/codex/models';
 import { CodexModelCatalogCoordinator } from '@/providers/codex/runtime/CodexModelCatalogCoordinator';
-import { buildCodexCatalogFingerprint } from '@/providers/codex/runtime/CodexModelCatalogFingerprint';
+import {
+  buildCodexCatalogFingerprint,
+  computeCodexCatalogFingerprint,
+} from '@/providers/codex/runtime/CodexModelCatalogFingerprint';
 import type {
   CodexModelDiscoveryResult,
   CodexModelDiscoveryServiceLike,
@@ -276,6 +279,7 @@ describe('CodexModelCatalogCoordinator', () => {
 
   it('persists the fingerprint captured before model discovery starts', async () => {
     const host = createFakeHost();
+    const expectedFingerprint = await computeCodexCatalogFingerprint(host);
     let signalDiscoveryStarted!: () => void;
     let resolveDiscovery!: (result: CodexModelDiscoveryResult) => void;
     const discoveryStarted = new Promise<void>((resolve) => {
@@ -302,7 +306,7 @@ describe('CodexModelCatalogCoordinator', () => {
     resolveDiscovery({ kind: 'completed', models: [makeModel('gpt-4o')] });
     await refresh;
 
-    expect(getCodexProviderSettings(host.settings).catalogFingerprint).toBe(FAKE_FINGERPRINT);
+    expect(getCodexProviderSettings(host.settings).catalogFingerprint).toBe(expectedFingerprint);
     await expect(coordinator.getStatus()).resolves.toBe('stale');
   });
 

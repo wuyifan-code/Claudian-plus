@@ -125,6 +125,27 @@ describe('VaultFileCache', () => {
       expect(mockApp.vault.getFiles).toHaveBeenCalledTimes(1);
     });
 
+    it('coalesces repeated initialization requests before the background refresh runs', () => {
+      const cache = new VaultFileCache(mockApp);
+
+      cache.initializeInBackground();
+      cache.initializeInBackground();
+      cache.initializeInBackground();
+      jest.runAllTimers();
+
+      expect(mockApp.vault.getFiles).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not refresh a second time when a synchronous read finishes first', () => {
+      const cache = new VaultFileCache(mockApp);
+
+      cache.initializeInBackground();
+      cache.getFiles();
+      jest.runAllTimers();
+
+      expect(mockApp.vault.getFiles).toHaveBeenCalledTimes(1);
+    });
+
     it('should handle errors gracefully', () => {
       mockApp.vault.getFiles = jest.fn(() => {
         throw new Error('Vault error');

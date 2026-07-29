@@ -55,6 +55,17 @@ function isTabManagerViewHost(value: unknown): value is TabManagerViewHost {
 type CreateTabOptions = {
   activate?: boolean;
   draftModel?: string;
+  /** Build only the lightweight tab shell; mount controls on first activation. */
+  deferInitialization?: boolean;
+};
+
+type SwitchTabOptions = {
+  /**
+   * Used only while restoring a workspace. The tab shell is activated and painted
+   * immediately; the potentially expensive provider history read happens after
+   * the view has opened.
+   */
+  deferHydration?: boolean;
 };
 
 type OpenConversationOptions = {
@@ -207,29 +218,9 @@ export class TabManager implements TabManagerInterface {
         },
       });
 
-      // Initialize UI components with provider catalog
-      initializeTabUI(tab, this.plugin, {
-        getProviderCatalogConfig: () => this.getProviderCatalogConfig(tab),
-        onProviderChanged: (providerId) => {
-          this.callbacks.onTabProviderChanged?.(tab.id, providerId);
-          void this.ensureTabWorkspaceServices(tab, providerId, 'provider-selection')
-            .catch(() => {
-              // Provider selection remains usable even when optional workspace services fail.
-            });
-        },
-      });
-
-      initializeTabControllers(
-        tab,
-        this.plugin,
-        this.view,
-        (forkContext) => this.handleForkRequest(forkContext),
-        (conversationId) => this.openConversation(conversationId),
-        () => this.getProviderCatalogConfig(tab),
-      );
-
-      // Wire input event handlers
-      wireTabInputEvents(tab, this.plugin);
+      if (!options.deferInitialization) {
+        this.initializeTab(tab);
+      }
 
       this.tabs.set(tab.id, tab);
       this.pendingTabCreations -= 1;
@@ -252,10 +243,19 @@ export class TabManager implements TabManagerInterface {
    * Switches to a different tab.
    * @param tabId The tab to switch to.
    */
-  async switchToTab(tabId: TabId): Promise<void> {
+  async switchToTab(tabId: TabId, options: SwitchTabOptions = {}): Promise<void> {
     const tab = this.tabs.get(tabId);
-    if (!tab) {
+    if (!tab || !this.isTabAlive(tab)) {
       return;
+    }
+
+    if (!tab.uiInitialized) {
+      try {
+        this.initializeTab(tab);
+      } catch (error) {
+        this.renderTabHydrationState(tab, error);
+        return;
+      }
     }
 
     // Guard against concurrent tab switches
@@ -278,16 +278,30 @@ export class TabManager implements TabManagerInterface {
 
       // Activate new tab
       this.activeTabId = tabId;
-      activateTab(tab);
+      activateTab(tab, this.plugin);
       this.callbacks.onActiveTabChanged?.(previousTabId, tabId);
 
       const providerId = tab.service?.providerId ?? tab.providerId;
-      const needsHydration = !!tab.conversationId && tab.hydrationState !== 'ready';
+      const needsHydration = !!tab.conversationId
+        && (tab.hydrationState === 'idle' || tab.hydrationState === 'failed');
+      const hydrationInProgress = !!tab.conversationId && tab.hydrationState === 'loading';
       if (needsHydration) {
         tab.hydrationState = 'loading';
         this.renderTabHydrationState(tab);
+        if (options.deferHydration) {
+          this.startDeferredTabHydration(tab, providerId);
+          this.callbacks.onTabSwitched?.(previousTabId, tabId);
+          return;
+        }
         await this.waitForTabPaint(tab);
         if (!this.isTabAlive(tab)) return;
+      }
+
+      // A restored tab can still be loading after the view has opened. Do not
+      // start a second history read when the user revisits it in that window.
+      if (hydrationInProgress) {
+        this.callbacks.onTabSwitched?.(previousTabId, tabId);
+        return;
       }
 
       try {
@@ -297,17 +311,8 @@ export class TabManager implements TabManagerInterface {
 
         // Load conversation if not already loaded
         if (needsHydration && tab.conversationId) {
-          const span = this.profiledFirstHydration ? null : StartupProfiler.start('active-hydration');
-          this.profiledFirstHydration = true;
-          try {
-            await tab.controllers.conversationController?.switchTo(tab.conversationId);
-          } finally {
-            if (span) {
-              StartupProfiler.finish(span);
-            }
-          }
-          if (!this.isTabAlive(tab)) return;
-          tab.hydrationState = 'ready';
+          await this.hydrateTabConversation(tab, providerId, true);
+          if (!this.isTabAlive(tab) || tab.hydrationState !== 'ready') return;
         } else if (
           tab.conversationId
           && tab.state.messages.length > 0
@@ -359,7 +364,7 @@ export class TabManager implements TabManagerInterface {
    */
   async closeTab(tabId: TabId, force = false): Promise<boolean> {
     const tab = this.tabs.get(tabId);
-    if (!tab) {
+    if (!tab || !this.isTabAlive(tab)) {
       return false;
     }
 
@@ -433,25 +438,77 @@ export class TabManager implements TabManagerInterface {
     });
   }
 
+  /**
+   * Keeps workspace restoration responsive by delaying the native history read
+   * until the loading shell can be painted. Normal user-initiated tab switches
+   * still await the same work in switchToTab().
+   */
+  private startDeferredTabHydration(tab: TabData, providerId: ProviderId): void {
+    void (async () => {
+      try {
+        await this.waitForTabPaint(tab);
+        if (!this.isTabAlive(tab) || tab.hydrationState !== 'loading') return;
+        // The user may switch tabs while the restored shell waits for its
+        // first paint. Do not spend disk and DOM work hydrating a tab that is
+        // already hidden; switching back will start the normal hydration path.
+        if (this.activeTabId !== tab.id) {
+          tab.hydrationState = 'idle';
+          return;
+        }
+
+        await this.hydrateTabConversation(tab, providerId);
+      } catch (error) {
+        if (!this.isTabAlive(tab)) return;
+        tab.hydrationState = 'failed';
+        this.renderTabHydrationState(tab, error);
+      }
+    })();
+  }
+
+  private async hydrateTabConversation(
+    tab: TabData,
+    providerId: ProviderId,
+    workspaceReady = false,
+  ): Promise<void> {
+    if (!workspaceReady && !await this.ensureTabWorkspaceServices(tab, providerId, 'tab-activation')) {
+      return;
+    }
+    if (!this.isTabAlive(tab) || !tab.conversationId) return;
+
+    const conversationId = tab.conversationId;
+    const span = this.profiledFirstHydration ? null : StartupProfiler.start('active-hydration');
+    this.profiledFirstHydration = true;
+    try {
+      await tab.controllers.conversationController?.switchTo(conversationId);
+    } finally {
+      if (span) {
+        StartupProfiler.finish(span);
+      }
+    }
+
+    if (!this.isTabAlive(tab) || tab.conversationId !== conversationId) return;
+    tab.hydrationState = 'ready';
+  }
+
   private renderTabHydrationState(tab: TabData, error?: unknown): void {
     const messagesEl = tab.dom.messagesEl;
     messagesEl.empty();
 
-    const statusEl = messagesEl.createDiv({ cls: 'claudian-tab-hydration' });
+    const statusEl = messagesEl.createDiv({ cls: 'claudian-plus-tab-hydration' });
     if (!error) {
       statusEl.createDiv({
-        cls: 'claudian-tab-hydration-loading',
+        cls: 'claudian-plus-tab-hydration-loading',
         text: 'Loading conversation…',
       });
       return;
     }
 
     statusEl.createDiv({
-      cls: 'claudian-tab-hydration-error',
+      cls: 'claudian-plus-tab-hydration-error',
       text: error instanceof Error ? error.message : 'Failed to load conversation',
     });
     const retryButton = statusEl.createEl('button', {
-      cls: 'mod-cta claudian-tab-hydration-retry',
+      cls: 'mod-cta claudian-plus-tab-hydration-retry',
       text: 'Retry',
     });
     retryButton.addEventListener('click', () => {
@@ -727,6 +784,9 @@ export class TabManager implements TabManagerInterface {
     const openTabs: PersistedTabState[] = [];
 
     for (const tab of this.tabs.values()) {
+      // A close can await disk persistence. Do not let a concurrent workspace
+      // save preserve that already-closing shell and resurrect it on restart.
+      if (!this.isTabAlive(tab)) continue;
       openTabs.push({
         ...(tab.lifecycleState === 'blank' && tab.draftModel
           ? { draftModel: tab.draftModel }
@@ -738,12 +798,21 @@ export class TabManager implements TabManagerInterface {
 
     return {
       openTabs,
-      activeTabId: this.activeTabId,
+      activeTabId: this.activeTabId && this.tabs.get(this.activeTabId)?.lifecycleState !== 'closing'
+        ? this.activeTabId
+        : (openTabs[0]?.tabId ?? null),
     };
   }
 
   /** Restores state from persisted data. */
   async restoreState(state: PersistedTabManagerState): Promise<void> {
+    // Native history reads can take noticeably longer than creating the tab
+    // shells. Start only the final active conversation in the background so
+    // its disk work overlaps with UI construction. ConversationRepository
+    // coalesces this with the later switchTo() request, while every inactive
+    // restored tab stays completely cold.
+    this.prefetchRestoredActiveConversation(state);
+
     this.isRestoringState = true;
     try {
       // Create tabs from persisted state with error handling.
@@ -751,6 +820,7 @@ export class TabManager implements TabManagerInterface {
         try {
           await this.createTab(tabState.conversationId, tabState.tabId, {
             activate: false,
+            deferInitialization: true,
             ...(typeof tabState.draftModel === 'string' ? { draftModel: tabState.draftModel } : {}),
           });
         } catch {
@@ -772,7 +842,7 @@ export class TabManager implements TabManagerInterface {
     // restore does not warm the first restored tab by accident.
     if (targetTabId) {
       try {
-        await this.switchToTab(targetTabId);
+        await this.switchToTab(targetTabId, { deferHydration: true });
       } catch {
         // Ignore switch errors
       }
@@ -782,6 +852,48 @@ export class TabManager implements TabManagerInterface {
     if (this.tabs.size === 0) {
       await this.createTab();
     }
+  }
+
+  private prefetchRestoredActiveConversation(state: PersistedTabManagerState): void {
+    const targetState = state.openTabs.find(tabState => tabState.tabId === state.activeTabId)
+      ?? state.openTabs[0];
+    const conversationId = targetState?.conversationId;
+    if (!conversationId) return;
+
+    void StartupProfiler.runAsync(
+      'active-history-prefetch',
+      () => this.plugin.getConversationById(conversationId),
+    ).catch(() => {
+      // Hydration keeps its existing error UI and retry path. A failed
+      // prefetch must never make workspace restoration fail.
+    });
+  }
+
+  private initializeTab(tab: TabData): void {
+    if (tab.uiInitialized) return;
+
+    initializeTabUI(tab, this.plugin, {
+      getProviderCatalogConfig: () => this.getProviderCatalogConfig(tab),
+      onProviderChanged: (providerId) => {
+        this.callbacks.onTabProviderChanged?.(tab.id, providerId);
+        void this.ensureTabWorkspaceServices(tab, providerId, 'provider-selection')
+          .catch(() => {
+            // Provider selection remains usable when optional workspace services fail.
+          });
+      },
+    });
+
+    initializeTabControllers(
+      tab,
+      this.plugin,
+      this.view,
+      (forkContext) => this.handleForkRequest(forkContext),
+      (conversationId) => this.openConversation(conversationId),
+      () => this.getProviderCatalogConfig(tab),
+    );
+
+    wireTabInputEvents(tab, this.plugin);
+    tab.uiInitialized = true;
   }
 
   // ============================================
@@ -813,6 +925,10 @@ export class TabManager implements TabManagerInterface {
     const catalog = ProviderWorkspaceRegistry.getCommandCatalog(providerId);
     const runtimeCommandLoader = ProviderWorkspaceRegistry.getRuntimeCommandLoader(providerId);
     const context = await this.buildProviderWarmupContext(targetTab, providerId);
+    if (!this.isProviderWarmupContextCurrent(targetTab, providerId, context)
+      || ProviderWorkspaceRegistry.getCommandCatalog(providerId) !== catalog) {
+      return [];
+    }
     if (
       targetTab.lifecycleState === 'blank'
       && runtimeCommandLoader
@@ -843,6 +959,10 @@ export class TabManager implements TabManagerInterface {
       sdkCommands = await this.ensureProviderCommandRuntime(targetTab, providerId, context);
     }
 
+    if (!this.isProviderWarmupContextCurrent(targetTab, providerId, context)
+      || ProviderWorkspaceRegistry.getCommandCatalog(providerId) !== catalog) {
+      return [];
+    }
     catalog?.setRuntimeCommands(sdkCommands);
 
     return sdkCommands;
@@ -1039,6 +1159,28 @@ export class TabManager implements TabManagerInterface {
     };
   }
 
+  private isProviderWarmupContextCurrent(
+    tab: TabData,
+    providerId: ProviderId,
+    context: ProviderWarmupContext,
+  ): boolean {
+    const currentRuntime = tab.service?.providerId === providerId ? tab.service : null;
+    return this.isTabAlive(tab)
+      && getTabProviderId(tab, this.plugin) === providerId
+      && tab.conversationId === context.tab.conversationId
+      && tab.draftModel === context.tab.draftModel
+      && tab.lifecycleState === context.tab.lifecycleState
+      && currentRuntime === context.runtime;
+  }
+
+  private isProviderCommandContextCurrent(
+    tab: TabData,
+    providerId: ProviderId,
+    context: ProviderCommandContext,
+  ): boolean {
+    return this.isProviderWarmupContextCurrent(tab, providerId, context);
+  }
+
   private async warmProviderCommandRuntime(
     tab: TabData,
     providerId: ProviderId,
@@ -1047,6 +1189,9 @@ export class TabManager implements TabManagerInterface {
     const catalog = ProviderWorkspaceRegistry.getCommandCatalog(providerId);
     const loader = ProviderWorkspaceRegistry.getRuntimeCommandLoader(providerId);
     if (!catalog || !loader) {
+      return [];
+    }
+    if (!this.isProviderCommandContextCurrent(tab, providerId, context)) {
       return [];
     }
     const commands = await loader.loadCommands({
@@ -1059,6 +1204,13 @@ export class TabManager implements TabManagerInterface {
       runtime: context.runtime,
     });
 
+    // Command loading can outlive its tab. Never publish a late result to the
+    // shared provider catalog, or an already-closed tab can overwrite the
+    // command list shown by the active tab.
+    if (!this.isProviderCommandContextCurrent(tab, providerId, context)
+      || ProviderWorkspaceRegistry.getCommandCatalog(providerId) !== catalog) {
+      return [];
+    }
     if (!context.runtime || !context.runtime.isReady()) {
       this.providerCommandCache.set(tab.id, {
         key: context.cacheKey,

@@ -56,7 +56,14 @@ export function terminateSpawnedProcess(
     || !spawnSpec?.killProcessTree
     || typeof proc.pid !== 'number'
   ) {
-    return proc.kill(signal);
+    try {
+      return proc.kill(signal);
+    } catch {
+      // A process can exit between the alive check and shutdown. Treat an
+      // already-dead child as successfully terminated instead of rejecting
+      // the whole provider teardown with EINVAL/ESRCH.
+      return false;
+    }
   }
 
   try {
@@ -69,7 +76,11 @@ export function terminateSpawnedProcess(
     }
     return true;
   } catch {
-    return proc.kill(signal);
+    try {
+      return proc.kill(signal);
+    } catch {
+      return false;
+    }
   }
 }
 

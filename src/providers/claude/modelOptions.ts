@@ -7,6 +7,7 @@ import {
 import { formatCustomModelLabel } from './modelLabels';
 import { encodeClaudeModelSelectionId, toClaudeRuntimeModelId } from './modelSelection';
 import { isClaudeModelTier } from './modelTiers';
+import { encodeClaudeServiceModelSelection } from './services/ClaudeThirdPartyServices';
 import { getClaudeProviderSettings } from './settings';
 import { DEFAULT_CLAUDE_MODELS, normalizeLegacyClaudeModelAlias } from './types/models';
 
@@ -57,11 +58,23 @@ export function getClaudeModelOptions(settings: Record<string, unknown>): Claude
     getRuntimeEnvironmentVariables(settings, 'claude'),
     customModelAliases,
   );
-  if (customModels.length > 0) {
-    return customModels.map((model) => ({
-      ...model,
-      value: encodeClaudeModelSelectionId(model.value),
+  const serviceOptions: ClaudeModelOption[] = getClaudeProviderSettings(settings).thirdPartyServices
+    .filter(service => service.enabled)
+    .map(service => ({
+      value: encodeClaudeServiceModelSelection(service.id, service.defaultModel),
+      label: service.defaultModel,
+      description: service.name,
+      group: service.name,
     }));
+
+  if (customModels.length > 0) {
+    return [
+      ...customModels.map((model) => ({
+        ...model,
+        value: encodeClaudeModelSelectionId(model.value),
+      })),
+      ...serviceOptions,
+    ];
   }
 
   const claudeSettings = getClaudeProviderSettings(settings);
@@ -85,7 +98,7 @@ export function getClaudeModelOptions(settings: Record<string, unknown>): Claude
     });
   }
 
-  return models;
+  return [...models, ...serviceOptions];
 }
 
 export function findClaudeModelOption(

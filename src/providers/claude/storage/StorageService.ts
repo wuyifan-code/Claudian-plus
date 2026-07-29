@@ -1,9 +1,9 @@
 import type { App } from 'obsidian';
 import { Notice } from 'obsidian';
 
-import { ClaudianSettingsStorage, type StoredClaudianSettings } from '../../../app/settings/ClaudianSettingsStorage';
+import { ClaudianPlusSettingsStorage, type StoredClaudianPlusSettings } from '../../../app/settings/ClaudianPlusSettingsStorage';
 import { SESSIONS_PATH, SessionStorage } from '../../../core/bootstrap/SessionStorage';
-import { CLAUDIAN_STORAGE_PATH } from '../../../core/bootstrap/StoragePaths';
+import { CLAUDIAN_PLUS_STORAGE_PATH } from '../../../core/bootstrap/StoragePaths';
 import { normalizeTabManagerState } from '../../../core/bootstrap/tabManagerState';
 import type { AppTabManagerState } from '../../../core/providers/types';
 import { VaultFileAdapter } from '../../../core/storage/VaultFileAdapter';
@@ -29,7 +29,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export interface CombinedSettings {
   cc: CCSettings;
-  claudian: StoredClaudianSettings;
+  claudianPlus: StoredClaudianPlusSettings;
 }
 
 interface StorageServicePlugin {
@@ -40,7 +40,7 @@ interface StorageServicePlugin {
 
 export class StorageService {
   readonly ccSettings: CCSettingsStorage;
-  readonly claudianSettings: ClaudianSettingsStorage;
+  readonly claudianPlusSettings: ClaudianPlusSettingsStorage;
   readonly commands: SlashCommandStorage;
   readonly skills: SkillStorage;
   readonly sessions: SessionStorage;
@@ -56,7 +56,7 @@ export class StorageService {
     this.app = plugin.app;
     this.adapter = adapter ?? new VaultFileAdapter(this.app);
     this.ccSettings = new CCSettingsStorage(this.adapter);
-    this.claudianSettings = new ClaudianSettingsStorage(this.adapter);
+    this.claudianPlusSettings = new ClaudianPlusSettingsStorage(this.adapter);
     this.commands = new SlashCommandStorage(this.adapter);
     this.skills = new SkillStorage(this.adapter);
     this.sessions = new SessionStorage(this.adapter);
@@ -68,14 +68,14 @@ export class StorageService {
     await this.ensureDirectories();
 
     const cc = await this.ccSettings.load();
-    const claudian = await this.claudianSettings.load();
+    const claudianPlus = await this.claudianPlusSettings.load();
 
-    return { cc, claudian };
+    return { cc, claudianPlus };
   }
 
   async ensureDirectories(): Promise<void> {
     await this.adapter.ensureFolder(CLAUDE_PATH);
-    await this.adapter.ensureFolder(CLAUDIAN_STORAGE_PATH);
+    await this.adapter.ensureFolder(CLAUDIAN_PLUS_STORAGE_PATH);
     await this.adapter.ensureFolder(COMMANDS_PATH);
     await this.adapter.ensureFolder(SKILLS_PATH);
     await this.adapter.ensureFolder(SESSIONS_PATH);
@@ -112,16 +112,16 @@ export class StorageService {
     return this.ccSettings.removeRule(createPermissionRule(rule));
   }
 
-  async updateClaudianSettings(updates: Partial<StoredClaudianSettings>): Promise<void> {
-    return this.claudianSettings.update(updates);
+  async updateClaudianPlusSettings(updates: Partial<StoredClaudianPlusSettings>): Promise<void> {
+    return this.claudianPlusSettings.update(updates);
   }
 
-  async saveClaudianSettings(settings: StoredClaudianSettings): Promise<void> {
-    return this.claudianSettings.save(settings);
+  async saveClaudianPlusSettings(settings: StoredClaudianPlusSettings): Promise<void> {
+    return this.claudianPlusSettings.save(settings);
   }
 
-  async loadClaudianSettings(): Promise<StoredClaudianSettings> {
-    return this.claudianSettings.load();
+  async loadClaudianPlusSettings(): Promise<StoredClaudianPlusSettings> {
+    return this.claudianPlusSettings.load();
   }
 
   async getTabManagerState(): Promise<TabManagerPersistedState | null> {

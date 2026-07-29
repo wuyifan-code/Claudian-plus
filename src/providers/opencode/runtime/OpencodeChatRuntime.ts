@@ -37,8 +37,8 @@ import type {
   StreamChunk,
   ToolCallInfo,
 } from '../../../core/types';
-import { getEnhancedPath } from '../../../utils/env';
-import { getVaultPath } from '../../../utils/path';
+import { findNodeExecutable, getEnhancedPath } from '../../../utils/env';
+import { getVaultPath, isPathWithinDirectory } from '../../../utils/path';
 import {
   AcpClientConnection,
   AcpJsonRpcTransport,
@@ -343,12 +343,24 @@ export class OpencodeChatRuntime implements ChatRuntime {
       resolvedCliPath,
       this.currentDatabasePath,
     );
+    const nodeExecutable = findNodeExecutable(getEnhancedPath(runtimeEnv.PATH, resolvedCliPath)) ?? undefined;
+    const obsidianBridge = nodeExecutable && this.plugin.ensureObsidianToolBridge
+      ? await this.plugin.ensureObsidianToolBridge().catch(() => undefined)
+      : undefined;
+    if (obsidianBridge) {
+      runtimeEnv.CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_URL = obsidianBridge.url;
+      runtimeEnv.CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_TOKEN = obsidianBridge.token;
+    }
     const promptSettings = this.getSystemPromptSettings(cwd);
-    const memoryAppendix = await this.plugin.getMemoryInjectionText();
-    const consciousnessAppendix = await this.plugin.getConsciousnessInjectionText();
+    const [memoryAppendix, consciousnessAppendix] = await Promise.all([
+      this.plugin.getMemoryInjectionText(),
+      this.plugin.getConsciousnessInjectionText(),
+    ]);
     const combinedAppendix = [memoryAppendix, consciousnessAppendix].filter(Boolean).join('\n\n') || undefined;
     const artifacts = await prepareOpencodeLaunchArtifacts({
       runtimeEnv,
+      nodeExecutable,
+      obsidianBridge,
       settings: promptSettings,
       workspaceRoot: cwd,
       memoryAppendix: combinedAppendix,
@@ -1583,14 +1595,16 @@ export class OpencodeChatRuntime implements ChatRuntime {
   }
 
   private resolveSessionPath(sessionId: string, rawPath: string): string {
-    if (path.isAbsolute(rawPath)) {
-      return rawPath;
-    }
-
     const cwd = this.sessionCwds.get(sessionId)
       ?? getVaultPath(this.plugin.app)
       ?? process.cwd();
-    return path.resolve(cwd, rawPath);
+    const resolvedPath = path.isAbsolute(rawPath)
+      ? path.resolve(rawPath)
+      : path.resolve(cwd, rawPath);
+    if (!isPathWithinDirectory(resolvedPath, cwd, cwd)) {
+      throw new Error('OpenCode file access is limited to the current workspace.');
+    }
+    return resolvedPath;
   }
 
   private formatRuntimeError(error: unknown): string {

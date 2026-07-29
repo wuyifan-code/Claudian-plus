@@ -16,6 +16,8 @@ export class InlinePlanApproval {
   private feedbackInput!: HTMLInputElement;
   private isInputFocused = false;
   private boundKeyDown: (e: KeyboardEvent) => void;
+  private pendingFocusFrame: number | null = null;
+  private focusFrameWindow: Window | null = null;
 
   constructor(
     containerEl: HTMLElement,
@@ -27,18 +29,18 @@ export class InlinePlanApproval {
   }
 
   render(): void {
-    this.rootEl = this.containerEl.createDiv({ cls: 'claudian-plan-approval-inline' });
+    this.rootEl = this.containerEl.createDiv({ cls: 'claudian-plus-plan-approval-inline' });
 
-    this.rootEl.createDiv({ cls: 'claudian-plan-inline-title', text: 'Plan complete' });
+    this.rootEl.createDiv({ cls: 'claudian-plus-plan-inline-title', text: 'Plan complete' });
 
-    const actionsEl = this.rootEl.createDiv({ cls: 'claudian-ask-list' });
+    const actionsEl = this.rootEl.createDiv({ cls: 'claudian-plus-ask-list' });
 
     // 1. Implement
-    const implementRow = actionsEl.createDiv({ cls: 'claudian-ask-item' });
+    const implementRow = actionsEl.createDiv({ cls: 'claudian-plus-ask-item' });
     implementRow.addClass('is-focused');
-    implementRow.createSpan({ text: '\u203A', cls: 'claudian-ask-cursor' });
-    implementRow.createSpan({ text: '1. ', cls: 'claudian-ask-item-num' });
-    implementRow.createSpan({ text: 'Implement', cls: 'claudian-ask-item-label' });
+    implementRow.createSpan({ text: '\u203A', cls: 'claudian-plus-ask-cursor' });
+    implementRow.createSpan({ text: '1. ', cls: 'claudian-plus-ask-item-num' });
+    implementRow.createSpan({ text: 'Implement', cls: 'claudian-plus-ask-item-label' });
     implementRow.addEventListener('click', () => {
       this.focusedIndex = 0;
       this.updateFocus();
@@ -47,12 +49,12 @@ export class InlinePlanApproval {
     this.items.push(implementRow);
 
     // 2. Revise (with feedback input)
-    const reviseRow = actionsEl.createDiv({ cls: 'claudian-ask-item claudian-ask-custom-item' });
-    reviseRow.createSpan({ text: '\u00A0', cls: 'claudian-ask-cursor' });
-    reviseRow.createSpan({ text: '2. ', cls: 'claudian-ask-item-num' });
+    const reviseRow = actionsEl.createDiv({ cls: 'claudian-plus-ask-item claudian-plus-ask-custom-item' });
+    reviseRow.createSpan({ text: '\u00A0', cls: 'claudian-plus-ask-cursor' });
+    reviseRow.createSpan({ text: '2. ', cls: 'claudian-plus-ask-item-num' });
     this.feedbackInput = reviseRow.createEl('input', {
       type: 'text',
-      cls: 'claudian-ask-custom-text',
+      cls: 'claudian-plus-ask-custom-text',
       placeholder: 'Enter feedback to revise plan...',
     });
     this.feedbackInput.addEventListener('focus', () => { this.isInputFocused = true; });
@@ -64,10 +66,10 @@ export class InlinePlanApproval {
     this.items.push(reviseRow);
 
     // 3. Cancel
-    const cancelRow = actionsEl.createDiv({ cls: 'claudian-ask-item' });
-    cancelRow.createSpan({ text: '\u00A0', cls: 'claudian-ask-cursor' });
-    cancelRow.createSpan({ text: '3. ', cls: 'claudian-ask-item-num' });
-    cancelRow.createSpan({ text: 'Cancel', cls: 'claudian-ask-item-label' });
+    const cancelRow = actionsEl.createDiv({ cls: 'claudian-plus-ask-item' });
+    cancelRow.createSpan({ text: '\u00A0', cls: 'claudian-plus-ask-cursor' });
+    cancelRow.createSpan({ text: '3. ', cls: 'claudian-plus-ask-item-num' });
+    cancelRow.createSpan({ text: 'Cancel', cls: 'claudian-plus-ask-item-label' });
     cancelRow.addEventListener('click', () => {
       this.focusedIndex = 2;
       this.updateFocus();
@@ -75,12 +77,17 @@ export class InlinePlanApproval {
     });
     this.items.push(cancelRow);
 
-    this.rootEl.createDiv({ text: HINTS_TEXT, cls: 'claudian-ask-hints' });
+    this.rootEl.createDiv({ text: HINTS_TEXT, cls: 'claudian-plus-ask-hints' });
 
     this.rootEl.setAttribute('tabindex', '0');
     this.rootEl.addEventListener('keydown', this.boundKeyDown);
 
-    window.requestAnimationFrame(() => {
+    const ownerWindow = this.rootEl.ownerDocument.defaultView ?? window;
+    this.focusFrameWindow = ownerWindow;
+    this.pendingFocusFrame = ownerWindow.requestAnimationFrame(() => {
+      this.pendingFocusFrame = null;
+      this.focusFrameWindow = null;
+      if (this.resolved || this.rootEl?.isConnected === false) return;
       this.rootEl.focus();
       this.rootEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     });
@@ -146,14 +153,14 @@ export class InlinePlanApproval {
   private updateFocus(): void {
     for (let i = 0; i < this.items.length; i++) {
       const item = this.items[i];
-      const cursor = item.querySelector('.claudian-ask-cursor');
+      const cursor = item.querySelector('.claudian-plus-ask-cursor');
       if (i === this.focusedIndex) {
         item.addClass('is-focused');
         if (cursor) cursor.textContent = '\u203A';
         item.scrollIntoView({ block: 'nearest' });
 
-        if (item.hasClass('claudian-ask-custom-item')) {
-          const input = item.querySelector('.claudian-ask-custom-text') as HTMLInputElement;
+        if (item.hasClass('claudian-plus-ask-custom-item')) {
+          const input = item.querySelector('.claudian-plus-ask-custom-text') as HTMLInputElement;
           if (input) {
             input.focus();
             this.isInputFocused = true;
@@ -163,8 +170,8 @@ export class InlinePlanApproval {
         item.removeClass('is-focused');
         if (cursor) cursor.textContent = '\u00A0';
 
-        if (item.hasClass('claudian-ask-custom-item') && this.isInputFocused) {
-          const input = item.querySelector('.claudian-ask-custom-text') as HTMLInputElement;
+        if (item.hasClass('claudian-plus-ask-custom-item') && this.isInputFocused) {
+          const input = item.querySelector('.claudian-plus-ask-custom-text') as HTMLInputElement;
           if (input) {
             input.blur();
             this.isInputFocused = false;
@@ -177,9 +184,18 @@ export class InlinePlanApproval {
   private handleResolve(decision: PlanApprovalDecision | null): void {
     if (!this.resolved) {
       this.resolved = true;
+      this.cancelPendingFocus();
       this.rootEl?.removeEventListener('keydown', this.boundKeyDown);
       this.rootEl?.remove();
       this.resolveCallback(decision);
     }
+  }
+
+  private cancelPendingFocus(): void {
+    if (this.pendingFocusFrame !== null) {
+      this.focusFrameWindow?.cancelAnimationFrame(this.pendingFocusFrame);
+    }
+    this.pendingFocusFrame = null;
+    this.focusFrameWindow = null;
   }
 }

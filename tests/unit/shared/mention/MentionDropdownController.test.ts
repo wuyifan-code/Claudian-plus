@@ -130,6 +130,30 @@ describe('MentionDropdownController', () => {
     });
   });
 
+  describe('fixed positioning', () => {
+    it('uses the input owner window viewport in a pop-out view', () => {
+      const fixedInput = createMockInput();
+      fixedInput.ownerDocument = { defaultView: { innerHeight: 640 } };
+      fixedInput.getBoundingClientRect = jest.fn(() => ({ top: 200, left: 24, width: 180 }));
+      const fixedController = new MentionDropdownController(
+        containerEl,
+        fixedInput,
+        callbacks,
+        { fixed: true },
+      );
+      const dropdownEl = createMockEl();
+      const dropdownInstance = getLatestDropdownInstance();
+      dropdownInstance.getElement.mockReturnValue(dropdownEl);
+
+      (fixedController as any).positionFixed();
+
+      expect(dropdownEl.style['--claudian-plus-fixed-dropdown-bottom']).toBe('444px');
+      expect(dropdownEl.style['--claudian-plus-fixed-dropdown-left']).toBe('24px');
+      expect(dropdownEl.style['--claudian-plus-fixed-dropdown-width']).toBe('280px');
+      fixedController.destroy();
+    });
+  });
+
   describe('setAgentService', () => {
     it('sets the agent service', () => {
       const agentService = createMockAgentService([
@@ -516,6 +540,20 @@ describe('MentionDropdownController', () => {
     it('can be called without error', () => {
       expect(() => controller.preScanExternalContexts()).not.toThrow();
     });
+
+    it('cancels the deferred filesystem scan when the dropdown is destroyed', () => {
+      callbacks = createMockCallbacks({
+        getExternalContexts: jest.fn().mockReturnValue(['/external/context']),
+      });
+      controller = new MentionDropdownController(containerEl, inputEl, callbacks);
+      const { externalContextScanner } = jest.requireMock('@/utils/externalContextScanner');
+
+      controller.preScanExternalContexts();
+      controller.destroy();
+      jest.runOnlyPendingTimers();
+
+      expect(externalContextScanner.scanPaths).not.toHaveBeenCalled();
+    });
   });
 
   describe('updateMcpMentionsFromText', () => {
@@ -778,7 +816,7 @@ describe('MentionDropdownController', () => {
       const itemEl = createMockEl();
       renderOptions.renderItem(folderItem, itemEl);
 
-      const nameEl = itemEl.querySelector('.claudian-mention-name-folder');
+      const nameEl = itemEl.querySelector('.claudian-plus-mention-name-folder');
       expect(nameEl?.textContent).toBe('@src/');
 
       localController.destroy();

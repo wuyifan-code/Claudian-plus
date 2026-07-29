@@ -160,4 +160,26 @@ describe('InlineEditSession', () => {
       'Inline edit was not applied because the source document or selection changed.',
     );
   });
+
+  it('cancels an active generation without closing the inline editor so it can be retried', () => {
+    const { editorView, service, session } = createSession();
+    const input = Object.assign(createMockEl('input'), { disabled: true, focus: jest.fn() });
+    const spinner = createMockEl();
+    const cancelButton = createMockEl('button');
+    Object.assign(session as any, {
+      inputEl: input,
+      spinnerEl: spinner,
+      cancelButtonEl: cancelButton,
+      containerEl: createMockEl(),
+    });
+
+    (session as any).cancelGeneration();
+
+    expect(service.cancel).toHaveBeenCalledTimes(1);
+    expect(input.disabled).toBe(false);
+    expect(input.placeholder).toContain('cancelled');
+    expect(input.focus).toHaveBeenCalled();
+    expect((session as any).settled).toBe(false);
+    expect(editorView.dispatch).toHaveBeenCalled();
+  });
 });

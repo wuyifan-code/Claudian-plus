@@ -7,8 +7,18 @@
 
 import type { App } from 'obsidian';
 
+function normalizeMutationPath(path: string): string {
+  return path.replace(/\/+$/, '');
+}
+
+function pathsOverlap(left: string, right: string): boolean {
+  return left === right
+    || left.startsWith(`${right}/`)
+    || right.startsWith(`${left}/`);
+}
+
 export class VaultFileAdapter {
-  private writeQueue: Promise<void> = Promise.resolve();
+  private mutationQueues = new Map<string, Promise<void>>();
   private folderCreationPromises = new Map<string, Promise<void>>();
 
   constructor(private app: App) {}
@@ -22,40 +32,52 @@ export class VaultFileAdapter {
   }
 
   async write(path: string, content: string): Promise<void> {
-    await this.ensureParentFolder(path);
-    await this.app.vault.adapter.write(path, content);
+    await this.enqueueMutation([path], async () => {
+      await this.ensureParentFolder(path);
+      await this.app.vault.adapter.write(path, content);
+    });
   }
 
   async append(path: string, content: string): Promise<void> {
-    await this.ensureParentFolder(path);
-    this.writeQueue = this.writeQueue.then(async () => {
+    await this.enqueueMutation([path], async () => {
+      await this.ensureParentFolder(path);
       if (await this.exists(path)) {
         const existing = await this.read(path);
         await this.app.vault.adapter.write(path, existing + content);
       } else {
         await this.app.vault.adapter.write(path, content);
       }
-    }).catch(() => {
-      // prevent queue from getting stuck
     });
-    await this.writeQueue;
   }
 
   async delete(path: string): Promise<void> {
-    if (await this.exists(path)) {
-      await this.app.vault.adapter.remove(path);
-    }
+    await this.enqueueMutation([path], async () => {
+      if (await this.exists(path)) {
+        await this.app.vault.adapter.remove(path);
+      }
+    });
   }
 
   /** Fails silently if non-empty or missing. */
   async deleteFolder(path: string): Promise<void> {
-    try {
-      if (await this.exists(path)) {
-        await this.app.vault.adapter.rmdir(path, false);
+    await this.enqueueMutation([path], async () => {
+      try {
+        if (await this.exists(path)) {
+          await this.app.vault.adapter.rmdir(path, false);
+        }
+      } catch {
+        // Non-critical: directory may not be empty
       }
-    } catch {
-      // Non-critical: directory may not be empty
-    }
+    });
+  }
+
+  /** Recursively removes a folder and all of its contents. */
+  async removeFolderRecursive(path: string): Promise<void> {
+    await this.enqueueMutation([path], async () => {
+      if (await this.exists(path)) {
+        await this.app.vault.adapter.rmdir(path, true);
+      }
+    });
   }
 
   async listFiles(folder: string): Promise<string[]> {
@@ -97,12 +119,18 @@ export class VaultFileAdapter {
   private async ensureParentFolder(filePath: string): Promise<void> {
     const folder = filePath.substring(0, filePath.lastIndexOf('/'));
     if (folder && !(await this.exists(folder))) {
-      await this.ensureFolder(folder);
+      // The caller already holds the child-file mutation slot. Acquiring the
+      // parent folder slot here would wait on that same child slot and deadlock.
+      await this.ensureFolderUnchecked(folder);
     }
   }
 
   /** Ensure a folder exists, creating it and parent folders if needed. */
   async ensureFolder(path: string): Promise<void> {
+    await this.enqueueMutation([path], () => this.ensureFolderUnchecked(path));
+  }
+
+  private async ensureFolderUnchecked(path: string): Promise<void> {
     const parts = path.split('/').filter(Boolean);
     let current = '';
     for (const part of parts) {
@@ -146,7 +174,45 @@ export class VaultFileAdapter {
 
   /** Rename/move a file. */
   async rename(oldPath: string, newPath: string): Promise<void> {
-    await this.app.vault.adapter.rename(oldPath, newPath);
+    await this.enqueueMutation(
+      [oldPath, newPath],
+      () => this.app.vault.adapter.rename(oldPath, newPath),
+    );
+  }
+
+  /**
+   * Serializes overlapping vault mutations. A metadata save started before a
+   * delete of that file (or its parent folder) must finish first, otherwise a
+   * slow write can recreate a directory that was already removed. Unrelated
+   * files keep making progress in parallel so one slow memory write does not
+   * delay a conversation save.
+   */
+  private enqueueMutation(
+    paths: readonly string[],
+    operation: () => Promise<void>,
+  ): Promise<void> {
+    const keys = [...new Set(paths.map(normalizeMutationPath).filter(Boolean))].sort();
+    const priorTails = new Set<Promise<void>>();
+    for (const [queuedPath, tail] of this.mutationQueues) {
+      if (keys.some(path => pathsOverlap(path, queuedPath))) {
+        priorTails.add(tail);
+      }
+    }
+    const queued = Promise.all(priorTails).then(operation);
+    // Keep later mutations available after a transient storage failure while
+    // preserving the error for the caller that initiated the failed action.
+    const tail = queued.catch(() => undefined);
+    for (const path of keys) {
+      this.mutationQueues.set(path, tail);
+    }
+    void tail.finally(() => {
+      for (const path of keys) {
+        if (this.mutationQueues.get(path) === tail) {
+          this.mutationQueues.delete(path);
+        }
+      }
+    }).catch(() => undefined);
+    return queued;
   }
 
   async stat(path: string): Promise<{ mtime: number; size: number } | null> {

@@ -43,6 +43,12 @@ export function createCustomSpawnFunction(
       windowsHide: true,
       ...(resolvedSpawnSpec.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
     });
+    // Node emits ENOENT/EACCES asynchronously when the executable cannot be
+    // started. The Claude SDK normally attaches its own listener, but during
+    // SDK loading or teardown there can be a short window where it has not
+    // done so yet. Keep the event observable to the SDK while preventing an
+    // unhandled process error from taking down the Obsidian renderer.
+    child.on('error', () => undefined);
     installTreeAwareKill(child, resolvedSpawnSpec);
 
     if (signal) {

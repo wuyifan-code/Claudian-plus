@@ -71,11 +71,11 @@ export class PiCommandCatalog implements ProviderCommandCatalog {
   }
 
   async saveVaultEntry(_entry: ProviderCommandEntry): Promise<void> {
-    throw new Error('Pi runtime commands are not editable from Claudian.');
+    throw new Error('Pi runtime commands are not editable from Claudian Plus.');
   }
 
   async deleteVaultEntry(_entry: ProviderCommandEntry): Promise<void> {
-    throw new Error('Pi runtime commands are not deletable from Claudian.');
+    throw new Error('Pi runtime commands are not deletable from Claudian Plus.');
   }
 
   getDropdownConfig(): ProviderCommandDropdownConfig {

@@ -3,21 +3,22 @@ import { Modal, Notice, setIcon } from 'obsidian';
 
 import type { McpTestResult, McpTool } from '../../core/mcp/McpTester';
 import { isNotifiedMutationError } from '../../core/storage/NotifiedMutationError';
+import { localeText } from '../../i18n/i18n';
 
 function formatToggleError(error: unknown): string {
-  if (!(error instanceof Error)) return 'Failed to update tool setting';
+  if (!(error instanceof Error)) return localeText('更新工具设置失败', 'Failed to update tool setting');
 
   const msg = error.message.toLowerCase();
   if (msg.includes('permission') || msg.includes('eacces')) {
-    return 'Permission denied. Check .claude/ folder permissions.';
+    return localeText('权限被拒绝。请检查 .claude/ 文件夹权限。', 'Permission denied. Check .claude/ folder permissions.');
   }
   if (msg.includes('enospc') || msg.includes('disk full') || msg.includes('no space')) {
-    return 'Disk full. Free up space and try again.';
+    return localeText('磁盘空间不足。请释放空间后重试。', 'Disk full. Free up space and try again.');
   }
   if (msg.includes('json') || msg.includes('syntax')) {
-    return 'Config file corrupted. Check .claude/mcp.json';
+    return localeText('配置文件已损坏。请检查 .claude/mcp.json。', 'Config file corrupted. Check .claude/mcp.json');
   }
-  return error.message || 'Failed to update tool setting';
+  return error.message || localeText('更新工具设置失败', 'Failed to update tool setting');
 }
 
 function appendSpinnerSvg(container: HTMLElement): void {
@@ -67,8 +68,8 @@ export class McpTestModal extends Modal {
   }
 
   onOpen() {
-    this.setTitle(`Verify: ${this.serverName}`);
-    this.modalEl.addClass('claudian-mcp-test-modal');
+    this.setTitle(localeText(`验证：${this.serverName}`, `Verify: ${this.serverName}`));
+    this.modalEl.addClass('claudian-plus-mcp-test-modal');
     this.contentEl_ = this.contentEl;
     this.renderLoading();
   }
@@ -89,12 +90,12 @@ export class McpTestModal extends Modal {
     if (!this.contentEl_) return;
     this.contentEl_.empty();
 
-    const loadingEl = this.contentEl_.createDiv({ cls: 'claudian-mcp-test-loading' });
+    const loadingEl = this.contentEl_.createDiv({ cls: 'claudian-plus-mcp-test-loading' });
 
-    const spinnerEl = loadingEl.createDiv({ cls: 'claudian-mcp-test-spinner' });
+    const spinnerEl = loadingEl.createDiv({ cls: 'claudian-plus-mcp-test-spinner' });
     appendSpinnerSvg(spinnerEl);
 
-    loadingEl.createSpan({ text: 'Connecting to MCP server...' });
+    loadingEl.createSpan({ text: localeText('正在连接 MCP 服务器…', 'Connecting to MCP server...') });
   }
 
   private render() {
@@ -106,9 +107,9 @@ export class McpTestModal extends Modal {
       return;
     }
 
-    const statusEl = this.contentEl_.createDiv({ cls: 'claudian-mcp-test-status' });
+    const statusEl = this.contentEl_.createDiv({ cls: 'claudian-plus-mcp-test-status' });
 
-    const iconEl = statusEl.createSpan({ cls: 'claudian-mcp-test-icon' });
+    const iconEl = statusEl.createSpan({ cls: 'claudian-plus-mcp-test-icon' });
     if (this.result.success) {
       setIcon(iconEl, 'check-circle');
       iconEl.addClass('success');
@@ -117,22 +118,22 @@ export class McpTestModal extends Modal {
       iconEl.addClass('error');
     }
 
-    const textEl = statusEl.createSpan({ cls: 'claudian-mcp-test-text' });
+    const textEl = statusEl.createSpan({ cls: 'claudian-plus-mcp-test-text' });
     if (this.result.success) {
-      let statusText = 'Connected successfully';
+      let statusText = localeText('连接成功', 'Connected successfully');
       if (this.result.serverName) {
-        statusText += ` to ${this.result.serverName}`;
+        statusText += localeText(`：${this.result.serverName}`, ` to ${this.result.serverName}`);
         if (this.result.serverVersion) {
           statusText += ` v${this.result.serverVersion}`;
         }
       }
       textEl.setText(statusText);
     } else {
-      textEl.setText('Connection failed');
+      textEl.setText(localeText('连接失败', 'Connection failed'));
     }
 
     if (this.result.error) {
-      const errorEl = this.contentEl_.createDiv({ cls: 'claudian-mcp-test-error' });
+      const errorEl = this.contentEl_.createDiv({ cls: 'claudian-plus-mcp-test-error' });
       errorEl.setText(this.result.error);
     }
 
@@ -140,26 +141,26 @@ export class McpTestModal extends Modal {
     this.toolElements.clear();
 
     if (this.result.tools.length > 0) {
-      const toolsSection = this.contentEl_.createDiv({ cls: 'claudian-mcp-test-tools' });
+      const toolsSection = this.contentEl_.createDiv({ cls: 'claudian-plus-mcp-test-tools' });
 
-      const toolsHeader = toolsSection.createDiv({ cls: 'claudian-mcp-test-tools-header' });
-      toolsHeader.setText(`Available Tools (${this.result.tools.length})`);
+      const toolsHeader = toolsSection.createDiv({ cls: 'claudian-plus-mcp-test-tools-header' });
+      toolsHeader.setText(localeText(`可用工具（${this.result.tools.length}）`, `Available Tools (${this.result.tools.length})`));
 
-      const toolsList = toolsSection.createDiv({ cls: 'claudian-mcp-test-tools-list' });
+      const toolsList = toolsSection.createDiv({ cls: 'claudian-plus-mcp-test-tools-list' });
 
       for (const tool of this.result.tools) {
         this.renderTool(toolsList, tool);
       }
     } else if (this.result.success) {
-      const noToolsEl = this.contentEl_.createDiv({ cls: 'claudian-mcp-test-no-tools' });
-      noToolsEl.setText('No tools information available. Tools will be loaded when used in chat.');
+      const noToolsEl = this.contentEl_.createDiv({ cls: 'claudian-plus-mcp-test-no-tools' });
+      noToolsEl.setText(localeText('没有可用的工具信息。聊天中使用时会加载工具。', 'No tools information available. Tools will be loaded when used in chat.'));
     }
 
-    const buttonContainer = this.contentEl_.createDiv({ cls: 'claudian-mcp-test-buttons' });
+    const buttonContainer = this.contentEl_.createDiv({ cls: 'claudian-plus-mcp-test-buttons' });
 
     if (this.result.tools.length > 0 && this.onToolToggle) {
       this.toggleAllBtn = buttonContainer.createEl('button', {
-        cls: 'claudian-mcp-toggle-all-btn',
+        cls: 'claudian-plus-mcp-toggle-all-btn',
       });
       this.updateToggleAllButton();
       this.toggleAllBtn.addEventListener('click', () => {
@@ -168,24 +169,24 @@ export class McpTestModal extends Modal {
     }
 
     const closeBtn = buttonContainer.createEl('button', {
-      text: 'Close',
+      text: localeText('关闭', 'Close'),
       cls: 'mod-cta',
     });
     closeBtn.addEventListener('click', () => this.close());
   }
 
   private renderTool(container: HTMLElement, tool: McpTool) {
-    const toolEl = container.createDiv({ cls: 'claudian-mcp-test-tool' });
+    const toolEl = container.createDiv({ cls: 'claudian-plus-mcp-test-tool' });
 
-    const headerEl = toolEl.createDiv({ cls: 'claudian-mcp-test-tool-header' });
+    const headerEl = toolEl.createDiv({ cls: 'claudian-plus-mcp-test-tool-header' });
 
-    const iconEl = headerEl.createSpan({ cls: 'claudian-mcp-test-tool-icon' });
+    const iconEl = headerEl.createSpan({ cls: 'claudian-plus-mcp-test-tool-icon' });
     setIcon(iconEl, 'wrench');
 
-    const nameEl = headerEl.createSpan({ cls: 'claudian-mcp-test-tool-name' });
+    const nameEl = headerEl.createSpan({ cls: 'claudian-plus-mcp-test-tool-name' });
     nameEl.setText(tool.name);
 
-    const toggleEl = headerEl.createDiv({ cls: 'claudian-mcp-test-tool-toggle' });
+    const toggleEl = headerEl.createDiv({ cls: 'claudian-plus-mcp-test-tool-toggle' });
     const toggleContainer = toggleEl.createDiv({ cls: 'checkbox-container' });
     const checkbox = toggleContainer.createEl('input', {
       type: 'checkbox',
@@ -214,7 +215,7 @@ export class McpTestModal extends Modal {
     }
 
     if (tool.description) {
-      const descEl = toolEl.createDiv({ cls: 'claudian-mcp-test-tool-desc' });
+      const descEl = toolEl.createDiv({ cls: 'claudian-plus-mcp-test-tool-desc' });
       descEl.setText(tool.description);
     }
   }
@@ -263,20 +264,18 @@ export class McpTestModal extends Modal {
   }
 
   private updateToolState(toolEl: HTMLElement, enabled: boolean) {
-    toolEl.toggleClass('claudian-mcp-test-tool-disabled', !enabled);
+    toolEl.toggleClass('claudian-plus-mcp-test-tool-disabled', !enabled);
   }
 
   private updateToggleAllButton() {
     if (!this.toggleAllBtn || !this.result) return;
 
     const allEnabled = this.disabledTools.size === 0;
-    const allDisabled = this.disabledTools.size === this.result.tools.length;
-
     if (allEnabled) {
-      this.toggleAllBtn.setText('Disable all');
+      this.toggleAllBtn.setText(localeText('全部禁用', 'Disable all'));
       this.toggleAllBtn.toggleClass('is-destructive', true);
     } else {
-      this.toggleAllBtn.setText(allDisabled ? 'Enable All' : 'Enable All');
+      this.toggleAllBtn.setText(localeText('全部启用', 'Enable All'));
       this.toggleAllBtn.toggleClass('is-destructive', false);
     }
   }

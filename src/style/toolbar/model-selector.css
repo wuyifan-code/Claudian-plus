@@ -1,34 +1,34 @@
 /* Model selector */
-.claudian-model-selector {
+.claudian-plus-model-selector {
   position: relative;
 }
 
-.claudian-model-btn {
+.claudian-plus-model-btn {
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
   border-radius: 4px;
   cursor: pointer;
-  color: var(--claudian-brand);
+  color: var(--claudian-plus-brand);
   font-size: 12px;
 }
 
-.claudian-model-label {
+.claudian-plus-model-label {
   font-weight: 500;
 }
 
-.claudian-model-chevron {
+.claudian-plus-model-chevron {
   display: flex;
   align-items: center;
 }
 
-.claudian-model-chevron svg {
+.claudian-plus-model-chevron svg {
   width: 12px;
   height: 12px;
 }
 
-.claudian-model-dropdown {
+.claudian-plus-model-dropdown {
   position: absolute;
   bottom: 100%;
   left: 0;
@@ -48,12 +48,12 @@
   transition: opacity 0.15s ease, visibility 0.15s ease;
 }
 
-.claudian-model-selector:hover .claudian-model-dropdown {
+.claudian-plus-model-selector:hover .claudian-plus-model-dropdown {
   opacity: 1;
   visibility: visible;
 }
 
-.claudian-model-group {
+.claudian-plus-model-group {
   padding: 3px 8px;
   font-size: 8px;
   font-weight: 600;
@@ -63,18 +63,18 @@
   pointer-events: none;
 }
 
-.claudian-model-group:not(:first-child) {
+.claudian-plus-model-group:not(:first-child) {
   margin-top: 4px;
   border-top: 1px solid var(--background-modifier-border);
   padding-top: 6px;
 }
 
-.claudian-model-provider-icon {
+.claudian-plus-model-provider-icon {
   flex-shrink: 0;
   opacity: 0.7;
 }
 
-.claudian-model-option {
+.claudian-plus-model-option {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -87,13 +87,13 @@
   white-space: nowrap;
 }
 
-.claudian-model-option:hover {
+.claudian-plus-model-option:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
-.claudian-model-option.selected {
-  background: rgba(var(--claudian-brand-rgb), 0.15);
-  color: var(--claudian-brand);
+.claudian-plus-model-option.selected {
+  background: rgba(var(--claudian-plus-brand-rgb), 0.15);
+  color: var(--claudian-plus-brand);
   font-weight: 500;
 }

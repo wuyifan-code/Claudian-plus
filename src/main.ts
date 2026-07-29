@@ -5,12 +5,13 @@ patchSetMaxListenersForElectron();
 
 StartupProfiler.finishModuleEvaluation();
 
-import type { Editor, WorkspaceLeaf } from 'obsidian';
-import { MarkdownView, Notice, Plugin } from 'obsidian';
+import type { EditorView } from '@codemirror/view';
+import type { Editor, TAbstractFile, WorkspaceLeaf } from 'obsidian';
+import { MarkdownView, Notice, Plugin, TFile } from 'obsidian';
 
 import { ConversationRepository } from './app/conversations/ConversationRepository';
-import { ClaudianProviderHost } from './app/providers/ClaudianProviderHost';
-import { DEFAULT_CLAUDIAN_SETTINGS } from './app/settings/defaultSettings';
+import { ClaudianPlusProviderHost } from './app/providers/ClaudianPlusProviderHost';
+import { DEFAULT_CLAUDIAN_PLUS_SETTINGS } from './app/settings/defaultSettings';
 import type { ConditionalSettingsMutation } from './app/settings/SettingsCoordinator';
 import { SettingsCoordinator, type SettingsMutation } from './app/settings/SettingsCoordinator';
 import { SharedStorageService } from './app/storage/SharedStorageService';
@@ -23,6 +24,11 @@ import {
   VaultKnowledgeEngine,
   wrapMemoryInjection,
 } from './core/memory';
+import {
+  ObsidianToolBridge,
+  type ObsidianToolBridgeHandle,
+  undoLastCanvasWrite,
+} from './core/obsidian';
 import {
   getEnvironmentVariablesForScope as getScopedEnvironmentVariables,
   getRuntimeEnvironmentText,
@@ -40,32 +46,51 @@ import type {
 } from './core/providers/types';
 import type { AppTabManagerState } from './core/providers/types';
 import { DEFAULT_CHAT_PROVIDER_ID } from './core/providers/types';
+import { LocalEmbeddingProvider } from './core/retrieval/EmbeddingProvider';
+import {
+  buildLinkRecommendationQuery,
+  filterLinkRecommendationCandidates,
+} from './core/retrieval/linkRecommendations';
 import { VaultRetrievalService } from './core/retrieval/VaultRetrievalService';
+import { VaultReviewService } from './core/retrieval/VaultReviewService';
 import { AgentSkillRepository } from './core/skills/AgentSkillRepository';
 import type {
-  ClaudianSettings,
+  ClaudianPlusSettings,
   Conversation,
   ConversationMeta,
   SessionMetadata,
 } from './core/types';
 import {
-  VIEW_TYPE_CLAUDIAN,
+  VIEW_TYPE_CLAUDIAN_PLUS,
 } from './core/types';
 import type { ChatViewPlacement, EnvironmentScope } from './core/types/settings';
-import { ClaudianView } from './features/chat/ClaudianView';
+import { ClaudianPlusView } from './features/chat/ClaudianPlusView';
 import { LivePreviewComposerEnhancement } from './features/chat/composer/LivePreviewComposerEnhancement';
 import type { ComposerEnhancement } from './features/chat/composer/types';
+import {
+  buildFloatingBarPrompt,
+  createEditorFloatingBarPlugin,
+  type EditorFloatingBarAction,
+  FloatingToolbarWidget,
+} from './features/chat/editing/EditorFloatingBar';
 import { registerFileMenu } from './features/chat/fileMenu';
+import { QuickAgentInputModal } from './features/chat/QuickAgentInputModal';
+import { VaultHealthModal } from './features/chat/VaultHealthModal';
+import { createAgentInlinePlugin } from './features/inline-edit/editorAgentInline';
 import { type InlineEditContext, InlineEditModal } from './features/inline-edit/ui/InlineEditModal';
-import { ClaudianSettingTab } from './features/settings/ClaudianSettings';
-import { setLocale } from './i18n/i18n';
+import { ClaudianPlusSettingTab } from './features/settings/ClaudianPlusSettings';
+import { localeText, setLocale } from './i18n/i18n';
 import type { Locale } from './i18n/types';
+import { migrateClaudeServiceSettings } from './providers/claude/services/ClaudeServiceMigration';
 import { OPENCODE_PLAN_MODE_ID, OPENCODE_SAFE_MODE_ID } from './providers/opencode/modes';
-import { buildCursorContext } from './utils/editor';
-import { revealWorkspaceLeaf } from './utils/obsidianCompat';
+import { VaultRetrievalModal } from './shared/modals/VaultRetrievalModal';
+import { buildCursorContext, getEditorView } from './utils/editor';
+import { getActiveDocument, revealWorkspaceLeaf } from './utils/obsidianCompat';
 import { getVaultPath } from './utils/path';
 
-function isClaudianView(value: unknown): value is ClaudianView {
+const HIGH_CONFIDENCE_LINK_SCORE = 0.42;
+
+function isClaudianPlusView(value: unknown): value is ClaudianPlusView {
   return !!value
     && typeof value === 'object'
     && typeof (value as { getTabManager?: unknown }).getTabManager === 'function';
@@ -114,17 +139,18 @@ function hasSamePendingProviderSessionInvalidations(
     && entries.every(([providerId, generation]) => pending.get(providerId) === generation);
 }
 
-export default class ClaudianPlugin extends Plugin {
-  settings!: ClaudianSettings;
+export default class ClaudianPlusPlugin extends Plugin {
+  settings!: ClaudianPlusSettings;
   storage!: SharedAppStorage;
-  readonly providerHost = new ClaudianProviderHost(this);
+  readonly providerHost = new ClaudianPlusProviderHost(this);
   readonly vaultRetrievalService = new VaultRetrievalService(this.app);
+  readonly vaultReviewService = new VaultReviewService(this.app, undefined, this.vaultRetrievalService);
   readonly memoryExtractor = new MemoryExtractor();
   private _memoryStore: MemoryStore | null = null;
   private _consciousnessEngine: ConsciousnessEngine | null = null;
   private _vaultKnowledgeEngine: VaultKnowledgeEngine | null = null;
   private agentSkillRepository: AgentSkillRepository | null = null;
-  private settingsCoordinator!: SettingsCoordinator<ClaudianSettings>;
+  private settingsCoordinator!: SettingsCoordinator<ClaudianPlusSettings>;
   private conversationRepository!: ConversationRepository;
   private lastKnownTabManagerState: AppTabManagerState | null = null;
   private pendingSessionMetadataScan = false;
@@ -136,6 +162,11 @@ export default class ClaudianPlugin extends Plugin {
   private sessionMetadataLoadTimer: number | null = null;
   private remainingSessionMetadataLoad: Promise<void> | null = null;
   private isUnloading = false;
+  private floatingToolbarFallback: FloatingToolbarWidget | null = null;
+  private obsidianToolBridge: ObsidianToolBridge | null = null;
+  private readonly autoLinkRecommendationTimers = new Map<string, number>();
+  private readonly autoLinkRecommendationLastShownAt = new Map<string, number>();
+  private autoLinkRecommendationOpen = false;
 
   async onload() {
     StartupProfiler.startOnload();
@@ -151,6 +182,44 @@ export default class ClaudianPlugin extends Plugin {
         'settings-load',
         () => this.loadSettings({ deferNonRestoredSessionMetadata: true }),
       );
+      this.refreshSemanticRetrieval();
+      this.vaultRetrievalService.bindToVaultEvents((eventRef) => this.registerEvent(eventRef));
+      if (typeof this.app.vault.on === 'function') {
+        this.registerEvent(this.app.vault.on('modify', (file) => {
+          this.scheduleAutoLinkRecommendation(file);
+        }));
+      }
+      const retrievalWarmupTimer = window.setTimeout(() => {
+        void this.vaultRetrievalService.warmup().catch(() => {
+          // Retrieval remains available through the manual command if warmup fails.
+        });
+      }, 0);
+      const registerCleanup = (this as unknown as {
+        register?: (callback: () => void) => void;
+      }).register;
+      registerCleanup?.call(this, () => window.clearTimeout(retrievalWarmupTimer));
+      const semanticWarmupTimer = window.setTimeout(() => {
+        void this.vaultRetrievalService.warmupSemantic().catch(() => {
+          // Semantic search is optional; lexical retrieval remains available.
+        });
+      }, 1_000);
+      registerCleanup?.call(this, () => window.clearTimeout(semanticWarmupTimer));
+      this.vaultReviewService.updateConfig({
+        enabled: this.settings.vaultReviewEnabled ?? this.settings.consciousnessAutoMemory,
+      });
+      const reviewInterval = window.setInterval(() => {
+        if (this.vaultReviewService.isReviewDue()) {
+          void this.vaultReviewService.runReview();
+        }
+      }, this.vaultReviewService.getCheckInterval());
+      const registerInterval = (this as unknown as {
+        registerInterval?: (intervalId: number) => void;
+      }).registerInterval;
+      if (typeof registerInterval === 'function') {
+        registerInterval.call(this, reviewInterval);
+      } else {
+        window.clearInterval(reviewInterval);
+      }
       // Provider workspace services are initialized lazily on first use.
 
       // Initialize consciousness engine if enabled
@@ -161,16 +230,17 @@ export default class ClaudianPlugin extends Plugin {
       }
 
       this.registerView(
-        VIEW_TYPE_CLAUDIAN,
-        (leaf) => new ClaudianView(leaf, this)
+        VIEW_TYPE_CLAUDIAN_PLUS,
+        (leaf) => new ClaudianPlusView(leaf, this)
       );
 
-      // Register file explorer "Add to Claudian" context menu action.
+      // Register file explorer "Add to Claudian Plus" context menu action.
       registerFileMenu({
         app: this.app,
         activateView: () => this.activateView(),
         getView: () => this.getView(),
         registerEvent: (eventRef) => this.registerEvent(eventRef),
+        sendPromptToChat: (prompt) => this.sendPromptToChat(prompt),
       });
 
       this.addRibbonIcon('bot', 'Open Claudian Plus', () => {
@@ -296,6 +366,24 @@ export default class ClaudianPlugin extends Plugin {
       });
 
       this.addCommand({
+        id: 'check-provider-cli-health',
+        name: 'Check provider CLI health',
+        callback: async () => {
+          const providerIds = ProviderRegistry.getEnabledProviderIds(this.settings);
+          const results = await Promise.all(providerIds.map(async (providerId) => {
+            try {
+              const path = await this.getResolvedProviderCliPath(providerId);
+              return `${ProviderRegistry.getProviderDisplayName(providerId)}: ${path ?? 'not found'}`;
+            } catch (error) {
+              const message = error instanceof Error ? error.message : String(error);
+              return `${ProviderRegistry.getProviderDisplayName(providerId)}: ${message}`;
+            }
+          }));
+          new Notice(results.length > 0 ? results.join('\n') : 'No providers are enabled.');
+        },
+      });
+
+      this.addCommand({
         id: 'open-memory-file',
         name: 'Open memory file',
         callback: async () => {
@@ -310,11 +398,122 @@ export default class ClaudianPlugin extends Plugin {
       });
 
       this.addCommand({
+        id: 'quick-agent-input',
+        name: 'Quick agent input',
+        callback: () => {
+          new QuickAgentInputModal(this.app, (prompt) => this.sendPromptToChat(prompt)).open();
+        },
+      });
+
+      this.addCommand({
+        id: 'open-vault-health',
+        name: 'Open vault health',
+        callback: () => {
+          new VaultHealthModal(this.app, {
+            retrievalService: this.vaultRetrievalService,
+            onAskAgent: (prompt, contextFiles) => {
+              void this.sendPromptToChat(prompt, contextFiles);
+            },
+          }).open();
+        },
+      });
+
+      this.addCommand({
+        id: 'undo-last-canvas-write',
+        name: 'Undo last canvas write',
+        callback: async () => {
+          try {
+            const result = await undoLastCanvasWrite(this.app.vault);
+            new Notice(`Canvas write undone: ${result.path}`);
+          } catch (error) {
+            new Notice(error instanceof Error ? error.message : String(error));
+          }
+        },
+      });
+
+      this.addCommand({
+        id: 'recommend-links-for-current-note',
+        name: 'Recommend links for current note',
+        callback: () => {
+          void this.recommendLinksForActiveNote();
+        },
+      });
+
+      this.addCommand({
+        id: 'generate-vault-review',
+        name: 'Generate vault review',
+        callback: () => {
+          void this.vaultReviewService.runReview(true);
+        },
+      });
+
+      // Register editor floating bar plugin for text selections
+      const floatingBarOptions = {
+        onAction: (action: EditorFloatingBarAction, selectedText: string, view?: EditorView) => {
+          void this.executeFloatingBarAction(action, selectedText, view).catch((error: unknown) => {
+            new Notice(`Text action failed: ${error instanceof Error ? error.message : String(error)}`);
+          });
+        },
+      };
+
+      // Older Obsidian test harnesses (and a few third-party embedders) may not
+      // expose CodeMirror's editor-extension registration API. The floating
+      // bar has a DOM fallback below, so keep startup resilient when the API is
+      // unavailable while using it whenever the host provides it.
+      const registerEditorExtension = (this as unknown as {
+        registerEditorExtension?: (extension: unknown) => void;
+      }).registerEditorExtension;
+      registerEditorExtension?.call(this, createEditorFloatingBarPlugin(floatingBarOptions));
+      registerEditorExtension?.call(this, createAgentInlinePlugin({
+        onSubmit: ({ instruction, view }) => {
+          void this.executeAgentInlineInstruction(instruction, view);
+        },
+      }));
+
+      // Global fallback listener so existing/already-open editor views immediately react to selections
+      const globalWidget = new FloatingToolbarWidget(null, floatingBarOptions);
+      this.floatingToolbarFallback = globalWidget;
+      const isMarkdownSelection = (selection: Selection | null): boolean => {
+        if (!selection || selection.isCollapsed || !selection.anchorNode || !selection.focusNode) {
+          return false;
+        }
+
+        const getElement = (node: Node): Element | null => {
+          const candidate = node as Node & { closest?: unknown };
+          if (typeof candidate.closest === 'function') return node as unknown as Element;
+          return node.parentElement;
+        };
+        return [selection.anchorNode, selection.focusNode].every((node) => (
+          !!node
+          && getElement(node)?.closest('.markdown-source-view, .markdown-preview-view') !== null
+        ));
+      };
+      const handleGlobalSelection = () => {
+        const hostDocument = getActiveDocument();
+        if (!hostDocument) return;
+        const selection = hostDocument.getSelection?.();
+        if (!isMarkdownSelection(selection)) {
+          globalWidget.hide();
+          return;
+        }
+        globalWidget.updatePositionFromSelection();
+      };
+      const doc = getActiveDocument();
+      const registerDomEvent = (this as unknown as {
+        registerDomEvent?: (target: Document, event: string, callback: () => void) => void;
+      }).registerDomEvent;
+      if (doc && typeof registerDomEvent === 'function') {
+        registerDomEvent.call(this, doc, 'selectionchange', handleGlobalSelection);
+        registerDomEvent.call(this, doc, 'mouseup', handleGlobalSelection);
+        registerDomEvent.call(this, doc, 'keyup', handleGlobalSelection);
+      }
+
+      this.addCommand({
         id: 'scan-vault-knowledge',
         name: 'Scan vault knowledge',
         callback: async () => {
-          if (!this.settings.consciousnessEnabled) {
-            new Notice('Consciousness mode is disabled. Enable it in settings first.');
+          if (!(this.settings.vaultKnowledgeEnabled ?? this.settings.consciousnessEnabled)) {
+            new Notice('Vault knowledge is disabled. Enable it in settings first.');
             return;
           }
           new Notice('Scanning vault knowledge...');
@@ -330,7 +529,89 @@ export default class ClaudianPlugin extends Plugin {
         },
       });
 
-      this.addSettingTab(new ClaudianSettingTab(this.app, this));
+      this.addCommand({
+        id: 'rebuild-vault-retrieval-index',
+        name: 'Rebuild vault retrieval index',
+        callback: async () => {
+          new Notice('Rebuilding vault retrieval index...');
+          try {
+            const result = await this.vaultRetrievalService.rebuildIndex();
+            new Notice(`Vault retrieval index ready: ${result.fileCount} files, ${result.blockCount} sections`);
+          } catch (error) {
+            new Notice(`Failed to rebuild vault retrieval index: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        },
+      });
+
+      this.addCommand({
+        id: 'summarize-current-note',
+        name: 'Summarize current note',
+        editorCallback: (_editor: Editor, ctx) => {
+          const view = ctx instanceof MarkdownView
+            ? ctx
+            : this.app.workspace.getActiveViewOfType(MarkdownView);
+          const file = view?.file;
+          if (!file) {
+            new Notice('Open a Markdown note first.');
+            return;
+          }
+          const prompt = `Summarize the note "${file.basename}" in 3-5 bullet points. Focus on the main ideas and actionable items.`;
+          void this.sendPromptToChat(prompt, [file.path]);
+        },
+      });
+
+      this.addCommand({
+        id: 'suggest-tags-for-current-note',
+        name: 'Suggest tags for current note',
+        editorCallback: (_editor: Editor, ctx) => {
+          const view = ctx instanceof MarkdownView
+            ? ctx
+            : this.app.workspace.getActiveViewOfType(MarkdownView);
+          const file = view?.file;
+          if (!file) {
+            new Notice('Open a Markdown note first.');
+            return;
+          }
+          const prompt = `Analyze the note "${file.basename}" and suggest 5-8 relevant tags. Format them as #tag. Consider the topic, key concepts, and how this note might connect to others in my vault.`;
+          void this.sendPromptToChat(prompt, [file.path]);
+        },
+      });
+
+      this.addCommand({
+        id: 'create-moc-for-topic',
+        name: 'Create MOC for topic',
+        callback: () => {
+          new QuickAgentInputModal(this.app, async (topic) => {
+            const prompt = `Create a Map of Content (MOC) for the topic "${topic}". Search my vault for related notes and organize them into a structured index with sections. Use [[wikilinks]] for each entry and add brief descriptions.`;
+            await this.sendPromptToChat(prompt);
+          }, localeText(
+            '输入要创建 MOC 的主题（例如：“项目管理”“Rust 编程”）',
+            'Enter the topic for the MOC (e.g., "Project Management", "Rust Programming")',
+          )).open();
+        },
+      });
+
+      this.addCommand({
+        id: 'cleanup-expired-memories',
+        name: 'Cleanup expired short-term memories',
+        callback: async () => {
+          if (!this.settings.consciousnessEnabled) {
+            new Notice('Consciousness mode is disabled.');
+            return;
+          }
+          try {
+            const engine = this.getConsciousnessEngine();
+            const deleted = await engine.cleanupExpiredShortTermMemory();
+            new Notice(deleted > 0
+              ? `Cleaned up ${deleted} expired short-term memory file(s).`
+              : 'No expired short-term memories found.');
+          } catch (error) {
+            new Notice(`Cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        },
+      });
+
+      this.addSettingTab(new ClaudianPlusSettingTab(this.app, this));
       this.scheduleRemainingSessionMetadataLoad();
     } finally {
       StartupProfiler.finishOnload();
@@ -339,13 +620,26 @@ export default class ClaudianPlugin extends Plugin {
 
   onunload(): void {
     this.isUnloading = true;
+    this.floatingToolbarFallback?.destroy();
+    this.floatingToolbarFallback = null;
     if (this.sessionMetadataLoadTimer !== null) {
       window.clearTimeout(this.sessionMetadataLoadTimer);
       this.sessionMetadataLoadTimer = null;
     }
     StartupProfiler.freeze();
     void this.persistOpenTabStates().catch(() => undefined);
+    void this.obsidianToolBridge?.stop();
+    this.obsidianToolBridge = null;
     void ProviderWorkspaceRegistry.disposeInitialized();
+  }
+
+  /** Lazily expose native Obsidian APIs to external provider subprocesses. */
+  async ensureObsidianToolBridge(): Promise<ObsidianToolBridgeHandle> {
+    if (this.isUnloading) {
+      throw new Error('Obsidian tool bridge is unavailable while the plugin is unloading.');
+    }
+    this.obsidianToolBridge ??= new ObsidianToolBridge(this.app);
+    return this.obsidianToolBridge.start();
   }
 
   private async persistOpenTabStates(): Promise<void> {
@@ -359,13 +653,13 @@ export default class ClaudianPlugin extends Plugin {
 
   async activateView() {
     const { workspace } = this.app;
-    let leaf = workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN)[0];
+    let leaf = workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN_PLUS)[0];
 
     if (!leaf) {
       const newLeaf = this.getLeafForPlacement(this.settings.chatViewPlacement);
       if (newLeaf) {
         await newLeaf.setViewState({
-          type: VIEW_TYPE_CLAUDIAN,
+          type: VIEW_TYPE_CLAUDIAN_PLUS,
           active: true,
         });
         leaf = newLeaf;
@@ -390,7 +684,7 @@ export default class ClaudianPlugin extends Plugin {
   }
 
   private canCreateNewTab(): boolean {
-    const hasClaudianLeaf = this.app.workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN).length > 0;
+    const hasClaudianPlusLeaf = this.app.workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN_PLUS).length > 0;
     const view = this.getView();
     const tabManager = view?.getTabManager();
 
@@ -398,14 +692,14 @@ export default class ClaudianPlugin extends Plugin {
       return tabManager.canCreateTab();
     }
 
-    if (hasClaudianLeaf) {
+    if (hasClaudianPlusLeaf) {
       return false;
     }
 
     return this.getLastKnownOpenTabCount() < this.getMaxTabsLimit();
   }
 
-  private async ensureViewOpen(): Promise<ClaudianView | null> {
+  private async ensureViewOpen(): Promise<ClaudianPlusView | null> {
     const existingView = this.getView();
     if (existingView) {
       return existingView;
@@ -437,6 +731,298 @@ export default class ClaudianPlugin extends Plugin {
     await view.createNewTab();
   }
 
+  /**
+   * Opens the Claudian Plus sidebar and fills the active tab's input with a prompt.
+   * Optionally attaches file paths as context mentions.
+   */
+  private async sendPromptToChat(prompt: string, contextFiles?: string[]): Promise<void> {
+    const view = await this.ensureViewOpen();
+    if (!view) {
+      new Notice('Cannot send to chat: Claudian Plus view not available.');
+      return;
+    }
+    await view.whenReady();
+
+    // Get or create a blank tab
+    let tab = view.getActiveTab();
+    if (!tab || tab.conversationId) {
+      await view.createNewTab();
+      tab = view.getActiveTab();
+    }
+
+    if (tab) {
+      const inputEl = tab.dom.inputEl;
+      // Keep the composer user-visible text clean. Automatic vault retrieval
+      // is applied once by InputController when the turn is actually sent.
+      inputEl.value = prompt;
+      inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+
+      // Attach context files if provided.
+      if (contextFiles && contextFiles.length > 0) {
+        const fcm = tab.ui.fileContextManager;
+        if (fcm) {
+          for (const filePath of contextFiles) {
+            fcm.attachFilePath(filePath);
+          }
+        }
+      }
+
+      inputEl.focus();
+    } else {
+      new Notice('Could not send to chat: tab not available (max tabs reached?).');
+    }
+  }
+
+  private async executeFloatingBarAction(
+    action: EditorFloatingBarAction,
+    selectedText: string,
+    editorView?: EditorView,
+  ): Promise<void> {
+    const mode = action.mode ?? (action.inlineEdit ? 'inline' : 'chat');
+    // The toolbar's mousedown handler intentionally keeps focus in the editor,
+    // but Obsidian can still report the chat pane (or another leaf) as active by
+    // the time this callback runs. Resolve the Markdown view that owns the
+    // EditorView first instead of relying on the active-leaf heuristic.
+    const markdownView = this.resolveMarkdownViewForEditor(editorView);
+    const notePath = markdownView?.file?.path;
+
+    if (mode === 'custom') {
+      new QuickAgentInputModal(
+        this.app,
+        async (instruction) => {
+          const prompt = [
+            instruction.trim(),
+            '',
+            'Selected text:',
+            selectedText,
+          ].join('\n');
+          await this.sendPromptToChat(prompt, notePath ? [notePath] : undefined);
+        },
+        localeText('询问选中的文本…', 'Ask about the selected text...'),
+      ).open();
+      return;
+    }
+
+    if (mode === 'inline') {
+      if (!markdownView || !editorView || !this.markdownViewOwnsEditorView(markdownView, editorView)) {
+        new Notice(localeText(
+          '无法执行内联编辑：当前 Markdown 编辑器已发生变化。',
+          'Inline edit unavailable: the active Markdown editor changed.',
+        ));
+        return;
+      }
+
+      const modal = new InlineEditModal(
+        this.app,
+        this,
+        markdownView.editor,
+        markdownView,
+        { mode: 'selection', selectedText },
+        notePath ?? 'unknown',
+        () => this.getView()?.getActiveTab()?.ui.externalContextSelector?.getExternalContexts() ?? [],
+        action.initialInstruction ?? buildFloatingBarPrompt(action, selectedText),
+      );
+      const result = await modal.openAndWait();
+      if (result.decision === 'accept') {
+        new Notice(`${action.label} applied.`);
+      }
+      return;
+    }
+
+    const prompt = buildFloatingBarPrompt(action, selectedText);
+    await this.sendPromptToChat(prompt, notePath ? [notePath] : undefined);
+  }
+
+  private async executeAgentInlineInstruction(
+    instruction: string,
+    editorView: EditorView,
+  ): Promise<void> {
+    const markdownView = this.resolveMarkdownViewForEditor(editorView);
+    if (!markdownView || !this.markdownViewOwnsEditorView(markdownView, editorView)) {
+      new Notice(localeText(
+        '无法执行内联 Agent：当前 Markdown 编辑器已发生变化。',
+        'Inline agent unavailable: the active Markdown editor changed.',
+      ));
+      return;
+    }
+
+    const editor = markdownView.editor;
+    const cursor = editor.getCursor();
+    const cursorContext = buildCursorContext(
+      (line) => editor.getLine(line),
+      editor.lineCount(),
+      cursor.line,
+      cursor.ch,
+    );
+    const modal = new InlineEditModal(
+      this.app,
+      this,
+      editor,
+      markdownView,
+      { mode: 'cursor', cursorContext },
+      markdownView.file?.path ?? 'unknown',
+      () => this.getView()?.getActiveTab()?.ui.externalContextSelector?.getExternalContexts() ?? [],
+      instruction,
+    );
+    const result = await modal.openAndWait();
+    if (result.decision === 'accept') {
+      new Notice('Inline agent result applied.');
+    }
+  }
+
+  private resolveMarkdownViewForEditor(editorView?: EditorView): MarkdownView | null {
+    if (editorView) {
+      const matchingLeaf = this.app.workspace.getLeavesOfType('markdown').find((leaf) => {
+        const view = leaf.view as MarkdownView | undefined;
+        return !!view && this.markdownViewOwnsEditorView(view, editorView);
+      });
+      if (matchingLeaf?.view) {
+        return matchingLeaf.view as MarkdownView;
+      }
+    }
+
+    return this.app.workspace.getActiveViewOfType(MarkdownView);
+  }
+
+  private markdownViewOwnsEditorView(view: MarkdownView, editorView: EditorView): boolean {
+    if (getEditorView(view.editor) === editorView) return true;
+
+    // Obsidian may recreate the CM6 instance during a Live Preview update. In
+    // that short window the old view can still be attached to the same
+    // Markdown leaf; DOM ownership is a safe fallback while the modal uses the
+    // leaf's current editor instance.
+    return !!editorView.dom && view.containerEl.contains(editorView.dom);
+  }
+
+  /** Show source-backed link candidates for the active note or selection. */
+  private async recommendLinksForActiveNote(): Promise<void> {
+    const file = this.app.workspace.getActiveFile();
+    if (!file || file.extension !== 'md') {
+      new Notice('Open a Markdown note before requesting link recommendations.');
+      return;
+    }
+
+    try {
+      const editor = this.app.workspace.activeEditor?.editor;
+      const noteContent = editor?.getValue() ?? await this.app.vault.read(file);
+      const selection = editor?.getSelection() ?? '';
+      const { query, candidates } = await this.getLinkRecommendations(file, noteContent, selection);
+      if (!query) {
+        new Notice('The current note does not contain enough text to recommend links.');
+        return;
+      }
+
+      new VaultRetrievalModal(this.app, {
+        title: 'Recommended links',
+        query: selection.trim() || file.basename,
+        results: candidates,
+        onInsertReference: (result) => {
+          this.insertRecommendedLink(result.path);
+        },
+      }).open();
+    } catch (error) {
+      new Notice(`Link recommendation failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private async getLinkRecommendations(
+    file: TFile,
+    noteContent: string,
+    selection = '',
+    useSemantic = true,
+    minScore = 0.16,
+  ): Promise<{ query: string; candidates: ReturnType<typeof filterLinkRecommendationCandidates> }> {
+    const query = buildLinkRecommendationQuery(noteContent, selection);
+    if (!query) return { query: '', candidates: [] };
+
+    const results = await this.vaultRetrievalService.search(query, {
+      limit: 16,
+      maxExcerptLength: 260,
+      semantic: useSemantic,
+    });
+    const outgoing = this.app.metadataCache.resolvedLinks?.[file.path] ?? {};
+    return {
+      query,
+      candidates: filterLinkRecommendationCandidates(file.path, results, outgoing, {
+        limit: 8,
+        minScore,
+      }),
+    };
+  }
+
+  private scheduleAutoLinkRecommendation(file: TAbstractFile): void {
+    if (!this.settings.vaultAutoLinkRecommendationsEnabled) return;
+    if (!(file instanceof TFile) || file.extension !== 'md') return;
+    if (file.path.startsWith('.claudian-plus/') || file.path.startsWith('.claudian/')) return;
+    if (this.app.workspace.getActiveFile()?.path !== file.path) return;
+
+    const previousTimer = this.autoLinkRecommendationTimers.get(file.path);
+    if (previousTimer !== undefined) window.clearTimeout(previousTimer);
+    const timer = window.setTimeout(() => {
+      this.autoLinkRecommendationTimers.delete(file.path);
+      void this.showAutoLinkRecommendations(file);
+    }, 1_000);
+    this.autoLinkRecommendationTimers.set(file.path, timer);
+  }
+
+  private async showAutoLinkRecommendations(file: TFile): Promise<void> {
+    if (!this.settings.vaultAutoLinkRecommendationsEnabled) return;
+    if (this.autoLinkRecommendationOpen || this.app.workspace.getActiveFile()?.path !== file.path) return;
+
+    const now = Date.now();
+    const lastShownAt = this.autoLinkRecommendationLastShownAt.get(file.path) ?? 0;
+    if (now - lastShownAt < 10 * 60 * 1000) return;
+
+    try {
+      const editor = this.app.workspace.activeEditor?.editor;
+      const noteContent = editor?.getValue() ?? await this.app.vault.cachedRead(file);
+      const selection = editor?.getSelection() ?? '';
+      const semanticReady = this.vaultRetrievalService.getIndexStats().semanticReady;
+      const { query, candidates } = await this.getLinkRecommendations(
+        file,
+        noteContent,
+        selection,
+        semanticReady,
+        HIGH_CONFIDENCE_LINK_SCORE,
+      );
+      if (!query || candidates.length === 0) return;
+
+      this.autoLinkRecommendationOpen = true;
+      this.autoLinkRecommendationLastShownAt.set(file.path, now);
+      new VaultRetrievalModal(this.app, {
+        title: '高置信度链接建议',
+        query: selection.trim() || file.basename,
+        results: candidates,
+        compact: true,
+        highConfidenceOnly: true,
+        onInsertReference: (result) => this.insertRecommendedLink(result.path),
+        onClose: () => {
+          this.autoLinkRecommendationOpen = false;
+        },
+      }).open();
+    } catch (error) {
+      new Notice(`Automatic link suggestions failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private insertRecommendedLink(path: string): void {
+    const editor = this.app.workspace.activeEditor?.editor;
+    if (!editor) {
+      new Notice('No active editor is available for inserting the link.');
+      return;
+    }
+
+    const linkTarget = path.replace(/\.md$/i, '');
+    const link = `[[${linkTarget}]]`;
+    const selectedText = editor.getSelection();
+    if (selectedText.trim()) {
+      editor.replaceSelection(`${selectedText} ${link}`);
+    } else {
+      editor.replaceRange(link, editor.getCursor());
+    }
+    new Notice(`Inserted link: ${link}`);
+  }
+
   async loadSettings(options: { deferNonRestoredSessionMetadata?: boolean } = {}) {
     this.hasLoadedAllSessionMetadata = false;
     this.storage = new SharedStorageService(this);
@@ -445,19 +1031,28 @@ export default class ClaudianPlugin extends Plugin {
       this.storage.initialize(),
       this.storage.getTabManagerState(),
     ]);
-    const { claudian } = settingsResult;
+    const { claudianPlus } = settingsResult;
     this.lastKnownTabManagerState = tabManagerState;
 
     this.settings = {
-      ...DEFAULT_CLAUDIAN_SETTINGS,
-      ...claudian,
+      ...DEFAULT_CLAUDIAN_PLUS_SETTINGS,
+      ...claudianPlus,
     };
+    // Move legacy Claude-compatible endpoint environment blocks into the
+    // structured service registry before provider state is normalized. This
+    // keeps existing vaults working while making the new service UI/runtime
+    // the single source of truth.
+    const didMigrateClaudeServices = migrateClaudeServiceSettings(
+      this.settings,
+      this.app.secretStorage,
+      () => crypto.randomUUID(),
+    );
     this.settingsCoordinator = new SettingsCoordinator(
       this.settings,
       async (settings) => {
         ProviderSettingsCoordinator.normalizeProviderSelection(settings);
         ProviderSettingsCoordinator.persistProjectedProviderState(settings);
-        await this.storage.saveClaudianSettings(settings);
+        await this.storage.saveClaudianPlusSettings(settings);
       },
     );
     const didNormalizePendingSessionInvalidations = this.syncPendingSessionInvalidations();
@@ -546,6 +1141,7 @@ export default class ClaudianPlugin extends Plugin {
 
     if (
       reconciliation.changed
+      || didMigrateClaudeServices
       || didNormalizeModelVariants
       || didNormalizeProviderSelection
       || didNormalizePendingSessionInvalidations
@@ -701,7 +1297,7 @@ export default class ClaudianPlugin extends Plugin {
   }
 
   private markPendingSessionInvalidations(
-    settings: ClaudianSettings,
+    settings: ClaudianPlusSettings,
     providerIds: ProviderId[],
   ): Map<ProviderId, number> {
     const pending = readPendingProviderSessionInvalidations(settings);
@@ -800,6 +1396,7 @@ export default class ClaudianPlugin extends Plugin {
       updatedAt: meta.updatedAt,
       lastResponseAt: meta.lastResponseAt,
       sessionId: meta.sessionId !== undefined ? meta.sessionId : meta.id,
+      searchText: meta.searchText,
       selectedModel: meta.selectedModel,
       providerState: meta.providerState,
       messages: [],
@@ -822,12 +1419,26 @@ export default class ClaudianPlugin extends Plugin {
     await this.settingsCoordinator.persistCurrent();
   }
 
-  async mutateSettings(mutation: SettingsMutation<ClaudianSettings>): Promise<void> {
+  async mutateSettings(mutation: SettingsMutation<ClaudianPlusSettings>): Promise<void> {
     await this.settingsCoordinator.mutate(mutation);
   }
 
+  refreshSemanticRetrieval(): void {
+    const enabled = this.settings.semanticSearchEnabled === true;
+    const endpoint = this.settings.semanticEmbeddingEndpoint?.trim() ?? '';
+    const model = this.settings.semanticEmbeddingModel?.trim() ?? '';
+    if (!enabled || !endpoint || !model) {
+      this.vaultRetrievalService.configureEmbeddingProvider(null);
+      return;
+    }
+    this.vaultRetrievalService.configureEmbeddingProvider(new LocalEmbeddingProvider({
+      endpoint,
+      model,
+    }));
+  }
+
   async mutateSettingsConditionally(
-    mutation: ConditionalSettingsMutation<ClaudianSettings>,
+    mutation: ConditionalSettingsMutation<ClaudianPlusSettings>,
   ): Promise<void> {
     await this.settingsCoordinator.mutateConditionally(mutation);
   }
@@ -940,7 +1551,7 @@ export default class ClaudianPlugin extends Plugin {
   }
 
   private async restartEnvironmentAffectedRuntimes(
-    view: ClaudianView,
+    view: ClaudianPlusView,
     affectedProviderIds: ProviderId[],
     resetSessions: boolean,
   ): Promise<number> {
@@ -1077,7 +1688,7 @@ export default class ClaudianPlugin extends Plugin {
       this._vaultKnowledgeEngine = new VaultKnowledgeEngine(
         this.app,
         this.storage.getAdapter(),
-        { enabled: this.settings.consciousnessEnabled },
+        { enabled: this.settings.vaultKnowledgeEnabled ?? this.settings.consciousnessEnabled },
       );
     }
     return this._vaultKnowledgeEngine;
@@ -1085,7 +1696,9 @@ export default class ClaudianPlugin extends Plugin {
 
   /** Get the consciousness injection text for system prompt, or null if disabled. */
   async getConsciousnessInjectionText(): Promise<string | null> {
-    if (!this.settings.consciousnessEnabled) {
+    const consciousnessEnabled = this.settings.consciousnessEnabled;
+    const vaultKnowledgeEnabled = this.settings.vaultKnowledgeEnabled ?? consciousnessEnabled;
+    if (!consciousnessEnabled && !vaultKnowledgeEnabled) {
       return null;
     }
 
@@ -1093,19 +1706,23 @@ export default class ClaudianPlugin extends Plugin {
       const parts: string[] = [];
 
       // Add user memory and profile
-      const engine = this.getConsciousnessEngine();
-      engine.updateConfig({
-        enabled: this.settings.consciousnessEnabled,
-        autoMemoryEnabled: this.settings.consciousnessAutoMemory,
-      });
+      if (consciousnessEnabled) {
+        const engine = this.getConsciousnessEngine();
+        engine.updateConfig({
+          enabled: consciousnessEnabled,
+          autoMemoryEnabled: this.settings.consciousnessAutoMemory,
+        });
 
-      const consciousnessInjection = await engine.buildConsciousnessInjection();
-      if (consciousnessInjection) {
-        parts.push(consciousnessInjection);
+        const consciousnessInjection = await engine.buildConsciousnessInjection();
+        if (consciousnessInjection) {
+          parts.push(consciousnessInjection);
+        }
       }
 
       // Add vault knowledge summary
-      const vaultKnowledge = await this.getVaultKnowledgeEngine().getKnowledgeSummary();
+      const vaultKnowledge = vaultKnowledgeEnabled
+        ? await this.getVaultKnowledgeEngine().getKnowledgeSummary()
+        : null;
       if (vaultKnowledge) {
         parts.push([
           '## Vault Knowledge Summary',
@@ -1224,19 +1841,23 @@ export default class ClaudianPlugin extends Plugin {
     return this.conversationRepository.list();
   }
 
+  async ensureConversationSearchIndex(ids: string[]): Promise<void> {
+    await this.conversationRepository.ensureSearchIndex(ids);
+  }
+
   async persistTabManagerState(state: AppTabManagerState): Promise<void> {
     this.lastKnownTabManagerState = state;
     await this.storage.setTabManagerState(state);
   }
 
-  getView(): ClaudianView | null {
-    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN);
-    return leaves.map(leaf => leaf.view).find(isClaudianView) ?? null;
+  getView(): ClaudianPlusView | null {
+    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN_PLUS);
+    return leaves.map(leaf => leaf.view).find(isClaudianPlusView) ?? null;
   }
 
-  getAllViews(): ClaudianView[] {
-    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN);
-    return leaves.map(leaf => leaf.view).filter(isClaudianView);
+  getAllViews(): ClaudianPlusView[] {
+    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN_PLUS);
+    return leaves.map(leaf => leaf.view).filter(isClaudianPlusView);
   }
 
   async notifyAgentSkillsChanged(): Promise<void> {
@@ -1259,7 +1880,7 @@ export default class ClaudianPlugin extends Plugin {
     return this.agentSkillRepository;
   }
 
-  findConversationAcrossViews(conversationId: string): { view: ClaudianView; tabId: string } | null {
+  findConversationAcrossViews(conversationId: string): { view: ClaudianPlusView; tabId: string } | null {
     for (const view of this.getAllViews()) {
       const tabManager = view.getTabManager();
       if (!tabManager) continue;

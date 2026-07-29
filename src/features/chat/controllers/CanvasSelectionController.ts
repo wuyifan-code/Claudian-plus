@@ -1,6 +1,7 @@
 import type { App, ItemView } from 'obsidian';
+import { Menu } from 'obsidian';
 
-import type { CanvasSelectionContext } from '../../../utils/canvas';
+import type { CanvasContextAction, CanvasSelectionContext } from '../../../utils/canvas';
 import type { ComposerContextTray } from '../ui/ComposerContextTray';
 
 const CANVAS_POLL_INTERVAL = 250;
@@ -8,6 +9,7 @@ const CANVAS_POLL_INTERVAL = 250;
 type CanvasSelectionNode = { id?: unknown };
 
 type CanvasViewLike = ItemView & {
+  containerEl?: HTMLElement;
   canvas?: {
     selection?: Set<CanvasSelectionNode>;
   };
@@ -23,12 +25,16 @@ export class CanvasSelectionController {
   private onVisibilityChange: (() => void) | null;
   private storedSelection: CanvasSelectionContext | null = null;
   private pollInterval: number | null = null;
+  private pollWindow: Window | null = null;
+  private contextMenuView: CanvasViewLike | null = null;
+  private contextMenuCleanup: (() => void) | null = null;
 
   constructor(
     app: App,
     contextTray: ComposerContextTray,
     inputEl: HTMLElement,
-    onVisibilityChange?: () => void
+    onVisibilityChange?: () => void,
+    private readonly onCanvasContextMenu?: (context: CanvasSelectionContext, action: CanvasContextAction) => void,
   ) {
     this.app = app;
     this.contextTray = contextTray;
@@ -37,28 +43,45 @@ export class CanvasSelectionController {
   }
 
   start(): void {
-    if (this.pollInterval) return;
-    this.pollInterval = window.setInterval(() => this.poll(), CANVAS_POLL_INTERVAL);
+    if (this.pollInterval !== null) return;
+    const ownerWindow = this.inputEl.ownerDocument.defaultView ?? window;
+    this.pollWindow = ownerWindow;
+    this.pollInterval = ownerWindow.setInterval(() => this.poll(), CANVAS_POLL_INTERVAL);
+    this.poll();
   }
 
   stop(): void {
-    if (this.pollInterval) {
-      window.clearInterval(this.pollInterval);
+    if (this.pollInterval !== null) {
+      (this.pollWindow ?? window).clearInterval(this.pollInterval);
       this.pollInterval = null;
     }
+    this.pollWindow = null;
+    this.unbindContextMenu();
     this.clear();
   }
 
   private poll(): void {
     const canvasView = this.getCanvasView();
-    if (!canvasView) return;
+    if (!canvasView) {
+      this.unbindContextMenu();
+      this.clearWhenInputIsNotFocused();
+      return;
+    }
+
+    this.bindContextMenu(canvasView);
 
     const canvas = canvasView.canvas;
-    if (!canvas?.selection) return;
+    if (!canvas?.selection) {
+      this.clearWhenInputIsNotFocused();
+      return;
+    }
 
     const selection = canvas.selection;
     const canvasPath = canvasView.file?.path;
-    if (typeof canvasPath !== 'string' || !canvasPath) return;
+    if (typeof canvasPath !== 'string' || !canvasPath) {
+      this.clearWhenInputIsNotFocused();
+      return;
+    }
 
     const nodeIds = [...selection]
       .map(node => node.id)
@@ -74,12 +97,70 @@ export class CanvasSelectionController {
         this.storedSelection = { canvasPath, nodeIds };
         this.updateIndicator();
       }
-    } else if (this.getActiveElement() !== this.inputEl) {
-      if (this.storedSelection) {
-        this.storedSelection = null;
-        this.updateIndicator();
-      }
+    } else {
+      this.clearWhenInputIsNotFocused();
     }
+  }
+
+  private bindContextMenu(canvasView: CanvasViewLike): void {
+    if (this.contextMenuView === canvasView) return;
+    this.unbindContextMenu();
+
+    const container = canvasView.containerEl;
+    if (!container) return;
+    const handleContextMenu = (event: MouseEvent): void => {
+      const context = this.getContext();
+      if (!context) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      const menu = new Menu();
+      menu.addItem(item => {
+        item
+          .setTitle('Analyze selected nodes')
+          .setIcon('message-square')
+          .onClick(() => this.onCanvasContextMenu?.(context, 'analyze'));
+      });
+      menu.addItem(item => {
+        item
+          .setTitle('Expand into an outline')
+          .setIcon('list-tree')
+          .onClick(() => this.onCanvasContextMenu?.(context, 'outline'));
+      });
+      menu.addItem(item => {
+        item
+          .setTitle('Find related notes')
+          .setIcon('link')
+          .onClick(() => this.onCanvasContextMenu?.(context, 'links'));
+      });
+      menu.addItem(item => {
+        item
+          .setTitle('Suggest neighboring notes')
+          .setIcon('git-branch')
+          .onClick(() => this.onCanvasContextMenu?.(context, 'neighbors'));
+      });
+      menu.showAtMouseEvent(event);
+    };
+
+    container.addEventListener('contextmenu', handleContextMenu);
+    this.contextMenuView = canvasView;
+    this.contextMenuCleanup = () => {
+      container.removeEventListener('contextmenu', handleContextMenu);
+    };
+  }
+
+  private unbindContextMenu(): void {
+    this.contextMenuCleanup?.();
+    this.contextMenuCleanup = null;
+    this.contextMenuView = null;
+  }
+
+  private clearWhenInputIsNotFocused(): void {
+    if (this.getActiveElement() === this.inputEl || !this.storedSelection) {
+      return;
+    }
+    this.storedSelection = null;
+    this.updateIndicator();
   }
 
   private getActiveElement(): Element | null {

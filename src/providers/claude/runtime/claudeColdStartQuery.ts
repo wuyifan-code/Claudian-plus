@@ -7,6 +7,7 @@ import { getVaultPath } from '../../../utils/path';
 import { extractAssistantText } from '../auxiliary/extractAssistantText';
 import { loadClaudeAgentQuery } from '../loadClaudeAgentSdk';
 import { toClaudeRuntimeModelId } from '../modelSelection';
+import { applyClaudeServiceEnvironment } from '../services/ClaudeThirdPartyServices';
 import {
   getClaudeProviderSettings,
   resolveClaudeSettingSources,
@@ -59,8 +60,18 @@ export async function runColdStartQuery(
     throw new Error('Claude CLI not found');
   }
 
-  const customEnv = parseEnvironmentVariables(
-    config.plugin.getActiveEnvironmentVariables('claude')
+  const settings = config.providerSettings
+    ?? ProviderSettingsCoordinator.getProviderSettingsSnapshot(
+      config.plugin.settings,
+      'claude',
+    );
+  const claudeSettings = getClaudeProviderSettings(settings);
+  const selection = config.model ?? (settings.model as string);
+  const customEnv = applyClaudeServiceEnvironment(
+    parseEnvironmentVariables(config.plugin.getActiveEnvironmentVariables('claude')),
+    selection,
+    claudeSettings.thirdPartyServices,
+    secretId => config.plugin.app.secretStorage.getSecret(secretId),
   );
   const enhancedPath = getEnhancedPath(customEnv.PATH, resolvedClaudePath);
 
@@ -69,14 +80,7 @@ export async function runColdStartQuery(
     throw new Error(missingNodeError);
   }
 
-  const settings = config.providerSettings
-    ?? ProviderSettingsCoordinator.getProviderSettingsSnapshot(
-      config.plugin.settings,
-      'claude',
-    );
-  const claudeSettings = getClaudeProviderSettings(settings);
-
-  const selectedModel = toClaudeRuntimeModelId(config.model ?? (settings.model as string));
+  const selectedModel = toClaudeRuntimeModelId(selection);
 
   const options: Options = {
     cwd: vaultPath,

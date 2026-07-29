@@ -6,6 +6,10 @@ const fs = jest.requireActual<typeof fsType>('fs');
 const os = jest.requireActual<typeof osType>('os');
 const path = jest.requireActual<typeof pathType>('path');
 
+function expectedFilesystemPath(value: string): string {
+  return process.platform === 'win32' ? path.win32.normalize(value) : path.normalize(value);
+}
+
 import { findClaudeCLIPath } from '@/providers/claude/cli/findClaudeCLIPath';
 import { getCurrentModelFromEnvironment, getModelsFromEnvironment } from '@/providers/claude/env/claudeModelEnv';
 import { parseEnvironmentVariables } from '@/utils/env';
@@ -143,8 +147,8 @@ describe('utils.ts', () => {
   });
 
   describe('expandHomePath', () => {
-    const envKey = 'CLAUDIAN_TEST_PATH';
-    const envValue = path.join(os.tmpdir(), 'claudian-env');
+    const envKey = 'CLAUDIAN_PLUS_TEST_PATH';
+    const envValue = path.join(os.tmpdir(), 'claudian-plus-env');
     let originalValue: string | undefined;
 
     beforeEach(() => {
@@ -183,8 +187,8 @@ describe('utils.ts', () => {
     });
 
     it('should leave unknown environment variables untouched', () => {
-      expect(expandHomePath('%CLAUDIAN_MISSING_VAR%')).toBe('%CLAUDIAN_MISSING_VAR%');
-      expect(expandHomePath('$CLAUDIAN_MISSING_VAR')).toBe('$CLAUDIAN_MISSING_VAR');
+      expect(expandHomePath('%CLAUDIAN_PLUS_MISSING_VAR%')).toBe('%CLAUDIAN_PLUS_MISSING_VAR%');
+      expect(expandHomePath('$CLAUDIAN_PLUS_MISSING_VAR')).toBe('$CLAUDIAN_PLUS_MISSING_VAR');
     });
   });
 
@@ -201,12 +205,14 @@ describe('utils.ts', () => {
     });
 
     it('expands environment variables before filesystem use', () => {
-      const envKey = 'CLAUDIAN_FS_TEST_PATH';
+      const envKey = 'CLAUDIAN_PLUS_FS_TEST_PATH';
       const originalValue = process.env[envKey];
-      process.env[envKey] = '/tmp/claudian-test';
+      process.env[envKey] = '/tmp/claudian-plus-test';
 
       try {
-        expect(normalizePathForFilesystem(`$${envKey}/notes/file.md`)).toBe('/tmp/claudian-test/notes/file.md');
+        expect(normalizePathForFilesystem(`$${envKey}/notes/file.md`)).toBe(
+          expectedFilesystemPath('/tmp/claudian-plus-test/notes/file.md'),
+        );
       } finally {
         if (originalValue === undefined) {
           delete process.env[envKey];
@@ -233,8 +239,12 @@ describe('utils.ts', () => {
 
     it('handles non-existent environment variables', () => {
       // Non-existent env vars should be left as-is
-      expect(normalizePathForFilesystem('$NONEXISTENT/path')).toBe('$NONEXISTENT/path');
-      expect(normalizePathForFilesystem('%NONEXISTENT%/path')).toBe('%NONEXISTENT%/path');
+      expect(normalizePathForFilesystem('$NONEXISTENT/path')).toBe(
+        expectedFilesystemPath('$NONEXISTENT/path'),
+      );
+      expect(normalizePathForFilesystem('%NONEXISTENT%/path')).toBe(
+        expectedFilesystemPath('%NONEXISTENT%/path'),
+      );
     });
 
     it('handles mixed path separators', () => {
@@ -245,7 +255,7 @@ describe('utils.ts', () => {
     });
 
     it('handles chained home and environment variable expansions', () => {
-      const envKey = 'CLAUDIAN_TEST_SUBDIR';
+      const envKey = 'CLAUDIAN_PLUS_TEST_SUBDIR';
       const originalValue = process.env[envKey];
       process.env[envKey] = 'project';
 
@@ -487,9 +497,10 @@ describe('utils.ts', () => {
 
       it('should return first matching Claude CLI path', () => {
         jest.spyOn(os, 'homedir').mockReturnValue('/home/test');
-        mockExistingFile('/home/test/.local/bin/claude');
+        const expectedPath = path.join('/home/test', '.local', 'bin', 'claude');
+        mockExistingFile(expectedPath);
 
-        expect(findClaudeCLIPath()).toBe('/home/test/.local/bin/claude');
+        expect(findClaudeCLIPath()).toBe(expectedPath);
       });
 
       it('should return null when Claude CLI is not found', () => {
@@ -501,24 +512,33 @@ describe('utils.ts', () => {
 
       it('should check cli-wrapper.cjs paths as fallback on Unix', () => {
         jest.spyOn(os, 'homedir').mockReturnValue('/home/test');
-        mockExistingFile('/usr/local/lib/node_modules/@anthropic-ai/claude-code/cli-wrapper.cjs');
+        const expectedPath = path.join(
+          '/usr/local/lib',
+          'node_modules',
+          '@anthropic-ai',
+          'claude-code',
+          'cli-wrapper.cjs',
+        );
+        mockExistingFile(expectedPath);
 
-        expect(findClaudeCLIPath()).toBe('/usr/local/lib/node_modules/@anthropic-ai/claude-code/cli-wrapper.cjs');
+        expect(findClaudeCLIPath()).toBe(expectedPath);
       });
 
       it('should resolve Claude CLI from custom PATH', () => {
-        mockExistingFile('/custom/bin/claude');
+        const expectedPath = path.join('/custom/bin', 'claude');
+        mockExistingFile(expectedPath);
 
         const customPath = '/custom/bin:/usr/bin';
-        expect(findClaudeCLIPath(customPath)).toBe('/custom/bin/claude');
+        expect(findClaudeCLIPath(customPath)).toBe(expectedPath);
       });
 
       it('should expand home directory in custom PATH', () => {
         jest.spyOn(os, 'homedir').mockReturnValue('/home/test');
-        mockExistingFile('/home/test/bin/claude');
+        const expectedPath = path.join('/home/test', 'bin', 'claude');
+        mockExistingFile(expectedPath);
 
         const customPath = '~/bin:/usr/bin';
-        expect(findClaudeCLIPath(customPath)).toBe('/home/test/bin/claude');
+        expect(findClaudeCLIPath(customPath)).toBe(expectedPath);
       });
 
       it('should not return a directory path even if it exists', () => {
@@ -734,7 +754,7 @@ describe('utils.ts', () => {
       });
 
       it('should handle root drive paths', () => {
-        expect(translateMsysPath('/c')).toBe('C:');
+        expect(translateMsysPath('/c')).toBe('C:\\');
         expect(translateMsysPath('/c/')).toBe('C:\\');
       });
 
@@ -782,7 +802,7 @@ describe('utils.ts', () => {
 
         expect(translateMsysPath('/c/Users/test')).toBe('C:\\Users\\test');
         expect(translateMsysPath('/d/Projects/vault')).toBe('D:\\Projects\\vault');
-        expect(translateMsysPath('/c')).toBe('C:');
+        expect(translateMsysPath('/c')).toBe('C:\\');
         expect(translateMsysPath('/c/')).toBe('C:\\');
       });
 

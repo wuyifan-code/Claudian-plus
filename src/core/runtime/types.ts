@@ -44,6 +44,8 @@ export type AskUserQuestionCallback = (
 
 export interface ChatTurnRequest {
   text: string;
+  /** Source-backed vault context injected for this turn, never user-visible. */
+  vaultContext?: string;
   images?: ImageAttachment[];
   currentNotePath?: string;
   editorSelection?: EditorSelectionContext | null;

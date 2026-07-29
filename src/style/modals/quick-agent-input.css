@@ -1,0 +1,18 @@
+/* Quick Agent Input Modal */
+.claudian-plus-quick-input-hint {
+  font-size: var(--font-smallest);
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.claudian-plus-quick-input-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.claudian-plus-quick-input-textarea {
+  width: 100%;
+  font-family: var(--font-monospace);
+}

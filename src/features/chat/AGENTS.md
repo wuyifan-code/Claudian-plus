@@ -29,7 +29,7 @@ Tabs stay cold until the first send. Keep runtime warmup explicit and provider-o
 
 | Area | Owns |
 | --- | --- |
-| `ClaudianView` | Lifecycle, assembly, active-tab orchestration |
+| `ClaudianPlusView` | Lifecycle, assembly, active-tab orchestration |
 | `ChatState` | Per-tab state and persistence inputs |
 | Controllers | Conversation, stream, input, selection, browser/canvas selection, navigation |
 | Renderers | Messages, tools, thinking, diffs, todos, subagents, plan approval, ask-user UI |
@@ -38,7 +38,7 @@ Tabs stay cold until the first send. Keep runtime warmup explicit and provider-o
 
 ## Gotchas
 
-- `ClaudianView.onClose()` must abort active tabs and dispose runtimes.
+- `ClaudianPlusView.onClose()` must abort active tabs and dispose runtimes.
 - `ChatState` is per-tab. `TabManager` coordinates tab-level operations such as forks and provider-aware command catalogs.
 - Title generation runs concurrently per conversation and routes by the global title-generation model, not the active chat tab provider.
 - `/compact` is provider-specific:

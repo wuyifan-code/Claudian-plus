@@ -1,0 +1,73 @@
+.claudian-plus-claude-services {
+  margin-top: 18px;
+}
+
+.claudian-plus-claude-service-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.claudian-plus-claude-service-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-secondary);
+}
+
+.claudian-plus-claude-service-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.claudian-plus-claude-service-name {
+  color: var(--text-normal);
+  font-weight: var(--font-semibold);
+}
+
+.claudian-plus-claude-service-meta {
+  overflow: hidden;
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claudian-plus-claude-service-actions,
+.claudian-plus-settings-action-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.claudian-plus-settings-action-row {
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.claudian-plus-settings-action-row .setting-item-description {
+  flex-basis: 100%;
+  text-align: right;
+}
+
+.claudian-plus-settings-empty-state {
+  padding: 12px;
+  border: 1px dashed var(--background-modifier-border);
+  border-radius: 8px;
+  color: var(--text-faint);
+  font-size: var(--font-ui-small);
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .claudian-plus-claude-service-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

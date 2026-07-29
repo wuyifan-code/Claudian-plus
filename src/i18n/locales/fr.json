@@ -56,6 +56,15 @@
       "commandNoMessages": "Impossible de bifurquer : aucun message dans la conversation",
       "commandNoAssistantUuid": "Impossible de bifurquer : aucune réponse de l’assistant avec des identifiants"
     },
+    "fileMenu": {
+      "add": "Ajouter à Claudian Plus",
+      "notReady": "Le chat Claudian Plus n'est pas prêt.",
+      "failed": "Impossible d'ajouter le fichier à Claudian Plus."
+    },
+    "drop": {
+      "context": "Drop to add context",
+      "invalid": "No supported vault notes or folders found."
+    },
     "bangBash": {
       "placeholder": "> Exécuter une commande bash...",
       "commandPanel": "Panneau de commandes",
@@ -70,7 +79,7 @@
     }
   },
   "settings": {
-    "title": "Paramètres Claudian",
+    "title": "Paramètres Claudian Plus",
     "tabs": {
       "general": "Général",
       "claude": "Claude",
@@ -84,7 +93,7 @@
     "models": "Modèles",
     "experimental": "Expérimental",
     "userName": {
-      "name": "Comment Claudian doit-il vous appeler ?",
+      "name": "Comment Claudian Plus doit-il vous appeler ?",
       "desc": "Votre nom pour les salutations personnalisées (laisser vide pour les salutations génériques)"
     },
     "excludedTags": {
@@ -200,7 +209,7 @@
     },
     "hiddenSlashCommands": {
       "name": "Commandes et compétences masquées",
-      "desc": "Masquez des commandes et compétences spécifiques du menu déroulant. Utile pour masquer les entrées Claude Code qui ne sont pas pertinentes pour Claudian. Saisissez les noms sans le slash initial, un par ligne.",
+      "desc": "Masquez des commandes et compétences spécifiques du menu déroulant. Utile pour masquer les entrées Claude Code qui ne sont pas pertinentes pour Claudian Plus. Saisissez les noms sans le slash initial, un par ligne.",
       "placeholder": "commit\nbuild\ntest"
     },
     "mcpServers": {
@@ -332,11 +341,130 @@
       "desc": "Afficher les diffs Write et Edit développés lors de leur première apparition."
     },
     "chatViewPlacement": {
-      "name": "Ouvrir Claudian dans",
+      "name": "Ouvrir Claudian Plus dans",
       "desc": "Choisissez où le panneau de chat s'ouvre lors de sa création",
       "rightSidebar": "Barre latérale droite",
       "leftSidebar": "Barre latérale gauche",
       "mainTab": "Onglet principal de l'éditeur"
+    },
+    "defaultChatProvider": {
+      "name": "Fournisseur par défaut des nouveaux chats",
+      "desc": "Utilisé pour chaque nouvel onglet vide. Les conversations existantes conservent leur fournisseur.",
+      "followModel": "Suivre le modèle sélectionné"
+    },
+    "livePreviewComposer": {
+      "name": "Live Preview composer",
+      "desc": "Render supported Markdown and vault references while typing. Disable to use the plain text composer. Applies after reopening the chat view."
+    },
+    "vaultAutoContext": {
+      "name": "Automatic vault context",
+      "desc": "Retrieve relevant local notes and add them to each normal chat prompt. Disable to keep retrieval manual."
+    },
+    "semanticSearch": {
+      "name": "Local semantic search",
+      "desc": "Optionally rerank vault retrieval with a local Ollama or OpenAI-compatible embedding service. If it is unavailable, lexical search remains active."
+    },
+    "autoLinkRecommendations": {
+      "name": "Link suggestions after save",
+      "desc": "After saving the active Markdown note, show deduplicated source-backed link candidates. Nothing is inserted automatically."
+    },
+    "semanticEmbeddingEndpoint": {
+      "name": "Embedding endpoint",
+      "desc": "Local endpoint base URL. Use /v1/embeddings for OpenAI-compatible services, or the base URL for Ollama."
+    },
+    "semanticEmbeddingModel": {
+      "name": "Embedding model",
+      "desc": "Model identifier installed in your local embedding service, for example nomic-embed-text."
+    },
+    "claudeServices": {
+      "heading": "Third-party model services",
+      "description": "Connect Anthropic-compatible services through Claude. Enabled services appear in the chat model picker.",
+      "empty": "No third-party services configured.",
+      "add": "Add model service",
+      "enable": "Enable",
+      "disable": "Disable",
+      "test": "Test connection",
+      "testing": "Testing connection. This sends a minimal paid request.",
+      "testSuccess": "Connection succeeded in {latency} ms.",
+      "testFailed": "Connection failed: {error}",
+      "setDefault": "Set as default",
+      "defaultActive": "Default service",
+      "deleteConfirm": "Delete this model service? Its SecretStorage entry will be kept.",
+      "costNotice": "Connection tests send one minimal request and may incur provider charges.",
+      "modal": {
+        "add": "Add model service",
+        "edit": "Edit model service"
+      },
+      "fields": {
+        "preset": "Service template",
+        "name": "Service name",
+        "url": "Base URL",
+        "urlDesc": "Anthropic-compatible endpoint. HTTPS required except localhost.",
+        "auth": "Authentication",
+        "secret": "API key",
+        "secretDesc": "Select or create a key in Obsidian SecretStorage.",
+        "defaultModel": "Default model ID",
+        "lightModel": "Lightweight model ID",
+        "lightModelDesc": "Used for title generation and Haiku-class tasks."
+      },
+      "auth": {
+        "bearer": "Bearer token",
+        "apiKey": "API key header"
+      },
+      "validation": {
+        "name": "Service name is required.",
+        "url": "Valid Base URL is required.",
+        "https": "Use HTTPS, or HTTP only for localhost.",
+        "secret": "Select or create an API key in SecretStorage.",
+        "defaultModel": "Default model ID is required.",
+        "lightModel": "Lightweight model ID is required."
+      }
+    },
+    "agentSkills": {
+      "sectionTitle": "Skills",
+      "header": "Shared skills",
+      "fixedRoot": "Managed in .agents/skills",
+      "sharedExpectation": "Manage skills shared across all enabled providers in .agents/skills/.",
+      "noSkills": "No shared skills configured. Click + to create one.",
+      "skillBadge": "skill",
+      "diagnosticsTitle": "Skills needing attention",
+      "loadFailed": "Could not load shared skills.",
+      "savedRefreshFailed": "Saved, but provider refresh failed.",
+      "validationFailed": "Invalid skill: {message}",
+      "collisionFailed": "A skill named \"{name}\" already exists.",
+      "saveFailed": "Failed to save shared skill: {message}",
+      "deleteFailed": "Failed to move shared skill to trash: {message}",
+      "staleConflict": "This skill changed elsewhere; refresh before saving.",
+      "created": "Shared skill \"{name}\" created.",
+      "updated": "Shared skill \"{name}\" updated.",
+      "deleted": "Shared skill \"{name}\" moved to trash.",
+      "modal": {
+        "titleEdit": "Edit Shared Skill",
+        "titleAdd": "Add Shared Skill",
+        "name": "Skill name",
+        "nameDesc": "Lowercase letters and numbers separated by single hyphens",
+        "namePlaceholder": "code-reviewer",
+        "description": "Description",
+        "descriptionDesc": "Required portable description used by providers to select the skill",
+        "descriptionPlaceholder": "Reviews code for correctness and maintainability",
+        "instructions": "Instructions",
+        "instructionsDesc": "Required SKILL.md instructions",
+        "instructionsPlaceholder": "Review the supplied code and report actionable findings..."
+      },
+      "delete": {
+        "title": "Delete Shared Skill",
+        "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.",
+        "confirm": "Move to trash"
+      }
+    },
+    "providerEnablement": {
+      "atLeastOne": "At least one provider must remain enabled."
+    },
+    "claude": {
+      "enableProvider": {
+        "name": "Enable Claude provider",
+        "desc": "When enabled, Claude models appear in the model selector for new conversations. Existing Claude sessions are preserved."
+      }
     },
     "cliPath": {
       "name": "Chemin CLI Claude",
@@ -359,7 +487,7 @@
       },
       "installationMethod": {
         "name": "Méthode d’installation",
-        "desc": "Comment Claudian doit lancer Codex sous Windows. Windows natif utilise un chemin d’exécutable Windows. WSL lance la CLI Linux dans une distribution choisie.",
+        "desc": "Comment Claudian Plus doit lancer Codex sous Windows. Windows natif utilise un chemin d’exécutable Windows. WSL lance la CLI Linux dans une distribution choisie.",
         "nativeWindows": "Windows natif",
         "wsl": "WSL"
       },
@@ -406,7 +534,7 @@
       },
       "mcp": {
         "descBeforeCommand": "Codex gère les serveurs MCP via sa propre CLI. Configurez avec ",
-        "descAfterCommand": " et ils seront disponibles dans Claudian. ",
+        "descAfterCommand": " et ils seront disponibles dans Claudian Plus. ",
         "learnMore": "En savoir plus"
       },
       "environment": {

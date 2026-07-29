@@ -20,10 +20,22 @@ const {
 // Load .env.local if it exists
 if (existsSync('.env.local')) {
   const envContent = readFileSync('.env.local', 'utf-8');
-  for (const line of envContent.split('\n')) {
-    const match = line.match(/^([^=]+)=["']?(.+?)["']?$/);
-    if (match && !process.env[match[1]]) {
-      process.env[match[1]] = match[2];
+  for (const rawLine of envContent.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+
+    const match = line.match(/^([^=]+)=(.*)$/);
+    if (!match) continue;
+
+    const key = match[1].trim();
+    let value = match[2].trim();
+    if ((value.startsWith('"') && value.endsWith('"'))
+      || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+
+    if (key && !process.env[key]) {
+      process.env[key] = value;
     }
   }
 }
@@ -142,7 +154,6 @@ const copyToObsidian = {
   setup(build) {
     build.onEnd((result) => {
       if (result.errors.length > 0) return;
-      rmSync(path.join(process.cwd(), '.codex-vendor'), { recursive: true, force: true });
 
       if (!OBSIDIAN_PLUGIN_PATH) return;
 
@@ -158,8 +169,6 @@ const copyToObsidian = {
         }
       }
 
-      const pluginVendorRoot = path.join(OBSIDIAN_PLUGIN_PATH, '.codex-vendor');
-      rmSync(pluginVendorRoot, { recursive: true, force: true });
     });
   }
 };

@@ -1,5 +1,5 @@
 import { createMockEl, type MockElement } from '@test/helpers/mockElement';
-import { TFile } from 'obsidian';
+import { TFile, TFolder } from 'obsidian';
 
 import type { FileContextCallbacks } from '@/features/chat/ui/FileContext';
 import { FileContextManager } from '@/features/chat/ui/FileContext';
@@ -19,6 +19,10 @@ function createMockTFile(filePath: string): TFile {
   const file = new (TFile as any)(filePath) as TFile;
   (file as any).stat = { mtime: Date.now(), ctime: Date.now(), size: 0 };
   return file;
+}
+
+function createMockTFolder(folderPath: string): TFolder {
+  return new (TFolder as any)(folderPath) as TFolder;
 }
 
 let mockVaultPath = '/vault';
@@ -203,11 +207,11 @@ describe('FileContextManager', () => {
 
     manager.setCurrentNote('notes/chip.md');
 
-    const chip = findByClass(containerEl, 'claudian-context-chip--note');
+    const chip = findByClass(containerEl, 'claudian-plus-context-chip--note');
     expect(chip).toBeDefined();
     expect(containerEl.hasClass('has-content')).toBe(true);
 
-    const removeEl = findByClass(containerEl, 'claudian-context-chip-remove');
+    const removeEl = findByClass(containerEl, 'claudian-plus-context-chip-remove');
     expect(removeEl).toBeDefined();
 
     removeEl!.click();
@@ -262,7 +266,7 @@ describe('FileContextManager', () => {
     manager.handleInputChange();
     jest.advanceTimersByTime(200);
 
-    const pathEl = findByClass(containerEl, 'claudian-mention-path');
+    const pathEl = findByClass(containerEl, 'claudian-plus-mention-path');
     expect(pathEl?.textContent).toBe('clipping/file.md');
 
     manager.handleMentionKeydown({ key: 'Enter', preventDefault: jest.fn() } as any);
@@ -295,7 +299,7 @@ describe('FileContextManager', () => {
     jest.advanceTimersByTime(200);
 
     expect(getFoldersSpy).toHaveBeenCalled();
-    const folderLabel = findByClass(containerEl, 'claudian-mention-name-folder');
+    const folderLabel = findByClass(containerEl, 'claudian-plus-mention-name-folder');
     expect(folderLabel?.textContent).toBe('@src/');
 
     manager.destroy();
@@ -328,7 +332,7 @@ describe('FileContextManager', () => {
     manager.handleInputChange();
     jest.advanceTimersByTime(200);
 
-    const nameEls = findAllByClass(containerEl, 'claudian-mention-name-context');
+    const nameEls = findAllByClass(containerEl, 'claudian-plus-mention-name-context');
     expect(nameEls[0]?.textContent).toBe('src/app.md');
 
     manager.handleMentionKeydown({ key: 'Enter', preventDefault: jest.fn() } as any);
@@ -615,6 +619,33 @@ describe('FileContextManager', () => {
       expect(manager.getCurrentNotePath()).toBe('notes/a.md');
       manager.destroy();
     });
+
+    it('moves attached folders and their direct file context when a folder is renamed', () => {
+      const app = createMockApp();
+      const manager = new FileContextManager(
+        app, containerEl as any, inputEl, createMockCallbacks()
+      );
+      manager.attachFolderPath('projects/old');
+      manager.attachFolderPath('projects/old/nested');
+      manager.attachFilePath('projects/old/readme.md');
+      manager.setCurrentNote('projects/old/nested/note.md');
+
+      const renameHandler = (app.vault.on as jest.Mock).mock.calls
+        .find((c: any[]) => c[0] === 'rename')?.[1];
+
+      renameHandler(createMockTFolder('projects/new'), 'projects/old');
+
+      expect(manager.getCurrentNotePath()).toBe('projects/new/nested/note.md');
+      expect(manager.getAttachedFiles()).toEqual(new Set([
+        'projects/new/readme.md',
+        'projects/new/nested/note.md',
+      ]));
+      expect(manager.getAttachedFolders()).toEqual(new Set([
+        'projects/new',
+        'projects/new/nested',
+      ]));
+      manager.destroy();
+    });
   });
 
   describe('file delete handling', () => {
@@ -665,6 +696,28 @@ describe('FileContextManager', () => {
 
       deleteHandler(createMockTFile('notes/other.md'));
       expect(manager.getCurrentNotePath()).toBe('notes/a.md');
+      manager.destroy();
+    });
+
+    it('removes an attached folder and all direct context inside it when deleted', () => {
+      const app = createMockApp();
+      const manager = new FileContextManager(
+        app, containerEl as any, inputEl, createMockCallbacks()
+      );
+      manager.attachFolderPath('projects/doomed');
+      manager.attachFolderPath('projects/doomed/nested');
+      manager.attachFilePath('projects/doomed/readme.md');
+      manager.attachFilePath('projects/keep.md');
+      manager.setCurrentNote('projects/doomed/nested/note.md');
+
+      const deleteHandler = (app.vault.on as jest.Mock).mock.calls
+        .find((c: any[]) => c[0] === 'delete')?.[1];
+
+      deleteHandler(createMockTFolder('projects/doomed'));
+
+      expect(manager.getCurrentNotePath()).toBeNull();
+      expect(manager.getAttachedFiles()).toEqual(new Set(['projects/keep.md']));
+      expect(manager.getAttachedFolders()).toEqual(new Set());
       manager.destroy();
     });
   });

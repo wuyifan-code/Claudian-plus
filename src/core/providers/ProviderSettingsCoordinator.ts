@@ -3,6 +3,8 @@ import { toProviderRuntimeModelId } from './modelSelection';
 import { ProviderRegistry } from './ProviderRegistry';
 import type { ProviderChatUIConfig, ProviderId } from './types';
 
+export type ProviderEnablementResult = 'applied' | 'last-enabled-provider';
+
 export interface SettingsReconciliationResult {
   changed: boolean;
   environmentChangedProviderIds: ProviderId[];
@@ -245,10 +247,19 @@ export class ProviderSettingsCoordinator {
     settings: Record<string, unknown>,
     providerId: ProviderId,
     enabled: boolean,
-  ): void {
+  ): ProviderEnablementResult {
+    if (
+      !enabled
+      && ProviderRegistry.isEnabled(providerId, settings)
+      && ProviderRegistry.getEnabledProviderIds(settings).length === 1
+    ) {
+      return 'last-enabled-provider';
+    }
+
     ProviderRegistry.setEnabled(providerId, settings, enabled);
     this.normalizeProviderSelection(settings);
     this.reconcileTitleGenerationModelSelection(settings);
+    return 'applied';
   }
 
   static getProviderSettingsSnapshot<T extends Record<string, unknown>>(

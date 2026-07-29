@@ -1,27 +1,42 @@
 /* Header - logo and title */
-.claudian-header {
+.claudian-plus-header {
   position: relative;
   display: flex;
   align-items: center;
-  padding: 0 12px 12px 12px;
+  justify-content: center;
+  padding: 8px 12px 12px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  margin-bottom: 4px;
 }
 
-.claudian-title {
+.claudian-plus-title {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   flex: 1;
   min-width: 0;
+  text-align: center;
 }
 
-.claudian-title-text {
+.claudian-plus-title-text {
   margin: 0;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 650;
+  letter-spacing: 0.2px;
+  text-align: center;
+  color: var(--text-normal);
+  transition: color var(--claudian-plus-transition-normal);
 }
 
-.claudian-logo {
+.claudian-plus-logo {
   display: flex;
   align-items: center;
-  color: var(--claudian-brand);
+  justify-content: center;
+  color: var(--claudian-plus-brand);
+  transition: transform var(--claudian-plus-transition-bounce), color var(--claudian-plus-transition-normal);
+}
+
+.claudian-plus-header:hover .claudian-plus-logo {
+  transform: scale(1.1) rotate(6deg);
 }

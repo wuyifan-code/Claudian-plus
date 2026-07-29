@@ -2,7 +2,7 @@
 
 ## Project
 
-Claudian is an Obsidian plugin that embeds provider-backed coding agents in a sidebar and inline-edit flow. Claude is the default provider. Codex, OpenCode, and Pi are optional providers that plug into the same conversation model through `Conversation.providerId` and opaque provider-owned `providerState`.
+Claudian Plus is an Obsidian plugin that embeds provider-backed coding agents in a sidebar and inline-edit flow. Codex is the default provider. Claude, OpenCode, and Pi are optional providers that plug into the same conversation model through `Conversation.providerId` and opaque provider-owned `providerState`.
 
 Do not assume provider parity. Check each provider's `capabilities.ts`, `registration.ts`, and UI config before wiring shared behavior.
 
@@ -67,10 +67,11 @@ The feature layer depends on `core/` contracts, not provider internals. Provider
 
 | Path | Contents |
 | --- | --- |
-| `.claudian/claudian-settings.json` | Shared Claudian settings and provider-specific configuration |
-| `.claudian/sessions/*.meta.json` | Provider-neutral session metadata |
+| `.claudian-plus/claudian-plus-settings.json` | Shared Claudian Plus settings and provider-specific configuration |
+| `.claudian-plus/sessions/*.meta.json` | Provider-neutral session metadata |
+| `.claudian/` | Legacy Claudian data, read for migration compatibility |
 | `.claude/settings.json` | Claude Code-compatible project settings, permissions, and plugin overrides |
-| `.claude/mcp.json` | Claudian-managed MCP servers for Claude |
+| `.claude/mcp.json` | Claudian Plus-managed MCP servers for Claude |
 | `.claude/commands/**/*.md` | Claude slash commands |
 | `.claude/skills/*/SKILL.md` | Claude skills |
 | `.claude/agents/*.md` | Claude vault agents |

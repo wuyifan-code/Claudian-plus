@@ -1,5 +1,5 @@
 /* @ Mention dropdown */
-.claudian-mention-dropdown {
+.claudian-plus-mention-dropdown {
   display: none;
   position: absolute;
   bottom: 100%;
@@ -17,21 +17,21 @@
   overflow-y: auto;
 }
 
-.claudian-mention-dropdown.visible {
+.claudian-plus-mention-dropdown.visible {
   display: block;
 }
 
 /* Fixed positioning for inline editor */
-.claudian-mention-dropdown-fixed {
+.claudian-plus-mention-dropdown-fixed {
   position: fixed;
-  bottom: var(--claudian-fixed-dropdown-bottom);
-  left: var(--claudian-fixed-dropdown-left);
+  bottom: var(--claudian-plus-fixed-dropdown-bottom);
+  left: var(--claudian-plus-fixed-dropdown-left);
   right: auto;
-  width: var(--claudian-fixed-dropdown-width);
+  width: var(--claudian-plus-fixed-dropdown-width);
   z-index: 10001;
 }
 
-.claudian-mention-item {
+.claudian-plus-mention-item {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -40,24 +40,24 @@
   transition: background 0.1s ease;
 }
 
-.claudian-mention-item:hover,
-.claudian-mention-item.selected {
+.claudian-plus-mention-item:hover,
+.claudian-plus-mention-item.selected {
   background: var(--background-modifier-hover);
 }
 
-.claudian-mention-icon {
+.claudian-plus-mention-icon {
   display: flex;
   align-items: center;
   color: var(--text-muted);
   flex-shrink: 0;
 }
 
-.claudian-mention-icon svg {
+.claudian-plus-mention-icon svg {
   width: 14px;
   height: 14px;
 }
 
-.claudian-mention-path {
+.claudian-plus-mention-path {
   font-size: 13px;
   color: var(--text-normal);
   overflow: hidden;
@@ -65,7 +65,7 @@
   white-space: nowrap;
 }
 
-.claudian-mention-empty {
+.claudian-plus-mention-empty {
   padding: 12px;
   text-align: center;
   color: var(--text-muted);
@@ -73,29 +73,29 @@
 }
 
 /* Scrollbar for mention dropdown */
-.claudian-mention-dropdown::-webkit-scrollbar {
+.claudian-plus-mention-dropdown::-webkit-scrollbar {
   width: 6px;
 }
 
-.claudian-mention-dropdown::-webkit-scrollbar-track {
+.claudian-plus-mention-dropdown::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.claudian-mention-dropdown::-webkit-scrollbar-thumb {
+.claudian-plus-mention-dropdown::-webkit-scrollbar-thumb {
   background: var(--background-modifier-border);
   border-radius: 3px;
 }
 
 /* MCP items in @-mention dropdown */
-.claudian-mention-item.mcp-server .claudian-mention-icon {
+.claudian-plus-mention-item.mcp-server .claudian-plus-mention-icon {
   color: var(--interactive-accent);
 }
 
-.claudian-mention-item.vault-folder .claudian-mention-icon {
+.claudian-plus-mention-item.vault-folder .claudian-plus-mention-icon {
   color: var(--text-muted);
 }
 
-.claudian-mention-text {
+.claudian-plus-mention-text {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -103,13 +103,13 @@
   flex: 1;
 }
 
-.claudian-mention-name {
+.claudian-plus-mention-name {
   font-size: 13px;
   font-weight: 500;
   color: var(--interactive-accent);
 }
 
-.claudian-mention-desc {
+.claudian-plus-mention-desc {
   font-size: 11px;
   color: var(--text-muted);
   overflow: hidden;
@@ -118,17 +118,17 @@
 }
 
 /* Context file items in @-mention dropdown */
-.claudian-mention-item.context-file .claudian-mention-icon {
-  color: var(--claudian-brand);
+.claudian-plus-mention-item.context-file .claudian-plus-mention-icon {
+  color: var(--claudian-plus-brand);
 }
 
-.claudian-mention-item.context-file .claudian-mention-text {
+.claudian-plus-mention-item.context-file .claudian-plus-mention-text {
   flex-direction: row;
   overflow: hidden;
   white-space: nowrap;
 }
 
-.claudian-mention-item.context-file .claudian-mention-name-context {
+.claudian-plus-mention-item.context-file .claudian-plus-mention-name-context {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -136,35 +136,35 @@
 }
 
 /* Context folder filter items in @-mention dropdown */
-.claudian-mention-item.context-folder .claudian-mention-icon {
+.claudian-plus-mention-item.context-folder .claudian-plus-mention-icon {
   color: var(--text-muted);
 }
 
-.claudian-mention-name-folder {
+.claudian-plus-mention-name-folder {
   color: var(--text-normal);
   font-weight: 500;
 }
 
-.claudian-mention-name-context {
+.claudian-plus-mention-name-context {
   color: var(--text-normal);
 }
 
 /* Agent folder items in @-mention dropdown */
-.claudian-mention-item.agent-folder .claudian-mention-icon {
+.claudian-plus-mention-item.agent-folder .claudian-plus-mention-icon {
   color: var(--link-color);
 }
 
-.claudian-mention-name-agent-folder {
+.claudian-plus-mention-name-agent-folder {
   color: var(--link-color);
   font-weight: 600;
 }
 
 /* Agent items in @-mention dropdown (inside @Agents/) */
-.claudian-mention-item.agent .claudian-mention-icon {
+.claudian-plus-mention-item.agent .claudian-plus-mention-icon {
   color: var(--link-color);
 }
 
-.claudian-mention-item.agent .claudian-mention-text {
+.claudian-plus-mention-item.agent .claudian-plus-mention-text {
   flex-direction: row;
   align-items: baseline;
   gap: 6px;
@@ -172,13 +172,13 @@
   white-space: nowrap;
 }
 
-.claudian-mention-item.agent .claudian-mention-name-agent {
+.claudian-plus-mention-item.agent .claudian-plus-mention-name-agent {
   color: var(--text-normal);
   font-size: 13px;
   flex-shrink: 0;
 }
 
-.claudian-mention-item.agent .claudian-mention-agent-desc {
+.claudian-plus-mention-item.agent .claudian-plus-mention-agent-desc {
   font-size: 11px;
   color: var(--text-muted);
   overflow: hidden;

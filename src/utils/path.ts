@@ -4,7 +4,11 @@ import * as os from 'os';
 import * as path from 'path';
 
 export function getVaultPath(app: App): string | null {
-  const basePath = (app.vault.adapter as { basePath?: unknown } | undefined)?.basePath;
+  // Unit tests and a few early-startup call sites may provide a partial App
+  // object. Obsidian itself always has `vault.adapter`, but treating the
+  // boundary as optional lets callers receive the intended "vault path not
+  // available" error instead of an unrelated TypeError.
+  const basePath = ((app as App | undefined)?.vault?.adapter as { basePath?: unknown } | undefined)?.basePath;
   return typeof basePath === 'string' ? basePath : null;
 }
 
@@ -221,8 +225,11 @@ export function translateMsysPath(value: string): string {
   const msysMatch = value.match(/^\/([a-zA-Z])(\/.*)?$/);
   if (msysMatch) {
     const driveLetter = msysMatch[1].toUpperCase();
-    const restOfPath = msysMatch[2] ?? '';
-    return `${driveLetter}:${restOfPath.replace(/\//g, '\\')}`;
+    // Preserve a bare MSYS drive as its root. Returning `C:` would make it
+    // drive-relative (`C:.`) after normalization, so it would not compare as
+    // the parent of `/c/...` paths.
+    const restOfPath = msysMatch[2]?.replace(/\//g, '\\') ?? '\\';
+    return `${driveLetter}:${restOfPath}`;
   }
 
   return value;

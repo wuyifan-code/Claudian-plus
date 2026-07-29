@@ -10,7 +10,7 @@ import {
 } from '../../../../src/providers/opencode/history/OpencodeHistoryStore';
 
 describe('mapOpencodeMessages', () => {
-  it('maps stored OpenCode messages into Claudian chat messages', () => {
+  it('maps stored OpenCode messages into ClaudianPlus chat messages', () => {
     const messages = mapOpencodeMessages([
       {
         info: {
@@ -361,7 +361,7 @@ describe('loadOpencodeSessionMessages', () => {
   let tmpRoot: string;
 
   beforeEach(() => {
-    tmpRoot = mkdtempSync(path.join(os.tmpdir(), 'claudian-opencode-history-'));
+    tmpRoot = mkdtempSync(path.join(os.tmpdir(), 'claudian-plus-opencode-history-'));
   });
 
   afterEach(() => {

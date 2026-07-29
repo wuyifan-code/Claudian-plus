@@ -1,24 +1,31 @@
-import type { MemoryEntry } from './types';
+import { DEFAULT_MEMORY_FILE_PATH } from './types';
 
 /**
  * Consciousness mechanism types for self-reflection and accumulation.
  * Inspired by QoderWork's awareness system.
  *
  * File structure:
- * - .claudian/awareness/SOUL.md    - Collaboration style
- * - .claudian/awareness/USER.md    - User profile
- * - .claudian/awareness/MEMORY.md  - Long-term memory
- * - .claudian/awareness/memory/    - Short-term memory (daily logs)
- * - .claudian/awareness/activity.json - Activity log
+ * - .claudian-plus/awareness/SOUL.md    - Collaboration style
+ * - .claudian-plus/awareness/USER.md    - User profile
+ * - .claudian-plus/memory.md            - Long-term memory
+ * - .claudian-plus/awareness/memory/    - Short-term memory (daily logs)
+ * - .claudian-plus/awareness/activity.json - Activity log
  */
 
 /** Awareness file paths relative to vault root. */
-export const AWARENESS_DIR = '.claudian/awareness';
+export const AWARENESS_DIR = '.claudian-plus/awareness';
+export const LEGACY_AWARENESS_DIR = '.claudian/awareness';
 export const SOUL_FILE = `${AWARENESS_DIR}/SOUL.md`;
 export const USER_FILE = `${AWARENESS_DIR}/USER.md`;
-export const MEMORY_FILE = `${AWARENESS_DIR}/MEMORY.md`;
+export const LEGACY_SOUL_FILE = `${LEGACY_AWARENESS_DIR}/SOUL.md`;
+export const LEGACY_USER_FILE = `${LEGACY_AWARENESS_DIR}/USER.md`;
+// Keep one source of truth for long-term memory. This path is also user-configurable
+// through settings, but the default must match MemoryStore and existing vaults.
+export const MEMORY_FILE = DEFAULT_MEMORY_FILE_PATH;
 export const SHORT_TERM_DIR = `${AWARENESS_DIR}/memory`;
+export const LEGACY_SHORT_TERM_DIR = `${LEGACY_AWARENESS_DIR}/memory`;
 export const ACTIVITY_FILE = `${AWARENESS_DIR}/activity.json`;
+export const LEGACY_ACTIVITY_FILE = `${LEGACY_AWARENESS_DIR}/activity.json`;
 
 /** Reflection insight extracted from conversation analysis. */
 export interface ReflectionInsight {
@@ -77,6 +84,30 @@ export interface ConsciousnessConfig {
   minMemoriesForConsolidation: number;
   /** Auto-reflection interval in milliseconds. */
   reflectionIntervalMs: number;
+  /** Privacy controls for memory collection. */
+  privacy: ConsciousnessPrivacyConfig;
+  /** Retention policy for automatic cleanup. */
+  retention: ConsciousnessRetentionConfig;
+}
+
+/** Privacy controls for the consciousness system. */
+export interface ConsciousnessPrivacyConfig {
+  /** Allow implicit memory extraction from conversations. */
+  allowImplicitExtraction: boolean;
+  /** Include source context (conversation ID, trigger) in stored memories. */
+  includeSourceContext: boolean;
+  /** Require explicit user confirmation before storing implicit memories. */
+  requireConfirmationForImplicit: boolean;
+}
+
+/** Retention policy for automatic memory cleanup. */
+export interface ConsciousnessRetentionConfig {
+  /** Maximum age in days for short-term memory files (0 = unlimited). */
+  shortTermMaxAgeDays: number;
+  /** Maximum number of activity log entries to retain. */
+  maxActivityEntries: number;
+  /** Automatically purge orphaned memories during consolidation. */
+  autoPurgeOrphaned: boolean;
 }
 
 /** Default consciousness configuration. */
@@ -86,12 +117,22 @@ export const DEFAULT_CONSCIOUSNESS_CONFIG: ConsciousnessConfig = {
   minConversationsForReflection: 5,
   minMemoriesForConsolidation: 10,
   reflectionIntervalMs: 24 * 60 * 60 * 1000, // 24 hours
+  privacy: {
+    allowImplicitExtraction: true,
+    includeSourceContext: true,
+    requireConfirmationForImplicit: false,
+  },
+  retention: {
+    shortTermMaxAgeDays: 30,
+    maxActivityEntries: 100,
+    autoPurgeOrphaned: true,
+  },
 };
 
 /** Soul template for collaboration style. */
 export const SOUL_TEMPLATE = `# 协作风格
 
-定义 Claudian 的沟通和协作方式。
+定义 Claudian Plus 的沟通和协作方式。
 
 ## 沟通风格
 

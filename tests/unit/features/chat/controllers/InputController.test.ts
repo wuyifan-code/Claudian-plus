@@ -153,6 +153,8 @@ function createMockDeps(overrides: Partial<InputControllerDeps> = {}): InputCont
       removeMessage: jest.fn(),
       updateLiveUserMessage: jest.fn(),
       appendInterruptIndicator: jest.fn(),
+      pauseWelcomeAnimation: jest.fn(),
+      resumeWelcomeAnimation: jest.fn(),
     } as any,
     streamController: {
       showThinkingIndicator: jest.fn(),
@@ -222,6 +224,112 @@ function createSendableDeps(
   }
   return result;
 }
+
+describe('InputController vault context', () => {
+  it('injects retrieved context into the provider request while keeping display text clean', async () => {
+    const deps = createMockDeps();
+    const retrievalService = {
+      buildChatContext: jest.fn().mockResolvedValue(
+        '<vault_context>\nSource: notes/topic.md\n</vault_context>',
+      ),
+    };
+    (deps.plugin as any).vaultRetrievalService = retrievalService;
+    (deps.plugin.settings as any).vaultAutoContextEnabled = true;
+
+    const controller = new InputController(deps);
+    const submission = (controller as any).buildTurnSubmission({
+      content: 'Explain this topic',
+    });
+    const enriched = await (controller as any).addVaultContext(
+      submission,
+      'Explain this topic',
+    );
+
+    expect(retrievalService.buildChatContext).toHaveBeenCalledWith('Explain this topic');
+    expect(enriched.displayContent).toBe('Explain this topic');
+    expect(enriched.turnRequest.vaultContext).toContain('notes/topic.md');
+  });
+
+  it('skips automatic retrieval when the setting is disabled', () => {
+    const deps = createMockDeps();
+    (deps.plugin as any).vaultRetrievalService = { buildChatContext: jest.fn() };
+    (deps.plugin.settings as any).vaultAutoContextEnabled = false;
+
+    const controller = new InputController(deps);
+
+    expect((controller as any).shouldAutoRetrieveVaultContext('Explain this topic')).toBe(false);
+  });
+});
+
+describe('InputController memory extraction', () => {
+  function createMemoryStore() {
+    return {
+      load: jest.fn().mockResolvedValue([]),
+      add: jest.fn().mockResolvedValue(undefined),
+      remove: jest.fn().mockResolvedValue(0),
+    };
+  }
+
+  it('keeps explicit memories available but does not auto-extract when consciousness is disabled', async () => {
+    const deps = createMockDeps();
+    const memoryStore = createMemoryStore();
+    const explicitEntry = {
+      category: 'User Preferences',
+      content: 'Prefers concise responses',
+      source: 'user-explicit' as const,
+    };
+    const extractImplicit = jest.fn();
+    Object.assign(deps.plugin.settings, {
+      memoryEnabled: true,
+      consciousnessEnabled: false,
+      consciousnessAutoMemory: true,
+    });
+    Object.assign(deps.plugin, {
+      getMemoryStore: jest.fn(() => memoryStore),
+      memoryExtractor: {
+        isListRequest: jest.fn().mockReturnValue(false),
+        extractForgetRequest: jest.fn().mockReturnValue(null),
+        extract: jest.fn().mockReturnValue({ entries: [explicitEntry] }),
+        extractImplicit,
+      },
+    });
+
+    await (new InputController(deps) as any).extractAndSaveMemories('remember that I prefer concise responses');
+
+    expect(extractImplicit).not.toHaveBeenCalled();
+    expect(memoryStore.add).toHaveBeenCalledWith(explicitEntry);
+  });
+
+  it('auto-extracts only when both consciousness and auto-memory are enabled', async () => {
+    const deps = createMockDeps();
+    const memoryStore = createMemoryStore();
+    const implicitEntry = {
+      category: 'User Preferences',
+      content: 'Prefers dark mode',
+      source: 'user-implicit' as const,
+    };
+    const extractImplicit = jest.fn().mockReturnValue({ entries: [implicitEntry] });
+    Object.assign(deps.plugin.settings, {
+      memoryEnabled: true,
+      consciousnessEnabled: true,
+      consciousnessAutoMemory: true,
+    });
+    Object.assign(deps.plugin, {
+      getMemoryStore: jest.fn(() => memoryStore),
+      memoryExtractor: {
+        isListRequest: jest.fn().mockReturnValue(false),
+        extractForgetRequest: jest.fn().mockReturnValue(null),
+        extract: jest.fn().mockReturnValue({ entries: [] }),
+        extractImplicit,
+      },
+    });
+
+    await (new InputController(deps) as any).extractAndSaveMemories('I prefer dark mode');
+
+    expect(extractImplicit).toHaveBeenCalledWith('I prefer dark mode', []);
+    expect(memoryStore.add).toHaveBeenCalledWith(implicitEntry);
+  });
+});
 
 describe('InputController - Missing provider session', () => {
   it('rolls back the failed turn and restores unsent input after resume state is reset', async () => {
@@ -320,7 +428,7 @@ describe('InputController - Missing provider session', () => {
       'missing-session',
     );
     expect(mockNotice).toHaveBeenLastCalledWith(
-      'The provider session no longer exists. Claudian preserved the recoverable history; send again to rebuild the session.',
+      'The provider session no longer exists. Claudian Plus preserved the recoverable history; send again to rebuild the session.',
     );
   });
 
@@ -366,6 +474,21 @@ describe('InputController - Message Queue', () => {
     deps = createMockDeps();
     inputEl = deps.getInputEl() as ReturnType<typeof createMockInputEl>;
     controller = new InputController(deps);
+  });
+
+  it('does not consume input or create a turn after its tab begins teardown', async () => {
+    const closingDeps = createMockDeps({ isDisposed: () => true });
+    deps = closingDeps;
+    inputEl = deps.getInputEl() as ReturnType<typeof createMockInputEl>;
+    inputEl.value = 'keep this draft';
+    controller = new InputController(deps);
+
+    await controller.sendMessage();
+
+    expect(inputEl.value).toBe('keep this draft');
+    expect(deps.state.messages).toEqual([]);
+    expect(deps.renderer.addMessage).not.toHaveBeenCalled();
+    expect(closingDeps.mockAgentService.query).not.toHaveBeenCalled();
   });
 
   describe('Queuing messages while streaming', () => {
@@ -487,6 +610,40 @@ describe('InputController - Message Queue', () => {
         jest.useRealTimers();
       }
     });
+
+    it('schedules with the composer window and skips a queued send after disposal', () => {
+      const setTimeout = jest.fn((_callback: () => void) => 1);
+      const popupWindow = {
+        setTimeout,
+      } as unknown as Window;
+      const disposed = jest.fn().mockReturnValue(false);
+      const popupInput = {
+        value: '',
+        focus: jest.fn(),
+        ownerDocument: { defaultView: popupWindow },
+      } as unknown as HTMLTextAreaElement;
+      deps = createMockDeps({
+        getInputEl: () => popupInput,
+        isDisposed: disposed,
+      });
+      controller = new InputController(deps);
+      deps.state.queuedMessage = {
+        content: 'queued message',
+        images: undefined,
+        editorContext: null,
+        canvasContext: null,
+      };
+      const sendSpy = jest.spyOn(controller, 'sendMessage').mockResolvedValue(undefined);
+
+      (controller as any).processQueuedMessage();
+
+      expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 0);
+      disposed.mockReturnValue(true);
+      const queuedCallback = setTimeout.mock.calls[0][0] as () => void;
+      queuedCallback();
+
+      expect(sendSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe('Queue indicator UI', () => {
@@ -496,7 +653,7 @@ describe('InputController - Message Queue', () => {
       controller.updateQueueIndicator();
 
       const queueIndicatorEl = deps.state.queueIndicatorEl as any;
-      expect(queueIndicatorEl.querySelector('.claudian-queue-indicator-text')?.textContent).toBe('⌙ Queued: test message');
+      expect(queueIndicatorEl.querySelector('.claudian-plus-queue-indicator-text')?.textContent).toBe('⌙ Queued: test message');
       expect(queueIndicatorEl.style.display).toBe('flex');
     });
 
@@ -526,7 +683,7 @@ describe('InputController - Message Queue', () => {
 
       const queueIndicatorEl = deps.state.queueIndicatorEl as any;
       const editButton = queueIndicatorEl
-        .querySelectorAll('.claudian-queue-indicator-icon-action')
+        .querySelectorAll('.claudian-plus-queue-indicator-icon-action')
         .find((button: any) => button.getAttribute('aria-label') === 'Edit queued message');
       editButton?.click();
 
@@ -551,7 +708,7 @@ describe('InputController - Message Queue', () => {
 
       const queueIndicatorEl = deps.state.queueIndicatorEl as any;
       const discardButton = queueIndicatorEl
-        .querySelectorAll('.claudian-queue-indicator-icon-action')
+        .querySelectorAll('.claudian-plus-queue-indicator-icon-action')
         .find((button: any) => button.getAttribute('aria-label') === 'Discard queued message');
       discardButton?.click();
 
@@ -567,7 +724,7 @@ describe('InputController - Message Queue', () => {
       controller.updateQueueIndicator();
 
       const queueIndicatorEl = deps.state.queueIndicatorEl as any;
-      const text = queueIndicatorEl.querySelector('.claudian-queue-indicator-text')?.textContent as string;
+      const text = queueIndicatorEl.querySelector('.claudian-plus-queue-indicator-text')?.textContent as string;
       expect(text).toContain('...');
     });
 
@@ -578,7 +735,7 @@ describe('InputController - Message Queue', () => {
       controller.updateQueueIndicator();
 
       const queueIndicatorEl = deps.state.queueIndicatorEl as any;
-      const text = queueIndicatorEl.querySelector('.claudian-queue-indicator-text')?.textContent as string;
+      const text = queueIndicatorEl.querySelector('.claudian-plus-queue-indicator-text')?.textContent as string;
       expect(text).toContain('queued content');
       expect(text).toContain('[images]');
     });
@@ -590,7 +747,7 @@ describe('InputController - Message Queue', () => {
       controller.updateQueueIndicator();
 
       const queueIndicatorEl = deps.state.queueIndicatorEl as any;
-      expect(queueIndicatorEl.querySelector('.claudian-queue-indicator-text')?.textContent).toBe('⌙ Queued: [images]');
+      expect(queueIndicatorEl.querySelector('.claudian-plus-queue-indicator-text')?.textContent).toBe('⌙ Queued: [images]');
     });
 
     it('should show Codex steer action when queued message can be steered', () => {
@@ -613,7 +770,7 @@ describe('InputController - Message Queue', () => {
       controller.updateQueueIndicator();
 
       const queueIndicatorEl = deps.state.queueIndicatorEl as any;
-      expect(queueIndicatorEl.querySelector('.claudian-queue-indicator-action')?.textContent).toBe('Steer Now');
+      expect(queueIndicatorEl.querySelector('.claudian-plus-queue-indicator-action')?.textContent).toBe('Steer Now');
     });
 
     it('should steer the queued Codex message when the action is clicked', async () => {
@@ -666,7 +823,7 @@ describe('InputController - Message Queue', () => {
       controller.updateQueueIndicator();
 
       const queueIndicatorEl = deps.state.queueIndicatorEl as any;
-      queueIndicatorEl.querySelector('.claudian-queue-indicator-action')?.click();
+      queueIndicatorEl.querySelector('.claudian-plus-queue-indicator-action')?.click();
       await Promise.resolve();
       await Promise.resolve();
 
@@ -675,9 +832,9 @@ describe('InputController - Message Queue', () => {
       }));
       expect(mockAgentService.steer).toHaveBeenCalled();
       expect(deps.state.queuedMessage).toBeNull();
-      expect(queueIndicatorEl.querySelector('.claudian-queue-indicator-text')?.textContent)
+      expect(queueIndicatorEl.querySelector('.claudian-plus-queue-indicator-text')?.textContent)
         .toBe('⌙ Steering: queued follow-up');
-      expect(queueIndicatorEl.querySelector('.claudian-queue-indicator-action')).toBeNull();
+      expect(queueIndicatorEl.querySelector('.claudian-plus-queue-indicator-action')).toBeNull();
       expect(queueIndicatorEl.style.display).toBe('flex');
       expect(deps.state.messages).toHaveLength(2);
       expect(deps.state.messages[0]).toMatchObject({
@@ -725,7 +882,7 @@ describe('InputController - Message Queue', () => {
       controller.updateQueueIndicator();
 
       const queueIndicatorEl = deps.state.queueIndicatorEl as any;
-      queueIndicatorEl.querySelector('.claudian-queue-indicator-action')?.click();
+      queueIndicatorEl.querySelector('.claudian-plus-queue-indicator-action')?.click();
       await Promise.resolve();
       await Promise.resolve();
 
@@ -783,7 +940,7 @@ describe('InputController - Message Queue', () => {
       controller.updateQueueIndicator();
 
       const queueIndicatorEl = deps.state.queueIndicatorEl as any;
-      queueIndicatorEl.querySelector('.claudian-queue-indicator-action')?.click();
+      queueIndicatorEl.querySelector('.claudian-plus-queue-indicator-action')?.click();
       await Promise.resolve();
       await Promise.resolve();
 
@@ -871,7 +1028,7 @@ describe('InputController - Message Queue', () => {
       controller.updateQueueIndicator();
 
       const queueIndicatorEl = deps.state.queueIndicatorEl as any;
-      queueIndicatorEl.querySelector('.claudian-queue-indicator-action')?.click();
+      queueIndicatorEl.querySelector('.claudian-plus-queue-indicator-action')?.click();
       await Promise.resolve();
       await Promise.resolve();
 
@@ -987,7 +1144,7 @@ describe('InputController - Message Queue', () => {
       controller.updateQueueIndicator();
 
       const queueIndicatorEl = deps.state.queueIndicatorEl as any;
-      queueIndicatorEl.querySelector('.claudian-queue-indicator-action')?.click();
+      queueIndicatorEl.querySelector('.claudian-plus-queue-indicator-action')?.click();
       await Promise.resolve();
       await Promise.resolve();
 
@@ -1083,6 +1240,7 @@ describe('InputController - Message Queue', () => {
       await controller.sendMessage();
 
       expect(welcomeEl.style.display).toBe('none');
+      expect(deps.renderer.pauseWelcomeAnimation).toHaveBeenCalledTimes(1);
       expect(fileContextManager.startSession).toHaveBeenCalled();
       expect(deps.renderer.addMessage).toHaveBeenCalledTimes(2);
       expect(deps.state.messages).toHaveLength(2);
@@ -2106,6 +2264,7 @@ describe('InputController - Message Queue', () => {
       expect(deps.state.hasPendingConversationSave).toBe(false);
       expect(deps.state.messages).toEqual([]);
       expect(inputEl.value).toBe('test message');
+      expect(deps.renderer.resumeWelcomeAnimation).toHaveBeenCalledTimes(1);
       expect((deps as any).mockAgentService.query).not.toHaveBeenCalled();
     });
   });
@@ -2171,6 +2330,55 @@ describe('InputController - Message Queue', () => {
   });
 
   describe('Stream interruption', () => {
+    it('treats an abort rejection as an interruption instead of rendering an error', async () => {
+      deps = createSendableDeps();
+
+      ((deps as any).mockAgentService.query as jest.Mock).mockImplementation(() => {
+        // eslint-disable-next-line require-yield -- Simulates an aborted stream that throws before yielding.
+        return (async function* () {
+          deps.state.cancelRequested = true;
+          throw new Error('The operation was aborted');
+        })();
+      });
+
+      inputEl = deps.getInputEl() as ReturnType<typeof createMockInputEl>;
+      inputEl.value = 'test message';
+      controller = new InputController(deps);
+
+      await controller.sendMessage();
+
+      expect(deps.streamController.appendText).not.toHaveBeenCalled();
+      expect(deps.renderer.appendInterruptIndicator).toHaveBeenCalledWith(expect.anything());
+      expect(deps.state.messages.find(message => message.role === 'assistant')).toMatchObject({
+        isInterrupt: true,
+      });
+      expect(deps.state.isStreaming).toBe(false);
+      expect(deps.state.cancelRequested).toBe(false);
+    });
+
+    it('does not render an abort from a stream invalidated by a conversation reset', async () => {
+      deps = createSendableDeps();
+
+      ((deps as any).mockAgentService.query as jest.Mock).mockImplementation(() => {
+        // eslint-disable-next-line require-yield -- Simulates an aborted stream that throws before yielding.
+        return (async function* () {
+          deps.state.bumpStreamGeneration();
+          deps.state.resetStreamingState();
+          throw new Error('The operation was aborted');
+        })();
+      });
+
+      inputEl = deps.getInputEl() as ReturnType<typeof createMockInputEl>;
+      inputEl.value = 'test message';
+      controller = new InputController(deps);
+
+      await controller.sendMessage();
+
+      expect(deps.streamController.appendText).not.toHaveBeenCalled();
+      expect(deps.renderer.appendInterruptIndicator).not.toHaveBeenCalled();
+      expect(deps.conversationController.save).not.toHaveBeenCalled();
+    });
+
     it('should render an interruption indicator when cancelRequested is true', async () => {
       deps = createSendableDeps();
 
@@ -2287,6 +2495,30 @@ describe('InputController - Message Queue', () => {
 
       expect(messagesEl.scrollTop).toBe(messagesEl.scrollHeight);
       jest.spyOn(performance, 'now').mockRestore();
+    });
+
+    it('uses the messages window and skips a detached tab in its scroll callback', () => {
+      const messagesEl = createMockEl();
+      messagesEl.scrollTop = 12;
+      messagesEl.scrollHeight = 640;
+      const popupWindow = {
+        requestAnimationFrame: jest.fn((callback: FrameRequestCallback) => {
+          callback(0);
+          return 1;
+        }),
+      } as unknown as Window;
+      messagesEl.ownerDocument.defaultView = popupWindow;
+      deps = createMockDeps({
+        getMessagesEl: () => messagesEl as any,
+        isDisposed: () => true,
+      });
+      deps.state.autoScrollEnabled = true;
+      controller = new InputController(deps);
+
+      (controller as any).syncScrollToBottomAfterRenderUpdates();
+
+      expect(popupWindow.requestAnimationFrame).toHaveBeenCalledTimes(1);
+      expect(messagesEl.scrollTop).toBe(12);
     });
   });
 
@@ -2517,9 +2749,9 @@ describe('InputController - Message Queue', () => {
         'Run shell command',
       );
 
-      const items = parentEl.querySelectorAll('claudian-ask-item');
+      const items = parentEl.querySelectorAll('claudian-plus-ask-item');
       const target = items.find((item: any) => {
-        const label = item.querySelector('claudian-ask-item-label');
+        const label = item.querySelector('claudian-plus-ask-item-label');
         return label?.textContent === optionLabel;
       });
       expect(target).toBeDefined();
@@ -2548,13 +2780,13 @@ describe('InputController - Message Queue', () => {
         },
       );
 
-      const reasonEl = parentEl.querySelector('claudian-ask-approval-reason');
+      const reasonEl = parentEl.querySelector('claudian-plus-ask-approval-reason');
       expect(reasonEl?.textContent).toBe('Command is destructive');
 
-      const pathEl = parentEl.querySelector('claudian-ask-approval-blocked-path');
+      const pathEl = parentEl.querySelector('claudian-plus-ask-approval-blocked-path');
       expect(pathEl?.textContent).toBe('/usr/bin/rm');
 
-      const agentEl = parentEl.querySelector('claudian-ask-approval-agent');
+      const agentEl = parentEl.querySelector('claudian-plus-ask-approval-agent');
       expect(agentEl?.textContent).toBe('Agent: agent-42');
 
       controller.dismissPendingApproval();
@@ -2590,18 +2822,45 @@ describe('InputController - Message Queue', () => {
         } as any,
       );
 
-      const descEl = parentEl.querySelector('claudian-ask-approval-desc');
+      const descEl = parentEl.querySelector('claudian-plus-ask-approval-desc');
       expect(descEl?.textContent).toContain('api.openai.com');
 
-      const items = parentEl.querySelectorAll('claudian-ask-item');
+      const items = parentEl.querySelectorAll('claudian-plus-ask-item');
       const labels = items
-        .map((item: any) => item.querySelector('claudian-ask-item-label')?.textContent)
+        .map((item: any) => item.querySelector('claudian-plus-ask-item-label')?.textContent)
         .filter(Boolean);
       expect(labels).toEqual(expect.arrayContaining([
         'Allow once',
         'Allow similar commands',
         'Deny',
       ]));
+
+      controller.dismissPendingApproval();
+      await approvalPromise;
+    });
+
+    it('renders Canvas writes as a structured, path-aware diff preview', async () => {
+      const parentEl = createMockEl();
+      const inputContainerEl = createMockEl();
+      (inputContainerEl as any).parentElement = parentEl;
+      deps.getInputContainerEl = () => inputContainerEl as any;
+
+      controller = new InputController(deps);
+      const approvalPromise = controller.handleApprovalRequest(
+        'obsidian.canvas_write',
+        { path: 'boards/roadmap.canvas', plan: { nodeOps: [] } },
+        'Proposed Canvas changes:\n  [add] node roadmap-1',
+      );
+
+      const preview = parentEl.querySelector('claudian-plus-canvas-write-preview');
+      expect(preview).not.toBeNull();
+      expect(preview?.querySelector('claudian-plus-canvas-write-preview-title')?.textContent)
+        .toBe('Canvas changes');
+      expect(preview?.querySelector('claudian-plus-canvas-write-preview-path')?.textContent)
+        .toBe('boards/roadmap.canvas');
+      expect(preview?.querySelector('claudian-plus-canvas-write-preview-diff')?.textContent)
+        .toContain('[add] node roadmap-1');
+      expect(parentEl.querySelector('claudian-plus-ask-approval-desc')).toBeNull();
 
       controller.dismissPendingApproval();
       await approvalPromise;
@@ -2634,9 +2893,9 @@ describe('InputController - Message Queue', () => {
           },
         );
 
-        const items = parentEl.querySelectorAll('claudian-ask-item');
+        const items = parentEl.querySelectorAll('claudian-plus-ask-item');
         const target = items.find((item: any) => {
-          const label = item.querySelector('claudian-ask-item-label');
+          const label = item.querySelector('claudian-plus-ask-item-label');
           return label?.textContent === optionLabel;
         });
         expect(target).toBeDefined();
@@ -2672,9 +2931,9 @@ describe('InputController - Message Queue', () => {
         } as any,
       );
 
-      const items = parentEl.querySelectorAll('claudian-ask-item');
+      const items = parentEl.querySelectorAll('claudian-plus-ask-item');
       const target = items.find((item: any) => {
-        const label = item.querySelector('claudian-ask-item-label');
+        const label = item.querySelector('claudian-plus-ask-item-label');
         return label?.textContent === 'Allow similar commands';
       });
       expect(target).toBeDefined();
@@ -2734,9 +2993,9 @@ describe('InputController - Message Queue', () => {
 
       expect(inputContainerEl.style.display).toBe('none');
 
-      const items = parentEl.querySelectorAll('claudian-ask-item');
+      const items = parentEl.querySelectorAll('claudian-plus-ask-item');
       const allowOnceItem = items.find((item: any) => {
-        const label = item.querySelector('claudian-ask-item-label');
+        const label = item.querySelector('claudian-plus-ask-item-label');
         return label?.textContent === 'Allow once';
       });
       expect(allowOnceItem).toBeDefined();

@@ -3,6 +3,7 @@ import type { Component, WorkspaceLeaf } from 'obsidian';
 import type { InstructionRefineService, ProviderId, TitleGenerationService } from '../../../core/providers/types';
 import type { ChatRuntime } from '../../../core/runtime/ChatRuntime';
 import type { SlashCommandDropdown } from '../../../shared/components/SlashCommandDropdown';
+import type { ComposerSession, VaultContextReference } from '../composer/types';
 import type { BrowserSelectionController } from '../controllers/BrowserSelectionController';
 import type { CanvasSelectionController } from '../controllers/CanvasSelectionController';
 import type { ConversationController } from '../controllers/ConversationController';
@@ -55,9 +56,9 @@ export const MIN_TABS = 3;
 export const MAX_TABS = 10;
 
 /**
- * Minimal interface for the ClaudianView methods used by TabManager and Tab.
+ * Minimal interface for the ClaudianPlusView methods used by TabManager and Tab.
  * Extends Component for Obsidian integration (event handling, cleanup).
- * Avoids circular dependency by not importing ClaudianView directly.
+ * Avoids circular dependency by not importing ClaudianPlusView directly.
  */
 export interface TabManagerViewHost extends Component {
   /** Reference to the workspace leaf for revealing the view. */
@@ -159,6 +160,11 @@ export interface TabDOMElements {
   /** Composer-owned context tray container inside the input wrapper. */
   contextRowEl: HTMLElement;
 
+  /** Active live-preview composer session, when the enhancement is mounted. */
+  composerSession: ComposerSession | null;
+  /** Sink that pushes current vault references into the live-preview composer. */
+  composerReferenceSink: ((references: readonly VaultContextReference[]) => void) | null;
+
   /** Cleanup functions for event listeners (prevents memory leaks). */
   eventCleanups: Array<() => void>;
 }
@@ -211,6 +217,9 @@ export interface TabData {
 
   /** Whether the service has been initialized (lazy start). */
   serviceInitialized: boolean;
+
+  /** Whether the expensive per-tab UI/controllers have been mounted. */
+  uiInitialized: boolean;
 
   /** Per-tab chat state. */
   state: ChatState;

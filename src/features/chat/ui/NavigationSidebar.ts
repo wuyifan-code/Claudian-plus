@@ -62,7 +62,7 @@ export class NavigationSidebar {
     outlineStyle: 'bar' | 'dot' = 'bar',
   ) {
     this.outlineStyle = outlineStyle;
-    this.container = this.parentEl.createDiv({ cls: 'claudian-nav-sidebar' });
+    this.container = this.parentEl.createDiv({ cls: 'claudian-plus-nav-sidebar' });
     this.container.setAttribute('aria-label', 'Conversation outline sidebar');
     this.applyOutlineStyle();
     this.container.tabIndex = -1;
@@ -70,7 +70,7 @@ export class NavigationSidebar {
     // shortcuts without participating in the regular tab order.
 
     // Outline track holds horizontal tick markers sized to the transcript height.
-    this.outlineTrack = this.container.createDiv({ cls: 'claudian-nav-outline-track' });
+    this.outlineTrack = this.container.createDiv({ cls: 'claudian-plus-nav-outline-track' });
     this.outlineTrack.setAttribute('role', 'navigation');
     this.outlineTrack.setAttribute('aria-label', 'Conversation outline');
 
@@ -88,7 +88,7 @@ export class NavigationSidebar {
   }
 
   private applyOutlineStyle(): void {
-    this.container.classList.toggle('claudian-nav-outline-dot-mode', this.outlineStyle === 'dot');
+    this.container.classList.toggle('claudian-plus-nav-outline-dot-mode', this.outlineStyle === 'dot');
   }
 
   private setupEventListeners(): void {
@@ -179,7 +179,7 @@ export class NavigationSidebar {
     if (this.isVisible === shouldShow) return;
     this.isVisible = shouldShow;
     this.container.classList.toggle('visible', shouldShow);
-    this.parentEl.classList.toggle('claudian-has-nav-sidebar', shouldShow);
+    this.parentEl.classList.toggle('claudian-plus-has-nav-sidebar', shouldShow);
   }
 
   private scheduleOutlineRefresh(mutations: MutationRecord[]): void {
@@ -230,7 +230,7 @@ export class NavigationSidebar {
     dirtyMessages: Set<HTMLElement> | null = null,
   ): ConversationOutlineEntry[] {
     const messageEls = Array.from(this.messagesEl.querySelectorAll<HTMLElement>(
-      '.claudian-message-user, [data-role="user"]',
+      '.claudian-plus-message-user, [data-role="user"]',
     ));
     const currentMessages = new Set(messageEls);
     for (const cachedMessage of this.outlineEntriesByMessage.keys()) {
@@ -269,7 +269,7 @@ export class NavigationSidebar {
     const explicitTitle = (el.getAttribute('data-toc-title') ?? '').trim();
     if (explicitTitle) return explicitTitle;
 
-    const contentEl = el.querySelector<HTMLElement>('.claudian-message-content');
+    const contentEl = el.querySelector<HTMLElement>('.claudian-plus-message-content');
     return formatConversationDirectoryTitle(contentEl?.textContent ?? el.textContent ?? '');
   }
 
@@ -282,10 +282,10 @@ export class NavigationSidebar {
       if (this.isUserMessageElement(sibling)) {
         return '';
       }
-      const isAssistant = sibling.classList?.contains?.('claudian-message-assistant')
+      const isAssistant = sibling.classList?.contains?.('claudian-plus-message-assistant')
         || sibling.getAttribute?.('data-role') === 'assistant';
       if (isAssistant) {
-        const textBlocks = sibling.querySelectorAll<HTMLElement>('.claudian-text-block');
+        const textBlocks = sibling.querySelectorAll<HTMLElement>('.claudian-plus-text-block');
         if (textBlocks.length > 0) {
           const parts: string[] = [];
           for (const block of textBlocks) {
@@ -307,12 +307,12 @@ export class NavigationSidebar {
   }
 
   private isUserMessageElement(el: HTMLElement): boolean {
-    return el.classList.contains('claudian-message-user')
+    return el.classList.contains('claudian-plus-message-user')
       || el.getAttribute('data-role') === 'user';
   }
 
   private isAssistantMessageElement(el: HTMLElement): boolean {
-    return el.classList.contains('claudian-message-assistant')
+    return el.classList.contains('claudian-plus-message-assistant')
       || el.getAttribute('data-role') === 'assistant';
   }
 
@@ -322,7 +322,7 @@ export class NavigationSidebar {
       classList?: { contains?: (className: string) => boolean };
       getAttribute?: (name: string) => string | null;
     };
-    return candidate.classList?.contains?.('claudian-message-user') === true
+    return candidate.classList?.contains?.('claudian-plus-message-user') === true
       || candidate.getAttribute?.('data-role') === 'user';
   }
 
@@ -331,7 +331,7 @@ export class NavigationSidebar {
     const candidate = node as { querySelector?: (selector: string) => Element | null };
     return typeof candidate.querySelector === 'function'
       && candidate.querySelector(
-        '.claudian-message-user, [data-role="user"]',
+        '.claudian-plus-message-user, [data-role="user"]',
       ) !== null;
   }
 
@@ -447,7 +447,7 @@ export class NavigationSidebar {
 
     this.outlineEntries.forEach((entry, index) => {
       const marker = this.outlineTrack.createEl('button', {
-        cls: 'claudian-nav-outline-marker',
+        cls: 'claudian-plus-nav-outline-marker',
         attr: {
           type: 'button',
           'aria-label': entry.title,
@@ -456,7 +456,7 @@ export class NavigationSidebar {
         },
       });
       // Dot marker (codian-style circle) coexists with the ::before bar.
-      marker.createSpan({ cls: 'claudian-nav-outline-dot' });
+      marker.createSpan({ cls: 'claudian-plus-nav-outline-dot' });
       this.positionOutlineMarker(marker, index);
       this.outlineMarkers.push(marker);
 
@@ -568,21 +568,21 @@ export class NavigationSidebar {
     this.hideOutlinePreview();
     const index = this.outlineMarkers.indexOf(marker);
     this.resolveEntryTarget(entry);
-    const preview = this.parentEl.createDiv({ cls: 'claudian-nav-outline-preview' });
-    const previewId = `claudian-outline-preview-${++nextOutlinePreviewId}`;
+    const preview = this.parentEl.createDiv({ cls: 'claudian-plus-nav-outline-preview' });
+    const previewId = `claudian-plus-outline-preview-${++nextOutlinePreviewId}`;
     preview.setAttribute('id', previewId);
     preview.setAttribute('role', 'tooltip');
     marker.setAttribute('aria-describedby', previewId);
-    preview.createDiv({ cls: 'claudian-nav-outline-preview-title', text: entry.title });
+    preview.createDiv({ cls: 'claudian-plus-nav-outline-preview-title', text: entry.title });
     if (entry.excerpt) {
       preview.createDiv({
-        cls: 'claudian-nav-outline-preview-excerpt',
+        cls: 'claudian-plus-nav-outline-preview-excerpt',
         text: entry.excerpt,
       });
     }
     if (index >= 0 && entry.badge) {
       const badge = preview.createDiv({
-        cls: 'claudian-nav-outline-preview-badge',
+        cls: 'claudian-plus-nav-outline-preview-badge',
         text: `${entry.badge}${index + 1}`,
       });
       badge.setAttribute('aria-hidden', 'true');
@@ -606,7 +606,7 @@ export class NavigationSidebar {
     const top = maxTop >= minTop
       ? Math.max(minTop, Math.min(markerCenter - previewHeight / 2, maxTop))
       : viewportHeight / 2 - previewHeight / 2;
-    preview.style.setProperty('--claudian-outline-preview-top', `${top}px`);
+    preview.style.setProperty('--claudian-plus-outline-preview-top', `${top}px`);
   }
 
   private hideOutlinePreview(): void {
@@ -621,7 +621,7 @@ export class NavigationSidebar {
     }
     // Play a soft exit animation so the card does not vanish abruptly when
     // the user moves between markers.
-    preview.classList.add('claudian-nav-outline-preview-leaving');
+    preview.classList.add('claudian-plus-nav-outline-preview-leaving');
     const ownerWindow = this.messagesEl.ownerDocument.defaultView;
     const cleanup = () => {
       if (preview.dataset['claudianCollapsed'] === '1') return;
@@ -639,7 +639,7 @@ export class NavigationSidebar {
     this.outlineMarkers.forEach((marker, index) => {
       const distance = Math.abs(index - focusIndex);
       const size = Math.max(5, 10 - distance * 2);
-      const dot = marker.querySelector<HTMLElement>('.claudian-nav-outline-dot');
+      const dot = marker.querySelector<HTMLElement>('.claudian-plus-nav-outline-dot');
       if (dot) {
         dot.style.width = `${size}px`;
         dot.style.height = `${size}px`;
@@ -649,7 +649,7 @@ export class NavigationSidebar {
 
   private resetWaveFocus(): void {
     for (const marker of this.outlineMarkers) {
-      const dot = marker.querySelector<HTMLElement>('.claudian-nav-outline-dot');
+      const dot = marker.querySelector<HTMLElement>('.claudian-plus-nav-outline-dot');
       if (dot) {
         dot.style.width = '';
         dot.style.height = '';
@@ -692,7 +692,7 @@ export class NavigationSidebar {
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
     this.messagesEl.removeEventListener('scroll', this.scrollHandler);
-    this.parentEl.classList.remove('claudian-has-nav-sidebar');
+    this.parentEl.classList.remove('claudian-plus-has-nav-sidebar');
     this.container.remove();
   }
 

@@ -101,6 +101,50 @@ describe('VaultFileAdapter', () => {
       expect(mockAdapter.mkdir).toHaveBeenCalledWith('level1/level2/level3');
       expect(mockAdapter.write).toHaveBeenCalledWith('level1/level2/level3/file.md', 'content');
     });
+
+    it('preserves write order when an earlier write is slow', async () => {
+      let finishFirstWrite!: () => void;
+      const firstWrite = new Promise<void>((resolve) => {
+        finishFirstWrite = resolve;
+      });
+      mockAdapter.write.mockImplementation((_path: string, content: string) => (
+        content === 'first' ? firstWrite : Promise.resolve()
+      ));
+
+      const first = vaultAdapter.write('file.md', 'first');
+      const second = vaultAdapter.write('file.md', 'second');
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(mockAdapter.write).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.write).toHaveBeenCalledWith('file.md', 'first');
+
+      finishFirstWrite();
+      await Promise.all([first, second]);
+
+      expect(mockAdapter.write).toHaveBeenNthCalledWith(2, 'file.md', 'second');
+    });
+
+    it('does not block a write to a different file behind a slow write', async () => {
+      let finishFirstWrite!: () => void;
+      const firstWrite = new Promise<void>((resolve) => {
+        finishFirstWrite = resolve;
+      });
+      mockAdapter.write.mockImplementation((path: string) => (
+        path === 'slow.md' ? firstWrite : Promise.resolve()
+      ));
+
+      const slowWrite = vaultAdapter.write('slow.md', 'slow');
+      const independentWrite = vaultAdapter.write('independent.md', 'fast');
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(mockAdapter.write).toHaveBeenCalledWith('slow.md', 'slow');
+      expect(mockAdapter.write).toHaveBeenCalledWith('independent.md', 'fast');
+
+      finishFirstWrite();
+      await Promise.all([slowWrite, independentWrite]);
+    });
   });
 
   describe('append', () => {
@@ -157,6 +201,20 @@ describe('VaultFileAdapter', () => {
 
       expect(mockAdapter.write).toHaveBeenCalledWith('file.md', 'existing');
     });
+
+    it('reports a failed append without poisoning later queued writes', async () => {
+      const writeError = new Error('Disk is full');
+      mockAdapter.exists.mockResolvedValue(false);
+      mockAdapter.write
+        .mockRejectedValueOnce(writeError)
+        .mockResolvedValueOnce(undefined);
+
+      await expect(vaultAdapter.append('file.md', 'first')).rejects.toBe(writeError);
+      await expect(vaultAdapter.append('file.md', 'second')).resolves.toBeUndefined();
+
+      expect(mockAdapter.write).toHaveBeenNthCalledWith(1, 'file.md', 'first');
+      expect(mockAdapter.write).toHaveBeenNthCalledWith(2, 'file.md', 'second');
+    });
   });
 
   describe('delete', () => {
@@ -187,6 +245,27 @@ describe('VaultFileAdapter', () => {
 
       expect(mockAdapter.remove).toHaveBeenCalledWith('folder/subfolder/file.md');
     });
+
+    it('waits for an earlier write before deleting the same file', async () => {
+      let finishWrite!: () => void;
+      const pendingWrite = new Promise<void>((resolve) => {
+        finishWrite = resolve;
+      });
+      mockAdapter.write.mockReturnValue(pendingWrite);
+      mockAdapter.exists.mockResolvedValue(true);
+      mockAdapter.remove.mockResolvedValue();
+
+      const write = vaultAdapter.write('session.meta.json', 'metadata');
+      const remove = vaultAdapter.delete('session.meta.json');
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(mockAdapter.remove).not.toHaveBeenCalled();
+      finishWrite();
+      await Promise.all([write, remove]);
+
+      expect(mockAdapter.remove).toHaveBeenCalledWith('session.meta.json');
+    });
   });
 
   describe('deleteFolder', () => {
@@ -214,6 +293,95 @@ describe('VaultFileAdapter', () => {
       mockAdapter.rmdir = jest.fn().mockRejectedValue(new Error('Directory not empty'));
 
       await expect(vaultAdapter.deleteFolder('non-empty-folder')).resolves.toBeUndefined();
+    });
+
+    it('waits for an earlier child write before removing its parent folder', async () => {
+      let finishWrite!: () => void;
+      const pendingWrite = new Promise<void>((resolve) => {
+        finishWrite = resolve;
+      });
+      let markWriteStarted!: () => void;
+      const writeStarted = new Promise<void>((resolve) => {
+        markWriteStarted = resolve;
+      });
+      mockAdapter.exists.mockResolvedValue(true);
+      mockAdapter.write.mockImplementation(() => {
+        markWriteStarted();
+        return pendingWrite;
+      });
+      mockAdapter.rmdir = jest.fn().mockResolvedValue(undefined);
+
+      const write = vaultAdapter.write('sessions/conversation.md', 'metadata');
+      await writeStarted;
+      const removeFolder = vaultAdapter.deleteFolder('sessions');
+
+      expect(mockAdapter.write).toHaveBeenCalledWith('sessions/conversation.md', 'metadata');
+      expect(mockAdapter.rmdir).not.toHaveBeenCalled();
+
+      finishWrite();
+      await Promise.all([write, removeFolder]);
+
+      expect(mockAdapter.rmdir).toHaveBeenCalledWith('sessions', false);
+    });
+
+    it('waits to write a child until an earlier parent-folder removal finishes', async () => {
+      let finishRemoval!: () => void;
+      const pendingRemoval = new Promise<void>((resolve) => {
+        finishRemoval = resolve;
+      });
+      let markRemovalStarted!: () => void;
+      const removalStarted = new Promise<void>((resolve) => {
+        markRemovalStarted = resolve;
+      });
+      mockAdapter.exists.mockResolvedValue(true);
+      mockAdapter.rmdir = jest.fn().mockImplementation(() => {
+        markRemovalStarted();
+        return pendingRemoval;
+      });
+      mockAdapter.write.mockResolvedValue(undefined);
+
+      const removeFolder = vaultAdapter.deleteFolder('sessions');
+      await removalStarted;
+      const write = vaultAdapter.write('sessions/new-conversation.md', 'metadata');
+      await Promise.resolve();
+
+      expect(mockAdapter.write).not.toHaveBeenCalled();
+
+      finishRemoval();
+      await Promise.all([removeFolder, write]);
+
+      expect(mockAdapter.write).toHaveBeenCalledWith('sessions/new-conversation.md', 'metadata');
+    });
+
+    it('waits to ensure a folder until an earlier removal of that folder finishes', async () => {
+      let finishRemoval!: () => void;
+      const pendingRemoval = new Promise<void>((resolve) => {
+        finishRemoval = resolve;
+      });
+      let markRemovalStarted!: () => void;
+      const removalStarted = new Promise<void>((resolve) => {
+        markRemovalStarted = resolve;
+      });
+      mockAdapter.exists
+        .mockResolvedValueOnce(true)
+        .mockResolvedValue(false);
+      mockAdapter.rmdir = jest.fn().mockImplementation(() => {
+        markRemovalStarted();
+        return pendingRemoval;
+      });
+      mockAdapter.mkdir.mockResolvedValue(undefined);
+
+      const removeFolder = vaultAdapter.deleteFolder('sessions');
+      await removalStarted;
+      const ensureFolder = vaultAdapter.ensureFolder('sessions');
+      await Promise.resolve();
+
+      expect(mockAdapter.mkdir).not.toHaveBeenCalled();
+
+      finishRemoval();
+      await Promise.all([removeFolder, ensureFolder]);
+
+      expect(mockAdapter.mkdir).toHaveBeenCalledWith('sessions');
     });
   });
 
@@ -475,13 +643,13 @@ describe('VaultFileAdapter', () => {
       });
 
       await expect(Promise.all([
-        vaultAdapter.ensureFolder('.claudian/sessions'),
-        vaultAdapter.ensureFolder('.claudian/sessions'),
+        vaultAdapter.ensureFolder('.claudian-plus/sessions'),
+        vaultAdapter.ensureFolder('.claudian-plus/sessions'),
       ])).resolves.toEqual([undefined, undefined]);
 
       expect(mockAdapter.mkdir).toHaveBeenCalledTimes(2);
-      expect(mockAdapter.mkdir).toHaveBeenNthCalledWith(1, '.claudian');
-      expect(mockAdapter.mkdir).toHaveBeenNthCalledWith(2, '.claudian/sessions');
+      expect(mockAdapter.mkdir).toHaveBeenNthCalledWith(1, '.claudian-plus');
+      expect(mockAdapter.mkdir).toHaveBeenNthCalledWith(2, '.claudian-plus/sessions');
     });
   });
 

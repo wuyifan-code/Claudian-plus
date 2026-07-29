@@ -73,9 +73,9 @@ function diffToHtml(ops: DiffOp[]): string {
       const escaped = op.text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
       switch (op.type) {
         case 'delete':
-          return `<span class="claudian-diff-del">${escaped}</span>`;
+          return `<span class="claudian-plus-diff-del">${escaped}</span>`;
         case 'insert':
-          return `<span class="claudian-diff-ins">${escaped}</span>`;
+          return `<span class="claudian-plus-diff-ins">${escaped}</span>`;
         default:
           return escaped;
       }
@@ -95,27 +95,27 @@ describe('InlineEditModal - Insertion Newline Trimming', () => {
 
   describe('normalizeInsertionText', () => {
     it('should remove leading newlines', () => {
-      const input = '\n\nContent here';
+      const input = '\r\n\r\nContent here';
       const result = normalizeInsertionText(input);
       expect(result).toBe('Content here');
     });
 
     it('should remove trailing newlines', () => {
-      const input = 'Content here\n\n';
+      const input = 'Content here\r\n\r\n';
       const result = normalizeInsertionText(input);
       expect(result).toBe('Content here');
     });
 
     it('should remove both leading and trailing newlines', () => {
-      const input = '\n\nContent here\n\n';
+      const input = '\r\n\r\nContent here\r\n\r\n';
       const result = normalizeInsertionText(input);
       expect(result).toBe('Content here');
     });
 
     it('should preserve internal newlines', () => {
-      const input = '\n## Section\n\nParagraph content\n';
+      const input = '\r\n## Section\r\n\r\nParagraph content\r\n';
       const result = normalizeInsertionText(input);
-      expect(result).toBe('## Section\n\nParagraph content');
+      expect(result).toBe('## Section\r\n\r\nParagraph content');
     });
 
     it('should handle text with no newlines', () => {
@@ -125,7 +125,7 @@ describe('InlineEditModal - Insertion Newline Trimming', () => {
     });
 
     it('should handle only newlines', () => {
-      const input = '\n\n\n';
+      const input = '\r\n\r\n\r\n';
       const result = normalizeInsertionText(input);
       expect(result).toBe('');
     });
@@ -143,15 +143,15 @@ describe('InlineEditModal - Insertion Newline Trimming', () => {
     });
 
     it('should handle multiline markdown content', () => {
-      const input = '\n## Description\n\nThis project provides tools for managing notes.\n\n### Features\n- Feature 1\n- Feature 2\n';
+      const input = '\r\n## Description\r\n\r\nThis project provides tools for managing notes.\r\n\r\n### Features\r\n- Feature 1\r\n- Feature 2\r\n';
       const result = normalizeInsertionText(input);
-      expect(result).toBe('## Description\n\nThis project provides tools for managing notes.\n\n### Features\n- Feature 1\n- Feature 2');
+      expect(result).toBe('## Description\r\n\r\nThis project provides tools for managing notes.\r\n\r\n### Features\r\n- Feature 1\r\n- Feature 2');
     });
 
     it('should handle code blocks with newlines', () => {
-      const input = '\n```javascript\nconst x = 1;\n```\n';
+      const input = '\r\n```javascript\r\nconst x = 1;\r\n```\r\n';
       const result = normalizeInsertionText(input);
-      expect(result).toBe('```javascript\nconst x = 1;\n```');
+      expect(result).toBe('```javascript\r\nconst x = 1;\r\n```');
     });
 
     it('should handle CRLF newlines', () => {
@@ -259,7 +259,7 @@ describe('InlineEditModal - Word-level Diff', () => {
     });
 
     it('should handle text with newlines', () => {
-      const result = computeDiff('line1\nline2', 'line1\nmodified');
+      const result = computeDiff('line1\r\nline2', 'line1\r\nmodified');
 
       const deleted = result.find((op) => op.type === 'delete');
       const inserted = result.find((op) => op.type === 'insert');
@@ -269,8 +269,8 @@ describe('InlineEditModal - Word-level Diff', () => {
     });
 
     it('should handle multiline text', () => {
-      const oldText = 'First line\nSecond line\nThird line';
-      const newText = 'First line\nModified line\nThird line';
+      const oldText = 'First line\r\nSecond line\r\nThird line';
+      const newText = 'First line\r\nModified line\r\nThird line';
 
       const result = computeDiff(oldText, newText);
 
@@ -294,7 +294,7 @@ describe('InlineEditModal - Word-level Diff', () => {
 
       const html = diffToHtml(ops);
 
-      expect(html).toContain('claudian-diff-del');
+      expect(html).toContain('claudian-plus-diff-del');
       expect(html).toContain('removed');
     });
 
@@ -303,7 +303,7 @@ describe('InlineEditModal - Word-level Diff', () => {
 
       const html = diffToHtml(ops);
 
-      expect(html).toContain('claudian-diff-ins');
+      expect(html).toContain('claudian-plus-diff-ins');
       expect(html).toContain('added');
     });
 
@@ -326,9 +326,9 @@ describe('InlineEditModal - Word-level Diff', () => {
       const html = diffToHtml(ops);
 
       expect(html).toContain('Hello ');
-      expect(html).toContain('claudian-diff-del');
+      expect(html).toContain('claudian-plus-diff-del');
       expect(html).toContain('world');
-      expect(html).toContain('claudian-diff-ins');
+      expect(html).toContain('claudian-plus-diff-ins');
       expect(html).toContain('universe');
     });
 
@@ -367,8 +367,8 @@ describe('InlineEditModal - Word-level Diff', () => {
       const html = diffToHtml(ops);
 
       // Should have both del and ins spans
-      expect(html).toContain('claudian-diff-del');
-      expect(html).toContain('claudian-diff-ins');
+      expect(html).toContain('claudian-plus-diff-del');
+      expect(html).toContain('claudian-plus-diff-ins');
     });
 
     it('should produce plain text for no changes', () => {

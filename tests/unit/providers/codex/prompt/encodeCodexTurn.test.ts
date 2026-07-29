@@ -24,6 +24,17 @@ describe('encodeCodexTurn', () => {
     expect(result.persistedContent).toBe('Fix this');
   });
 
+  it('adds vault context to the provider prompt without persisting it', () => {
+    const request: ChatTurnRequest = {
+      text: 'Explain this topic',
+      vaultContext: '<vault_context>\nSource: notes/topic.md\n</vault_context>',
+    };
+    const result = encodeCodexTurn(request);
+
+    expect(result.prompt).toContain('<vault_context>');
+    expect(result.persistedContent).toBe('Explain this topic');
+  });
+
   it('should include editor selection context', () => {
     const request: ChatTurnRequest = {
       text: 'Explain this',

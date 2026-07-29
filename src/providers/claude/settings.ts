@@ -10,12 +10,17 @@ import {
   type ClaudeModelEnvironmentType,
   isClaudeModelEnvironmentType,
 } from './modelTiers';
+import {
+  type ClaudeThirdPartyService,
+  normalizeClaudeThirdPartyServices,
+} from './services/ClaudeThirdPartyServices';
 
 export const CLAUDE_SAFE_MODES = ['acceptEdits', 'auto', 'default'] as const;
 export type ClaudeSafeMode = typeof CLAUDE_SAFE_MODES[number];
 export type ClaudeSettingSource = 'user' | 'project' | 'local';
 
 export interface ClaudeProviderSettings {
+  enabled: boolean;
   safeMode: ClaudeSafeMode;
   cliPath: string;
   cliPathsByHost: HostnameCliPaths;
@@ -28,9 +33,12 @@ export interface ClaudeProviderSettings {
   titleModelEnvironmentType: ClaudeModelEnvironmentType | '';
   environmentVariables: string;
   environmentHash: string;
+  thirdPartyServices: ClaudeThirdPartyService[];
+  defaultThirdPartyServiceId: string;
 }
 
 export const DEFAULT_CLAUDE_PROVIDER_SETTINGS: Readonly<ClaudeProviderSettings> = Object.freeze({
+  enabled: true,
   safeMode: 'acceptEdits',
   cliPath: '',
   cliPathsByHost: {},
@@ -43,6 +51,8 @@ export const DEFAULT_CLAUDE_PROVIDER_SETTINGS: Readonly<ClaudeProviderSettings> 
   titleModelEnvironmentType: '',
   environmentVariables: '',
   environmentHash: '',
+  thirdPartyServices: [],
+  defaultThirdPartyServiceId: '',
 });
 
 function normalizeHostnameCliPaths(value: unknown): HostnameCliPaths {
@@ -89,6 +99,8 @@ export function getClaudeProviderSettings(
     : normalizedCliPathsByHost;
 
   return {
+    enabled: (config.enabled as boolean | undefined)
+      ?? DEFAULT_CLAUDE_PROVIDER_SETTINGS.enabled,
     safeMode: normalizeClaudeSafeMode(config.safeMode)
       ?? normalizeClaudeSafeMode(settings.claudeSafeMode)
       ?? DEFAULT_CLAUDE_PROVIDER_SETTINGS.safeMode,
@@ -120,6 +132,9 @@ export function getClaudeProviderSettings(
     environmentHash: (config.environmentHash as string | undefined)
       ?? (settings.lastEnvHash as string | undefined)
       ?? DEFAULT_CLAUDE_PROVIDER_SETTINGS.environmentHash,
+    thirdPartyServices: normalizeClaudeThirdPartyServices(config.thirdPartyServices),
+    defaultThirdPartyServiceId: (config.defaultThirdPartyServiceId as string | undefined)?.trim()
+      ?? DEFAULT_CLAUDE_PROVIDER_SETTINGS.defaultThirdPartyServiceId,
   };
 }
 

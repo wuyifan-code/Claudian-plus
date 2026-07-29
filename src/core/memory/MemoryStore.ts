@@ -2,6 +2,7 @@ import type { VaultFileAdapter } from '../storage/VaultFileAdapter';
 import {
   DEFAULT_MEMORY_FILE_PATH,
   DEFAULT_MEMORY_MAX_INJECTION_CHARS,
+  LEGACY_MEMORY_FILE_PATH,
   MEMORY_FILE_TEMPLATE,
   type MemoryEntry,
   type MemoryStoreOptions,
@@ -9,6 +10,10 @@ import {
 
 function generateMemoryId(): string {
   return `mem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function normalizeMemoryContent(content: string): string {
+  return content.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
 }
 
 interface ParsedSection {
@@ -25,6 +30,7 @@ interface ParsedSection {
  */
 export class MemoryStore {
   private options: MemoryStoreOptions;
+  private mutationTail: Promise<void> = Promise.resolve();
 
   constructor(
     private adapter: VaultFileAdapter,
@@ -56,36 +62,48 @@ export class MemoryStore {
 
   /** Load all memory entries from the file. Returns [] if file doesn't exist. */
   async load(): Promise<MemoryEntry[]> {
-    if (!(await this.adapter.exists(this.options.filePath))) {
+    const filePath = await this.getReadableFilePath();
+    if (!filePath) {
       return [];
     }
 
-    const content = await this.adapter.read(this.options.filePath);
+    const content = await this.adapter.read(filePath);
     return this.parseMarkdown(content);
   }
 
   /** Save entries back to the memory file, preserving the Markdown format. */
   async save(entries: MemoryEntry[]): Promise<void> {
-    const content = this.serializeMarkdown(entries);
-    await this.adapter.write(this.options.filePath, content);
+    await this.enqueueMutation(async () => {
+      await this.writeEntries(entries);
+    });
   }
 
   /** Add a new memory entry. Creates the file if it doesn't exist. */
   async add(entry: Omit<MemoryEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<MemoryEntry> {
-    await this.ensureFileExists();
+    return this.enqueueMutation(async () => {
+      await this.ensureFileExists();
 
-    const now = Date.now();
-    const fullEntry: MemoryEntry = {
-      ...entry,
-      id: generateMemoryId(),
-      createdAt: now,
-      updatedAt: now,
-    };
+      const now = Date.now();
+      const fullEntry: MemoryEntry = {
+        ...entry,
+        id: generateMemoryId(),
+        createdAt: now,
+        updatedAt: now,
+      };
 
-    const existing = await this.load();
-    existing.push(fullEntry);
-    await this.save(existing);
-    return fullEntry;
+      const existing = await this.load();
+      const normalizedContent = normalizeMemoryContent(fullEntry.content);
+      const duplicate = existing.find(entry =>
+        normalizeMemoryContent(entry.content) === normalizedContent
+      );
+      if (duplicate) {
+        return duplicate;
+      }
+
+      existing.push(fullEntry);
+      await this.writeEntries(existing);
+      return fullEntry;
+    });
   }
 
   /**
@@ -93,21 +111,26 @@ export class MemoryStore {
    * Returns the number of entries removed.
    */
   async remove(searchTerm: string): Promise<number> {
-    const existing = await this.load();
     const normalizedSearch = searchTerm.toLowerCase().trim();
-
-    const filtered = existing.filter(entry => {
-      const normalizedContent = entry.content.toLowerCase().trim();
-      // Remove if content matches or contains the search term
-      return !normalizedContent.includes(normalizedSearch);
-    });
-
-    const removedCount = existing.length - filtered.length;
-    if (removedCount > 0) {
-      await this.save(filtered);
+    if (!normalizedSearch) {
+      return 0;
     }
 
-    return removedCount;
+    return this.enqueueMutation(async () => {
+      const existing = await this.load();
+      const filtered = existing.filter(entry => {
+        const normalizedContent = entry.content.toLowerCase().trim();
+        // Remove if content matches or contains the search term
+        return !normalizedContent.includes(normalizedSearch);
+      });
+
+      const removedCount = existing.length - filtered.length;
+      if (removedCount > 0) {
+        await this.writeEntries(filtered);
+      }
+
+      return removedCount;
+    });
   }
 
   /**
@@ -124,16 +147,19 @@ export class MemoryStore {
     let text = '';
 
     for (const section of sections) {
-      const sectionText = `### ${section.category}\n${section.items.map(item => `- ${item}`).join('\n')}\n`;
-      if (text.length + sectionText.length > this.options.maxInjectionChars) {
-        // Truncate: add as much as fits
-        const remaining = this.options.maxInjectionChars - text.length;
-        if (remaining > 50) {
-          text += sectionText.slice(0, remaining);
-        }
+      const heading = `### ${section.category}\n`;
+      if (text.length + heading.length > this.options.maxInjectionChars) {
         break;
       }
-      text += sectionText;
+      text += heading;
+
+      for (const item of section.items) {
+        const line = `- ${item}\n`;
+        if (text.length + line.length > this.options.maxInjectionChars) {
+          return text.trim() || null;
+        }
+        text += line;
+      }
     }
 
     return text.trim() || null;
@@ -142,6 +168,37 @@ export class MemoryStore {
   private async ensureFileExists(): Promise<void> {
     if (!(await this.adapter.exists(this.options.filePath))) {
       await this.adapter.write(this.options.filePath, MEMORY_FILE_TEMPLATE);
+    }
+  }
+
+  private async getReadableFilePath(): Promise<string | null> {
+    if (await this.adapter.exists(this.options.filePath)) {
+      return this.options.filePath;
+    }
+    if (this.options.filePath === DEFAULT_MEMORY_FILE_PATH
+      && await this.adapter.exists(LEGACY_MEMORY_FILE_PATH)) {
+      return LEGACY_MEMORY_FILE_PATH;
+    }
+    return null;
+  }
+
+  private async writeEntries(entries: MemoryEntry[]): Promise<void> {
+    const content = this.serializeMarkdown(entries);
+    await this.adapter.write(this.options.filePath, content);
+  }
+
+  private async enqueueMutation<T>(operation: () => Promise<T>): Promise<T> {
+    const previous = this.mutationTail;
+    let release!: () => void;
+    this.mutationTail = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      release();
     }
   }
 
@@ -203,7 +260,7 @@ export class MemoryStore {
       }
     }
 
-    let content = '# Claudian Memory\n\n';
+    let content = '# Claudian Plus Memory\n\n';
     content += 'This file stores long-term user preferences and context extracted from conversations.\n';
     content += 'You can edit this file directly to add, modify, or remove memories.\n\n';
 

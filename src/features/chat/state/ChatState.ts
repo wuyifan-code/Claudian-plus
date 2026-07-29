@@ -371,7 +371,7 @@ export class ChatState {
   }
 
   clearThinkingIndicatorTimeout(fallbackWindow: Window | null = null): void {
-    if (this.state.thinkingIndicatorTimeout) {
+    if (this.state.thinkingIndicatorTimeout !== null) {
       const ownerWindow = this.thinkingIndicatorTimeoutWindow ?? fallbackWindow ?? this.getDefaultTimerWindow();
       ownerWindow?.clearTimeout(this.state.thinkingIndicatorTimeout);
       this.state.thinkingIndicatorTimeout = null;
@@ -385,7 +385,7 @@ export class ChatState {
   }
 
   clearFlavorTimerInterval(): void {
-    if (this.state.flavorTimerInterval) {
+    if (this.state.flavorTimerInterval !== null) {
       const ownerWindow = this.flavorTimerIntervalWindow ?? this.getDefaultTimerWindow();
       ownerWindow?.clearInterval(this.state.flavorTimerInterval);
       this.state.flavorTimerInterval = null;

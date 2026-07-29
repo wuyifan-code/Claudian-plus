@@ -587,7 +587,7 @@ describe('OpencodeSettingsTab', () => {
 
     opencodeSettingsTabRenderer.render(createContainer(), context);
 
-    const catalogEl = findElement('details', 'claudian-provider-model-picker-catalog');
+    const catalogEl = findElement('details', 'claudian-plus-provider-model-picker-catalog');
     catalogEl.open = true;
     await catalogEl.dispatchMockEvent('toggle');
     await flushPromises();
@@ -740,7 +740,7 @@ describe('OpencodeSettingsTab', () => {
 
     opencodeSettingsTabRenderer.render(createContainer(), context);
 
-    const aliasInput = findElement('input', 'claudian-provider-model-picker-selected-alias');
+    const aliasInput = findElement('input', 'claudian-plus-provider-model-picker-selected-alias');
     aliasInput.value = 'V4 Pro';
     await aliasInput.dispatchMockEvent('blur');
     await flushPromises();

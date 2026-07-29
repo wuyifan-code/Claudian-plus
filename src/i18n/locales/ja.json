@@ -56,6 +56,15 @@
       "commandNoMessages": "フォークできません: 会話にメッセージがありません",
       "commandNoAssistantUuid": "フォークできません: 識別子付きのアシスタント応答がありません"
     },
+    "fileMenu": {
+      "add": "Claudian Plus に追加",
+      "notReady": "Claudian Plus チャットの準備ができていません。",
+      "failed": "ファイルの Claudian Plus への追加に失敗しました。"
+    },
+    "drop": {
+      "context": "Drop to add context",
+      "invalid": "No supported vault notes or folders found."
+    },
     "bangBash": {
       "placeholder": "> bash コマンドを実行...",
       "commandPanel": "コマンドパネル",
@@ -70,7 +79,7 @@
     }
   },
   "settings": {
-    "title": "Claudian 設定",
+    "title": "Claudian Plus 設定",
     "tabs": {
       "general": "一般",
       "claude": "Claude",
@@ -84,7 +93,7 @@
     "models": "モデル",
     "experimental": "実験的機能",
     "userName": {
-      "name": "Claudian はどのように呼びますか？",
+      "name": "Claudian Plus はどのように呼びますか？",
       "desc": "パーソナライズされた挨拶に使用する名前（空欄で一般の挨拶）"
     },
     "excludedTags": {
@@ -200,7 +209,7 @@
     },
     "hiddenSlashCommands": {
       "name": "非表示のコマンドとスキル",
-      "desc": "ドロップダウンから特定のコマンドとスキルを非表示にします。Claudian に関係のない Claude Code の項目を隠すのに便利です。先頭のスラッシュなしで名前を1行に1つ入力してください。",
+      "desc": "ドロップダウンから特定のコマンドとスキルを非表示にします。Claudian Plus に関係のない Claude Code の項目を隠すのに便利です。先頭のスラッシュなしで名前を1行に1つ入力してください。",
       "placeholder": "commit\nbuild\ntest"
     },
     "mcpServers": {
@@ -332,11 +341,130 @@
       "desc": "Write と Edit の diff が最初に表示されるとき、展開した状態で表示します。"
     },
     "chatViewPlacement": {
-      "name": "Claudian を開く場所",
+      "name": "Claudian Plus を開く場所",
       "desc": "チャットパネルを作成するときに開く場所を選択します",
       "rightSidebar": "右サイドバー",
       "leftSidebar": "左サイドバー",
       "mainTab": "メインエディタタブ"
+    },
+    "defaultChatProvider": {
+      "name": "新規チャットのデフォルトプロバイダー",
+      "desc": "新しい空白タブごとに使用されます。既存の会話はプロバイダーを保持します。",
+      "followModel": "選択中のモデルに従う"
+    },
+    "livePreviewComposer": {
+      "name": "Live Preview composer",
+      "desc": "Render supported Markdown and vault references while typing. Disable to use the plain text composer. Applies after reopening the chat view."
+    },
+    "vaultAutoContext": {
+      "name": "Automatic vault context",
+      "desc": "Retrieve relevant local notes and add them to each normal chat prompt. Disable to keep retrieval manual."
+    },
+    "semanticSearch": {
+      "name": "Local semantic search",
+      "desc": "Optionally rerank vault retrieval with a local Ollama or OpenAI-compatible embedding service. If it is unavailable, lexical search remains active."
+    },
+    "autoLinkRecommendations": {
+      "name": "Link suggestions after save",
+      "desc": "After saving the active Markdown note, show deduplicated source-backed link candidates. Nothing is inserted automatically."
+    },
+    "semanticEmbeddingEndpoint": {
+      "name": "Embedding endpoint",
+      "desc": "Local endpoint base URL. Use /v1/embeddings for OpenAI-compatible services, or the base URL for Ollama."
+    },
+    "semanticEmbeddingModel": {
+      "name": "Embedding model",
+      "desc": "Model identifier installed in your local embedding service, for example nomic-embed-text."
+    },
+    "claudeServices": {
+      "heading": "Third-party model services",
+      "description": "Connect Anthropic-compatible services through Claude. Enabled services appear in the chat model picker.",
+      "empty": "No third-party services configured.",
+      "add": "Add model service",
+      "enable": "Enable",
+      "disable": "Disable",
+      "test": "Test connection",
+      "testing": "Testing connection. This sends a minimal paid request.",
+      "testSuccess": "Connection succeeded in {latency} ms.",
+      "testFailed": "Connection failed: {error}",
+      "setDefault": "Set as default",
+      "defaultActive": "Default service",
+      "deleteConfirm": "Delete this model service? Its SecretStorage entry will be kept.",
+      "costNotice": "Connection tests send one minimal request and may incur provider charges.",
+      "modal": {
+        "add": "Add model service",
+        "edit": "Edit model service"
+      },
+      "fields": {
+        "preset": "Service template",
+        "name": "Service name",
+        "url": "Base URL",
+        "urlDesc": "Anthropic-compatible endpoint. HTTPS required except localhost.",
+        "auth": "Authentication",
+        "secret": "API key",
+        "secretDesc": "Select or create a key in Obsidian SecretStorage.",
+        "defaultModel": "Default model ID",
+        "lightModel": "Lightweight model ID",
+        "lightModelDesc": "Used for title generation and Haiku-class tasks."
+      },
+      "auth": {
+        "bearer": "Bearer token",
+        "apiKey": "API key header"
+      },
+      "validation": {
+        "name": "Service name is required.",
+        "url": "Valid Base URL is required.",
+        "https": "Use HTTPS, or HTTP only for localhost.",
+        "secret": "Select or create an API key in SecretStorage.",
+        "defaultModel": "Default model ID is required.",
+        "lightModel": "Lightweight model ID is required."
+      }
+    },
+    "agentSkills": {
+      "sectionTitle": "Skills",
+      "header": "Shared skills",
+      "fixedRoot": "Managed in .agents/skills",
+      "sharedExpectation": "Manage skills shared across all enabled providers in .agents/skills/.",
+      "noSkills": "No shared skills configured. Click + to create one.",
+      "skillBadge": "skill",
+      "diagnosticsTitle": "Skills needing attention",
+      "loadFailed": "Could not load shared skills.",
+      "savedRefreshFailed": "Saved, but provider refresh failed.",
+      "validationFailed": "Invalid skill: {message}",
+      "collisionFailed": "A skill named \"{name}\" already exists.",
+      "saveFailed": "Failed to save shared skill: {message}",
+      "deleteFailed": "Failed to move shared skill to trash: {message}",
+      "staleConflict": "This skill changed elsewhere; refresh before saving.",
+      "created": "Shared skill \"{name}\" created.",
+      "updated": "Shared skill \"{name}\" updated.",
+      "deleted": "Shared skill \"{name}\" moved to trash.",
+      "modal": {
+        "titleEdit": "Edit Shared Skill",
+        "titleAdd": "Add Shared Skill",
+        "name": "Skill name",
+        "nameDesc": "Lowercase letters and numbers separated by single hyphens",
+        "namePlaceholder": "code-reviewer",
+        "description": "Description",
+        "descriptionDesc": "Required portable description used by providers to select the skill",
+        "descriptionPlaceholder": "Reviews code for correctness and maintainability",
+        "instructions": "Instructions",
+        "instructionsDesc": "Required SKILL.md instructions",
+        "instructionsPlaceholder": "Review the supplied code and report actionable findings..."
+      },
+      "delete": {
+        "title": "Delete Shared Skill",
+        "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.",
+        "confirm": "Move to trash"
+      }
+    },
+    "providerEnablement": {
+      "atLeastOne": "At least one provider must remain enabled."
+    },
+    "claude": {
+      "enableProvider": {
+        "name": "Enable Claude provider",
+        "desc": "When enabled, Claude models appear in the model selector for new conversations. Existing Claude sessions are preserved."
+      }
     },
     "cliPath": {
       "name": "Claude CLI パス",
@@ -359,7 +487,7 @@
       },
       "installationMethod": {
         "name": "インストール方式",
-        "desc": "Windows で Claudian が Codex を起動する方法。ネイティブ Windows は Windows 実行ファイルパスを使い、WSL は選択したディストリビューション内で Linux CLI を起動します。",
+        "desc": "Windows で Claudian Plus が Codex を起動する方法。ネイティブ Windows は Windows 実行ファイルパスを使い、WSL は選択したディストリビューション内で Linux CLI を起動します。",
         "nativeWindows": "ネイティブ Windows",
         "wsl": "WSL"
       },
@@ -406,7 +534,7 @@
       },
       "mcp": {
         "descBeforeCommand": "Codex は独自の CLI で MCP サーバーを管理します。",
-        "descAfterCommand": " で設定すると Claudian で利用できます。",
+        "descAfterCommand": " で設定すると Claudian Plus で利用できます。",
         "learnMore": "詳しく見る"
       },
       "environment": {

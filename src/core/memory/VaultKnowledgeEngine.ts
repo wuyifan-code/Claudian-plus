@@ -1,4 +1,6 @@
 import type { App, TFile } from 'obsidian';
+
+import { LEGACY_CLAUDIAN_STORAGE_PATH } from '../bootstrap/StoragePaths';
 import type { VaultFileAdapter } from '../storage/VaultFileAdapter';
 
 /**
@@ -48,12 +50,15 @@ export interface VaultKnowledgeConfig {
 export const DEFAULT_VAULT_KNOWLEDGE_CONFIG: VaultKnowledgeConfig = {
   enabled: true,
   maxNotes: 500,
-  excludeFolders: ['.obsidian', '.trash', '.claudian', 'node_modules', 'templates'],
+  // The vault's actual config directory is always excluded at runtime
+  // via Vault#configDir; this list covers additional system folders.
+  excludeFolders: ['.trash', '.claudian-plus', '.claudian', 'node_modules', 'templates'],
   excludePatterns: ['*.canvas', '*.excalidraw'],
   autoScanIntervalMs: 0, // Manual scan by default
 };
 
-const KNOWLEDGE_FILE = '.claudian/awareness/vault-knowledge.json';
+const KNOWLEDGE_FILE = '.claudian-plus/awareness/vault-knowledge.json';
+const LEGACY_KNOWLEDGE_FILE = `${LEGACY_CLAUDIAN_STORAGE_PATH}/awareness/vault-knowledge.json`;
 
 /**
  * VaultKnowledgeEngine scans and indexes all notes in the vault,
@@ -86,12 +91,17 @@ export class VaultKnowledgeEngine {
       return this.index;
     }
 
-    if (!(await this.adapter.exists(KNOWLEDGE_FILE))) {
+    const knowledgeFile = await this.adapter.exists(KNOWLEDGE_FILE)
+      ? KNOWLEDGE_FILE
+      : await this.adapter.exists(LEGACY_KNOWLEDGE_FILE)
+        ? LEGACY_KNOWLEDGE_FILE
+        : null;
+    if (!knowledgeFile) {
       return null;
     }
 
     try {
-      const content = await this.adapter.read(KNOWLEDGE_FILE);
+      const content = await this.adapter.read(knowledgeFile);
       this.index = JSON.parse(content) as VaultKnowledgeIndex;
       return this.index;
     } catch {
@@ -151,6 +161,10 @@ export class VaultKnowledgeEngine {
 
   /** Get a summary of vault knowledge for consciousness injection. */
   async getKnowledgeSummary(): Promise<string | null> {
+    if (!this.config.enabled) {
+      return null;
+    }
+
     const index = await this.loadIndex();
     if (!index || index.noteCount === 0) {
       return null;
@@ -218,14 +232,21 @@ export class VaultKnowledgeEngine {
   /** Clear the knowledge index. */
   async clearIndex(): Promise<void> {
     await this.adapter.delete(KNOWLEDGE_FILE);
+    await this.adapter.delete(LEGACY_KNOWLEDGE_FILE);
     this.index = null;
   }
 
   private filterFiles(files: TFile[]): TFile[] {
+    // Always exclude the vault's actual config directory (e.g. .obsidian)
+    // regardless of what is in the static config.
+    const configDir = this.app.vault.configDir.replace(/^\/+|\/+$/g, '');
+    const excludeFolders = new Set(this.config.excludeFolders);
+    excludeFolders.add(configDir);
+
     return files.filter(file => {
       // Check excluded folders
       const pathParts = file.path.split('/');
-      for (const folder of this.config.excludeFolders) {
+      for (const folder of excludeFolders) {
         if (pathParts.includes(folder)) {
           return false;
         }
@@ -259,10 +280,11 @@ export class VaultKnowledgeEngine {
 
     // Extract tags from frontmatter and inline
     const tags: string[] = [];
-    if (cache?.frontmatter?.tags) {
-      const fmTags = cache.frontmatter.tags;
+    const frontmatterData: Record<string, unknown> | undefined = cache?.frontmatter;
+    const fmTags = frontmatterData?.tags;
+    if (fmTags) {
       if (Array.isArray(fmTags)) {
-        tags.push(...fmTags);
+        tags.push(...fmTags.filter((tag): tag is string => typeof tag === 'string'));
       } else if (typeof fmTags === 'string') {
         tags.push(...fmTags.split(',').map(t => t.trim()));
       }
@@ -276,8 +298,8 @@ export class VaultKnowledgeEngine {
 
     // Extract frontmatter (without tags to avoid duplication)
     const frontmatter: Record<string, unknown> = {};
-    if (cache?.frontmatter) {
-      for (const [key, value] of Object.entries(cache.frontmatter)) {
+    if (frontmatterData) {
+      for (const [key, value] of Object.entries(frontmatterData)) {
         if (key !== 'tags' && key !== 'position') {
           frontmatter[key] = value;
         }

@@ -3,9 +3,10 @@ import { Setting } from 'obsidian';
 
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import type { ProviderSettingsTabRenderer } from '../../../core/providers/types';
-import { t } from '../../../i18n/i18n';
+import { localeText, t } from '../../../i18n/i18n';
 import { renderEnvironmentSettingsSection } from '../../../shared/settings/EnvironmentSettingsSection';
 import { McpSettingsManager } from '../../../shared/settings/McpSettingsManager';
+import { applyProviderEnablementToggle } from '../../../shared/settings/ProviderEnablementToggle';
 import { getHostnameKey } from '../../../utils/env';
 import { expandHomePath } from '../../../utils/path';
 import { getClaudeWorkspaceServices } from '../app/ClaudeWorkspaceServices';
@@ -18,6 +19,7 @@ import {
 } from '../settings';
 import { AgentSettings } from './AgentSettings';
 import { claudeChatUIConfig } from './ClaudeChatUIConfig';
+import { renderClaudeServiceSettings } from './ClaudeServiceSettings';
 import { PluginSettingsManager } from './PluginSettingsManager';
 import { SlashCommandSettings } from './SlashCommandSettings';
 
@@ -47,6 +49,17 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     new Setting(container).setName(t('settings.setup')).setHeading();
 
+    new Setting(container)
+      .setName(t('settings.claude.enableProvider.name'))
+      .setDesc(t('settings.claude.enableProvider.desc'))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(claudeSettings.enabled)
+          .onChange(async (value) => {
+            await applyProviderEnablementToggle(context, toggle, 'claude', value);
+          })
+      );
+
     const hostnameKey = getHostnameKey();
     const platformDesc = process.platform === 'win32'
       ? t('settings.cliPath.descWindows')
@@ -58,7 +71,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       .setDesc(cliPathDescription);
 
     const validationEl = container.createDiv({
-      cls: 'claudian-cli-path-validation claudian-setting-validation claudian-setting-validation-error claudian-hidden',
+      cls: 'claudian-plus-cli-path-validation claudian-plus-setting-validation claudian-plus-setting-validation-error claudian-plus-hidden',
     });
 
     const validatePath = (value: string): string | null => {
@@ -81,16 +94,16 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       const error = validatePath(value);
       if (error) {
         validationEl.setText(error);
-        validationEl.toggleClass('claudian-hidden', false);
+        validationEl.toggleClass('claudian-plus-hidden', false);
         if (inputEl) {
-          inputEl.toggleClass('claudian-input-error', true);
+          inputEl.toggleClass('claudian-plus-input-error', true);
         }
         return false;
       }
 
-      validationEl.toggleClass('claudian-hidden', true);
+      validationEl.toggleClass('claudian-plus-hidden', true);
       if (inputEl) {
-        inputEl.toggleClass('claudian-input-error', false);
+        inputEl.toggleClass('claudian-plus-input-error', false);
       }
       return true;
     };
@@ -131,7 +144,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
         .onChange(async (value) => {
           await persistCliPath(value);
         });
-      text.inputEl.addClass('claudian-settings-cli-path-input');
+      text.inputEl.addClass('claudian-plus-settings-cli-path-input');
       cliPathInputEl = text.inputEl;
 
       updateCliPathValidation(currentValue, text.inputEl);
@@ -212,19 +225,23 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
         });
       });
 
+    // --- Third-party Claude-compatible services ---
+
+    renderClaudeServiceSettings(container, context);
+
     // --- Slash Commands ---
 
     new Setting(container).setName(t('settings.slashCommands.name')).setHeading();
 
-    const slashCommandsDesc = container.createDiv({ cls: 'claudian-sp-settings-desc' });
+    const slashCommandsDesc = container.createDiv({ cls: 'claudian-plus-sp-settings-desc' });
     const descP = slashCommandsDesc.createEl('p', { cls: 'setting-item-description' });
     descP.appendText(t('settings.slashCommands.desc') + ' ');
     descP.createEl('a', {
-      text: 'Learn more',
+      text: localeText('了解更多', 'Learn more'),
       href: 'https://code.claude.com/docs/en/skills',
     });
 
-    const slashCommandsContainer = container.createDiv({ cls: 'claudian-slash-commands-container' });
+    const slashCommandsContainer = container.createDiv({ cls: 'claudian-plus-slash-commands-container' });
     new SlashCommandSettings(
       slashCommandsContainer,
       context.plugin.app,
@@ -241,13 +258,13 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     new Setting(container).setName(t('settings.subagents.name')).setHeading();
 
-    const agentsDesc = container.createDiv({ cls: 'claudian-sp-settings-desc' });
+    const agentsDesc = container.createDiv({ cls: 'claudian-plus-sp-settings-desc' });
     agentsDesc.createEl('p', {
       text: t('settings.subagents.desc'),
       cls: 'setting-item-description',
     });
 
-    const agentsContainer = container.createDiv({ cls: 'claudian-agents-container' });
+    const agentsContainer = container.createDiv({ cls: 'claudian-plus-agents-container' });
     new AgentSettings(agentsContainer, {
       app: context.plugin.app,
       agentManager: claudeWorkspace.agentManager,
@@ -258,13 +275,13 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     new Setting(container).setName(t('settings.mcpServers.name')).setHeading();
 
-    const mcpDesc = container.createDiv({ cls: 'claudian-mcp-settings-desc' });
+    const mcpDesc = container.createDiv({ cls: 'claudian-plus-mcp-settings-desc' });
     mcpDesc.createEl('p', {
       text: t('settings.mcpServers.desc'),
       cls: 'setting-item-description',
     });
 
-    const mcpContainer = container.createDiv({ cls: 'claudian-mcp-container' });
+    const mcpContainer = container.createDiv({ cls: 'claudian-plus-mcp-container' });
     new McpSettingsManager(mcpContainer, {
       app: context.plugin.app,
       mcpStorage: claudeWorkspace.mcpStorage,
@@ -279,13 +296,13 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     new Setting(container).setName(t('settings.plugins.name')).setHeading();
 
-    const pluginsDesc = container.createDiv({ cls: 'claudian-plugin-settings-desc' });
+    const pluginsDesc = container.createDiv({ cls: 'claudian-plus-plugin-settings-desc' });
     pluginsDesc.createEl('p', {
       text: t('settings.plugins.desc'),
       cls: 'setting-item-description',
     });
 
-    const pluginsContainer = container.createDiv({ cls: 'claudian-plugins-container' });
+    const pluginsContainer = container.createDiv({ cls: 'claudian-plus-plugins-container' });
     new PluginSettingsManager(pluginsContainer, {
       pluginManager: claudeWorkspace.pluginManager,
       agentManager: claudeWorkspace.agentManager,
@@ -304,7 +321,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       scope: 'provider:claude',
       heading: t('settings.environment'),
       name: t('settings.customVariables.name'),
-      desc: 'Claude-owned runtime variables only. Use this for ANTHROPIC_* and Claude-specific toggles.',
+      desc: localeText('仅供 Claude 使用的运行时变量。用于 ANTHROPIC_* 和 Claude 专属开关。', 'Claude-owned runtime variables only. Use this for ANTHROPIC_* and Claude-specific toggles.'),
       placeholder: 'ANTHROPIC_API_KEY=your-key\nANTHROPIC_BASE_URL=https://api.example.com\nANTHROPIC_MODEL=custom-model\nCLAUDE_CODE_USE_BEDROCK=1',
       renderCustomContextLimits: (target) => context.renderCustomContextLimits(target, 'claude'),
     });
@@ -333,13 +350,13 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
         toggle
           .setValue(claudeSettings.enableBangBash)
           .onChange(async (value) => {
-            bangBashValidationEl.toggleClass('claudian-hidden', true);
+            bangBashValidationEl.toggleClass('claudian-plus-hidden', true);
             if (value) {
               const { findNodeExecutable, getEnhancedPath } = await import('../../../utils/env');
               const nodePath = findNodeExecutable(getEnhancedPath());
               if (!nodePath) {
                 bangBashValidationEl.setText(t('settings.enableBangBash.validation.noNode'));
-                bangBashValidationEl.toggleClass('claudian-hidden', false);
+                bangBashValidationEl.toggleClass('claudian-plus-hidden', false);
                 toggle.setValue(false);
                 return;
               }
@@ -351,7 +368,7 @@ export const claudeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       );
 
     const bangBashValidationEl = container.createDiv({
-      cls: 'claudian-bang-bash-validation claudian-setting-validation claudian-setting-validation-error claudian-hidden',
+      cls: 'claudian-plus-bang-bash-validation claudian-plus-setting-validation claudian-plus-setting-validation-error claudian-plus-hidden',
     });
   },
 };

@@ -48,10 +48,10 @@ export function setupCollapsible(
   state.isExpanded = initiallyExpanded;
   if (initiallyExpanded) {
     wrapperEl.addClass('expanded');
-    contentEl.removeClass('claudian-hidden');
+    contentEl.removeClass('claudian-plus-hidden');
     headerEl.setAttribute('aria-expanded', 'true');
   } else {
-    contentEl.addClass('claudian-hidden');
+    contentEl.addClass('claudian-plus-hidden');
     headerEl.setAttribute('aria-expanded', 'false');
   }
   updateAriaLabel(initiallyExpanded);
@@ -61,11 +61,11 @@ export function setupCollapsible(
     state.isExpanded = !state.isExpanded;
     if (state.isExpanded) {
       wrapperEl.addClass('expanded');
-      contentEl.removeClass('claudian-hidden');
+      contentEl.removeClass('claudian-plus-hidden');
       headerEl.setAttribute('aria-expanded', 'true');
     } else {
       wrapperEl.removeClass('expanded');
-      contentEl.addClass('claudian-hidden');
+      contentEl.addClass('claudian-plus-hidden');
       headerEl.setAttribute('aria-expanded', 'false');
     }
     updateAriaLabel(state.isExpanded);
@@ -96,6 +96,6 @@ export function collapseElement(
 ): void {
   state.isExpanded = false;
   wrapperEl.removeClass('expanded');
-  contentEl.addClass('claudian-hidden');
+  contentEl.addClass('claudian-plus-hidden');
   headerEl.setAttribute('aria-expanded', 'false');
 }
