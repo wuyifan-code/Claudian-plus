@@ -1,6 +1,3 @@
-/Users/chenyan/.zprofile:1: no such file or directory: /opt/homebrew/bin/brew
-/Users/chenyan/.zprofile:2: no such file or directory: /opt/homebrew/bin/brew
-/Users/chenyan/.zprofile:3: no such file or directory: /opt/homebrew/bin/brew
 import { PerspectiveCamera } from 'three/src/cameras/PerspectiveCamera.js';
 import {
   ACESFilmicToneMapping,
