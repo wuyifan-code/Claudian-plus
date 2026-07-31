@@ -1,3 +1,6 @@
+/Users/chenyan/.zprofile:1: no such file or directory: /opt/homebrew/bin/brew
+/Users/chenyan/.zprofile:2: no such file or directory: /opt/homebrew/bin/brew
+/Users/chenyan/.zprofile:3: no such file or directory: /opt/homebrew/bin/brew
 import { PerspectiveCamera } from 'three/src/cameras/PerspectiveCamera.js';
 import {
   ACESFilmicToneMapping,
@@ -24,6 +27,8 @@ import { WebGLRenderer } from 'three/src/renderers/WebGLRenderer.js';
 import { Scene } from 'three/src/scenes/Scene.js';
 import { CanvasTexture } from 'three/src/textures/CanvasTexture.js';
 import type { Texture } from 'three/src/textures/Texture.js';
+
+import { getObsidianTheme, observeObsidianTheme } from './obsidianTheme';
 
 export class ConstellationCubeWelcome {
   private wrapper: HTMLElement;
@@ -84,7 +89,7 @@ export class ConstellationCubeWelcome {
     this.ownerWindow = this.ownerDocument.defaultView ?? window;
     this.canvas = this.wrapper.createEl('canvas', { cls: 'claudian-plus-welcome-cube-canvas' });
 
-    this.isLightMode = this.ownerDocument.body.classList.contains('theme-light');
+    this.isLightMode = getObsidianTheme(this.ownerDocument) === 'light';
 
     // Initialize Three.js Engine
     this.renderer = new WebGLRenderer({
@@ -132,6 +137,9 @@ export class ConstellationCubeWelcome {
     this.glowSprite.visible = !this.isLightMode;
     this.cubeGroup.add(this.glowSprite);
 
+    this.cleanupEvents.push(observeObsidianTheme(this.ownerDocument, (theme) => {
+      this.applyTheme(theme === 'light');
+    }));
     this.setupEvents();
     this.onResize();
     this.animate(this.ownerWindow.performance.now());
@@ -220,6 +228,28 @@ export class ConstellationCubeWelcome {
 
     this.currentDotMat = this.isLightMode ? this.dotMatDay : this.dotMatNight;
     this.currentStarMat = this.isLightMode ? this.starMatDay : this.starMatNight;
+  }
+
+  private applyTheme(isLightMode: boolean): void {
+    if (this.isDestroyed || this.isLightMode === isLightMode) return;
+    this.isLightMode = isLightMode;
+    this.currentDotMat = isLightMode ? this.dotMatDay : this.dotMatNight;
+    this.currentStarMat = isLightMode ? this.starMatDay : this.starMatNight;
+
+    for (const block of this.blocks) {
+      block.dots.material = this.currentDotMat;
+      if (block.star) block.star.material = this.currentStarMat;
+    }
+    this.edges.material = isLightMode ? this.edgeMatDay : this.edgeMatNight;
+    for (const orbit of this.orbits) {
+      orbit.line.material = isLightMode ? orbit.dayMaterial : orbit.nightMaterial;
+    }
+    this.glowSprite.visible = !isLightMode;
+    this.renderer.toneMappingExposure = isLightMode ? 0.95 : 1.08;
+
+    if (this.isPaused) {
+      this.renderer.render(this.scene, this.camera);
+    }
   }
 
   private addDepthFade(material: PointsMaterial, near: number, far: number, minAlpha: number): void {
