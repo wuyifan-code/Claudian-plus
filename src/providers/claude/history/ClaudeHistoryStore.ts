@@ -27,6 +27,9 @@ import {
   readSDKSession,
   readSDKSessionFile,
   sdkSessionExists,
+  SESSION_PARSE_YIELD_EVERY,
+  SESSION_PARSE_YIELD_THROTTLE_MS,
+  yieldToMainThread,
 } from './sdkSessionPaths';
 import {
   isValidAgentId,
@@ -91,9 +94,18 @@ export async function loadSDKSessionMessages(
 
   const chatMessages: ChatMessage[] = [];
   let pendingAssistant: ChatMessage | null = null;
+  let mergeLastYieldAt = Date.now();
+  let mergeCount = 0;
 
   // Merge consecutive assistant messages until an actual user message appears
   for (const sdkMsg of filteredEntries) {
+    mergeCount += 1;
+    if (mergeCount % SESSION_PARSE_YIELD_EVERY === 0
+      && Date.now() - mergeLastYieldAt >= SESSION_PARSE_YIELD_THROTTLE_MS) {
+      await yieldToMainThread();
+      mergeLastYieldAt = Date.now();
+    }
+
     if (isSystemInjectedMessage(sdkMsg)) continue;
 
     // Skip synthetic assistant messages (e.g., "No response requested." after /compact)
@@ -135,8 +147,17 @@ export async function loadSDKSessionMessages(
   // Build SubagentInfo for async Agent tool calls from toolUseResult + queue-operation data
   if (toolUseResults.size > 0 || asyncSubagentResults.size > 0) {
     const sidecarLoads: Array<{ subagent: SubagentInfo; promise: Promise<ToolCallInfo[]> }> = [];
+    let subagentScanLastYieldAt = Date.now();
+    let subagentScanCount = 0;
 
     for (const msg of chatMessages) {
+      subagentScanCount += 1;
+      if (subagentScanCount % SESSION_PARSE_YIELD_EVERY === 0
+        && Date.now() - subagentScanLastYieldAt >= SESSION_PARSE_YIELD_THROTTLE_MS) {
+        await yieldToMainThread();
+        subagentScanLastYieldAt = Date.now();
+      }
+
       if (msg.role !== 'assistant' || !msg.toolCalls) continue;
       for (const toolCall of msg.toolCalls) {
         if (!isSubagentToolName(toolCall.name)) continue;
