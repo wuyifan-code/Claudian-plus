@@ -4,6 +4,9 @@ import * as path from 'node:path';
 
 import {
   createPiForkSessionFile,
+  findPiSessionFile,
+  findPiSessionFileAsync,
+  findSessionFileInRootAsync,
   parsePiSessionContent,
   parsePiSessionEntries,
   type PiSessionEntry,
@@ -554,5 +557,70 @@ describe('PiHistoryStore', () => {
     ].join('\n');
 
     expect(parsePiSessionContent(content)[0].contentBlocks).toEqual([{ type: 'context_compacted' }]);
+  });
+
+  describe('session file search', () => {
+    it('finds a session file in nested directories (async)', async () => {
+      const root = await fs.mkdtemp(path.join(os.tmpdir(), 'pi-search-nested-'));
+      const nestedDir = path.join(root, '2026', '02', 'deep');
+      await fs.mkdir(nestedDir, { recursive: true });
+      const sessionFile = path.join(nestedDir, '2026-02-03_sess-abc123.jsonl');
+      await fs.writeFile(sessionFile, '{}');
+
+      const found = await findSessionFileInRootAsync(root, 'sess-abc123');
+      expect(found).toBe(sessionFile);
+    });
+
+    it('returns null without throwing when the scan exceeds the entry budget', async () => {
+      const root = await fs.mkdtemp(path.join(os.tmpdir(), 'pi-search-budget-'));
+      await Promise.all(Array.from({ length: 10 }, (_, index) =>
+        fs.writeFile(path.join(root, `file-${index}.jsonl`), '{}'),
+      ));
+
+      const found = await findSessionFileInRootAsync(root, 'missing', { maxEntries: 5 });
+      expect(found).toBeNull();
+    });
+
+    it('returns null without throwing when the scan exceeds the max depth', async () => {
+      const root = await fs.mkdtemp(path.join(os.tmpdir(), 'pi-search-depth-'));
+      let dir = root;
+      for (let index = 0; index < 6; index += 1) {
+        dir = path.join(dir, `d${index}`);
+      }
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, 'deep-abc.jsonl'), '{}');
+
+      const found = await findSessionFileInRootAsync(root, 'deep-abc', { maxDepth: 3 });
+      expect(found).toBeNull();
+    });
+
+    it('returns null without throwing when the scan hits the timeout', async () => {
+      const root = await fs.mkdtemp(path.join(os.tmpdir(), 'pi-search-timeout-'));
+      await fs.writeFile(path.join(root, 'abc.jsonl'), '{}');
+
+      const nowSpy = jest.spyOn(Date, 'now');
+      let callCount = 0;
+      nowSpy.mockImplementation(() => {
+        callCount += 1;
+        return callCount === 1 ? 1000 : 7000;
+      });
+      try {
+        const found = await findSessionFileInRootAsync(root, 'abc', { timeoutMs: 5000 });
+        expect(found).toBeNull();
+      } finally {
+        nowSpy.mockRestore();
+      }
+    });
+
+    it('sync and async findPiSessionFile agree on a workspace session root', async () => {
+      const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'pi-search-workspace-'));
+      const sessionDir = path.join(cwd, '.pi', 'agent', 'sessions');
+      await fs.mkdir(sessionDir, { recursive: true });
+      const sessionFile = path.join(sessionDir, 'sess-xyz.jsonl');
+      await fs.writeFile(sessionFile, '{}');
+
+      expect(findPiSessionFile('sess-xyz', cwd)).toBe(sessionFile);
+      expect(await findPiSessionFileAsync('sess-xyz', cwd)).toBe(sessionFile);
+    });
   });
 });

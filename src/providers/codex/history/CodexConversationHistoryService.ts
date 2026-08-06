@@ -17,7 +17,7 @@ import {
   deriveCodexSessionsRootFromSessionPath,
   findCodexSessionFileAsync,
   parseCodexSessionFileAsync,
-  parseCodexSessionTurns,
+  parseCodexSessionTurnsAsync,
 } from './CodexHistoryStore';
 
 async function readSessionTurns(sessionFilePath: string): Promise<CodexParsedTurn[]> {
@@ -28,7 +28,7 @@ async function readSessionTurns(sessionFilePath: string): Promise<CodexParsedTur
       encoding: 'utf-8',
       signal: controller.signal,
     });
-    return parseCodexSessionTurns(content);
+    return await parseCodexSessionTurnsAsync(content);
   } catch {
     return [];
   } finally {

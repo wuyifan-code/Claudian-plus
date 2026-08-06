@@ -5,8 +5,10 @@ import {
   deriveCodexSessionsRootFromSessionPath,
   findCodexSessionFileAsync,
   parseCodexSessionContent,
+  parseCodexSessionContentAsync,
   parseCodexSessionFile,
   parseCodexSessionTurns,
+  parseCodexSessionTurnsAsync,
 } from '@/providers/codex/history/CodexHistoryStore';
 
 const FIXTURES_DIR = path.join(__dirname, '..', 'fixtures');
@@ -2847,6 +2849,66 @@ describe('CodexHistoryStore', () => {
         m.contentBlocks?.some(b => b.type === 'context_compacted'),
       );
       expect(compactMessages).toHaveLength(2);
+    });
+  });
+
+  describe('parseCodexSessionContentAsync - chunked parsing', () => {
+    function buildLargeSessionContent(turnCount: number): string {
+      const BASE_MS = 1_700_000_000_000;
+      const lines: string[] = [
+        JSON.stringify({ timestamp: new Date(BASE_MS).toISOString(), type: 'event', event: { type: 'thread.started', thread_id: 'thread-large' } }),
+      ];
+      for (let turn = 0; turn < turnCount; turn += 1) {
+        const turnStart = new Date(BASE_MS + turn * 1000).toISOString();
+        lines.push(JSON.stringify({ timestamp: turnStart, type: 'event', event: { type: 'turn.started' } }));
+        lines.push(JSON.stringify({
+          timestamp: new Date(BASE_MS + turn * 1000).toISOString(),
+          type: 'response_item',
+          payload: {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'input_text', text: `User turn ${turn}` }],
+          },
+        }));
+        lines.push(JSON.stringify({
+          timestamp: new Date(BASE_MS + turn * 1000 + 1).toISOString(),
+          type: 'response_item',
+          payload: {
+            type: 'message',
+            role: 'assistant',
+            content: [{ type: 'output_text', text: `Assistant turn ${turn} response` }],
+          },
+        }));
+        lines.push(JSON.stringify({
+          timestamp: new Date(BASE_MS + turn * 1000 + 2).toISOString(),
+          type: 'response_item',
+          payload: {
+            type: 'function_call',
+            name: 'read_file',
+            arguments: JSON.stringify({ path: `notes/turn-${turn}.md` }),
+          },
+        }));
+        lines.push(JSON.stringify({ timestamp: new Date(BASE_MS + turn * 1000 + 3).toISOString(), type: 'event', event: { type: 'turn.completed' } }));
+      }
+      return lines.join('\n');
+    }
+
+    it('matches the synchronous parser on large input', async () => {
+      const content = buildLargeSessionContent(400);
+
+      const asyncMessages = await parseCodexSessionContentAsync(content);
+
+      expect(asyncMessages).toEqual(parseCodexSessionContent(content));
+      expect(asyncMessages.length).toBeGreaterThan(0);
+    });
+
+    it('matches parseCodexSessionTurns on large input and completes', async () => {
+      const content = buildLargeSessionContent(400);
+
+      const asyncTurns = await parseCodexSessionTurnsAsync(content);
+
+      expect(asyncTurns).toEqual(parseCodexSessionTurns(content));
+      expect(asyncTurns.length).toBeGreaterThan(0);
     });
   });
 });

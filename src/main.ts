@@ -189,21 +189,20 @@ export default class ClaudianPlusPlugin extends Plugin {
           this.scheduleAutoLinkRecommendation(file);
         }));
       }
-      const retrievalWarmupTimer = window.setTimeout(() => {
-        void this.vaultRetrievalService.warmup().catch(() => {
-          // Retrieval remains available through the manual command if warmup fails.
-        });
-      }, 0);
       const registerCleanup = (this as unknown as {
         register?: (callback: () => void) => void;
       }).register;
-      registerCleanup?.call(this, () => window.clearTimeout(retrievalWarmupTimer));
-      const semanticWarmupTimer = window.setTimeout(() => {
-        void this.vaultRetrievalService.warmupSemantic().catch(() => {
-          // Semantic search is optional; lexical retrieval remains available.
-        });
-      }, 1_000);
-      registerCleanup?.call(this, () => window.clearTimeout(semanticWarmupTimer));
+      // Lexical retrieval is built lazily on the first search() call to keep
+      // startup free of full-vault indexing. Only the optional semantic index
+      // gets an opt-in background pass at startup.
+      if (this.settings.semanticSearchEnabled) {
+        const semanticWarmupTimer = window.setTimeout(() => {
+          void this.vaultRetrievalService.warmupSemantic().catch(() => {
+            // Semantic search is optional; lexical retrieval remains available.
+          });
+        }, 1_000);
+        registerCleanup?.call(this, () => window.clearTimeout(semanticWarmupTimer));
+      }
       this.vaultReviewService.updateConfig({
         enabled: this.settings.vaultReviewEnabled ?? this.settings.consciousnessAutoMemory,
       });
@@ -493,10 +492,12 @@ export default class ClaudianPlusPlugin extends Plugin {
         if (!hostDocument) return;
         const selection = hostDocument.getSelection?.();
         if (!isMarkdownSelection(selection)) {
+          // Hiding is cheap and must not be deferred; also cancel any pending
+          // frame update so it cannot re-show the bar for a stale selection.
           globalWidget.hide();
           return;
         }
-        globalWidget.updatePositionFromSelection();
+        globalWidget.schedulePositionUpdate();
       };
       const doc = getActiveDocument();
       const registerDomEvent = (this as unknown as {
@@ -620,6 +621,9 @@ export default class ClaudianPlusPlugin extends Plugin {
 
   onunload(): void {
     this.isUnloading = true;
+    // Cancel any frame-scheduled position update before tearing the widget
+    // down so the callback cannot run against a half-destroyed DOM.
+    this.floatingToolbarFallback?.cancelScheduledUpdate();
     this.floatingToolbarFallback?.destroy();
     this.floatingToolbarFallback = null;
     if (this.sessionMetadataLoadTimer !== null) {

@@ -19,7 +19,7 @@ export class PiConversationHistoryService implements ProviderConversationHistory
   ): Promise<void> {
     const state = getPiState(conversation.providerState);
     if (this.isPendingForkConversation(conversation)) {
-      const sourceSessionFile = resolvePiSessionFileHint(
+      const sourceSessionFile = await resolvePiSessionFileHint(
         state.forkSourceSessionFile,
         state.forkSource!.sessionId,
         vaultPath,
@@ -64,7 +64,7 @@ export class PiConversationHistoryService implements ProviderConversationHistory
       return;
     }
 
-    const sessionFile = resolvePiSessionFileHint(
+    const sessionFile = await resolvePiSessionFileHint(
       state.sessionFile,
       sessionTarget,
       vaultPath,
