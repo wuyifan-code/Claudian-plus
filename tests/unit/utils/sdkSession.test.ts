@@ -535,6 +535,22 @@ describe('sdkSession', () => {
       expect(result.messages).toHaveLength(2);
     });
 
+    it('parses a large session file without losing entries', async () => {
+      const lines = Array.from(
+        { length: 500 },
+        (_, i) => `{"type":"user","uuid":"u${i}","timestamp":"2024-01-15T10:00:00Z","message":{"content":"msg ${i}"}}`,
+      );
+      mockExistsSync.mockReturnValue(true);
+      mockFsPromises.readFile.mockResolvedValue(lines.join('\n'));
+
+      const result = await readSDKSession('/Users/test/vault', 'session-large');
+
+      expect(result.messages).toHaveLength(500);
+      expect(result.messages[0]).toMatchObject({ type: 'user', uuid: 'u0' });
+      expect(result.messages[499]).toMatchObject({ type: 'user', uuid: 'u499' });
+      expect(result.skippedLines).toBe(0);
+    });
+
     it('returns error on read failure', async () => {
       mockExistsSync.mockReturnValue(true);
       mockFsPromises.readFile.mockRejectedValue(new Error('Read error'));
@@ -1152,6 +1168,21 @@ describe('sdkSession', () => {
       expect(result.messages[1].content).toBe('Hi!');
       expect(result.messages[2].role).toBe('user');
       expect(result.messages[2].content).toBe('Thanks');
+    });
+
+    it('converts a large session without losing messages', async () => {
+      const lines = Array.from(
+        { length: 500 },
+        (_, i) => `{"type":"user","uuid":"u${i}","timestamp":"2024-01-15T10:00:00Z","message":{"content":"msg ${i}"}}`,
+      );
+      mockExistsSync.mockReturnValue(true);
+      mockFsPromises.readFile.mockResolvedValue(lines.join('\n'));
+
+      const result = await loadSDKSessionMessages('/Users/test/vault', 'session-large-convert');
+
+      expect(result.messages).toHaveLength(500);
+      expect(result.messages[0].content).toBe('msg 0');
+      expect(result.messages[499].content).toBe('msg 499');
     });
 
     it('sorts messages by timestamp ascending', async () => {

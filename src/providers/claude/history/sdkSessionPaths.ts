@@ -7,6 +7,14 @@ import type { ClaudeConfigDirContext } from '../config/ClaudeConfigDir';
 import { resolveClaudeConfigDir } from '../config/ClaudeConfigDir';
 import type { SDKNativeMessage, SDKSessionReadResult } from './sdkHistoryTypes';
 
+/** Yields to the main thread so large transcript parsing never blocks the UI. */
+export function yieldToMainThread(): Promise<void> {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+}
+
+export const SESSION_PARSE_YIELD_EVERY = 100;
+export const SESSION_PARSE_YIELD_THROTTLE_MS = 15;
+
 export interface SDKSessionLocation {
   availability: ProviderConversationSessionAvailability;
   sessionPath?: string;
@@ -219,12 +227,20 @@ export async function readSDKSessionFile(sessionPath: string): Promise<SDKSessio
     const lines = content.split('\n').filter(line => line.trim());
     const messages: SDKNativeMessage[] = [];
     let skippedLines = 0;
+    let lastYieldAt = Date.now();
+    let lineIndex = 0;
 
     for (const line of lines) {
+      lineIndex += 1;
       try {
         messages.push(JSON.parse(line) as SDKNativeMessage);
       } catch {
         skippedLines++;
+      }
+      if (lineIndex % SESSION_PARSE_YIELD_EVERY === 0
+        && Date.now() - lastYieldAt >= SESSION_PARSE_YIELD_THROTTLE_MS) {
+        await yieldToMainThread();
+        lastYieldAt = Date.now();
       }
     }
 
