@@ -216,7 +216,7 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
 .claudian-plus-tab-bar-container {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   flex: 1 1 auto;
   gap: 4px;
   min-width: 0;
@@ -226,7 +226,7 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
 .claudian-plus-tab-badges {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 4px;
   flex-wrap: nowrap;
   min-width: 0;

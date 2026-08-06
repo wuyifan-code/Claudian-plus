@@ -1571,7 +1571,7 @@ export async function parseCodexSessionFileAsync(
   const timer = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
     const content = await fsp.readFile(filePath, { encoding: 'utf-8', signal: controller.signal });
-    return parseCodexSessionContent(content);
+    return await parseCodexSessionContentAsync(content);
   } catch {
     return [];
   } finally {
@@ -1584,18 +1584,22 @@ export interface CodexParsedTurn {
   messages: ChatMessage[];
 }
 
-export function parseCodexSessionContent(content: string): ChatMessage[] {
-  const turns = parseCodexSessionTurns(content);
-  return turns.flatMap(t => t.messages);
+// Yields to the main thread so large transcript parsing never blocks the UI.
+function yieldToMainThread(): Promise<void> {
+  return new Promise<void>(resolve => window.setTimeout(resolve, 0));
 }
 
-export function parseCodexSessionTurns(content: string): CodexParsedTurn[] {
-  const records = content
+// Shared record-extraction core: split JSONL into typed records.
+function parseSessionRecords(content: string): ParsedSessionRecord[] {
+  return content
     .split('\n')
     .filter(line => line.trim())
     .map(parseSessionRecord)
     .filter((record): record is ParsedSessionRecord => record !== null);
+}
 
+// Shared turn-building core: format detection plus legacy/modern dispatch.
+function buildTurnsFromRecords(records: ParsedSessionRecord[]): CodexParsedTurn[] {
   // Detect format: legacy uses type=event, modern uses event_msg/response_item
   let hasLegacy = false;
   let hasModern = false;
@@ -1613,6 +1617,51 @@ export function parseCodexSessionTurns(content: string): CodexParsedTurn[] {
 
   // Modern or mixed sessions use the bubble model with turn-level grouping
   return parseModernSessionTurns(records);
+}
+
+export function parseCodexSessionContent(content: string): ChatMessage[] {
+  const turns = parseCodexSessionTurns(content);
+  return turns.flatMap(t => t.messages);
+}
+
+export async function parseCodexSessionContentAsync(content: string): Promise<ChatMessage[]> {
+  const turns = await parseCodexSessionTurnsAsync(content);
+  return turns.flatMap(t => t.messages);
+}
+
+export function parseCodexSessionTurns(content: string): CodexParsedTurn[] {
+  return buildTurnsFromRecords(parseSessionRecords(content));
+}
+
+// Chunked record extraction that yields to the main thread every ~100 lines.
+// Yields are throttled to at most one per YIELD_THROTTLE_MS so the platform
+// timer granularity (up to ~15ms on Windows) never dominates parse wall time.
+const YIELD_THROTTLE_MS = 15;
+
+async function parseSessionRecordsAsync(content: string): Promise<ParsedSessionRecord[]> {
+  const lines = content.split('\n');
+  const records: ParsedSessionRecord[] = [];
+  let lastYieldAt = Date.now();
+  let lineIndex = 0;
+  for (const line of lines) {
+    lineIndex += 1;
+    if (line.trim()) {
+      const record = parseSessionRecord(line);
+      if (record !== null) {
+        records.push(record);
+      }
+    }
+    if (lineIndex % 100 === 0 && Date.now() - lastYieldAt >= YIELD_THROTTLE_MS) {
+      await yieldToMainThread();
+      lastYieldAt = Date.now();
+    }
+  }
+  return records;
+}
+
+export async function parseCodexSessionTurnsAsync(content: string): Promise<CodexParsedTurn[]> {
+  const records = await parseSessionRecordsAsync(content);
+  return buildTurnsFromRecords(records);
 }
 
 // ---------------------------------------------------------------------------

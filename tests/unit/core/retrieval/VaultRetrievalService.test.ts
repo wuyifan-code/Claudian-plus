@@ -247,6 +247,27 @@ describe('VaultRetrievalService', () => {
     expect(service.isReady()).toBe(false);
   });
 
+  it('builds the index lazily on the first search and reuses it afterwards', async () => {
+    const file: FakeMarkdownFile = {
+      path: 'notes/lazy.md',
+      stat: { mtime: 1_000, size: 40 },
+    };
+    const app = createVaultApp({ 'notes/lazy.md': '# Lazy\n\nlazy index' }, [file]);
+    const service = new VaultRetrievalService(app);
+
+    expect(service.isReady()).toBe(false);
+
+    // A search without an explicit warmup() still builds the index on demand.
+    await expect(service.search('lazy index')).resolves.toHaveLength(1);
+    expect(service.isReady()).toBe(true);
+    expect(app.vault.cachedRead).toHaveBeenCalledTimes(1);
+
+    // The ready index is reused: the second search must not re-read the vault.
+    await expect(service.search('lazy index')).resolves.toHaveLength(1);
+    expect(service.isReady()).toBe(true);
+    expect(app.vault.cachedRead).toHaveBeenCalledTimes(1);
+  });
+
   it('persists the retrieval index and reuses unchanged blocks across service instances', async () => {
     const files: FakeMarkdownFile[] = [
       { path: 'notes/persisted.md', stat: { mtime: 1_000, size: 40 } },

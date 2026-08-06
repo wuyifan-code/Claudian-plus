@@ -3,7 +3,7 @@ import * as path from 'node:path';
 
 import type { ProviderHistoryPathContext } from '../../../core/providers/types';
 import { isPathWithinRoot } from '../../../core/storage/pathContainment';
-import { findPiSessionFile, findPiSessionFileInRoot } from './PiHistoryStore';
+import { findPiSessionFileAsync, findPiSessionFileInRootAsync } from './PiHistoryStore';
 
 function getConfiguredSessionDir(context: ProviderHistoryPathContext): string | null {
   const configured = context.environment.PI_CODING_AGENT_SESSION_DIR?.trim();
@@ -44,15 +44,15 @@ function isLogicalSessionId(value: string | null | undefined): value is string {
     && !/[\\/]/.test(value);
 }
 
-export function resolvePiSessionFileHint(
+export async function resolvePiSessionFileHint(
   persistedPath: string | null | undefined,
   logicalSessionId: string | null | undefined,
   vaultPath: string | null,
   context?: ProviderHistoryPathContext,
-): string | null {
+): Promise<string | null> {
   if (!context) {
     const target = persistedPath ?? logicalSessionId;
-    return target ? findPiSessionFile(target, vaultPath) : null;
+    return target ? await findPiSessionFileAsync(target, vaultPath) : null;
   }
 
   const roots = getTrustedRoots(vaultPath, context);
@@ -64,7 +64,7 @@ export function resolvePiSessionFileHint(
   }
 
   for (const root of roots) {
-    const resolved = findPiSessionFileInRoot(logicalSessionId, root);
+    const resolved = await findPiSessionFileInRootAsync(logicalSessionId, root);
     if (resolved && isPathWithinRoot(resolved, root)) {
       return resolved;
     }

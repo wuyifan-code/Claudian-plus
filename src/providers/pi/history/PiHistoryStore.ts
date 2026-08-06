@@ -290,11 +290,7 @@ export function findPiSessionFile(
     return trimmed;
   }
 
-  const roots = [
-    sessionDir,
-    cwd ? path.join(cwd, '.pi', 'agent', 'sessions') : null,
-    path.join(os.homedir(), '.pi', 'agent', 'sessions'),
-  ].filter((root): root is string => !!root);
+  const roots = resolvePiSearchRoots(sessionDir, cwd);
 
   for (const root of roots) {
     const direct = path.join(root, trimmed.endsWith('.jsonl') ? trimmed : `${trimmed}.jsonl`);
@@ -303,6 +299,54 @@ export function findPiSessionFile(
     }
 
     const found = findSessionFileInRoot(root, trimmed);
+    if (found) {
+      return found;
+    }
+  }
+
+  return null;
+}
+
+function resolvePiSearchRoots(sessionDir?: string | null, cwd?: string | null): string[] {
+  return [
+    sessionDir,
+    cwd ? path.join(cwd, '.pi', 'agent', 'sessions') : null,
+    path.join(os.homedir(), '.pi', 'agent', 'sessions'),
+  ].filter((root): root is string => !!root);
+}
+
+async function fileExistsAsync(filePath: string): Promise<boolean> {
+  try {
+    const stat = await fsp.stat(filePath);
+    return stat.isFile();
+  } catch {
+    return false;
+  }
+}
+
+export async function findPiSessionFileAsync(
+  sessionIdOrFile: string,
+  cwd?: string | null,
+  sessionDir?: string | null,
+): Promise<string | null> {
+  const trimmed = sessionIdOrFile.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (path.isAbsolute(trimmed) && await fileExistsAsync(trimmed)) {
+    return trimmed;
+  }
+
+  const roots = resolvePiSearchRoots(sessionDir, cwd);
+
+  for (const root of roots) {
+    const direct = path.join(root, trimmed.endsWith('.jsonl') ? trimmed : `${trimmed}.jsonl`);
+    if (await fileExistsAsync(direct)) {
+      return direct;
+    }
+
+    const found = await findSessionFileInRootAsync(root, trimmed);
     if (found) {
       return found;
     }
@@ -326,6 +370,23 @@ export function findPiSessionFileInRoot(
     return direct;
   }
   return findSessionFileInRoot(root, trimmed);
+}
+
+/** Async variant of findPiSessionFileInRoot for non-blocking hydration paths. */
+export async function findPiSessionFileInRootAsync(
+  sessionId: string,
+  root: string,
+): Promise<string | null> {
+  const trimmed = sessionId.trim();
+  if (!trimmed || path.isAbsolute(trimmed) || /[\\/]/.test(trimmed)) {
+    return null;
+  }
+
+  const direct = path.join(root, trimmed.endsWith('.jsonl') ? trimmed : `${trimmed}.jsonl`);
+  if (await fileExistsAsync(direct)) {
+    return direct;
+  }
+  return findSessionFileInRootAsync(root, trimmed);
 }
 
 export function derivePiSessionsRootFromSessionPath(sessionPath: string): string | null {
@@ -659,26 +720,123 @@ function extractTextContent(value: unknown): string {
   return '';
 }
 
+export interface FindSessionFileInRootOptions {
+  maxDepth?: number;
+  maxEntries?: number;
+  timeoutMs?: number;
+}
+
+interface SessionFileSearchState {
+  maxDepth: number;
+  maxEntries: number;
+  deadline: number;
+  scanned: number;
+}
+
+const DEFAULT_SEARCH_MAX_DEPTH = 8;
+const DEFAULT_SEARCH_MAX_ENTRIES = 5000;
+const DEFAULT_SEARCH_TIMEOUT_MS = 5000;
+
 function findSessionFileInRoot(root: string, sessionId: string): string | null {
+  return findSessionFileInRootBounded(root, sessionId, {
+    maxDepth: DEFAULT_SEARCH_MAX_DEPTH,
+    maxEntries: DEFAULT_SEARCH_MAX_ENTRIES,
+    deadline: Infinity,
+    scanned: 0,
+  });
+}
+
+function findSessionFileInRootBounded(
+  root: string,
+  sessionId: string,
+  state: SessionFileSearchState,
+  depth = 0,
+): string | null {
+  if (depth > state.maxDepth || state.scanned >= state.maxEntries || Date.now() >= state.deadline) {
+    return null;
+  }
+
+  let entries: fs.Dirent[];
   try {
-    const entries = fs.readdirSync(root, { withFileTypes: true });
-    for (const entry of entries) {
-      const candidate = path.join(root, entry.name);
-      if (entry.isDirectory()) {
-        const nested = findSessionFileInRoot(candidate, sessionId);
-        if (nested) {
-          return nested;
-        }
-      } else if (
-        entry.isFile()
-        && entry.name.endsWith('.jsonl')
-        && entry.name.includes(sessionId)
-      ) {
-        return candidate;
-      }
-    }
+    entries = fs.readdirSync(root, { withFileTypes: true });
   } catch {
     return null;
+  }
+
+  for (const entry of entries) {
+    state.scanned += 1;
+    if (state.scanned >= state.maxEntries || Date.now() >= state.deadline) {
+      return null;
+    }
+
+    const candidate = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      const nested = findSessionFileInRootBounded(candidate, sessionId, state, depth + 1);
+      if (nested) {
+        return nested;
+      }
+    } else if (
+      entry.isFile()
+      && entry.name.endsWith('.jsonl')
+      && entry.name.includes(sessionId)
+    ) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+export async function findSessionFileInRootAsync(
+  root: string,
+  sessionId: string,
+  options: FindSessionFileInRootOptions = {},
+): Promise<string | null> {
+  const state: SessionFileSearchState = {
+    maxDepth: options.maxDepth ?? DEFAULT_SEARCH_MAX_DEPTH,
+    maxEntries: options.maxEntries ?? DEFAULT_SEARCH_MAX_ENTRIES,
+    deadline: Date.now() + (options.timeoutMs ?? DEFAULT_SEARCH_TIMEOUT_MS),
+    scanned: 0,
+  };
+  return findSessionFileInRootAsyncBounded(root, sessionId, state);
+}
+
+async function findSessionFileInRootAsyncBounded(
+  root: string,
+  sessionId: string,
+  state: SessionFileSearchState,
+  depth = 0,
+): Promise<string | null> {
+  if (depth > state.maxDepth || state.scanned >= state.maxEntries || Date.now() >= state.deadline) {
+    return null;
+  }
+
+  let entries: fs.Dirent[];
+  try {
+    entries = await fsp.readdir(root, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+
+  for (const entry of entries) {
+    state.scanned += 1;
+    if (state.scanned >= state.maxEntries || Date.now() >= state.deadline) {
+      return null;
+    }
+
+    const candidate = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      const nested = await findSessionFileInRootAsyncBounded(candidate, sessionId, state, depth + 1);
+      if (nested) {
+        return nested;
+      }
+    } else if (
+      entry.isFile()
+      && entry.name.endsWith('.jsonl')
+      && entry.name.includes(sessionId)
+    ) {
+      return candidate;
+    }
   }
 
   return null;

@@ -41,7 +41,7 @@ import { getVaultPath } from '../../../utils/path';
 import { PI_PROVIDER_CAPABILITIES } from '../capabilities';
 import {
   createPiForkSessionFile,
-  findPiSessionFile,
+  findPiSessionFileAsync,
   parsePiSessionEntries,
   resolvePiActivePath,
 } from '../history/PiHistoryStore';
@@ -969,7 +969,7 @@ export class PiChatRuntime implements ChatRuntime {
 
     const env = parseEnvironmentVariables(runtimeEnvText);
     const sourceSessionFile = this.pendingForkSourceSessionFile
-      ?? findPiSessionFile(
+      ?? await findPiSessionFileAsync(
         pendingFork.sessionId,
         cwd,
         typeof env.PI_CODING_AGENT_SESSION_DIR === 'string' ? env.PI_CODING_AGENT_SESSION_DIR : null,

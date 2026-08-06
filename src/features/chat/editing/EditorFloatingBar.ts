@@ -97,6 +97,9 @@ const DEFAULT_ACTIONS: EditorFloatingBarAction[] = [
 export class FloatingToolbarWidget extends WidgetType {
   private dom: HTMLElement | null = null;
   private visible = false;
+  /** Id of the frame-scheduled position update, if one is pending. */
+  private pendingFrameId: number | null = null;
+  private destroyed = false;
 
   constructor(
     private readonly view: EditorView | null,
@@ -270,6 +273,31 @@ export class FloatingToolbarWidget extends WidgetType {
     }
   }
 
+  /**
+   * Coalesce position updates to one requestAnimationFrame callback. Selection
+   * events (selectionchange/mouseup/keyup) fire far more often than the frame
+   * budget, and updatePositionFromSelection reads layout synchronously
+   * (getBoundingClientRect + offsetWidth), forcing a reflow on every event.
+   * Multiple triggers within the same frame keep a single pending callback.
+   */
+  schedulePositionUpdate(): void {
+    if (this.destroyed || this.pendingFrameId !== null) return;
+    const win = getActiveDocument()?.defaultView ?? window;
+    this.pendingFrameId = win.requestAnimationFrame(() => {
+      this.pendingFrameId = null;
+      if (this.destroyed) return;
+      this.updatePositionFromSelection();
+    });
+  }
+
+  /** Cancel a frame-scheduled position update, if one is pending. */
+  cancelScheduledUpdate(): void {
+    if (this.pendingFrameId === null) return;
+    const win = getActiveDocument()?.defaultView ?? window;
+    win.cancelAnimationFrame(this.pendingFrameId);
+    this.pendingFrameId = null;
+  }
+
   resetMenu(): void {
     if (!this.dom) return;
     const moreBtn = this.dom.querySelector('.claudian-plus-floating-bar-more-btn');
@@ -290,6 +318,9 @@ export class FloatingToolbarWidget extends WidgetType {
   }
 
   hide(): void {
+    // hide() must stay immediate: cancel any frame-scheduled position update
+    // so it cannot re-show the bar after the hide decision.
+    this.cancelScheduledUpdate();
     if (this.dom) {
       this.dom.classList.add('claudian-plus-floating-bar-hidden');
       this.resetMenu();
@@ -302,6 +333,8 @@ export class FloatingToolbarWidget extends WidgetType {
   }
 
   destroy(): void {
+    this.destroyed = true;
+    this.cancelScheduledUpdate();
     this.dom?.remove();
     this.dom = null;
   }
@@ -362,7 +395,7 @@ export function createEditorFloatingBarPlugin(
         return;
       }
       const handleSelectionEvent = () => {
-        this.widget.updatePositionFromSelection();
+        this.widget.schedulePositionUpdate();
       };
 
       doc.addEventListener('selectionchange', handleSelectionEvent);
@@ -378,7 +411,9 @@ export function createEditorFloatingBarPlugin(
 
     update(update: ViewUpdate): void {
       if (!this.enabled) return;
-      this.widget.updatePositionFromSelection();
+      // CodeMirror view updates fire on every selection/document change
+      // during a drag; coalesce them to one position update per frame too.
+      this.widget.schedulePositionUpdate();
     }
 
     destroy(): void {
