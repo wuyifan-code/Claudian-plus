@@ -3,6 +3,7 @@ import type { App } from 'obsidian';
 import type { SharedAppStorage } from '../core/bootstrap/storage';
 import type {
   ConsciousnessEngine,
+  DreamService,
   MemoryExtractor,
   MemoryStore,
   VaultKnowledgeEngine,
@@ -49,6 +50,9 @@ export interface FeatureHost {
 
   /** Get the consciousness engine for awareness features. */
   getConsciousnessEngine(): ConsciousnessEngine;
+
+  /** Get the dream memory consolidation service. */
+  getDreamService(): DreamService;
 
   /** Get the vault knowledge index for awareness reset and retrieval features. */
   getVaultKnowledgeEngine(): VaultKnowledgeEngine;

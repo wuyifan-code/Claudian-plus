@@ -11,6 +11,7 @@ import { CLAUDE_PROVIDER_CAPABILITIES } from './capabilities';
 import { claudeSettingsReconciler } from './env/ClaudeSettingsReconciler';
 import { ClaudeConversationHistoryService } from './history/ClaudeConversationHistoryService';
 import { ClaudeChatRuntime } from './runtime/ClaudeChatRuntime';
+import { ClaudeAuxQueryRunner } from './runtime/ClaudeAuxQueryRunner';
 import { ClaudeTaskResultInterpreter } from './runtime/ClaudeTaskResultInterpreter';
 import { getClaudeProviderSettings, updateClaudeProviderSettings } from './settings';
 import { claudeChatUIConfig } from './ui/ClaudeChatUIConfig';
@@ -65,6 +66,7 @@ export const claudeProviderRegistration: ProviderModule = {
   createTitleGenerationService: (plugin) => new ClaudeTitleGenerationService(plugin),
   createInstructionRefineService: (plugin) => new ClaudeInstructionRefineService(plugin),
   createInlineEditService: (plugin) => new ClaudeInlineEditService(plugin),
+  createAuxQueryRunner: (plugin) => new ClaudeAuxQueryRunner(plugin),
   historyService: new ClaudeConversationHistoryService(),
   taskResultInterpreter: new ClaudeTaskResultInterpreter(),
   workspace: claudeWorkspaceRegistration,

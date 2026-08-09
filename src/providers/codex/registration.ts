@@ -9,6 +9,7 @@ import { codexSettingsReconciler } from './env/CodexSettingsReconciler';
 import { CodexConversationHistoryService } from './history/CodexConversationHistoryService';
 import { codexSubagentLifecycleAdapter } from './normalization/codexSubagentNormalization';
 import { CodexChatRuntime } from './runtime/CodexChatRuntime';
+import { CodexAuxQueryRunner } from './runtime/CodexAuxQueryRunner';
 import {
   getCodexProviderSettings,
   normalizeCodexStoredConfig,
@@ -47,6 +48,7 @@ export const codexProviderRegistration: ProviderModule = {
   createTitleGenerationService: (plugin) => new CodexTitleGenerationService(plugin),
   createInstructionRefineService: (plugin) => new CodexInstructionRefineService(plugin),
   createInlineEditService: (plugin) => new CodexInlineEditService(plugin),
+createAuxQueryRunner: (plugin) => new CodexAuxQueryRunner(plugin),
   historyService: new CodexConversationHistoryService(),
   taskResultInterpreter: new CodexTaskResultInterpreter(),
   subagentLifecycleAdapter: codexSubagentLifecycleAdapter,

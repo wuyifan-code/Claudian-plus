@@ -12,7 +12,7 @@ import { ProviderSettingsCoordinator } from '../../core/providers/ProviderSettin
 import { ProviderWorkspaceRegistry } from '../../core/providers/ProviderWorkspaceRegistry';
 import type { ProviderId } from '../../core/providers/types';
 import type { ChatViewPlacement } from '../../core/types/settings';
-import { getAvailableLocales, getLocaleDisplayName, setLocale, t } from '../../i18n/i18n';
+import { getAvailableLocales, getLocaleDisplayName, localeText, setLocale, t } from '../../i18n/i18n';
 import type { Locale, TranslationKey } from '../../i18n/types';
 import { createProviderIconSvg } from '../../shared/icons';
 import { FileViewerModal } from '../../shared/modals/FileViewerModal';
@@ -818,6 +818,23 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
             void this.restartServiceForPromptChange();
           });
       });
+
+      // Memory file status line: shows where memories live and where backups go.
+      const memoryStatusSetting = new Setting(memoryCard)
+        .setName(localeText('记忆文件状态', 'Memory file status'))
+        .setDesc(localeText('读取中…', 'Loading…'));
+      void (async () => {
+        try {
+          const store = this.plugin.getMemoryStore();
+          const entries = await store.load();
+          memoryStatusSetting.setDesc(localeText(
+            `路径：${store.filePath}，共 ${entries.length} 条。每次写入前自动备份到 .claudian-plus/backups/（保留 20 份）。`,
+            `Path: ${store.filePath}, ${entries.length} entrie(s). A backup is kept in .claudian-plus/backups/ before every write (20 retained).`,
+          ));
+        } catch {
+          memoryStatusSetting.setDesc(localeText('读取失败', 'Failed to load memory status'));
+        }
+      })();
     }
 
     // --- Consciousness ---
@@ -858,6 +875,88 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
             });
             this.plugin.getConsciousnessEngine().updateConfig({ autoMemoryEnabled: value });
           });
+
+      // Dream memory consolidation (idle distillation of short-term logs).
+      if (this.plugin.settings.consciousnessAutoMemory ?? false) {
+        const dreamHeading = consciousnessCard.createDiv({
+          cls: 'claudian-plus-settings-subheading',
+          text: t('settings.dream.heading'),
+        });
+        dreamHeading.createDiv({
+          cls: 'claudian-plus-settings-feature-guide-copy',
+          text: t('settings.dream.desc'),
+        });
+
+        const hours = Math.max(1, Math.round((this.plugin.settings.dreamIntervalMs ?? 24 * 60 * 60 * 1000) / (60 * 60 * 1000)));
+        new Setting(consciousnessCard)
+          .setName(t('settings.dream.interval.name'))
+          .setDesc(t('settings.dream.interval.desc'))
+          .addText((text) => text
+            .setValue(String(hours))
+            .onChange(async (value) => {
+              const parsed = Math.max(1, Number.parseInt(value, 10) || 24);
+              await this.plugin.mutateSettings((settings) => {
+                settings.dreamIntervalMs = parsed * 60 * 60 * 1000;
+              });
+            }));
+
+        new Setting(consciousnessCard)
+          .setName(t('settings.dream.maxLogDays.name'))
+          .setDesc(t('settings.dream.maxLogDays.desc'))
+          .addText((text) => text
+            .setValue(String(this.plugin.settings.dreamMaxLogDays ?? 7))
+            .onChange(async (value) => {
+              const parsed = Math.max(1, Number.parseInt(value, 10) || 7);
+              await this.plugin.mutateSettings((settings) => {
+                settings.dreamMaxLogDays = parsed;
+              });
+            }));
+
+        new Setting(consciousnessCard)
+          .setName(t('settings.dream.inputCap.name'))
+          .setDesc(t('settings.dream.inputCap.desc'))
+          .addText((text) => text
+            .setValue(String(this.plugin.settings.dreamInputCharCap ?? 8000))
+            .onChange(async (value) => {
+              const parsed = Math.max(1000, Number.parseInt(value, 10) || 8000);
+              await this.plugin.mutateSettings((settings) => {
+                settings.dreamInputCharCap = parsed;
+              });
+            }));
+
+        new Setting(consciousnessCard)
+          .setName(t('settings.dream.maxNewFacts.name'))
+          .setDesc(t('settings.dream.maxNewFacts.desc'))
+          .addText((text) => text
+            .setValue(String(this.plugin.settings.dreamMaxNewFacts ?? 10))
+            .onChange(async (value) => {
+              const parsed = Math.max(1, Number.parseInt(value, 10) || 10);
+              await this.plugin.mutateSettings((settings) => {
+                settings.dreamMaxNewFacts = parsed;
+              });
+            }));
+
+        new Setting(consciousnessCard)
+          .setName(t('settings.dream.runNow'))
+          .setDesc(t('settings.dream.runNowDesc'))
+          .addButton((button) => {
+            button
+              .setButtonText(t('settings.dream.runNow'))
+              .setCta()
+              .onClick(async () => {
+                const result = await this.plugin.getDreamService().runDream(true);
+                if (result.ran) {
+                  new Notice(`Dream memory consolidated: ${result.newFacts} fact(s), ${result.profileUpdates} profile update(s).`);
+                } else if (result.reason === 'no-new-logs') {
+                  new Notice('No new short-term memories to consolidate.');
+                } else if (result.reason === 'already-running') {
+                  new Notice('A memory consolidation is already running.');
+                } else if (result.reason === 'failed') {
+                  new Notice(`Memory consolidation failed: ${result.error ?? 'unknown error'}`);
+                }
+              });
+          });
+      }
         });
 
       // Consciousness management buttons

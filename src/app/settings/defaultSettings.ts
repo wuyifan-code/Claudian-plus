@@ -88,4 +88,11 @@ export const DEFAULT_CLAUDIAN_PLUS_SETTINGS: ClaudianPlusSettings = {
   // Require an explicit opt-in on new installations.
   consciousnessEnabled: false,
   consciousnessAutoMemory: false,
+
+  // Dream memory consolidation follows the consciousness opt-in. Defaults are
+  // safe for local-only distillation: 24h interval, 7 days of logs, capped input.
+  dreamIntervalMs: 24 * 60 * 60 * 1000,
+  dreamMaxLogDays: 7,
+  dreamInputCharCap: 8000,
+  dreamMaxNewFacts: 10,
 };

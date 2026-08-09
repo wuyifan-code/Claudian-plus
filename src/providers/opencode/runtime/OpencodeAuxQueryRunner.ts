@@ -26,7 +26,7 @@ import {
 import { buildOpencodeRuntimeEnv } from './OpencodeRuntimeEnvironment';
 
 type OpencodeAuxAgentProfile = 'passive' | 'readonly';
-type OpencodeAuxArtifactPurpose = 'inline' | 'instructions' | 'title-gen';
+type OpencodeAuxArtifactPurpose = 'inline' | 'instructions' | 'title-gen' | 'dream';
 
 interface OpencodeAuxQueryRunnerOptions {
   agentProfile: OpencodeAuxAgentProfile;

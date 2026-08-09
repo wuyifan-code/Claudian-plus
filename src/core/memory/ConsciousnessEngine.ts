@@ -15,10 +15,13 @@ import {
   SHORT_TERM_DIR,
   SOUL_FILE,
   SOUL_TEMPLATE,
+  TRASH_DIR,
+  TRASH_MAX_AGE_DAYS,
   USER_FILE,
   USER_TEMPLATE,
 } from './consciousness-types';
 import { escapePromptTagCloser } from './memoryPrompt';
+import { backupFileBeforeWrite } from './backup';
 import type { MemoryEntry } from './types';
 
 /**
@@ -248,6 +251,7 @@ export class ConsciousnessEngine {
         updated = `${profile.trimEnd()}\n\n${sectionHeader}\n- ${content.trim()}\n`;
       }
       await this.adapter.write(USER_FILE, updated);
+      await backupFileBeforeWrite(this.adapter, USER_FILE, 'user');
     });
 
     await this.logActivity('user-profile-update', `更新用户画像: ${section}`);
@@ -296,29 +300,72 @@ export class ConsciousnessEngine {
     options: { clearMemoryFile?: boolean } = {},
   ): Promise<void> {
     await this.enqueueMutation(async () => {
-      await this.adapter.delete(SOUL_FILE);
-      await this.adapter.delete(LEGACY_SOUL_FILE);
-      await this.adapter.delete(USER_FILE);
-      await this.adapter.delete(LEGACY_USER_FILE);
-      await this.adapter.delete(ACTIVITY_FILE);
-      await this.adapter.delete(LEGACY_ACTIVITY_FILE);
+      // Nothing is physically deleted: every file is moved into the trash
+      // directory first so a reset can be undone within the retention window.
+      await this.moveToTrash(SOUL_FILE);
+      await this.moveToTrash(LEGACY_SOUL_FILE);
+      await this.moveToTrash(USER_FILE);
+      await this.moveToTrash(LEGACY_USER_FILE);
+      await this.moveToTrash(ACTIVITY_FILE);
+      await this.moveToTrash(LEGACY_ACTIVITY_FILE);
       if (options.clearMemoryFile !== false) {
         for (const path of new Set([MEMORY_FILE, memoryFilePath])) {
-          await this.adapter.delete(path);
+          await this.moveToTrash(path);
         }
       }
       for (const file of await this.adapter.listFilesRecursive(SHORT_TERM_DIR)) {
-        await this.adapter.delete(file);
+        await this.moveToTrash(file);
       }
       for (const file of await this.adapter.listFilesRecursive(LEGACY_SHORT_TERM_DIR)) {
-        await this.adapter.delete(file);
+        await this.moveToTrash(file);
       }
       await this.adapter.deleteFolder(SHORT_TERM_DIR);
       await this.adapter.deleteFolder(LEGACY_SHORT_TERM_DIR);
+      await this.pruneTrash();
 
       // Re-initialize with templates without reacquiring this queue.
       await this.initializeUnchecked();
     });
+  }
+
+  /**
+   * Move a file into the trash directory instead of deleting it. The trash
+   * copy is written first; the original is only removed after that succeeds.
+   */
+  private async moveToTrash(path: string): Promise<void> {
+    if (!(await this.adapter.exists(path))) {
+      return;
+    }
+    try {
+      const content = await this.adapter.read(path);
+      const basename = path.split('/').pop() ?? 'file';
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const target = `${TRASH_DIR}/${stamp}-${basename}`;
+      await this.adapter.write(target, content);
+      await this.adapter.delete(path);
+    } catch {
+      // Keep the original file when the trash copy fails.
+    }
+  }
+
+  /** Drop trashed files older than the retention window. */
+  private async pruneTrash(maxAgeDays = TRASH_MAX_AGE_DAYS): Promise<void> {
+    try {
+      const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
+      for (const file of await this.adapter.listFilesRecursive(TRASH_DIR)) {
+        const basename = file.split('/').pop() ?? '';
+        const match = basename.match(/^(\d{4}-\d{2}-\d{2})T/);
+        if (!match) {
+          continue;
+        }
+        const fileTime = new Date(match[1]).getTime();
+        if (Number.isFinite(fileTime) && fileTime < cutoff) {
+          await this.adapter.delete(file);
+        }
+      }
+    } catch {
+      // Best effort.
+    }
   }
 
   /**

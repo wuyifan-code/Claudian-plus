@@ -1,4 +1,5 @@
 import type { VaultFileAdapter } from '../storage/VaultFileAdapter';
+import { backupFileBeforeWrite } from './backup';
 import {
   DEFAULT_MEMORY_FILE_PATH,
   DEFAULT_MEMORY_MAX_INJECTION_CHARS,
@@ -183,6 +184,9 @@ export class MemoryStore {
   }
 
   private async writeEntries(entries: MemoryEntry[]): Promise<void> {
+    // Keep a rolling backup of the previous content before any rewrite so a
+    // parse/serialize mishap can never silently destroy user memories.
+    await backupFileBeforeWrite(this.adapter, this.options.filePath, 'memory');
     const content = this.serializeMarkdown(entries);
     await this.adapter.write(this.options.filePath, content);
   }
