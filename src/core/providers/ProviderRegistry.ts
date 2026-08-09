@@ -1,4 +1,5 @@
 import type { ChatRuntime } from '../runtime/ChatRuntime';
+import type { AuxQueryRunner } from '../auxiliary/AuxQueryRunner';
 import { decodeProviderModelSelectionId } from './modelSelection';
 import type { ProviderHost } from './ProviderHost';
 import {
@@ -108,6 +109,17 @@ export class ProviderRegistry {
 
   static getChatUIConfig(providerId: ProviderId = DEFAULT_CHAT_PROVIDER_ID): ProviderChatUIConfig {
     return this.getProviderRegistration(providerId).chatUIConfig;
+  }
+
+  static createAuxQueryRunner(
+    plugin: ProviderHost,
+    providerId: ProviderId = DEFAULT_CHAT_PROVIDER_ID,
+  ): AuxQueryRunner {
+    const registration = this.getProviderRegistration(providerId);
+    if (!registration.createAuxQueryRunner) {
+      throw new Error(`Provider "${providerId}" does not support auxiliary queries.`);
+    }
+    return registration.createAuxQueryRunner(plugin);
   }
 
   static getTitleGenerationModelOptions(

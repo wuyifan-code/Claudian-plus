@@ -160,8 +160,9 @@ describe('MemoryStore', () => {
         source: 'user-explicit',
       });
 
-      const writeCall = (adapter.write as jest.Mock).mock.calls[0];
-      const written = writeCall[1];
+      const memoryWrites = (adapter.write as jest.Mock).mock.calls
+        .filter((call: string[]) => call[0] === '.claudian-plus/memory.md');
+      const written = memoryWrites[memoryWrites.length - 1][1];
       expect(written).toContain('- Existing memory');
       expect(written).toContain('- New memory');
     });

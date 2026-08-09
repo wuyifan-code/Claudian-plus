@@ -16,6 +16,7 @@ import type {
 import {
   LEGACY_CLAUDIAN_SESSIONS_PATH,
   LEGACY_SESSION_PATHS,
+  ARCHIVED_LEGACY_DIR,
   LEGACY_SESSIONS_PATH,
   SESSIONS_PATH,
 } from './StoragePaths';
@@ -318,12 +319,32 @@ export class SessionStorage {
     return null;
   }
 
+  /**
+   * Archive a legacy metadata file instead of deleting it. The archive copy is
+   * written first; the original is only removed after that succeeds. This keeps
+   * old-plugin data recoverable even after migration.
+   */
   private async deleteLegacyMetadataIfPresent(id: string): Promise<void> {
     for (const legacyPath of LEGACY_SESSION_PATHS) {
       const legacyFilePath = `${legacyPath}/${id}.meta.json`;
-      if (await this.adapter.exists(legacyFilePath)) {
-        await this.adapter.delete(legacyFilePath);
+      await this.archiveFileIfPresent(legacyFilePath, `${ARCHIVED_LEGACY_DIR}/sessions`);
+    }
+  }
+
+  private async archiveFileIfPresent(sourcePath: string, archiveDir: string): Promise<void> {
+    if (!(await this.adapter.exists(sourcePath))) {
+      return;
+    }
+    try {
+      const content = await this.adapter.read(sourcePath);
+      const basename = sourcePath.split('/').pop() ?? 'file';
+      const target = `${archiveDir}/${basename}`;
+      if (!(await this.adapter.exists(target))) {
+        await this.adapter.write(target, content);
       }
+      await this.adapter.delete(sourcePath);
+    } catch {
+      // Keep the original file when the archive copy fails.
     }
   }
 

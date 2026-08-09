@@ -7,6 +7,12 @@ export const CLAUDIAN_PLUS_STORAGE_PATH = '.claudian-plus';
 export const CLAUDIAN_PLUS_SETTINGS_PATH = `${CLAUDIAN_PLUS_STORAGE_PATH}/claudian-plus-settings.json`;
 export const SESSIONS_PATH = `${CLAUDIAN_PLUS_STORAGE_PATH}/sessions`;
 
+/**
+ * Old-plugin files are archived here instead of being deleted, so migrated
+ * data stays recoverable for manual review.
+ */
+export const ARCHIVED_LEGACY_DIR = `${CLAUDIAN_PLUS_STORAGE_PATH}/archived-legacy`;
+
 /** Previous Claudian Plus builds stored plugin data under `.claudian`. */
 export const LEGACY_CLAUDIAN_STORAGE_PATH = '.claudian';
 export const LEGACY_CLAUDIAN_SETTINGS_PATH = `${LEGACY_CLAUDIAN_STORAGE_PATH}/claudian-settings.json`;

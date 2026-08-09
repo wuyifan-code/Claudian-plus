@@ -146,6 +146,28 @@
       "viewBtn": "Ver arquivos de consciência",
       "clearBtn": "Redefinir tudo"
     },
+    "dream": {
+      "heading": "Dream memory",
+      "desc": "While you are idle, a lightweight model call distills short-term logs into long-term memory and your user profile. Runs automatically with consciousness + auto-memory.",
+      "interval": {
+        "name": "Dream interval (hours)",
+        "desc": "Minimum time between automatic consolidation runs"
+      },
+      "maxLogDays": {
+        "name": "Log lookback (days)",
+        "desc": "How many recent days of short-term logs to consider"
+      },
+      "inputCap": {
+        "name": "Input budget (chars)",
+        "desc": "Character budget for one dream cycle; older content is truncated"
+      },
+      "maxNewFacts": {
+        "name": "Max new facts per dream",
+        "desc": "Upper bound on long-term memory entries written per cycle"
+      },
+      "runNow": "Run dream now",
+      "runNowDesc": "Consolidate pending short-term memories immediately"
+    },
     "systemPrompt": {
       "name": "Prompt de sistema personalizado",
       "desc": "Instruções adicionais anexadas ao prompt de sistema padrão"

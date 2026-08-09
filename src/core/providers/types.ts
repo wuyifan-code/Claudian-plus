@@ -1,4 +1,5 @@
 import type { CursorContext } from '../../utils/editor';
+import type { AuxQueryRunner } from '../auxiliary/AuxQueryRunner';
 import type { SharedAppStorage } from '../bootstrap/storage';
 import type { McpServerManager } from '../mcp/McpServerManager';
 import type { ChatRuntime } from '../runtime/ChatRuntime';
@@ -66,6 +67,8 @@ export interface ProviderRegistration {
   createTitleGenerationService: (plugin: ProviderHost) => TitleGenerationService;
   createInstructionRefineService: (plugin: ProviderHost) => InstructionRefineService;
   createInlineEditService: (plugin: ProviderHost) => InlineEditService;
+  /** Optional lightweight single-query runner for provider-neutral auxiliary tasks. */
+  createAuxQueryRunner?: (plugin: ProviderHost) => AuxQueryRunner;
   historyService: ProviderConversationHistoryService;
   taskResultInterpreter: ProviderTaskResultInterpreter;
   subagentLifecycleAdapter?: ProviderSubagentLifecycleAdapter;

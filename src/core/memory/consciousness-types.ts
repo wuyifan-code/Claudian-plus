@@ -27,6 +27,10 @@ export const LEGACY_SHORT_TERM_DIR = `${LEGACY_AWARENESS_DIR}/memory`;
 export const ACTIVITY_FILE = `${AWARENESS_DIR}/activity.json`;
 export const LEGACY_ACTIVITY_FILE = `${LEGACY_AWARENESS_DIR}/activity.json`;
 
+/** Files removed by a reset land here for the retention window. */
+export const TRASH_DIR = '.claudian-plus/trash';
+export const TRASH_MAX_AGE_DAYS = 30;
+
 /** Reflection insight extracted from conversation analysis. */
 export interface ReflectionInsight {
   id: string;

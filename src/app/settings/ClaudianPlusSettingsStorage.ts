@@ -2,6 +2,7 @@ import {
   CLAUDIAN_PLUS_SETTINGS_PATH,
   LEGACY_CLAUDIAN_PLUS_SETTINGS_PATH,
   LEGACY_SETTINGS_PATHS,
+  ARCHIVED_LEGACY_DIR,
 } from '../../core/bootstrap/StoragePaths';
 import {
   normalizeHiddenCommandList,
@@ -334,6 +335,14 @@ export class ClaudianPlusSettingsStorage {
       merged.memoryEnabled = DEFAULT_CLAUDIAN_PLUS_SETTINGS.memoryEnabled;
     }
 
+    // Normalize dream memory settings: fallback to defaults for invalid values.
+    for (const key of ['dreamIntervalMs', 'dreamMaxLogDays', 'dreamInputCharCap', 'dreamMaxNewFacts'] as const) {
+      const value = (merged as Record<string, unknown>)[key];
+      if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+        (merged as Record<string, unknown>)[key] = DEFAULT_CLAUDIAN_PLUS_SETTINGS[key];
+      }
+    }
+
     let didNormalizeProviderSettings = false;
     for (const { adapter } of getProviderSettingsAdapters()) {
       didNormalizeProviderSettings = adapter.normalizeStored(
@@ -419,6 +428,17 @@ export class ClaudianPlusSettingsStorage {
   private async deleteLegacyFileIfPresent(): Promise<void> {
     for (const legacyPath of LEGACY_SETTINGS_PATHS) {
       if (await this.adapter.exists(legacyPath)) {
+        try {
+          const content = await this.adapter.read(legacyPath);
+          const basename = legacyPath.split('/').pop() ?? 'settings.json';
+          const target = `${ARCHIVED_LEGACY_DIR}/settings/${basename}`;
+          if (!(await this.adapter.exists(target))) {
+            await this.adapter.write(target, content);
+          }
+        } catch {
+          // Keep the original file when the archive copy fails.
+          continue;
+        }
         await this.adapter.delete(legacyPath);
       }
     }

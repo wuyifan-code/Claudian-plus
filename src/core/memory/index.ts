@@ -17,6 +17,15 @@ export {
   USER_TEMPLATE,
 } from './consciousness-types';
 export { ConsciousnessEngine } from './ConsciousnessEngine';
+export {
+  DREAM_CHECK_INTERVAL_MS,
+  DREAM_DIR,
+  DREAM_STATE_FILE,
+  type DreamRunResult,
+  type DreamServiceConfig,
+  type DreamServiceDependencies,
+  DreamService,
+} from './DreamService';
 export { MemoryExtractor } from './MemoryExtractor';
 export { escapePromptTagCloser, formatMemoryAppendix, wrapMemoryInjection } from './memoryPrompt';
 export { MemoryStore } from './MemoryStore';

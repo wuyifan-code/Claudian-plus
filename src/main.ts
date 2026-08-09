@@ -19,6 +19,8 @@ import type { SharedAppStorage } from './core/bootstrap/storage';
 import {
   ConsciousnessEngine,
   escapePromptTagCloser,
+  DREAM_CHECK_INTERVAL_MS,
+  DreamService,
   MemoryExtractor,
   MemoryStore,
   VaultKnowledgeEngine,
@@ -149,6 +151,7 @@ export default class ClaudianPlusPlugin extends Plugin {
   private _memoryStore: MemoryStore | null = null;
   private _consciousnessEngine: ConsciousnessEngine | null = null;
   private _vaultKnowledgeEngine: VaultKnowledgeEngine | null = null;
+  private _dreamService: DreamService | null = null;
   private agentSkillRepository: AgentSkillRepository | null = null;
   private settingsCoordinator!: SettingsCoordinator<ClaudianPlusSettings>;
   private conversationRepository!: ConversationRepository;
@@ -219,6 +222,32 @@ export default class ClaudianPlusPlugin extends Plugin {
       } else {
         window.clearInterval(reviewInterval);
       }
+
+      // Dream memory consolidation runs on its own hourly check so the model
+      // call only happens when short-term logs actually accumulated.
+      const dreamInterval = window.setInterval(() => {
+        void this.checkDreamDue();
+      }, DREAM_CHECK_INTERVAL_MS);
+      if (typeof registerInterval === 'function') {
+        registerInterval.call(this, dreamInterval);
+      } else {
+        window.clearInterval(dreamInterval);
+      }
+
+      // Surface leftover legacy data so users know old-plugin files are
+      // archived rather than silently deleted during migration.
+      const legacyNoticeTimer = window.setTimeout(() => {
+        void this.checkLegacyDataPresence();
+      }, 3_000);
+      registerCleanup?.call(this, () => window.clearTimeout(legacyNoticeTimer));
+
+      // Obsidian closed = sleep, startup = waking up: consolidate any short-term
+      // logs that accumulated since the last launch. Delayed so providers and
+      // CLIs have time to initialize; a failed run is retried on next startup.
+      const startupDreamTimer = window.setTimeout(() => {
+        void this.runStartupDream();
+      }, 30_000);
+      registerCleanup?.call(this, () => window.clearTimeout(startupDreamTimer));
       // Provider workspace services are initialized lazily on first use.
 
       // Initialize consciousness engine if enabled
@@ -1699,6 +1728,91 @@ export default class ClaudianPlusPlugin extends Plugin {
   }
 
   /** Get the consciousness injection text for system prompt, or null if disabled. */
+  /** Notify once when old-plugin data is still present so nothing is silently dropped. */
+  private async checkLegacyDataPresence(): Promise<void> {
+    try {
+      const adapter = this.storage.getAdapter();
+      const legacyFiles = await adapter.listFilesRecursive('.claudian');
+      if (legacyFiles.length > 0) {
+        new Notice('Detected legacy .claudian data. It is archived to .claudian-plus/archived-legacy/ and never deleted automatically.');
+      }
+    } catch {
+      // The notice is optional and must not disturb startup.
+    }
+  }
+
+  /**
+   * Startup memory consolidation: runs once after Obsidian opens so short-term
+   * logs accumulated while the app was closed are distilled on "waking up".
+   * Skips at zero cost when there is nothing new; failures are silent and are
+   * retried on the next launch.
+   */
+  private async runStartupDream(): Promise<void> {
+    if (!this.settings.consciousnessEnabled || !this.settings.consciousnessAutoMemory) {
+      return;
+    }
+    try {
+      const result = await this.getDreamService().runDream(true);
+      if (result.ran) {
+        new Notice(`Dream memory consolidated on startup: ${result.newFacts} fact(s), ${result.profileUpdates} profile update(s).`);
+      }
+    } catch {
+      // Startup dreaming must never disturb plugin startup; retry next launch.
+    }
+  }
+
+  /** Hourly dream gate: cheap checks first, model call only when logs exist. */
+  private async checkDreamDue(): Promise<void> {
+    if (!this.settings.consciousnessEnabled || !this.settings.consciousnessAutoMemory) {
+      return;
+    }
+    try {
+      const service = this.getDreamService();
+      if (!(await service.isDreamDue())) {
+        return;
+      }
+      const result = await service.runDream();
+      if (result.ran) {
+        new Notice(`Dream memory consolidated: ${result.newFacts} fact(s), ${result.profileUpdates} profile update(s).`);
+      }
+    } catch {
+      // Dreaming is optional and must never disturb the main flow.
+    }
+  }
+
+  /** Get or create the DreamService instance. */
+  getDreamService(): DreamService {
+    if (!this._dreamService) {
+      this._dreamService = new DreamService({
+        adapter: this.storage.getAdapter(),
+        memoryStore: this.getMemoryStore(),
+        consciousness: this.getConsciousnessEngine(),
+        createRunner: (providerId) => ProviderRegistry.createAuxQueryRunner(this, providerId),
+        getConversationContext: () => this.getActiveChatContext(),
+        isEnabled: () => !!this.settings.consciousnessEnabled && !!this.settings.consciousnessAutoMemory,
+        config: {
+          intervalMs: this.settings.dreamIntervalMs,
+          maxLogDays: this.settings.dreamMaxLogDays,
+          inputCharCap: this.settings.dreamInputCharCap,
+          maxNewFacts: this.settings.dreamMaxNewFacts,
+        },
+      });
+    }
+    return this._dreamService;
+  }
+
+  /** Provider + model of the active chat tab, or null when the view is closed. */
+  getActiveChatContext(): { providerId: ProviderId; model: string | null } | null {
+    const tab = this.getView()?.getActiveTab();
+    if (!tab) {
+      return null;
+    }
+    return {
+      providerId: tab.providerId,
+      model: tab.service?.getAuxiliaryModel?.() ?? null,
+    };
+  }
+
   async getConsciousnessInjectionText(): Promise<string | null> {
     const consciousnessEnabled = this.settings.consciousnessEnabled;
     const vaultKnowledgeEnabled = this.settings.vaultKnowledgeEnabled ?? consciousnessEnabled;

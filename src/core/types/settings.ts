@@ -176,6 +176,16 @@ export interface ClaudianPlusSettings {
   consciousnessEnabled: boolean;
   consciousnessAutoMemory: boolean;
 
+  // Dream memory consolidation (auto distillation of short-term logs)
+  /** Minimum interval between automatic dreams in ms. */
+  dreamIntervalMs?: number;
+  /** How many recent days of short-term logs to consider. */
+  dreamMaxLogDays?: number;
+  /** Input character budget for one dream cycle. */
+  dreamInputCharCap?: number;
+  /** Maximum new long-term memory facts per dream cycle. */
+  dreamMaxNewFacts?: number;
+
   // Allow provider-specific extension fields
   [key: string]: unknown;
 }
