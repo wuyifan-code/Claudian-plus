@@ -14,12 +14,10 @@ export function resolveOpencodeDataDir(
     return path.join(xdgDataHome, OPENCODE_APP_NAME);
   }
 
-  const home = env.HOME || os.homedir();
-  if (process.platform === 'win32') {
-    const appData = env.APPDATA || env.LOCALAPPDATA || path.join(home, 'AppData', 'Roaming');
-    return path.join(appData, OPENCODE_APP_NAME);
-  }
-
+  // The OpenCode CLI stores its global data dir at the XDG default
+  // (~/.local/share/opencode) on every platform, Windows included. %APPDATA%
+  // is not part of the CLI layout and must not shadow the real data dir.
+  const home = env.HOME || env.USERPROFILE || os.homedir();
   return path.join(home, '.local', 'share', OPENCODE_APP_NAME);
 }
 
@@ -71,11 +69,17 @@ function getOpencodeDatabasePathCandidates(
 ): string[] {
   const candidates: string[] = [];
   const seen = new Set<string>();
-  const home = env.HOME || os.homedir();
+  const home = env.HOME || env.USERPROFILE || os.homedir();
   const dataDirs = [
     resolveOpencodeDataDir(env),
     path.join(home, 'Library', 'Application Support', OPENCODE_APP_NAME),
   ];
+  // Older OpenCode layouts on Windows kept the database under %APPDATA%\opencode.
+  // Keep it reachable as a fallback so existing local databases are not orphaned.
+  if (process.platform === 'win32') {
+    const appData = env.APPDATA || env.LOCALAPPDATA || path.join(home, 'AppData', 'Roaming');
+    dataDirs.push(path.join(appData, OPENCODE_APP_NAME));
+  }
 
   for (const dataDir of dataDirs) {
     pushCandidate(candidates, seen, path.join(dataDir, DEFAULT_DATABASE_NAME));
