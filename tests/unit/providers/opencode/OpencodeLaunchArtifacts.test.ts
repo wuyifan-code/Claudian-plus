@@ -141,9 +141,7 @@ describe('buildOpencodeManagedConfig', () => {
   it('adds the portable Obsidian MCP server without replacing user MCP servers', () => {
     expect(buildOpencodeManagedConfig({
       mcp: {
-        servers: {
-          existing: { type: 'remote', url: 'https://example.test/mcp' },
-        },
+        existing: { type: 'remote', url: 'https://example.test/mcp' },
       },
       permission: { read: 'allow' },
     }, '/vault/.claudian-plus/opencode/system.md', undefined, undefined, undefined, {
@@ -156,18 +154,16 @@ describe('buildOpencodeManagedConfig', () => {
       },
     })).toMatchObject({
       mcp: {
-        servers: {
-          existing: { type: 'remote', url: 'https://example.test/mcp' },
-          'claudian-plus-obsidian': {
-            type: 'local',
-            command: ['node', '/vault/.claudian-plus/opencode/obsidian-mcp.cjs'],
-            environment: {
-              CLAUDIAN_PLUS_VAULT_ROOT: '/vault',
-              CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_URL: '{env:CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_URL}',
-              CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_TOKEN: '{env:CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_TOKEN}',
-            },
-            codemode: false,
+        existing: { type: 'remote', url: 'https://example.test/mcp' },
+        'claudian-plus-obsidian': {
+          type: 'local',
+          command: ['node', '/vault/.claudian-plus/opencode/obsidian-mcp.cjs'],
+          environment: {
+            CLAUDIAN_PLUS_VAULT_ROOT: '/vault',
+            CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_URL: '{env:CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_URL}',
+            CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_TOKEN: '{env:CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_TOKEN}',
           },
+          enabled: true,
         },
       },
       permission: {
@@ -182,6 +178,40 @@ describe('buildOpencodeManagedConfig', () => {
       workspaceRoot: '/vault',
       obsidianBridge: { token: 'secret-token', url: 'http://127.0.0.1:43210' },
     }))).not.toContain('secret-token');
+  });
+
+  it('migrates legacy `mcp.servers` entries to the flat MCP map', () => {
+    expect(buildOpencodeManagedConfig({
+      mcp: {
+        servers: {
+          legacy: { type: 'remote', url: 'https://legacy.test/mcp' },
+        },
+      },
+    }, '/vault/.claudian-plus/opencode/system.md', undefined, undefined, undefined, {
+      nodeExecutable: 'node',
+      scriptPath: '/vault/.claudian-plus/opencode/obsidian-mcp.cjs',
+      workspaceRoot: '/vault',
+    })).toMatchObject({
+      mcp: {
+        legacy: { type: 'remote', url: 'https://legacy.test/mcp' },
+        'claudian-plus-obsidian': {
+          type: 'local',
+          command: ['node', '/vault/.claudian-plus/opencode/obsidian-mcp.cjs'],
+          enabled: true,
+        },
+      },
+    });
+    expect(buildOpencodeManagedConfig({
+      mcp: {
+        servers: {
+          legacy: { type: 'remote', url: 'https://legacy.test/mcp' },
+        },
+      },
+    }, '/vault/.claudian-plus/opencode/system.md', undefined, undefined, undefined, {
+      nodeExecutable: 'node',
+      scriptPath: '/vault/.claudian-plus/opencode/obsidian-mcp.cjs',
+      workspaceRoot: '/vault',
+    }).mcp).not.toHaveProperty('servers');
   });
 });
 
@@ -330,9 +360,10 @@ describe('prepareOpencodeLaunchArtifacts', () => {
     expect(result.obsidianMcpPath).toBe(path.join(tmpRoot, '.claudian-plus', 'opencode', 'obsidian-mcp.cjs'));
     const script = await fs.readFile(result.obsidianMcpPath!, 'utf8');
     expect(script).toContain("serverInfo: { name: 'claudian-plus-obsidian'");
-    expect(JSON.parse(result.configContent).mcp.servers['claudian-plus-obsidian']).toMatchObject({
+    expect(JSON.parse(result.configContent).mcp['claudian-plus-obsidian']).toMatchObject({
       type: 'local',
       command: [process.execPath, result.obsidianMcpPath],
+      enabled: true,
     });
   });
 });

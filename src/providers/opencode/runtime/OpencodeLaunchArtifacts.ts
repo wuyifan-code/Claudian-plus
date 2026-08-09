@@ -211,14 +211,25 @@ export function buildOpencodeManagedConfig(
 
   if (portableObsidianMcp) {
     const mcp = isPlainObject(config.mcp) ? { ...config.mcp } : {};
-    const servers = isPlainObject(mcp.servers) ? { ...mcp.servers } : {};
-    const existingObsidianServer = isPlainObject(servers['claudian-plus-obsidian'])
-      ? servers['claudian-plus-obsidian']
+    const legacyServers = isPlainObject(mcp.servers) ? mcp.servers : null;
+    if (legacyServers) {
+      // OpenCode >= 1.18 requires MCP servers as a flat `mcp.<name>` map.
+      // Migrate the legacy `mcp.servers.<name>` wrapper without clobbering
+      // user entries that already use the flat layout.
+      delete mcp.servers;
+      for (const [name, definition] of Object.entries(legacyServers)) {
+        if (mcp[name] === undefined) {
+          mcp[name] = definition;
+        }
+      }
+    }
+    const existingObsidianServer = isPlainObject(mcp['claudian-plus-obsidian'])
+      ? mcp['claudian-plus-obsidian']
       : {};
     const existingEnvironment = isPlainObject(existingObsidianServer.environment)
       ? existingObsidianServer.environment
       : {};
-    servers['claudian-plus-obsidian'] = {
+    mcp['claudian-plus-obsidian'] = {
       ...existingObsidianServer,
       type: 'local',
       command: [portableObsidianMcp.nodeExecutable, portableObsidianMcp.scriptPath],
@@ -234,9 +245,9 @@ export function buildOpencodeManagedConfig(
           }
           : {}),
       },
-      codemode: false,
+      enabled: true,
     };
-    config.mcp = { ...mcp, servers };
+    config.mcp = mcp;
 
     const permission = isPlainObject(config.permission) ? { ...config.permission } : {};
     // OpenCode keeps hyphens when normalizing MCP server names, so these keys
