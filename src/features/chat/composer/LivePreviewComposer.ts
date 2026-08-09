@@ -293,6 +293,7 @@ export class LivePreviewComposer {
       extensions: [
         history(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
+        EditorView.lineWrapping,
         EditorView.editorAttributes.of({ class: 'claudian-plus-live-preview-composer' }),
         this.placeholderCompartment.of(placeholder(options.placeholder ?? '')),
         createDecorationPlugin(() => this.references, options.onOpenReference),
@@ -313,6 +314,10 @@ export class LivePreviewComposer {
 
   get contentDOM(): HTMLElement {
     return this.view.contentDOM;
+  }
+
+  get editorView(): EditorView {
+    return this.view;
   }
 
   get value(): string {

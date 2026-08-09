@@ -133,6 +133,7 @@
   min-height: var(--claudian-plus-textarea-min-height, 60px);
   max-height: var(--claudian-plus-textarea-max-height, 50vh);
   min-width: 0;
+  overflow: hidden;
 }
 
 .claudian-plus-live-preview-composer.cm-editor {
