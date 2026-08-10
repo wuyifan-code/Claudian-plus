@@ -1,7 +1,6 @@
 import {
   appendContextFiles,
   appendCurrentNote,
-  appendVaultContext,
   extractContentBeforeXmlContext,
   extractUserDisplayContent,
   extractUserQuery,
@@ -320,13 +319,3 @@ describe('appendContextFiles', () => {
   });
 });
 
-describe('appendVaultContext', () => {
-  it('appends non-empty source context with a stable separator', () => {
-    expect(appendVaultContext('Query', '<vault_context>source</vault_context>'))
-      .toBe('Query\n\n<vault_context>source</vault_context>');
-  });
-
-  it('does not append empty context', () => {
-    expect(appendVaultContext('Query', '  ')).toBe('Query');
-  });
-});

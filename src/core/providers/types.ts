@@ -1,4 +1,3 @@
-import type { CursorContext } from '../../utils/editor';
 import type { AuxQueryRunner } from '../auxiliary/AuxQueryRunner';
 import type { SharedAppStorage } from '../bootstrap/storage';
 import type { McpServerManager } from '../mcp/McpServerManager';
@@ -66,7 +65,6 @@ export interface ProviderRegistration {
   createRuntime: (options: Omit<CreateChatRuntimeOptions, 'providerId'>) => ChatRuntime;
   createTitleGenerationService: (plugin: ProviderHost) => TitleGenerationService;
   createInstructionRefineService: (plugin: ProviderHost) => InstructionRefineService;
-  createInlineEditService: (plugin: ProviderHost) => InlineEditService;
   /** Optional lightweight single-query runner for provider-neutral auxiliary tasks. */
   createAuxQueryRunner?: (plugin: ProviderHost) => AuxQueryRunner;
   historyService: ProviderConversationHistoryService;
@@ -608,45 +606,5 @@ export interface InstructionRefineService {
     message: string,
     onProgress?: RefineProgressCallback
   ): Promise<InstructionRefineResult>;
-  cancel(): void;
-}
-
-// -- Inline edit --
-
-export type InlineEditMode = 'selection' | 'cursor';
-
-export interface InlineEditSelectionRequest {
-  mode: 'selection';
-  instruction: string;
-  notePath: string;
-  selectedText: string;
-  startLine?: number;
-  lineCount?: number;
-  contextFiles?: string[];
-}
-
-export interface InlineEditCursorRequest {
-  mode: 'cursor';
-  instruction: string;
-  notePath: string;
-  cursorContext: CursorContext;
-  contextFiles?: string[];
-}
-
-export type InlineEditRequest = InlineEditSelectionRequest | InlineEditCursorRequest;
-
-export interface InlineEditResult {
-  success: boolean;
-  editedText?: string;
-  insertedText?: string;
-  clarification?: string;
-  error?: string;
-}
-
-export interface InlineEditService {
-  setModelOverride?(model?: string): void;
-  resetConversation(): void;
-  editText(request: InlineEditRequest): Promise<InlineEditResult>;
-  continueConversation(message: string, contextFiles?: string[]): Promise<InlineEditResult>;
   cancel(): void;
 }

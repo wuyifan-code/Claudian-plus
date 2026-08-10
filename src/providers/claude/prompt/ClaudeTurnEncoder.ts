@@ -3,7 +3,7 @@ import { isCompactCommand } from '../../../core/runtime/compactCommand';
 import type { ChatTurnRequest, PreparedChatTurn } from '../../../core/runtime/types';
 import { appendBrowserContext } from '../../../utils/browser';
 import { appendCanvasContext } from '../../../utils/canvas';
-import { appendCurrentNote, appendVaultContext } from '../../../utils/context';
+import { appendCurrentNote } from '../../../utils/context';
 import { appendEditorContext } from '../../../utils/editor';
 
 export function encodeClaudeTurn(
@@ -32,10 +32,7 @@ export function encodeClaudeTurn(
   }
 
   const mcpMentions = mcpManager.extractMentions(persistedContent);
-  const prompt = appendVaultContext(
-    mcpManager.transformMentions(persistedContent),
-    isCompact ? undefined : request.vaultContext,
-  );
+  const prompt = mcpManager.transformMentions(persistedContent);
 
   return {
     request,

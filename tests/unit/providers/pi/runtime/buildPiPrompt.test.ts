@@ -59,16 +59,6 @@ describe('buildPiPrompt', () => {
     expect(withHistory).toContain('Continue');
   });
 
-  it('includes source-backed vault context in the prompt', () => {
-    const prompt = buildPiPromptText({
-      text: 'Explain this topic',
-      vaultContext: '<vault_context>\nSource: notes/topic.md\n</vault_context>',
-    });
-
-    expect(prompt).toContain('<vault_context>');
-    expect(prompt).toContain('notes/topic.md');
-  });
-
   it('maps image attachments separately for Pi RPC payloads', () => {
     expect(buildPiPromptImages([
       {

@@ -1,7 +1,6 @@
 import { NoopTaskResultInterpreter } from '../../core/providers/NoopTaskResultInterpreter';
 import type { ProviderModule } from '../../core/providers/types';
 import { opencodeWorkspaceRegistration } from './app/OpencodeWorkspaceServices';
-import { OpencodeInlineEditService } from './auxiliary/OpencodeInlineEditService';
 import { OpencodeInstructionRefineService } from './auxiliary/OpencodeInstructionRefineService';
 import { OpencodeTitleGenerationService } from './auxiliary/OpencodeTitleGenerationService';
 import { OPENCODE_PROVIDER_CAPABILITIES } from './capabilities';
@@ -17,7 +16,6 @@ export const opencodeProviderRegistration: ProviderModule = {
   blankTabOrder: 10,
   capabilities: OPENCODE_PROVIDER_CAPABILITIES,
   chatUIConfig: opencodeChatUIConfig,
-  createInlineEditService: (plugin) => new OpencodeInlineEditService(plugin),
   createInstructionRefineService: (plugin) => new OpencodeInstructionRefineService(plugin),
   createRuntime: ({ plugin }) => new OpencodeChatRuntime(plugin),
   createTitleGenerationService: (plugin) => new OpencodeTitleGenerationService(plugin),

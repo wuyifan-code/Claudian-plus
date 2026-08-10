@@ -1,7 +1,6 @@
 import { NoopTaskResultInterpreter } from '../../core/providers/NoopTaskResultInterpreter';
 import type { ProviderModule } from '../../core/providers/types';
 import { codexWorkspaceRegistration } from './app/CodexWorkspaceServices';
-import { CodexInlineEditService } from './auxiliary/CodexInlineEditService';
 import { CodexInstructionRefineService } from './auxiliary/CodexInstructionRefineService';
 import { CodexTitleGenerationService } from './auxiliary/CodexTitleGenerationService';
 import { CODEX_PROVIDER_CAPABILITIES } from './capabilities';
@@ -47,7 +46,6 @@ export const codexProviderRegistration: ProviderModule = {
   createRuntime: ({ plugin }) => new CodexChatRuntime(plugin),
   createTitleGenerationService: (plugin) => new CodexTitleGenerationService(plugin),
   createInstructionRefineService: (plugin) => new CodexInstructionRefineService(plugin),
-  createInlineEditService: (plugin) => new CodexInlineEditService(plugin),
   createAuxQueryRunner: (plugin) => new CodexAuxQueryRunner(plugin),
   historyService: new CodexConversationHistoryService(),
   taskResultInterpreter: new NoopTaskResultInterpreter(),

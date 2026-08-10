@@ -37,7 +37,6 @@
 @import "./features/image-context.css";
 @import "./features/image-embed.css";
 @import "./features/image-modal.css";
-@import "./features/inline-edit.css";
 @import "./features/diff.css";
 @import "./features/slash-commands.css";
 @import "./features/resume-session.css";
@@ -49,9 +48,7 @@
 @import "./modals/file-viewer.css";
 @import "./modals/mcp-modal.css";
 @import "./modals/fork-target.css";
-@import "./modals/vault-retrieval.css";
 @import "./modals/quick-agent-input.css";
-@import "./modals/vault-health.css";
 @import "./modals/canvas-neighbors.css";
 
 /* Settings */

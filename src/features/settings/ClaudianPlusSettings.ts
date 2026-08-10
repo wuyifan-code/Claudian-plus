@@ -720,7 +720,6 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
 
     const hotkeyGrid = hotkeyCard.createDiv({ cls: 'claudian-plus-hotkey-grid' });
     const commandPrefix = `${this.plugin.manifest.id}:`;
-    addHotkeySettingRow(hotkeyGrid, this.app, `${commandPrefix}inline-edit`, 'settings.inlineEditHotkey');
     addHotkeySettingRow(hotkeyGrid, this.app, `${commandPrefix}open-view`, 'settings.openChatHotkey');
     addHotkeySettingRow(hotkeyGrid, this.app, `${commandPrefix}new-session`, 'settings.newSessionHotkey');
     addHotkeySettingRow(hotkeyGrid, this.app, `${commandPrefix}new-tab`, 'settings.newTabHotkey');
@@ -1009,10 +1008,10 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
       });
     }
 
-    // --- Vault knowledge and retrieval ---
+    // --- Vault knowledge ---
     const vaultCard = this.createCard(
       container,
-      featureCopy(this.plugin.settings.locale, 'Vault 知识与检索', 'Vault knowledge & retrieval'),
+      featureCopy(this.plugin.settings.locale, 'Vault 知识', 'Vault knowledge'),
     );
     const guide = vaultCard.createDiv({ cls: 'claudian-plus-settings-feature-guide' });
     guide.createDiv({
@@ -1023,8 +1022,8 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
       cls: 'claudian-plus-settings-feature-guide-copy',
       text: featureCopy(
         this.plugin.settings.locale,
-        '建议先开启“自动 Vault 上下文”，聊天时插件会自动找相关笔记。需要更强的语义匹配时，再开启本地语义检索。记忆和意识功能则只会读取本地 .claudian-plus 文件。',
-        'Start with Automatic vault context: Claudian Plus will attach relevant local notes to normal chats. Add Local semantic search only when you have a local embedding service. Memory and awareness data stay in .claudian-plus.',
+        '开启 Vault 知识索引后，笔记的标题、标签和摘要会生成知识概览注入对话。记忆和意识功能只会读取本地 .claudian-plus 文件。',
+        'Enable the vault knowledge index and note titles, tags, and excerpts are injected into chats as a compact knowledge summary. Memory and awareness data stay in .claudian-plus.',
       ),
     });
 
@@ -1047,96 +1046,12 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
           this.display();
         }));
 
-    new Setting(vaultCard)
-      .setName(t('settings.vaultAutoContext.name'))
-      .setDesc(t('settings.vaultAutoContext.desc'))
-      .addToggle((toggle) => toggle
-        .setValue(this.plugin.settings.vaultAutoContextEnabled ?? true)
-        .onChange(async (value) => {
-          await this.plugin.mutateSettings((settings) => {
-            settings.vaultAutoContextEnabled = value;
-          });
-        }));
-
-    new Setting(vaultCard)
-      .setName(featureCopy(this.plugin.settings.locale, '周期性 Vault 回顾', 'Periodic vault review'))
-      .setDesc(featureCopy(
-        this.plugin.settings.locale,
-        '按最近修改的笔记生成 Markdown 回顾，包含重复主题、未完成事项、链接活动和后续问题。',
-        'Generate a Markdown review from recently changed notes with recurring topics, open loops, link activity, and follow-up prompts.',
-      ))
-      .addToggle((toggle) => toggle
-        .setValue(this.plugin.settings.vaultReviewEnabled
-          ?? this.plugin.settings.consciousnessAutoMemory)
-        .onChange(async (value) => {
-          await this.plugin.mutateSettings((settings) => {
-            settings.vaultReviewEnabled = value;
-          });
-          this.plugin.vaultReviewService?.updateConfig({ enabled: value });
-        }));
-
-    new Setting(vaultCard)
-      .setName(t('settings.semanticSearch.name'))
-      .setDesc(t('settings.semanticSearch.desc'))
-      .addToggle((toggle) => toggle
-        .setValue(this.plugin.settings.semanticSearchEnabled === true)
-        .onChange(async (value) => {
-          await this.plugin.mutateSettings((settings) => {
-            settings.semanticSearchEnabled = value;
-          });
-          this.plugin.refreshSemanticRetrieval?.();
-          this.display();
-        }));
-
-    if (this.plugin.settings.semanticSearchEnabled === true) {
-      new Setting(vaultCard)
-        .setName(t('settings.semanticEmbeddingEndpoint.name'))
-        .setDesc(t('settings.semanticEmbeddingEndpoint.desc'))
-        .addText((text) => {
-          text
-            .setPlaceholder('http://127.0.0.1:11434')
-            .setValue(this.plugin.settings.semanticEmbeddingEndpoint ?? '')
-            .onChange(async (value) => {
-              await this.plugin.mutateSettings((settings) => {
-                settings.semanticEmbeddingEndpoint = value.trim();
-              });
-              this.plugin.refreshSemanticRetrieval?.();
-            });
-        });
-
-      new Setting(vaultCard)
-        .setName(t('settings.semanticEmbeddingModel.name'))
-        .setDesc(t('settings.semanticEmbeddingModel.desc'))
-        .addText((text) => {
-          text
-            .setPlaceholder('nomic-embed-text')
-            .setValue(this.plugin.settings.semanticEmbeddingModel ?? '')
-            .onChange(async (value) => {
-              await this.plugin.mutateSettings((settings) => {
-                settings.semanticEmbeddingModel = value.trim();
-              });
-              this.plugin.refreshSemanticRetrieval?.();
-            });
-        });
-    }
-
-    new Setting(vaultCard)
-      .setName(t('settings.autoLinkRecommendations.name'))
-      .setDesc(t('settings.autoLinkRecommendations.desc'))
-      .addToggle((toggle) => toggle
-        .setValue(this.plugin.settings.vaultAutoLinkRecommendationsEnabled === true)
-        .onChange(async (value) => {
-          await this.plugin.mutateSettings((settings) => {
-            settings.vaultAutoLinkRecommendationsEnabled = value;
-          });
-        }));
-
     const vaultActions = new Setting(vaultCard)
       .setName(featureCopy(this.plugin.settings.locale, '立即执行', 'Run now'))
       .setDesc(featureCopy(
         this.plugin.settings.locale,
-        '第一次使用前，可以手动建立知识索引或生成一份回顾。之后也可以从命令面板执行。',
-        'Build the index or generate a review immediately. Both actions are also available from the command palette.',
+        '第一次使用前，可以手动建立知识索引。之后也可以从命令面板执行。',
+        'Build the index immediately. The action is also available from the command palette.',
       ));
     vaultActions.addButton((button) => {
       button
@@ -1157,15 +1072,6 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
           } catch (error) {
             new Notice(`${featureCopy(this.plugin.settings.locale, '扫描失败', 'Scan failed')}: ${error instanceof Error ? error.message : String(error)}`);
           }
-        });
-    });
-    vaultActions.addButton((button) => {
-      button
-        .setButtonText(featureCopy(this.plugin.settings.locale, '生成回顾', 'Generate review'))
-        .onClick(async () => {
-          const reviewService = this.plugin.vaultReviewService;
-          if (!reviewService) return;
-          await reviewService.runReview(true);
         });
     });
 

@@ -5,7 +5,6 @@ import type { ProviderHost } from './ProviderHost';
 import {
   type CreateChatRuntimeOptions,
   DEFAULT_CHAT_PROVIDER_ID,
-  type InlineEditService,
   type InstructionRefineService,
   type ProviderCapabilities,
   type ProviderChatUIConfig,
@@ -75,10 +74,6 @@ export class ProviderRegistry {
 
   static createInstructionRefineService(plugin: ProviderHost, providerId: ProviderId = DEFAULT_CHAT_PROVIDER_ID): InstructionRefineService {
     return this.getProviderRegistration(providerId).createInstructionRefineService(plugin);
-  }
-
-  static createInlineEditService(plugin: ProviderHost, providerId: ProviderId = DEFAULT_CHAT_PROVIDER_ID): InlineEditService {
-    return this.getProviderRegistration(providerId).createInlineEditService(plugin);
   }
 
   static getConversationHistoryService(

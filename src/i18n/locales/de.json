@@ -190,13 +190,6 @@
       "desc": "Wenn aktiviert, fügt Enter einen Zeilenumbruch ein. Command+Enter sendet unter macOS; Ctrl+Enter sendet unter Windows und Linux."
     },
     "hotkeys": "Tastenkürzel",
-    "inlineEditHotkey": {
-      "name": "Inline-Bearbeitung",
-      "descWithKey": "Aktuelles Tastenkürzel: {hotkey}",
-      "descNoKey": "Kein Tastenkürzel festgelegt",
-      "btnChange": "Ändern",
-      "btnSet": "Festlegen"
-    },
     "openChatHotkey": {
       "name": "Chat öffnen",
       "descWithKey": "Aktuelles Tastenkürzel: {hotkey}",
@@ -377,26 +370,6 @@
     "livePreviewComposer": {
       "name": "Live Preview composer",
       "desc": "Render supported Markdown and vault references while typing. Disable to use the plain text composer. Applies after reopening the chat view."
-    },
-    "vaultAutoContext": {
-      "name": "Automatic vault context",
-      "desc": "Retrieve relevant local notes and add them to each normal chat prompt. Disable to keep retrieval manual."
-    },
-    "semanticSearch": {
-      "name": "Local semantic search",
-      "desc": "Optionally rerank vault retrieval with a local Ollama or OpenAI-compatible embedding service. If it is unavailable, lexical search remains active."
-    },
-    "autoLinkRecommendations": {
-      "name": "Link suggestions after save",
-      "desc": "After saving the active Markdown note, show deduplicated source-backed link candidates. Nothing is inserted automatically."
-    },
-    "semanticEmbeddingEndpoint": {
-      "name": "Embedding endpoint",
-      "desc": "Local endpoint base URL. Use /v1/embeddings for OpenAI-compatible services, or the base URL for Ollama."
-    },
-    "semanticEmbeddingModel": {
-      "name": "Embedding model",
-      "desc": "Model identifier installed in your local embedding service, for example nomic-embed-text."
     },
     "claudeServices": {
       "heading": "Third-party model services",
