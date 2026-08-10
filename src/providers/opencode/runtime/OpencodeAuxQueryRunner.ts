@@ -16,8 +16,8 @@ import {
   AcpSessionUpdateNormalizer,
   AcpSubprocess,
   extractAcpSessionModelState,
+  selectPermissionOption,
 } from '../../acp';
-import { selectPermissionOption } from '../internal/permissionMapping';
 import { decodeOpencodeModelId } from '../models';
 import { opencodeChatUIConfig } from '../ui/OpencodeChatUIConfig';
 import {

@@ -54,10 +54,12 @@ import {
   type AcpUsage,
   type AcpUsageUpdate,
   type AcpWriteTextFileRequest,
+  buildAcpApprovalDecisionOptions,
   buildAcpUsageInfo,
   extractAcpSessionModelState,
   extractAcpSessionModeState,
   extractAcpSessionThoughtLevelState,
+  mapApprovalDecision,
 } from '../../acp';
 import { OPENCODE_PROVIDER_CAPABILITIES } from '../capabilities';
 import { updateOpencodeDiscoveryState } from '../discoveryState';
@@ -66,10 +68,6 @@ import {
   sameModes,
   sameThinkingOptionsByModel,
 } from '../internal/compareCollections';
-import {
-  buildAcpApprovalDecisionOptions,
-  mapApprovalDecision,
-} from '../internal/permissionMapping';
 import {
   decodeOpencodeModelId,
   encodeOpencodeModelId,

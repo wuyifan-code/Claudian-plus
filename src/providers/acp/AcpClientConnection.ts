@@ -36,6 +36,8 @@ import type {
   AcpSessionNotification,
   AcpSetSessionConfigOptionRequest,
   AcpSetSessionConfigOptionResponse,
+  AcpSetSessionModelRequest,
+  AcpSetSessionModelResponse,
   AcpSetSessionModeRequest,
   AcpSetSessionModeResponse,
   AcpTerminalOutputRequest,
@@ -174,6 +176,10 @@ export class AcpClientConnection {
 
   setMode(request: AcpSetSessionModeRequest): Promise<AcpSetSessionModeResponse> {
     return this.requestWithFallback<AcpSetSessionModeResponse>('setMode', request);
+  }
+
+  setModel(request: AcpSetSessionModelRequest): Promise<AcpSetSessionModelResponse> {
+    return this.requestWithFallback<AcpSetSessionModelResponse>('setModel', request);
   }
 
   setConfigOption(
