@@ -1,8 +1,5 @@
-/* Ensure the sidebar panel is never squeezed too narrow */
-.workspace-leaf-content[data-type="claudian-plus-view"] {
-  min-width: 380px;
-}
-
+/* The panel must track the sidebar width exactly; no min-width here or the
+   content clips when the user drags the sidebar narrower than the floor. */
 .claudian-plus-container {
   display: flex;
   flex-direction: column;
