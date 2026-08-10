@@ -1,9 +1,9 @@
-import type { ApprovalDecisionOption } from '../../../core/runtime/types';
-import type { ApprovalDecision } from '../../../core/types';
+import type { ApprovalDecisionOption } from '../../core/runtime/types';
+import type { ApprovalDecision } from '../../core/types';
 import type {
   AcpPermissionOption,
   AcpRequestPermissionResponse,
-} from '../../acp';
+} from './types';
 
 export function mapApprovalDecision(
   decision: ApprovalDecision,

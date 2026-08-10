@@ -6,6 +6,7 @@ describe('built-in ProviderModule catalog', () => {
       'claude',
       'codex',
       'opencode',
+      'kimi',
       'pi',
     ]);
     for (const module of BUILT_IN_PROVIDER_MODULES) {

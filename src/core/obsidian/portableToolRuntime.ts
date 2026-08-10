@@ -459,6 +459,103 @@ input.on('line', (line) => { try { void handle(JSON.parse(line)); } catch (error
 `;
 }
 
+export function buildPortableObsidianHttpMcpScript(): string {
+  const definitions = JSON.stringify(TOOL_DEFINITIONS.map(({ name, description, schema }) => ({
+    name,
+    description,
+    inputSchema: schema,
+    annotations: isWriteTool(name)
+      ? { destructiveHint: true, readOnlyHint: false }
+      : { readOnlyHint: true },
+  })));
+  return `#!/usr/bin/env node
+'use strict';
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const http = require('node:http');
+const root = path.resolve(
+  process.env.CLAUDIAN_PLUS_VAULT_ROOT
+    || process.env.CLAUDIAN_VAULT_ROOT
+    || process.argv[2]
+    || process.cwd(),
+);
+const port = Number(process.env.CLAUDIAN_PLUS_OBSIDIAN_HTTP_PORT) || 0;
+const authToken = process.env.CLAUDIAN_PLUS_OBSIDIAN_MCP_TOKEN || '';
+const tools = ${definitions};
+${PORTABLE_OPERATIONS_SOURCE}
+const SUPPORTED_PROTOCOLS = new Set(['2025-06-18', '2025-03-26', '2024-11-05']);
+function textResult(value, isError) { return { content: [{ type: 'text', text: jsonText(value) }], ...(isError ? { isError: true } : {}) }; }
+async function handleRpc(message) {
+  const respond = (payload) => ({ jsonrpc: '2.0', id: message.id, ...payload });
+  if (!message || message.jsonrpc !== '2.0') return respond({ error: { code: -32600, message: 'Invalid Request' } });
+  if (message.method === 'initialize') {
+    const requestedVersion = message.params && message.params.protocolVersion;
+    const protocolVersion = SUPPORTED_PROTOCOLS.has(requestedVersion) ? requestedVersion : '2024-11-05';
+    return respond({ result: { protocolVersion, capabilities: { tools: {} }, serverInfo: { name: 'claudian-plus-obsidian', version: '1.0.0' } } });
+  }
+  if (message.method === 'tools/list') return respond({ result: { tools } });
+  if (message.method === 'tools/call') {
+    const name = message.params && message.params.name;
+    const input = message.params && message.params.arguments || {};
+    try {
+      const value = await dispatchTool(root, name, input, true);
+      return respond({ result: textResult(value, false) });
+    } catch (error) {
+      return respond({ result: textResult(error instanceof Error ? error.message : String(error), true) });
+    }
+  }
+  return respond({ error: { code: -32601, message: 'Method not found: ' + message.method } });
+}
+function sendJson(res, status, body) {
+  res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+  res.end(JSON.stringify(body));
+}
+function sendSse(res, status, body) {
+  res.writeHead(status, {
+    'content-type': 'text/event-stream',
+    'cache-control': 'no-cache, no-transform',
+    connection: 'keep-alive',
+  });
+  res.end('event: message\\ndata: ' + JSON.stringify(body) + '\\n\\n');
+}
+const server = http.createServer(async (req, res) => {
+  try {
+    if (process.env.CLAUDIAN_PLUS_OBSIDIAN_MCP_DEBUG) {
+      const line = 'MCP request: ' + req.method + ' ' + req.url + ' accept=' + (req.headers.accept || '') + '\\n';
+      process.stderr.write(line);
+      const debugFile = process.env.CLAUDIAN_PLUS_OBSIDIAN_MCP_DEBUG_FILE;
+      if (debugFile) {
+        fs.appendFile(debugFile, line, 'utf8').catch(() => {});
+      }
+    }
+    if (req.url !== '/mcp') { sendJson(res, 404, { error: { code: -32601, message: 'Not found: ' + req.url } }); return; }
+    if (req.method === 'DELETE') { res.writeHead(204); res.end(); return; }
+    if (req.method !== 'POST') { res.writeHead(405, { allow: 'POST, DELETE' }); res.end(); return; }
+    if (authToken && req.headers.authorization !== 'Bearer ' + authToken) { sendJson(res, 401, { error: { code: -32001, message: 'Unauthorized' } }); return; }
+    let raw = '';
+    for await (const chunk of req) raw += chunk;
+    let message;
+    try { message = JSON.parse(raw); } catch { sendJson(res, 400, { error: { code: -32700, message: 'Parse error' } }); return; }
+    if (message.id === undefined) { res.writeHead(202); res.end(); return; }
+    const response = await handleRpc(message);
+    const wantsSse = (req.headers.accept || '').includes('text/event-stream');
+    if (wantsSse) sendSse(res, 200, response);
+    else sendJson(res, 200, response);
+  } catch (error) {
+    sendJson(res, 500, { error: { code: -32603, message: error instanceof Error ? error.message : String(error) } });
+  }
+});
+server.listen(port, '127.0.0.1', () => {
+  process.stdout.write('CLAUDIAN_PLUS_OBSIDIAN_MCP_READY port=' + server.address().port + '\\n');
+});
+process.on('SIGTERM', () => { server.close(() => process.exit(0)); });
+`;
+}
+
+function isWriteTool(name: string): boolean {
+  return name === 'canvas_write' || name === 'properties_set';
+}
+
 export function buildPortablePiExtensionScript(): string {
   const definitions = JSON.stringify(TOOL_DEFINITIONS);
   return `import { promises as fs } from 'node:fs';

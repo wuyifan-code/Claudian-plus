@@ -10,7 +10,7 @@ import type {
 } from './types';
 
 export interface AcpResolvedSessionModelState {
-  availableModels: AcpModelInfo[];
+  availableModels: Array<AcpModelInfo & { id: string }>;
   currentModelId: string | null;
 }
 
@@ -48,7 +48,12 @@ export function extractAcpSessionModelState(params: {
     return { availableModels: items, currentModelId: current };
   }
   return {
-    availableModels: params.models?.availableModels ?? [],
+    availableModels: params.models?.availableModels.flatMap((model) => {
+      const resolvedId = model.id ?? model.modelId;
+      return resolvedId
+        ? [{ ...model, id: resolvedId }]
+        : [];
+    }) ?? [],
     currentModelId: params.models?.currentModelId ?? current,
   };
 }

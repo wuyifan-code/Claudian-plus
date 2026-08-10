@@ -142,7 +142,10 @@ export interface AcpSessionModeState {
 }
 
 export interface AcpModelInfo {
-  id: string;
+  /** Spec-compliant model id key. */
+  id?: string;
+  /** Alternative key used by agents that deviate from the spec (e.g. Kimi). */
+  modelId?: string;
   name: string;
   description?: string | null;
 }
@@ -310,6 +313,17 @@ export interface AcpSetSessionModeRequest {
 }
 
 export type AcpSetSessionModeResponse = Record<string, never>;
+
+/**
+ * Model-switch request used by agents that expose a dedicated method
+ * (e.g. Kimi's `session/set_model`) instead of a `model` config option.
+ */
+export interface AcpSetSessionModelRequest {
+  modelId: string;
+  sessionId: AcpSessionId;
+}
+
+export type AcpSetSessionModelResponse = Record<string, never>;
 
 export type AcpSetSessionConfigOptionRequest =
   | {
