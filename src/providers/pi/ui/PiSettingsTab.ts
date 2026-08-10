@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 
 import { Notice, Setting } from 'obsidian';
 
+import { sameStringList } from '../../../core/providers/compareCollections';
 import type {
   ProviderSettingsTabRenderer,
   ProviderSettingsTabRendererContext,
@@ -17,7 +18,6 @@ import {
 import { getHostnameKey } from '../../../utils/env';
 import { expandHomePath } from '../../../utils/path';
 import { maybeGetPiWorkspaceServices } from '../app/PiWorkspaceServices';
-import { sameStringList } from '../internal/compareCollections';
 import { decodePiModelId, type PiDiscoveredModel } from '../models';
 import { PiModelDiscoveryService } from '../runtime/PiModelDiscoveryService';
 import {

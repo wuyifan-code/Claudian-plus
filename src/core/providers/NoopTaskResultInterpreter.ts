@@ -1,9 +1,13 @@
 import type {
   ProviderTaskResultInterpreter,
   ProviderTaskTerminalStatus,
-} from '../../../core/providers/types';
+} from './types';
 
-export class PiTaskResultInterpreter implements ProviderTaskResultInterpreter {
+/**
+ * No-op task result interpreter for providers whose async-agent task system
+ * does not apply to the Claudian Plus subagent lifecycle.
+ */
+export class NoopTaskResultInterpreter implements ProviderTaskResultInterpreter {
   hasAsyncLaunchMarker(_toolUseResult: unknown): boolean {
     return false;
   }

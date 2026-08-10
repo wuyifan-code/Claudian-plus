@@ -1,11 +1,11 @@
-type ProviderProjectionKey =
+export type ProviderProjectionKey =
   | 'savedProviderEffort'
   | 'savedProviderModel'
   | 'savedProviderPermissionMode'
   | 'savedProviderServiceTier'
   | 'savedProviderThinkingBudget';
 
-type ProviderProjectionMap = Partial<Record<string, string>>;
+export type ProviderProjectionMap = Partial<Record<string, string>>;
 
 function normalizeProviderProjectionMap(value: unknown): ProviderProjectionMap | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {

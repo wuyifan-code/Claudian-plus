@@ -2,30 +2,17 @@ import * as fs from 'fs';
 import * as nodePath from 'path';
 
 import type { ExitPlanModeDecision } from '../../../core/types/tools';
+import { InlineOptionList } from './InlineOptionList';
 import type { RenderContentFn } from './MessageRenderer';
 
-const HINTS_TEXT = 'Arrow keys to navigate \u00B7 Enter to select \u00B7 Esc to cancel';
-
-export class InlineExitPlanMode {
-  private containerEl: HTMLElement;
+export class InlineExitPlanMode extends InlineOptionList<ExitPlanModeDecision> {
   private input: Record<string, unknown>;
-  private resolveCallback: (decision: ExitPlanModeDecision | null) => void;
-  private resolved = false;
   private signal?: AbortSignal;
   private renderContent?: RenderContentFn;
   private planPathPrefix?: string;
   private planContent: string | null = null;
   private planReadError: string | null = null;
-
-  private rootEl!: HTMLElement;
-  private focusedIndex = 0;
-  private items: HTMLElement[] = [];
-  private feedbackInput!: HTMLInputElement;
-  private isInputFocused = false;
-  private boundKeyDown: (e: KeyboardEvent) => void;
   private abortHandler: (() => void) | null = null;
-  private pendingFocusFrame: number | null = null;
-  private focusFrameWindow: Window | null = null;
 
   constructor(
     containerEl: HTMLElement,
@@ -35,21 +22,27 @@ export class InlineExitPlanMode {
     renderContent?: RenderContentFn,
     planPathPrefix?: string,
   ) {
-    this.containerEl = containerEl;
+    super(containerEl, resolve);
     this.input = input;
-    this.resolveCallback = resolve;
     this.signal = signal;
     this.renderContent = renderContent;
     this.planPathPrefix = planPathPrefix;
-    this.boundKeyDown = (event) => this.handleKeyDown(event);
   }
 
   render(): void {
-    this.rootEl = this.containerEl.createDiv({ cls: 'claudian-plus-plan-approval-inline' });
+    super.render();
 
-    const titleEl = this.rootEl.createDiv({ cls: 'claudian-plus-plan-inline-title' });
-    titleEl.setText('Plan complete');
+    if (this.signal) {
+      this.abortHandler = () => this.handleResolve(null);
+      this.signal.addEventListener('abort', this.abortHandler, { once: true });
+    }
+  }
 
+  protected getTitle(): string {
+    return 'Plan complete';
+  }
+
+  protected renderBody(): void {
     this.planContent = this.readPlanContent();
     if (this.planContent) {
       const contentEl = this.rootEl.createDiv({ cls: 'claudian-plus-plan-content-preview' });
@@ -118,30 +111,30 @@ export class InlineExitPlanMode {
       this.updateFocus();
     });
     this.items.push(feedbackRow);
+  }
 
-    this.rootEl.createDiv({ text: HINTS_TEXT, cls: 'claudian-plus-ask-hints' });
-
-    this.rootEl.setAttribute('tabindex', '0');
-    this.rootEl.addEventListener('keydown', this.boundKeyDown);
-
-    const ownerWindow = this.rootEl.ownerDocument.defaultView ?? window;
-    this.focusFrameWindow = ownerWindow;
-    this.pendingFocusFrame = ownerWindow.requestAnimationFrame(() => {
-      this.pendingFocusFrame = null;
-      this.focusFrameWindow = null;
-      if (this.resolved || this.rootEl?.isConnected === false) return;
-      this.rootEl.focus();
-      this.rootEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    });
-
-    if (this.signal) {
-      this.abortHandler = () => this.handleResolve(null);
-      this.signal.addEventListener('abort', this.abortHandler, { once: true });
+  protected handleEnter(index: number): void {
+    if (index === 0) {
+      this.handleResolve({
+        type: 'approve-new-session',
+        planContent: this.extractPlanContent(),
+      });
+    } else if (index === 1) {
+      this.handleResolve({ type: 'approve' });
+    } else if (index === 2) {
+      this.feedbackInput.focus();
     }
   }
 
-  destroy(): void {
-    this.handleResolve(null);
+  protected handleFeedbackSubmit(): void {
+    this.handleResolve({ type: 'feedback', text: this.feedbackInput.value.trim() });
+  }
+
+  protected onResolveCleanup(): void {
+    if (this.signal && this.abortHandler) {
+      this.signal.removeEventListener('abort', this.abortHandler);
+      this.abortHandler = null;
+    }
   }
 
   private readPlanContent(): string | null {
@@ -168,114 +161,5 @@ export class InlineExitPlanMode {
       return `Implement this plan:\n\n${this.planContent}`;
     }
     return 'Implement the approved plan.';
-  }
-
-  private handleKeyDown(e: KeyboardEvent): void {
-    if (e.isComposing) return;
-
-    if (this.isInputFocused) {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        this.isInputFocused = false;
-        this.feedbackInput.blur();
-        this.rootEl.focus();
-        return;
-      }
-      if (e.key === 'Enter' && this.feedbackInput.value.trim()) {
-        e.preventDefault();
-        e.stopPropagation();
-        this.handleResolve({ type: 'feedback', text: this.feedbackInput.value.trim() });
-        return;
-      }
-      return;
-    }
-
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        e.stopPropagation();
-        this.focusedIndex = Math.min(this.focusedIndex + 1, this.items.length - 1);
-        this.updateFocus();
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        e.stopPropagation();
-        this.focusedIndex = Math.max(this.focusedIndex - 1, 0);
-        this.updateFocus();
-        break;
-      case 'Enter':
-        e.preventDefault();
-        e.stopPropagation();
-        if (this.focusedIndex === 0) {
-          this.handleResolve({
-            type: 'approve-new-session',
-            planContent: this.extractPlanContent(),
-          });
-        } else if (this.focusedIndex === 1) {
-          this.handleResolve({ type: 'approve' });
-        } else if (this.focusedIndex === 2) {
-          this.feedbackInput.focus();
-        }
-        break;
-      case 'Escape':
-        e.preventDefault();
-        e.stopPropagation();
-        this.handleResolve(null);
-        break;
-    }
-  }
-
-  private updateFocus(): void {
-    for (let i = 0; i < this.items.length; i++) {
-      const item = this.items[i];
-      const cursor = item.querySelector('.claudian-plus-ask-cursor');
-      if (i === this.focusedIndex) {
-        item.addClass('is-focused');
-        if (cursor) cursor.textContent = '\u203A';
-        item.scrollIntoView({ block: 'nearest' });
-
-        if (item.hasClass('claudian-plus-ask-custom-item')) {
-          const input = item.querySelector('.claudian-plus-ask-custom-text') as HTMLInputElement;
-          if (input) {
-            input.focus();
-            this.isInputFocused = true;
-          }
-        }
-      } else {
-        item.removeClass('is-focused');
-        if (cursor) cursor.textContent = '\u00A0';
-
-        if (item.hasClass('claudian-plus-ask-custom-item')) {
-          const input = item.querySelector('.claudian-plus-ask-custom-text') as HTMLInputElement;
-          if (input && this.rootEl.ownerDocument.activeElement === input) {
-            input.blur();
-            this.isInputFocused = false;
-          }
-        }
-      }
-    }
-  }
-
-  private handleResolve(decision: ExitPlanModeDecision | null): void {
-    if (!this.resolved) {
-      this.resolved = true;
-      this.cancelPendingFocus();
-      this.rootEl?.removeEventListener('keydown', this.boundKeyDown);
-      if (this.signal && this.abortHandler) {
-        this.signal.removeEventListener('abort', this.abortHandler);
-        this.abortHandler = null;
-      }
-      this.rootEl?.remove();
-      this.resolveCallback(decision);
-    }
-  }
-
-  private cancelPendingFocus(): void {
-    if (this.pendingFocusFrame !== null) {
-      this.focusFrameWindow?.cancelAnimationFrame(this.pendingFocusFrame);
-    }
-    this.pendingFocusFrame = null;
-    this.focusFrameWindow = null;
   }
 }

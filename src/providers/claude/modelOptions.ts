@@ -1,3 +1,4 @@
+import { parseConfiguredCustomModelIds } from '../../core/providers/modelOptions';
 import { getRuntimeEnvironmentVariables } from '../../core/providers/providerEnvironment';
 import type { ProviderUIOption } from '../../core/providers/types';
 import {
@@ -13,22 +14,6 @@ import { DEFAULT_CLAUDE_MODELS, normalizeLegacyClaudeModelAlias } from './types/
 
 export interface ClaudeModelOption extends ProviderUIOption {
   environmentTypes?: readonly ClaudeModelEnvType[];
-}
-
-function parseConfiguredCustomModelIds(value: string): string[] {
-  const modelIds: string[] = [];
-  const seen = new Set<string>();
-
-  for (const line of value.split(/\r?\n/)) {
-    const modelId = line.trim();
-    if (!modelId || seen.has(modelId)) {
-      continue;
-    }
-    seen.add(modelId);
-    modelIds.push(modelId);
-  }
-
-  return modelIds;
 }
 
 function normalizeCustomModelAliases(value: unknown): Record<string, string> {

@@ -2,6 +2,7 @@ import type { App, ItemView } from 'obsidian';
 
 import type { BrowserSelectionContext } from '../../../utils/browser';
 import type { ComposerContextTray } from '../ui/ComposerContextTray';
+import { setSelectionIndicator } from './selectionIndicator';
 
 const BROWSER_SELECTION_POLL_INTERVAL = 250;
 
@@ -258,22 +259,20 @@ export class BrowserSelectionController {
   }
 
   private updateIndicator(): void {
-    if (this.storedSelection) {
-      const lineCount = this.storedSelection.selectedText.split(/\r?\n/).length;
-      const lineLabel = lineCount === 1 ? 'line' : 'lines';
-      const label = `${lineCount} ${lineLabel} selected`;
-      this.contextTray.setItems('browser-selection', [{
+    const sel = this.storedSelection;
+    const lineCount = sel ? sel.selectedText.split(/\r?\n/).length : 0;
+    const lineLabel = lineCount === 1 ? 'line' : 'lines';
+    setSelectionIndicator(
+      this.contextTray,
+      'browser-selection',
+      sel ? {
         id: 'browser-selection',
-        kind: 'selection',
-        label,
+        label: `${lineCount} ${lineLabel} selected`,
         icon: 'globe',
-        ariaLabel: label,
-        onRemove: () => this.clear(),
-      }]);
-    } else {
-      this.contextTray.clearItems('browser-selection');
-    }
-    this.updateContextRowVisibility();
+      } : null,
+      () => this.clear(),
+      () => this.updateContextRowVisibility(),
+    );
   }
 
   updateContextRowVisibility(): void {

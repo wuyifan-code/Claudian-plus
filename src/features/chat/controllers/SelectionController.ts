@@ -5,6 +5,7 @@ import { hideSelectionHighlight, showSelectionHighlight } from '../../../shared/
 import { type EditorSelectionContext, getEditorView } from '../../../utils/editor';
 import type { StoredSelection } from '../state/types';
 import type { ComposerContextTray } from '../ui/ComposerContextTray';
+import { setSelectionIndicator } from './selectionIndicator';
 
 const SELECTION_POLL_INTERVAL = 250;
 const INPUT_HANDOFF_GRACE_MS = 1500;
@@ -381,21 +382,18 @@ export class SelectionController {
   // ============================================
 
   private updateIndicator(): void {
-    if (this.storedSelection) {
-      const lineText = this.storedSelection.lineCount === 1 ? 'line' : 'lines';
-      const label = `${this.storedSelection.lineCount} ${lineText} selected`;
-      this.contextTray.setItems('editor-selection', [{
+    const sel = this.storedSelection;
+    setSelectionIndicator(
+      this.contextTray,
+      'editor-selection',
+      sel ? {
         id: 'editor-selection',
-        kind: 'selection',
-        label,
+        label: `${sel.lineCount} ${sel.lineCount === 1 ? 'line' : 'lines'} selected`,
         icon: 'text-select',
-        ariaLabel: label,
-        onRemove: () => this.clear(),
-      }]);
-    } else {
-      this.contextTray.clearItems('editor-selection');
-    }
-    this.updateContextRowVisibility();
+      } : null,
+      () => this.clear(),
+      () => this.updateContextRowVisibility(),
+    );
   }
 
   updateContextRowVisibility(): void {

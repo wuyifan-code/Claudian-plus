@@ -49,10 +49,6 @@ export class McpServerManager {
     return this.servers;
   }
 
-  getEnabledCount(): number {
-    return this.servers.filter((s) => s.enabled).length;
-  }
-
   /**
    * Get servers to include in SDK options.
    *
@@ -118,10 +114,6 @@ export class McpServerManager {
     }
 
     return Array.from(disallowed);
-  }
-
-  hasServers(): boolean {
-    return this.servers.length > 0;
   }
 
   getContextSavingServers(): ManagedMcpServer[] {

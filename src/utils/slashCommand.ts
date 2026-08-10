@@ -37,6 +37,47 @@ export function isSkill(cmd: SlashCommand): boolean {
   return cmd.id.startsWith('skill-');
 }
 
+export interface ScannedSkillMarkdown {
+  name: string;
+  parsed: ParsedSlashCommandContent;
+}
+
+/**
+ * Scans a vault skill root for `<name>/SKILL.md` files and parses each one.
+ * Malformed files and missing roots are skipped.
+ */
+export async function scanVaultSkillMarkdown(
+  adapter: Pick<
+    { listFolders(folder: string): Promise<string[]>; read(path: string): Promise<string> },
+    'listFolders' | 'read'
+  >,
+  rootPath: string,
+): Promise<ScannedSkillMarkdown[]> {
+  const results: ScannedSkillMarkdown[] = [];
+
+  try {
+    const folders = await adapter.listFolders(rootPath);
+    for (const folder of folders) {
+      const skillName = folder.split('/').pop()!;
+      const skillPath = `${rootPath}/${skillName}/SKILL.md`;
+
+      try {
+        const content = await adapter.read(skillPath);
+        results.push({
+          name: skillName,
+          parsed: parseSlashCommandContent(content),
+        });
+      } catch {
+        // Skip malformed or unreadable files.
+      }
+    }
+  } catch {
+    // Root does not exist or cannot be read.
+  }
+
+  return results;
+}
+
 export function parsedToSlashCommand(
   parsed: ParsedSlashCommandContent,
   identity: Pick<SlashCommand, 'id' | 'name'> & { source?: SlashCommand['source'] },

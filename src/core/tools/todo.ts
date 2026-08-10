@@ -4,8 +4,6 @@
  * Parses TodoWrite tool input into typed todo items.
  */
 
-import { TOOL_TODO_WRITE } from './toolNames';
-
 export interface TodoItem {
   /** Imperative description (e.g., "Run tests") */
   content: string;
@@ -40,26 +38,4 @@ export function parseTodoInput(input: Record<string, unknown>): TodoItem[] | nul
   }
 
   return validTodos.length > 0 ? validTodos : null;
-}
-
-/**
- * Extract the last TodoWrite todos from a list of messages.
- * Used to restore the todo panel when loading a saved conversation.
- */
-export function extractLastTodosFromMessages(
-  messages: Array<{ role: string; toolCalls?: Array<{ name: string; input: Record<string, unknown> }> }>
-): TodoItem[] | null {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i];
-    if (msg.role === 'assistant' && msg.toolCalls) {
-      for (let j = msg.toolCalls.length - 1; j >= 0; j--) {
-        const toolCall = msg.toolCalls[j];
-        if (toolCall.name === TOOL_TODO_WRITE) {
-          const todos = parseTodoInput(toolCall.input);
-          return todos;
-        }
-      }
-    }
-  }
-  return null;
 }

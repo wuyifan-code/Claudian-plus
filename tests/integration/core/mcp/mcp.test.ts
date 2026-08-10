@@ -883,7 +883,7 @@ describe('McpServerManager', () => {
   });
 
   describe('helper methods', () => {
-    it('should report enabled counts and server presence', () => {
+    it('should expose loaded servers', () => {
       const servers: ManagedMcpServer[] = [
         { name: 's1', config: { command: 'c1' }, enabled: true, contextSaving: true },
         { name: 's2', config: { command: 'c2' }, enabled: true, contextSaving: false },
@@ -891,15 +891,14 @@ describe('McpServerManager', () => {
       ];
       const manager = createManager(servers);
 
-      expect(manager.getEnabledCount()).toBe(2);
-      expect(manager.hasServers()).toBe(true);
+      expect(manager.getServers()).toEqual(servers);
+      expect(manager.getServers().filter(s => s.enabled)).toHaveLength(2);
     });
 
-    it('should return false when no servers are configured', () => {
+    it('should return empty when no servers are configured', () => {
       const manager = createManager([]);
 
-      expect(manager.getEnabledCount()).toBe(0);
-      expect(manager.hasServers()).toBe(false);
+      expect(manager.getServers()).toEqual([]);
     });
   });
 });

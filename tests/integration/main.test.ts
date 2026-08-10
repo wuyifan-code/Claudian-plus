@@ -1,9 +1,9 @@
 
+import { SessionStorage } from '@/core/bootstrap/SessionStorage';
 import { ProviderSettingsCoordinator } from '@/core/providers/ProviderSettingsCoordinator';
 import { TOOL_SUBAGENT } from '@/core/tools/toolNames';
 import { VIEW_TYPE_CLAUDIAN_PLUS } from '@/core/types';
 import * as sdkSession from '@/providers/claude/history/ClaudeHistoryStore';
-import { SessionStorage } from '@/providers/claude/storage/SessionStorage';
 import { DEFAULT_SETTINGS } from '@/providers/claude/types/settings';
 
 // Mock fs for ClaudeChatRuntime

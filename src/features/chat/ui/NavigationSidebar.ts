@@ -20,6 +20,11 @@ interface ConversationOutlineEntry {
 
 const OUTLINE_EXCERPT_LENGTH = 140;
 const OUTLINE_REFRESH_DELAY_MS = 80;
+// Wave TOC peaks at 51px: the hovered H1 grows from 27px to 51px and the
+// gaussian ripple sweeps the neighboring ticks. The transcript gutter is
+// sized to keep the peak clear of the text (see messages.css).
+const WAVE_PEAK_WIDTH = 51;
+const WAVE_SIGMA = 1.55;
 let nextOutlinePreviewId = 0;
 
 function normalizeOutlineText(text: string): string {
@@ -42,7 +47,11 @@ export class NavigationSidebar {
   private outlineEntriesByMessage = new Map<HTMLElement, ConversationOutlineEntry[]>();
   private outlineMarkers: HTMLElement[] = [];
   private activeOutlineIndex: number | null = null;
+  private hoverIndex = -1;
   private outlinePreview: HTMLElement | null = null;
+  private outlinePreviewTitleEl: HTMLElement | null = null;
+  private outlinePreviewExcerptEl: HTMLElement | null = null;
+  private outlinePreviewBadgeEl: HTMLElement | null = null;
   private outlinePreviewTrigger: HTMLElement | null = null;
   private scrollHandler: () => void = () => {};
   private mutationObserver: MutationObserver | null = null;
@@ -54,17 +63,23 @@ export class NavigationSidebar {
   private pendingFullOutlineRefresh = false;
   private isVisible: boolean | null = null;
   private destroyed = false;
-  private outlineStyle: 'bar' | 'dot';
+  private side: 'left' | 'right';
+  private waveFrame: number | null = null;
+  private wavePosition = 0;
+  private waveVelocity = 0;
+  private waveAmplitude = 0;
+  private waveTarget = 0;
+  private waveActive = false;
 
   constructor(
     private parentEl: HTMLElement,
     private messagesEl: HTMLElement,
-    outlineStyle: 'bar' | 'dot' = 'bar',
+    side: 'left' | 'right' = 'left',
   ) {
-    this.outlineStyle = outlineStyle;
+    this.side = side;
     this.container = this.parentEl.createDiv({ cls: 'claudian-plus-nav-sidebar' });
     this.container.setAttribute('aria-label', 'Conversation outline sidebar');
-    this.applyOutlineStyle();
+    this.applySide();
     this.container.tabIndex = -1;
     // tabIndex=-1 lets the container receive focus from container-level
     // shortcuts without participating in the regular tab order.
@@ -74,21 +89,35 @@ export class NavigationSidebar {
     this.outlineTrack.setAttribute('role', 'navigation');
     this.outlineTrack.setAttribute('aria-label', 'Conversation outline');
 
+    // Persistent hover bubble (Wave TOC model): one card is created per
+    // sidebar and shown/hidden via is-visible, so it follows the pointer
+    // across ticks with a single smooth CSS transition instead of being
+    // recreated (and flickering) on every hover change. It lives in the
+    // document body so its position:fixed stays viewport-anchored regardless
+    // of transforms, containment, or overflow on chat containers.
+    const bubbleHost = this.messagesEl.ownerDocument.body ?? this.parentEl;
+    this.outlinePreview = bubbleHost.createDiv({ cls: 'claudian-plus-nav-outline-preview' });
+    this.outlinePreview.setAttribute('id', `claudian-plus-outline-preview-${++nextOutlinePreviewId}`);
+    this.outlinePreview.setAttribute('role', 'tooltip');
+    this.outlinePreviewTitleEl = this.outlinePreview.createDiv({ cls: 'claudian-plus-nav-outline-preview-title' });
+    this.outlinePreviewExcerptEl = this.outlinePreview.createDiv({ cls: 'claudian-plus-nav-outline-preview-excerpt' });
+    this.outlinePreviewBadgeEl = this.outlinePreview.createDiv({ cls: 'claudian-plus-nav-outline-preview-badge' });
+    this.outlinePreviewBadgeEl.setAttribute('aria-hidden', 'true');
+
     this.setupEventListeners();
     this.refreshOutline();
     this.applyVisibility();
   }
 
-  setOutlineStyle(style: 'bar' | 'dot'): void {
-    if (this.outlineStyle === style) return;
-    this.outlineStyle = style;
-    this.applyOutlineStyle();
-    // Rebuild markers so the dot element rendering reflects the new mode.
-    this.refreshOutline();
+  setSide(side: 'left' | 'right'): void {
+    if (this.side === side) return;
+    this.side = side;
+    this.applySide();
   }
 
-  private applyOutlineStyle(): void {
-    this.container.classList.toggle('claudian-plus-nav-outline-dot-mode', this.outlineStyle === 'dot');
+  private applySide(): void {
+    this.container.classList.toggle('claudian-plus-nav-outline-right', this.side === 'right');
+    this.parentEl.classList.toggle('claudian-plus-nav-outline-right', this.side === 'right');
   }
 
   private setupEventListeners(): void {
@@ -107,10 +136,25 @@ export class NavigationSidebar {
       }
     });
 
-    // Wave-focus effect (from codian dot navigation): dots near the
-    // hovered marker grow in proportion to their distance.
+    // Wave TOC rail interaction: hovering anywhere in the tick strip selects
+    // the nearest marker, so the wave, the is-hovering tint, and the preview
+    // bubble follow the pointer even between the thin ticks. Clicking the
+    // strip jumps to the hovered entry.
+    this.outlineTrack.addEventListener('mousemove', (event: MouseEvent) => {
+      this.hoverOutlineAt(event.clientY);
+    });
+    this.outlineTrack.addEventListener('click', (event: MouseEvent) => {
+      if (this.hoverIndex < 0 || this.destroyed) return;
+      event.stopPropagation();
+      const entry = this.outlineEntries[this.hoverIndex];
+      if (entry) {
+        this.scrollToElement(this.resolveEntryTarget(entry));
+        this.deactivateOutlineEntry();
+      }
+    });
     this.outlineTrack.addEventListener('mouseleave', () => {
-      this.resetWaveFocus();
+      this.deactivateOutlineEntry();
+      this.releaseWaveFocus();
     });
 
     if (typeof MutationObserver !== 'undefined') {
@@ -221,9 +265,20 @@ export class NavigationSidebar {
       excerpt: this.getAssistantResponseExcerpt(messageEl),
       badge: 'Q',
       kind: 'prompt',
-      level: 1,
+      level: this.getOutlineLevelForTitle(title),
     });
     return entries;
+  }
+
+  /**
+   * Wave TOC varies tick length by heading depth. A chat transcript has no
+   * heading hierarchy, so prompts are bucketed by title length into the same
+   * three bar widths (27/20/15px) for the same organic, non-uniform look.
+   */
+  private getOutlineLevelForTitle(title: string): ConversationOutlineLevel {
+    if (title.length < 16) return 3;
+    if (title.length <= 32) return 2;
+    return 1;
   }
 
   private collectOutlineEntries(
@@ -439,7 +494,7 @@ export class NavigationSidebar {
     const focusedMarkerIndex = activeElement
       ? this.outlineMarkers.indexOf(activeElement)
       : -1;
-    this.hideOutlinePreview();
+    this.deactivateOutlineEntry();
     this.outlineEntries = nextEntries;
     this.outlineMarkers = [];
     this.activeOutlineIndex = null;
@@ -455,8 +510,6 @@ export class NavigationSidebar {
           'data-outline-level': String(entry.level),
         },
       });
-      // Dot marker (codian-style circle) coexists with the ::before bar.
-      marker.createSpan({ cls: 'claudian-plus-nav-outline-dot' });
       this.positionOutlineMarker(marker, index);
       this.outlineMarkers.push(marker);
 
@@ -466,13 +519,13 @@ export class NavigationSidebar {
         this.hideOutlinePreview();
       };
       marker.addEventListener('click', selectEntry);
-      marker.addEventListener('mouseenter', () => {
-        this.applyWaveFocus(index);
-        this.showOutlinePreview(entry, marker);
+      marker.addEventListener('mouseenter', () => this.activateOutlineEntry(index));
+      // Wave TOC keeps the bubble visible while the pointer moves across the
+      // ticks; only leaving the rail hides it (track mouseleave below).
+      marker.addEventListener('focus', () => this.activateOutlineEntry(index));
+      marker.addEventListener('blur', () => {
+        if (this.hoverIndex === index) this.deactivateOutlineEntry();
       });
-      marker.addEventListener('mouseleave', () => this.hideOutlinePreview());
-      marker.addEventListener('focus', () => this.showOutlinePreview(entry, marker));
-      marker.addEventListener('blur', () => this.hideOutlinePreview());
       marker.addEventListener('keydown', (event: KeyboardEvent) => {
         if (event.key === 'Escape') {
           event.preventDefault();
@@ -501,6 +554,19 @@ export class NavigationSidebar {
           selectEntry(event);
         }
       });
+    });
+
+    // Wave TOC sizing: shrink the tick gap as the entry count grows so the
+    // rail always fills (but never overflows) the track.
+    const ownerWindow = this.messagesEl.ownerDocument.defaultView;
+    ownerWindow?.requestAnimationFrame(() => {
+      if (this.destroyed || !this.outlineTrack) return;
+      const available = Math.max(0, this.outlineTrack.clientHeight - 8);
+      const count = this.outlineEntries.length;
+      const gap = count > 1
+        ? Math.min(15, Math.max(5, (available - count * 3) / (count - 1)))
+        : 15;
+      this.outlineTrack.style.setProperty('--cp-nav-tick-gap', `${gap}px`);
     });
 
     this.applyActiveOutline();
@@ -564,31 +630,70 @@ export class NavigationSidebar {
     this.outlineMarkers.forEach((marker, index) => this.positionOutlineMarker(marker, index));
   }
 
-  private showOutlinePreview(entry: ConversationOutlineEntry, marker: HTMLElement): void {
+  /** Selects the nearest marker to a pointer Y within the tick strip. */
+  private hoverOutlineAt(clientY: number): void {
+    if (this.destroyed || this.outlineMarkers.length === 0) return;
+    let index = 0;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    this.outlineMarkers.forEach((marker, markerIndex) => {
+      const rect = marker.getBoundingClientRect();
+      const distance = Math.abs(clientY - (rect.top + rect.height / 2));
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        index = markerIndex;
+      }
+    });
+    this.activateOutlineEntry(index);
+  }
+
+  /**
+   * Highlights a marker as the wave peak: deepens the tick, dims the
+   * previously active tick back to the resting tint, and shows its bubble.
+   */
+  private activateOutlineEntry(index: number): void {
+    const marker = this.outlineMarkers[index];
+    const entry = this.outlineEntries[index];
+    if (!marker || !entry || this.hoverIndex === index) return;
+    if (this.hoverIndex >= 0) {
+      this.outlineMarkers[this.hoverIndex]?.removeClass('is-hovered');
+    }
+    this.hoverIndex = index;
+    this.container.addClass('is-hovering');
+    marker.addClass('is-hovered');
+    this.setWaveTarget(index);
+    this.showOutlinePreview(entry, marker);
+  }
+
+  private deactivateOutlineEntry(): void {
+    if (this.hoverIndex >= 0) {
+      this.outlineMarkers[this.hoverIndex]?.removeClass('is-hovered');
+      this.hoverIndex = -1;
+    }
+    this.container.removeClass('is-hovering');
     this.hideOutlinePreview();
+  }
+
+  private showOutlinePreview(entry: ConversationOutlineEntry, marker: HTMLElement): void {
+    const preview = this.outlinePreview;
+    const titleEl = this.outlinePreviewTitleEl;
+    const excerptEl = this.outlinePreviewExcerptEl;
+    const badgeEl = this.outlinePreviewBadgeEl;
+    if (!preview || !titleEl || !excerptEl || !badgeEl) return;
+
     const index = this.outlineMarkers.indexOf(marker);
     this.resolveEntryTarget(entry);
-    const preview = this.parentEl.createDiv({ cls: 'claudian-plus-nav-outline-preview' });
-    const previewId = `claudian-plus-outline-preview-${++nextOutlinePreviewId}`;
-    preview.setAttribute('id', previewId);
-    preview.setAttribute('role', 'tooltip');
-    marker.setAttribute('aria-describedby', previewId);
-    preview.createDiv({ cls: 'claudian-plus-nav-outline-preview-title', text: entry.title });
-    if (entry.excerpt) {
-      preview.createDiv({
-        cls: 'claudian-plus-nav-outline-preview-excerpt',
-        text: entry.excerpt,
-      });
-    }
-    if (index >= 0 && entry.badge) {
-      const badge = preview.createDiv({
-        cls: 'claudian-plus-nav-outline-preview-badge',
-        text: `${entry.badge}${index + 1}`,
-      });
-      badge.setAttribute('aria-hidden', 'true');
-    }
+    titleEl.setText(entry.title);
+    const hasExcerpt = Boolean(entry.excerpt);
+    excerptEl.setText(entry.excerpt ?? '');
+    excerptEl.toggleClass('is-hidden', !hasExcerpt);
+    preview.toggleClass('has-preview', hasExcerpt);
+    const hasBadge = index >= 0 && Boolean(entry.badge);
+    badgeEl.setText(hasBadge ? `${entry.badge}${index + 1}` : '');
+    badgeEl.toggleClass('is-hidden', !hasBadge);
+
     this.positionOutlinePreview(preview, marker);
-    this.outlinePreview = preview;
+    preview.addClass('is-visible');
+    marker.setAttribute('aria-describedby', preview.getAttribute('id') ?? '');
     this.outlinePreviewTrigger = marker;
   }
 
@@ -596,81 +701,124 @@ export class NavigationSidebar {
     const markerRect = marker.getBoundingClientRect?.();
     if (!markerRect) return;
 
-    // Both sidebar and preview are position:fixed — use viewport coords.
+    // Both sidebar and preview are position:fixed — use viewport coords. The
+    // bubble is vertically centered on the marker via translateY(-50%) in
+    // CSS, so the marker center is clamped by half the bubble height.
     const markerCenter = markerRect.top + markerRect.height / 2;
     const previewHeight = preview.offsetHeight || 120;
+    const previewWidth = preview.offsetWidth || 240;
     const viewportHeight = window.innerHeight;
-    const edgePadding = 12;
-    const minTop = edgePadding;
-    const maxTop = viewportHeight - edgePadding - previewHeight;
+    const viewportWidth = window.innerWidth;
+    const edgePadding = 8;
+    const gap = 10;
+    const minTop = edgePadding + previewHeight / 2;
+    const maxTop = viewportHeight - edgePadding - previewHeight / 2;
     const top = maxTop >= minTop
-      ? Math.max(minTop, Math.min(markerCenter - previewHeight / 2, maxTop))
-      : viewportHeight / 2 - previewHeight / 2;
+      ? Math.max(minTop, Math.min(markerCenter, maxTop))
+      : viewportHeight / 2;
     preview.style.setProperty('--claudian-plus-outline-preview-top', `${top}px`);
+
+    // Bubble opens toward the chat content: right of the rail by default, or
+    // left of the rail when the rail sits on the right side. Flip to the
+    // other side when it would overflow the viewport.
+    const isRightSide = this.container.classList.contains('claudian-plus-nav-outline-right');
+    let left = isRightSide
+      ? markerRect.left - gap - previewWidth
+      : markerRect.right + gap;
+    if (isRightSide ? left < edgePadding : left + previewWidth > viewportWidth - edgePadding) {
+      left = isRightSide ? markerRect.right + gap : markerRect.left - gap - previewWidth;
+    }
+    const clampedLeft = Math.max(
+      edgePadding,
+      Math.min(left, viewportWidth - edgePadding - previewWidth),
+    );
+    preview.style.setProperty('--claudian-plus-outline-preview-left', `${clampedLeft}px`);
   }
 
   private hideOutlinePreview(): void {
-    const preview = this.outlinePreview;
-    if (!preview) return;
-    this.outlinePreview = null;
     this.outlinePreviewTrigger?.removeAttribute('aria-describedby');
     this.outlinePreviewTrigger = null;
-    if (this.destroyed) {
-      preview.remove();
-      return;
-    }
-    // Play a soft exit animation so the card does not vanish abruptly when
-    // the user moves between markers.
-    preview.classList.add('claudian-plus-nav-outline-preview-leaving');
-    const ownerWindow = this.messagesEl.ownerDocument.defaultView;
-    const cleanup = () => {
-      if (preview.dataset['claudianCollapsed'] === '1') return;
-      preview.remove();
-    };
-    preview.addEventListener('animationend', cleanup, { once: true });
-    ownerWindow?.setTimeout(cleanup, 160);
+    // The persistent bubble stays in the DOM; removing is-visible plays the
+    // CSS fade/scale transition out (Wave TOC behavior).
+    this.outlinePreview?.removeClass('is-visible');
   }
 
   /**
-   * Wave-focus effect from codian dot navigation: dots near the hovered
-   * marker scale up based on their distance, creating a ripple.
+   * Spring-physics wave (ported from Wave TOC): the wave peak chases the
+   * hovered tick, and each marker's bar width follows a gaussian of its
+   * distance from the peak, so the ripple sweeps across the rail.
    */
-  private applyWaveFocus(focusIndex: number): void {
-    this.outlineMarkers.forEach((marker, index) => {
-      const distance = Math.abs(index - focusIndex);
-      const size = Math.max(5, 10 - distance * 2);
-      const dot = marker.querySelector<HTMLElement>('.claudian-plus-nav-outline-dot');
-      if (dot) {
-        dot.setCssProps({
-          width: `${size}px`,
-          height: `${size}px`,
-        });
-      }
-    });
+  private setWaveTarget(index: number): void {
+    if (this.waveAmplitude < 0.01) {
+      this.wavePosition = index;
+      this.waveVelocity = 0;
+    }
+    this.waveTarget = index;
+    this.waveActive = true;
+    this.ensureWaveAnimation();
   }
 
-  private resetWaveFocus(): void {
-    for (const marker of this.outlineMarkers) {
-      const dot = marker.querySelector<HTMLElement>('.claudian-plus-nav-outline-dot');
-      if (dot) {
-        dot.setCssProps({ width: '', height: '' });
-      }
+  private releaseWaveFocus(): void {
+    this.waveActive = false;
+    this.ensureWaveAnimation();
+  }
+
+  private ensureWaveAnimation(): void {
+    if (this.waveFrame !== null) return;
+    const ownerWindow = this.messagesEl.ownerDocument.defaultView;
+    if (!ownerWindow) return;
+    if (ownerWindow.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      this.waveAmplitude = 0;
+      this.waveVelocity = 0;
+      return;
     }
+
+    const animate = (): void => {
+      const targetAmplitude = this.waveActive ? 1 : 0;
+      this.waveAmplitude += (targetAmplitude - this.waveAmplitude)
+        * (this.waveActive ? 0.2 : 0.11);
+
+      if (this.waveActive) {
+        const force = (this.waveTarget - this.wavePosition) * 0.2;
+        this.waveVelocity = (this.waveVelocity + force) * 0.68;
+        this.wavePosition += this.waveVelocity;
+      } else {
+        this.waveVelocity *= 0.78;
+        this.wavePosition += this.waveVelocity;
+      }
+
+      this.outlineMarkers.forEach((marker, index) => {
+        const level = Number(marker.getAttribute('data-outline-level') ?? 1) as 1 | 2 | 3;
+        const baseWidth = level === 1 ? 27 : level === 2 ? 20 : 15;
+        const distance = index - this.wavePosition;
+        const influence = Math.exp(-(distance * distance) / (2 * WAVE_SIGMA * WAVE_SIGMA));
+        const width = baseWidth + (WAVE_PEAK_WIDTH - baseWidth) * influence * this.waveAmplitude;
+        marker.style.setProperty('--cp-nav-tick-w', `${width.toFixed(2)}px`);
+      });
+
+      const settled = !this.waveActive
+        && this.waveAmplitude < 0.008
+        && Math.abs(this.waveVelocity) < 0.008;
+      if (settled) {
+        this.waveAmplitude = 0;
+        this.waveVelocity = 0;
+        for (const marker of this.outlineMarkers) {
+          marker.style.removeProperty('--cp-nav-tick-w');
+        }
+        this.waveFrame = null;
+        return;
+      }
+      this.waveFrame = ownerWindow.requestAnimationFrame(animate);
+    };
+    this.waveFrame = ownerWindow.requestAnimationFrame(animate);
   }
 
   collapse(): void {
-    // Skip the exit animation when collapsing — the entire sidebar is going
-    // away so the listener should not see a fading card mid-transition.
-    // Mark the element so a still-pending hideOutlinePreview timeout can
-    // detect that it was already removed and skip the double-remove.
-    const preview = this.outlinePreview;
-    this.outlinePreview = null;
-    this.outlinePreviewTrigger?.removeAttribute('aria-describedby');
-    this.outlinePreviewTrigger = null;
-    if (preview) {
-      preview.dataset['claudianCollapsed'] = '1';
-      preview.remove();
-    }
+    // Collapse hides transient surfaces immediately; the persistent bubble is
+    // left in place (hidden) and removed with the sidebar on destroy().
+    this.hoverIndex = -1;
+    this.container.removeClass('is-hovering');
+    this.hideOutlinePreview();
   }
 
   destroy(): void {
@@ -687,6 +835,10 @@ export class NavigationSidebar {
     }
     this.pendingOutlineMessages.clear();
     this.outlineEntriesByMessage.clear();
+    if (this.waveFrame !== null) {
+      this.messagesEl.ownerDocument.defaultView?.cancelAnimationFrame(this.waveFrame);
+      this.waveFrame = null;
+    }
     this.collapse();
     this.mutationObserver?.disconnect();
     this.mutationObserver = null;
@@ -694,7 +846,15 @@ export class NavigationSidebar {
     this.resizeObserver = null;
     this.messagesEl.removeEventListener('scroll', this.scrollHandler);
     this.parentEl.classList.remove('claudian-plus-has-nav-sidebar');
+    this.parentEl.classList.remove('claudian-plus-nav-outline-right');
     this.container.remove();
+    // The persistent bubble lives in parentEl (fixed positioning), so it is
+    // removed separately from the sidebar container.
+    this.outlinePreview?.remove();
+    this.outlinePreview = null;
+    this.outlinePreviewTitleEl = null;
+    this.outlinePreviewExcerptEl = null;
+    this.outlinePreviewBadgeEl = null;
   }
 
   private scrollToElement(el: HTMLElement): void {

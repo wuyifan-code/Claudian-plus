@@ -2,21 +2,19 @@ import { mapWithConcurrency } from '../../utils/concurrency';
 import { getConversationSearchText } from '../../utils/context';
 import { ProviderRegistry } from '../providers/ProviderRegistry';
 import {
-  DEFAULT_CHAT_PROVIDER_ID,
   type SessionMetadataListOptions,
   type SessionMetadataScanResult,
 } from '../providers/types';
 import type { VaultFileAdapter } from '../storage/VaultFileAdapter';
 import type {
   Conversation,
-  ConversationMeta,
   SessionMetadata,
   UsageInfo,
 } from '../types';
 import {
+  ARCHIVED_LEGACY_DIR,
   LEGACY_CLAUDIAN_SESSIONS_PATH,
   LEGACY_SESSION_PATHS,
-  ARCHIVED_LEGACY_DIR,
   LEGACY_SESSIONS_PATH,
   SESSIONS_PATH,
 } from './StoragePaths';
@@ -253,27 +251,6 @@ export class SessionStorage {
       complete,
       invalidMetadataCount,
     };
-  }
-
-  async listAllConversations(): Promise<ConversationMeta[]> {
-    const nativeMetas = await this.listMetadata();
-
-    const metas: ConversationMeta[] = nativeMetas.map((meta) => ({
-      id: meta.id,
-      providerId: meta.providerId ?? DEFAULT_CHAT_PROVIDER_ID,
-      title: meta.title,
-      createdAt: meta.createdAt,
-      updatedAt: meta.updatedAt,
-      lastResponseAt: meta.lastResponseAt,
-      messageCount: 0,
-      preview: 'SDK session',
-      titleGenerationStatus: meta.titleGenerationStatus,
-      ...(meta.searchText ? { searchText: meta.searchText } : {}),
-    }));
-
-    return metas.sort((a, b) =>
-      (b.lastResponseAt ?? b.createdAt) - (a.lastResponseAt ?? a.createdAt)
-    );
   }
 
   toSessionMetadata(conversation: Conversation): SessionMetadata {

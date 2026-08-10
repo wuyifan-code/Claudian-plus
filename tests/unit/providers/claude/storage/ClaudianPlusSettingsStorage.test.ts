@@ -2,13 +2,13 @@ import '@/providers';
 
 import { TEST_CODEX_CATALOG } from '@test/helpers/codexModels';
 
-import type { VaultFileAdapter } from '@/core/storage/VaultFileAdapter';
-import { getClaudeProviderSettings } from '@/providers/claude/settings';
 import {
   CLAUDIAN_PLUS_SETTINGS_PATH,
   ClaudianPlusSettingsStorage,
   LEGACY_CLAUDIAN_PLUS_SETTINGS_PATH,
-} from '@/providers/claude/storage/ClaudianPlusSettingsStorage';
+} from '@/app/settings/ClaudianPlusSettingsStorage';
+import type { VaultFileAdapter } from '@/core/storage/VaultFileAdapter';
+import { getClaudeProviderSettings } from '@/providers/claude/settings';
 import { DEFAULT_SETTINGS } from '@/providers/claude/types/settings';
 import {
   getCodexProviderSettings,

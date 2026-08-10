@@ -188,47 +188,6 @@ export class VaultKnowledgeEngine {
     ].filter(Boolean).join('\n');
   }
 
-  /** Search knowledge by query (simple keyword matching). */
-  async searchKnowledge(query: string, limit = 5): Promise<NoteKnowledge[]> {
-    const index = await this.loadIndex();
-    if (!index) {
-      return [];
-    }
-
-    const queryLower = query.toLowerCase();
-    const scored = index.notes.map(note => {
-      let score = 0;
-
-      // Title match (highest weight)
-      if (note.title.toLowerCase().includes(queryLower)) {
-        score += 10;
-      }
-
-      // Tag match
-      if (note.tags.some(tag => tag.toLowerCase().includes(queryLower))) {
-        score += 5;
-      }
-
-      // Heading match
-      if (note.headings.some(h => h.toLowerCase().includes(queryLower))) {
-        score += 3;
-      }
-
-      // Excerpt match
-      if (note.excerpt.toLowerCase().includes(queryLower)) {
-        score += 1;
-      }
-
-      return { note, score };
-    });
-
-    return scored
-      .filter(s => s.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit)
-      .map(s => s.note);
-  }
-
   /** Clear the knowledge index. */
   async clearIndex(): Promise<void> {
     await this.adapter.delete(KNOWLEDGE_FILE);

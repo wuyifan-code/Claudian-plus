@@ -1,7 +1,7 @@
 import { getRuntimeEnvironmentText } from '../../../core/providers/providerEnvironment';
+import { computeEnvironmentHash } from '../../../core/providers/settingsReconciler';
 import type { ProviderSettingsReconciler } from '../../../core/providers/types';
 import type { Conversation } from '../../../core/types';
-import { parseEnvironmentVariables } from '../../../utils/env';
 import {
   findClaudeModelOptionForEnvironmentType,
   getClaudeModelOptions,
@@ -22,14 +22,12 @@ import {
 
 const ENV_HASH_PROVIDER_KEYS = ['ANTHROPIC_BASE_URL'];
 
+function getEnvHashKeys(): string[] {
+  return [...CLAUDE_MODEL_ENV_KEYS, ...ENV_HASH_PROVIDER_KEYS];
+}
+
 function computeEnvHash(envText: string): string {
-  const envVars = parseEnvironmentVariables(envText || '');
-  const allKeys = [...CLAUDE_MODEL_ENV_KEYS, ...ENV_HASH_PROVIDER_KEYS];
-  return allKeys
-    .filter(key => envVars[key])
-    .map(key => `${key}=${envVars[key]}`)
-    .sort()
-    .join('|');
+  return computeEnvironmentHash(envText, getEnvHashKeys());
 }
 
 function getModelEnvironmentFromHash(environmentHash: string): Record<string, string> {

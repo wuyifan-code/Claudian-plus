@@ -16,14 +16,17 @@ function createConversation(id = 'conversation-1'): Conversation {
   };
 }
 
-function createRepository(conversation = createConversation()) {
+function createRepository(
+  conversation = createConversation(),
+  settings: Record<string, unknown> = {},
+) {
   const sessions = {
     saveMetadata: jest.fn().mockResolvedValue(undefined),
     deleteMetadata: jest.fn().mockResolvedValue(undefined),
     toSessionMetadata: jest.fn((value) => value),
   };
   const repository = new ConversationRepository({
-    getSettings: () => ({}),
+    getSettings: () => settings,
     getVaultPath: () => '/vault',
     sessions: sessions as any,
     onConversationDeleted: jest.fn().mockResolvedValue(undefined),
@@ -159,6 +162,66 @@ describe('ConversationRepository hydration', () => {
     await expect(deletion).resolves.toBeUndefined();
     expect(repository.getCachedConversation(conversation.id)).toBeNull();
     expect(sessions.deleteMetadata).toHaveBeenCalledWith(conversation.id);
+  });
+
+  it('persists the hydrated projection with a single write when model resolution changes during hydration', async () => {
+    const hydrateConversationHistory = jest.fn(async (conversation: Conversation) => {
+      conversation.messages = [{
+        id: 'message-1',
+        role: 'user',
+        content: 'hello',
+        timestamp: 2,
+      }];
+    });
+    jest.spyOn(ProviderRegistry, 'getConversationHistoryService').mockReturnValue({
+      hydrateConversationHistory,
+    } as any);
+    const conversation = createConversation();
+    conversation.usage = {
+      model: 'claude-code/opus',
+      inputTokens: 0,
+      contextWindow: 200_000,
+      contextTokens: 0,
+      percentage: 0,
+    };
+    const { repository, sessions } = createRepository(conversation);
+
+    await repository.ensureHydrated(conversation.id);
+
+    expect(conversation.selectedModel).toBe('opus');
+    expect(sessions.saveMetadata).toHaveBeenCalledTimes(1);
+    const saved = (sessions.saveMetadata as jest.Mock).mock.calls[0][0];
+    expect(saved).toBe(conversation);
+    expect(saved.messages).toHaveLength(1);
+  });
+
+  it('does not block hydration completion on the transcript projection write', async () => {
+    const hydrateConversationHistory = jest.fn(async (conversation: Conversation) => {
+      conversation.messages = [{
+        id: 'message-1',
+        role: 'user',
+        content: 'hello',
+        timestamp: 2,
+      }];
+    });
+    jest.spyOn(ProviderRegistry, 'getConversationHistoryService').mockReturnValue({
+      hydrateConversationHistory,
+    } as any);
+    const conversation = createConversation();
+    const { repository, sessions } = createRepository(conversation);
+    let finishSave!: () => void;
+    const pendingSave = new Promise<void>((resolve) => {
+      finishSave = resolve;
+    });
+    sessions.saveMetadata.mockReturnValueOnce(pendingSave);
+
+    await expect(repository.ensureHydrated(conversation.id)).resolves.toBe(conversation);
+    expect(sessions.saveMetadata).toHaveBeenCalled();
+
+    finishSave();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(sessions.deleteMetadata).not.toHaveBeenCalled();
   });
 
   it('does not return an already hydrated conversation deleted while model reconciliation is in flight', async () => {

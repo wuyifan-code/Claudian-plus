@@ -72,7 +72,7 @@ export const DEFAULT_CLAUDIAN_PLUS_SETTINGS: ClaudianPlusSettings = {
 
   maxTabs: 3,
   enableAutoScroll: true,
-  outlineStyle: 'bar',
+  outlineSide: 'left',
   deferMathRenderingDuringStreaming: true,
   expandFileEditsByDefault: false,
   chatViewPlacement: 'right-sidebar',

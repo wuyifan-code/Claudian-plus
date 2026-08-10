@@ -4,6 +4,7 @@ import { Menu, Notice } from 'obsidian';
 import { ConversationController, type ConversationControllerDeps } from '@/features/chat/controllers/ConversationController';
 import { ChatState } from '@/features/chat/state/ChatState';
 import { confirm } from '@/shared/modals/ConfirmModal';
+import { formatConversationTimestamp } from '@/utils/date';
 
 jest.mock('@/shared/modals/ConfirmModal', () => ({
   confirm: jest.fn().mockResolvedValue(true),
@@ -346,14 +347,14 @@ describe('ConversationController', () => {
   describe('formatDate', () => {
     it('should return time format for today', () => {
       const now = new Date();
-      const result = controller.formatDate(now.getTime());
+      const result = formatConversationTimestamp(now.getTime());
 
       expect(result).toMatch(/^\d{2}:\d{2}$/);
     });
 
     it('should return month/day format for a past date', () => {
       const pastDate = new Date(2023, 0, 15).getTime();
-      const result = controller.formatDate(pastDate);
+      const result = formatConversationTimestamp(pastDate);
 
       expect(result).toContain('15');
       expect(result.length).toBeGreaterThan(0);
@@ -362,7 +363,7 @@ describe('ConversationController', () => {
     it('should return month/day format for yesterday', () => {
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
-      const result = controller.formatDate(yesterday.getTime());
+      const result = formatConversationTimestamp(yesterday.getTime());
 
       expect(result).not.toMatch(/^\d{2}:\d{2}$/);
     });

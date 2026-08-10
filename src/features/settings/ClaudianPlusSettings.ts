@@ -353,9 +353,10 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
   }
 
   private renderGeneralTab(container: HTMLElement): void {
-    // --- Language & Core ---
-    const langCard = this.createCard(container);
-    new Setting(langCard)
+    // --- Language & Display ---
+    const displayCard = this.createCard(container, t('settings.display'));
+
+    new Setting(displayCard)
       .setName(t('settings.language.name'))
       .setDesc(t('settings.language.desc'))
       .addDropdown((dropdown) => {
@@ -377,9 +378,6 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
             this.display();
           });
       });
-
-    // --- Display ---
-    const displayCard = this.createCard(container, t('settings.display'));
 
     const maxTabsSetting = new Setting(displayCard)
       .setName(t('settings.maxTabs.name'))
@@ -410,6 +408,10 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
         });
       updateMaxTabsWarning(this.plugin.settings.maxTabs ?? 3);
     });
+
+    const sliderScale = maxTabsSetting.controlEl.createDiv({ cls: 'claudian-plus-max-tabs-scale' });
+    sliderScale.createSpan({ text: '3' });
+    sliderScale.createSpan({ text: '10' });
 
     new Setting(displayCard)
       .setName(t('settings.chatViewPlacement.name'))
@@ -475,24 +477,24 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
       );
 
     new Setting(displayCard)
-      .setName(featureCopy(this.plugin.settings.locale, '悬浮大纲样式', 'Outline style'))
+      .setName(featureCopy(this.plugin.settings.locale, '悬浮大纲位置', 'Outline side'))
       .setDesc(featureCopy(
         this.plugin.settings.locale,
-        '选择聊天侧边栏中悬浮大纲标记的显示样式。',
-        'Choose the floating outline marker style in the conversation sidebar.',
+        '选择聊天侧边栏中悬浮大纲轨道显示在聊天区域的哪一侧。',
+        'Choose which side of the conversation the floating outline rail appears on.',
       ))
       .addDropdown((dropdown) => {
         dropdown
-          .addOption('bar', 'Bars (horizontal ticks)')
-          .addOption('dot', 'Dots (circles with wave focus)')
-          .setValue(this.plugin.settings.outlineStyle ?? 'bar')
+          .addOption('left', 'Left')
+          .addOption('right', 'Right')
+          .setValue(this.plugin.settings.outlineSide ?? 'left')
           .onChange(async (value) => {
             await this.plugin.mutateSettings((settings) => {
-              settings.outlineStyle = value as 'bar' | 'dot';
+              settings.outlineSide = value as 'left' | 'right';
             });
-            // Refresh open views so the outline style takes effect immediately.
+            // Refresh open views so the outline side takes effect immediately.
             for (const view of this.plugin.getAllViews()) {
-              view.refreshOutlineStyle?.();
+              view.refreshOutlineSide?.();
             }
           });
       });
@@ -875,6 +877,7 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
             });
             this.plugin.getConsciousnessEngine().updateConfig({ autoMemoryEnabled: value });
           });
+        });
 
       // Dream memory consolidation (idle distillation of short-term logs).
       if (this.plugin.settings.consciousnessAutoMemory ?? false) {
@@ -957,7 +960,6 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
               });
           });
       }
-        });
 
       // Consciousness management buttons
       const consciousnessButtonSetting = new Setting(consciousnessCard)

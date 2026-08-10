@@ -1,8 +1,11 @@
-import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-import { findCliBinaryPath, resolveConfiguredCliPath } from '../../../utils/cliBinaryLocator';
+import {
+  findCliBinaryPath,
+  findFirstExistingPath,
+  resolveConfiguredCliPath,
+} from '../../../utils/cliBinaryLocator';
 import { parseEnvironmentVariables } from '../../../utils/env';
 import { expandHomePath } from '../../../utils/path';
 import type { CodexInstallationMethod } from '../settings';
@@ -23,17 +26,17 @@ export function findCodexBinaryPath(
   additionalPath?: string,
   platform: NodeJS.Platform = process.platform,
 ): string | null {
-  const explicitPathBinary = findCodexBinaryInDirs(
+  const explicitPathBinary = findFirstExistingPath(
     parsePathEntriesForPlatform(additionalPath, platform),
-    platform,
+    getCodexBinaryNames(platform),
   );
   if (explicitPathBinary) {
     return explicitPathBinary;
   }
 
-  const preferredBinary = findCodexBinaryInDirs(
+  const preferredBinary = findFirstExistingPath(
     getPreferredCodexBinaryDirs(platform),
-    platform,
+    getCodexBinaryNames(platform),
   );
   if (preferredBinary) {
     return preferredBinary;
@@ -46,23 +49,6 @@ function getCodexBinaryNames(platform: NodeJS.Platform): string[] {
   return platform === 'win32'
     ? ['codex.exe', 'codex.cmd', 'codex']
     : ['codex'];
-}
-
-function findCodexBinaryInDirs(dirs: string[], platform: NodeJS.Platform): string | null {
-  const binaryNames = getCodexBinaryNames(platform);
-
-  for (const dir of dirs) {
-    if (!dir) continue;
-
-    for (const binaryName of binaryNames) {
-      const candidate = path.join(dir, binaryName);
-      if (isExistingFile(candidate)) {
-        return candidate;
-      }
-    }
-  }
-
-  return null;
 }
 
 function getPreferredCodexBinaryDirs(platform: NodeJS.Platform): string[] {
@@ -89,14 +75,6 @@ function getPreferredCodexBinaryDirs(platform: NodeJS.Platform): string[] {
 
 function getHomeDir(): string {
   return process.env.HOME || process.env.USERPROFILE || os.homedir();
-}
-
-function isExistingFile(filePath: string): boolean {
-  try {
-    return fs.statSync(filePath).isFile();
-  } catch {
-    return false;
-  }
 }
 
 function parsePathEntriesForPlatform(pathValue: string | undefined, platform: NodeJS.Platform): string[] {

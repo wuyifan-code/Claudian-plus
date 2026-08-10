@@ -1,15 +1,15 @@
+import { NoopTaskResultInterpreter } from '../../core/providers/NoopTaskResultInterpreter';
 import type { ProviderModule } from '../../core/providers/types';
 import { codexWorkspaceRegistration } from './app/CodexWorkspaceServices';
 import { CodexInlineEditService } from './auxiliary/CodexInlineEditService';
 import { CodexInstructionRefineService } from './auxiliary/CodexInstructionRefineService';
-import { CodexTaskResultInterpreter } from './auxiliary/CodexTaskResultInterpreter';
 import { CodexTitleGenerationService } from './auxiliary/CodexTitleGenerationService';
 import { CODEX_PROVIDER_CAPABILITIES } from './capabilities';
 import { codexSettingsReconciler } from './env/CodexSettingsReconciler';
 import { CodexConversationHistoryService } from './history/CodexConversationHistoryService';
 import { codexSubagentLifecycleAdapter } from './normalization/codexSubagentNormalization';
-import { CodexChatRuntime } from './runtime/CodexChatRuntime';
 import { CodexAuxQueryRunner } from './runtime/CodexAuxQueryRunner';
+import { CodexChatRuntime } from './runtime/CodexChatRuntime';
 import {
   getCodexProviderSettings,
   normalizeCodexStoredConfig,
@@ -48,9 +48,9 @@ export const codexProviderRegistration: ProviderModule = {
   createTitleGenerationService: (plugin) => new CodexTitleGenerationService(plugin),
   createInstructionRefineService: (plugin) => new CodexInstructionRefineService(plugin),
   createInlineEditService: (plugin) => new CodexInlineEditService(plugin),
-createAuxQueryRunner: (plugin) => new CodexAuxQueryRunner(plugin),
+  createAuxQueryRunner: (plugin) => new CodexAuxQueryRunner(plugin),
   historyService: new CodexConversationHistoryService(),
-  taskResultInterpreter: new CodexTaskResultInterpreter(),
+  taskResultInterpreter: new NoopTaskResultInterpreter(),
   subagentLifecycleAdapter: codexSubagentLifecycleAdapter,
   workspace: codexWorkspaceRegistration,
 };

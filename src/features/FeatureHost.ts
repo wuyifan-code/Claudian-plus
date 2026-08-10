@@ -1,6 +1,3 @@
-import type { App } from 'obsidian';
-
-import type { SharedAppStorage } from '../core/bootstrap/storage';
 import type {
   ConsciousnessEngine,
   DreamService,
@@ -14,7 +11,7 @@ import type { VaultRetrievalService } from '../core/retrieval/VaultRetrievalServ
 import type { VaultReviewService } from '../core/retrieval/VaultReviewService';
 import type { ChatRuntime } from '../core/runtime/ChatRuntime';
 import type { AgentSkillRepository } from '../core/skills/AgentSkillRepository';
-import type { ClaudianPlusSettings, Conversation, ConversationMeta } from '../core/types';
+import type { Conversation, ConversationMeta } from '../core/types';
 import type { ComposerEnhancement } from './chat/composer/types';
 import type { TabData, TabId, TabManagerViewHost } from './chat/tabs/types';
 
@@ -32,15 +29,12 @@ export interface FeatureViewHost extends TabManagerViewHost {
   refreshModelSelector(): void;
   refreshTabControls(): void;
   updateHiddenProviderCommands(): void;
-  refreshOutlineStyle?(): void;
+  refreshOutlineSide?(): void;
 }
 
 /** Application capabilities consumed by user-facing features. */
-export interface FeatureHost {
-  readonly app: App;
+export interface FeatureHost extends ProviderHost {
   readonly providerHost: ProviderHost;
-  readonly settings: ClaudianPlusSettings;
-  readonly storage: SharedAppStorage;
   readonly vaultRetrievalService?: VaultRetrievalService;
   readonly vaultReviewService?: VaultReviewService;
   readonly memoryExtractor: MemoryExtractor;
@@ -57,9 +51,6 @@ export interface FeatureHost {
   /** Get the vault knowledge index for awareness reset and retrieval features. */
   getVaultKnowledgeEngine(): VaultKnowledgeEngine;
 
-  mutateSettings(
-    mutation: (settings: ClaudianPlusSettings) => void | Promise<void>,
-  ): Promise<void>;
   /** Applies settings that affect the optional semantic retrieval provider. */
   refreshSemanticRetrieval?(): void;
   getActiveEnvironmentVariables(providerId?: ProviderId): string;

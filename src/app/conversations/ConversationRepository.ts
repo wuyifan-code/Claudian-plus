@@ -313,11 +313,13 @@ export class ConversationRepository {
 
     // `ensureSelectedModel` only reads settings + `selectedModel`; it never
     // depends on session identity. Running it in parallel with the history
-    // read saves the model resolution latency on every active-hydration.
+    // read saves the model resolution latency on every active-hydration. It
+    // skips its own write here because the projection save below persists the
+    // same conversation object, including the reconciled `selectedModel`.
     const modelSpan = StartupProfiler.start(`hydrate:ensure-model:${conversation.providerId}`);
     const historySpan = StartupProfiler.start(`hydrate:history:${conversation.providerId}`);
     await Promise.all([
-      this.ensureSelectedModel(conversation).finally(() => StartupProfiler.finish(modelSpan)),
+      this.ensureSelectedModel(conversation, { persist: false }).finally(() => StartupProfiler.finish(modelSpan)),
       this.hydrateProviderHistory(conversation).finally(() => StartupProfiler.finish(historySpan)),
     ]);
     if (!this.isConversationCurrent(conversation, generation)) return null;
@@ -325,7 +327,11 @@ export class ConversationRepository {
     this.hydratedConversationIds.add(id);
     // Persist the bounded transcript projection so future cold starts can
     // search this conversation without hydrating the provider session again.
-    await this.save(conversation);
+    // Queue the write behind the metadata save tail instead of awaiting it so
+    // hydration never blocks the active-tab handoff on serialization; the
+    // tail preserves write ordering, delete() flushes it, and isPersistable
+    // keeps stale branches from writing.
+    void this.save(conversation);
     return conversation;
   }
 
@@ -443,7 +449,10 @@ export class ConversationRepository {
     return JSON.parse(JSON.stringify(conversation)) as Conversation;
   }
 
-  private async ensureSelectedModel(conversation: Conversation): Promise<void> {
+  private async ensureSelectedModel(
+    conversation: Conversation,
+    options: { persist?: boolean } = {},
+  ): Promise<void> {
     const resolved = resolveConversationModel(
       this.deps.getSettings(),
       conversation.providerId,
@@ -452,6 +461,9 @@ export class ConversationRepository {
     if (!resolved.shouldPersist || !resolved.model || conversation.selectedModel === resolved.model) return;
 
     conversation.selectedModel = resolved.model;
+    if (options.persist === false) {
+      return;
+    }
     await this.save(conversation);
   }
 

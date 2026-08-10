@@ -1,4 +1,7 @@
-import { buildRefineSystemPrompt } from '../../../core/prompt/instructionRefine';
+import {
+  buildRefineSystemPrompt,
+  parseInstructionRefineResponse,
+} from '../../../core/prompt/instructionRefine';
 import type { ProviderHost } from '../../../core/providers/ProviderHost';
 import type { RefineProgressCallback } from '../../../core/providers/types';
 import type { InstructionRefineResult } from '../../../core/types';
@@ -60,31 +63,17 @@ export class InstructionRefineService {
         resumeSessionId: this.sessionId ?? undefined,
         abortController: this.abortController,
         onTextChunk: onProgress
-          ? (accumulatedText: string) => onProgress(this.parseResponse(accumulatedText))
+          ? (accumulatedText: string) => onProgress(parseInstructionRefineResponse(accumulatedText))
           : undefined,
       }, prompt);
 
       this.sessionId = result.sessionId;
-      return this.parseResponse(result.text);
+      return parseInstructionRefineResponse(result.text);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       return { success: false, error: msg };
     } finally {
       this.abortController = null;
     }
-  }
-
-  private parseResponse(responseText: string): InstructionRefineResult {
-    const instructionMatch = responseText.match(/<instruction>([\s\S]*?)<\/instruction>/);
-    if (instructionMatch) {
-      return { success: true, refinedInstruction: instructionMatch[1].trim() };
-    }
-
-    const trimmed = responseText.trim();
-    if (trimmed) {
-      return { success: true, clarification: trimmed };
-    }
-
-    return { success: false, error: 'Empty response' };
   }
 }

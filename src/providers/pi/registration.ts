@@ -1,13 +1,13 @@
+import { NoopTaskResultInterpreter } from '../../core/providers/NoopTaskResultInterpreter';
 import type { ProviderModule } from '../../core/providers/types';
 import { piWorkspaceRegistration } from './app/PiWorkspaceServices';
 import { PiInlineEditService } from './auxiliary/PiInlineEditService';
 import { PiInstructionRefineService } from './auxiliary/PiInstructionRefineService';
-import { PiTaskResultInterpreter } from './auxiliary/PiTaskResultInterpreter';
 import { PiTitleGenerationService } from './auxiliary/PiTitleGenerationService';
-import { PiAuxQueryRunner } from './runtime/PiAuxQueryRunner';
 import { PI_PROVIDER_CAPABILITIES } from './capabilities';
 import { piSettingsReconciler } from './env/PiSettingsReconciler';
 import { PiConversationHistoryService } from './history/PiConversationHistoryService';
+import { PiAuxQueryRunner } from './runtime/PiAuxQueryRunner';
 import { PiChatRuntime } from './runtime/PiChatRuntime';
 import { getPiProviderSettings, updatePiProviderSettings } from './settings';
 import { ObsidianPiExtensionUiRenderer } from './ui/ObsidianPiExtensionUiRenderer';
@@ -24,7 +24,7 @@ export const piProviderRegistration: ProviderModule = {
     extensionUiRenderer: new ObsidianPiExtensionUiRenderer(plugin.app),
   }),
   createTitleGenerationService: (plugin) => new PiTitleGenerationService(plugin),
-createAuxQueryRunner: (plugin) => new PiAuxQueryRunner(plugin, { profile: 'passive' }),
+  createAuxQueryRunner: (plugin) => new PiAuxQueryRunner(plugin, { profile: 'passive' }),
   displayName: 'Pi',
   environmentKeyPatterns: [/^PI_/i],
   historyService: new PiConversationHistoryService(),
@@ -38,6 +38,6 @@ createAuxQueryRunner: (plugin) => new PiAuxQueryRunner(plugin, { profile: 'passi
       return false;
     },
   },
-  taskResultInterpreter: new PiTaskResultInterpreter(),
+  taskResultInterpreter: new NoopTaskResultInterpreter(),
   workspace: piWorkspaceRegistration,
 };

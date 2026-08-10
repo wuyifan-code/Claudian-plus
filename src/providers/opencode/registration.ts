@@ -1,14 +1,14 @@
+import { NoopTaskResultInterpreter } from '../../core/providers/NoopTaskResultInterpreter';
 import type { ProviderModule } from '../../core/providers/types';
 import { opencodeWorkspaceRegistration } from './app/OpencodeWorkspaceServices';
 import { OpencodeInlineEditService } from './auxiliary/OpencodeInlineEditService';
 import { OpencodeInstructionRefineService } from './auxiliary/OpencodeInstructionRefineService';
-import { OpencodeTaskResultInterpreter } from './auxiliary/OpencodeTaskResultInterpreter';
 import { OpencodeTitleGenerationService } from './auxiliary/OpencodeTitleGenerationService';
 import { OPENCODE_PROVIDER_CAPABILITIES } from './capabilities';
 import { opencodeSettingsReconciler } from './env/OpencodeSettingsReconciler';
 import { OpencodeConversationHistoryService } from './history/OpencodeConversationHistoryService';
-import { OpencodeChatRuntime } from './runtime/OpencodeChatRuntime';
 import { OpencodeAuxQueryRunner } from './runtime/OpencodeAuxQueryRunner';
+import { OpencodeChatRuntime } from './runtime/OpencodeChatRuntime';
 import { getOpencodeProviderSettings, updateOpencodeProviderSettings } from './settings';
 import { opencodeChatUIConfig } from './ui/OpencodeChatUIConfig';
 
@@ -21,10 +21,10 @@ export const opencodeProviderRegistration: ProviderModule = {
   createInstructionRefineService: (plugin) => new OpencodeInstructionRefineService(plugin),
   createRuntime: ({ plugin }) => new OpencodeChatRuntime(plugin),
   createTitleGenerationService: (plugin) => new OpencodeTitleGenerationService(plugin),
-createAuxQueryRunner: (plugin) => new OpencodeAuxQueryRunner(plugin, {
-  agentProfile: 'passive',
-  artifactPurpose: 'dream',
-}),
+  createAuxQueryRunner: (plugin) => new OpencodeAuxQueryRunner(plugin, {
+    agentProfile: 'passive',
+    artifactPurpose: 'dream',
+  }),
   displayName: 'OpenCode',
   environmentKeyPatterns: [/^OPENCODE_/i],
   historyService: new OpencodeConversationHistoryService(),
@@ -38,6 +38,6 @@ createAuxQueryRunner: (plugin) => new OpencodeAuxQueryRunner(plugin, {
       return false;
     },
   },
-  taskResultInterpreter: new OpencodeTaskResultInterpreter(),
+  taskResultInterpreter: new NoopTaskResultInterpreter(),
   workspace: opencodeWorkspaceRegistration,
 };

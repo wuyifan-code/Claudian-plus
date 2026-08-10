@@ -7,6 +7,7 @@ import type { Conversation } from '../../../core/types';
 import { localeText, t } from '../../../i18n/i18n';
 import { confirm } from '../../../shared/modals/ConfirmModal';
 import { extractUserDisplayContent } from '../../../utils/context';
+import { formatConversationTimestamp } from '../../../utils/date';
 import type { FeatureHost } from '../../FeatureHost';
 import type { MessageRenderer } from '../rendering/MessageRenderer';
 import { cleanupThinkingBlock } from '../rendering/ThinkingBlockRenderer';
@@ -157,22 +158,7 @@ export class ConversationController {
       state.isStreaming = false;
 
       // Reset to entry point state - no conversation created yet
-      state.currentConversationId = null;
-      state.clearMessages();
-      state.usage = null;
-      state.currentTodos = null;
-      state.pendingNewSessionPlan = null;
-      state.planFilePath = null;
-      state.prePlanPermissionMode = null;
-      state.autoScrollEnabled = plugin.settings.enableAutoScroll ?? true;
-      state.hasPendingConversationSave = false;
-
-      // Reset agent service session (no session ID for entry point)
-      // Pass persistent paths to prevent stale external contexts
-      this.getAgentService()?.syncConversationState(
-        null,
-        plugin.settings.persistentExternalContextPaths || []
-      );
+      this.resetToEntryPointState();
 
       // Let the renderer replace the prior welcome surface. This is important
       // for the interactive cube, which owns animation and WebGL resources.
@@ -217,21 +203,7 @@ export class ConversationController {
 
     // No active conversation - start at entry point
     if (!conversation) {
-      state.currentConversationId = null;
-      state.clearMessages();
-      state.usage = null;
-      state.currentTodos = null;
-      state.pendingNewSessionPlan = null;
-      state.planFilePath = null;
-      state.prePlanPermissionMode = null;
-      state.autoScrollEnabled = plugin.settings.enableAutoScroll ?? true;
-      state.hasPendingConversationSave = false;
-
-      // Pass persistent paths to prevent stale external contexts
-      this.getAgentService()?.syncConversationState(
-        null,
-        plugin.settings.persistentExternalContextPaths || []
-      );
+      this.resetToEntryPointState();
 
       const fileCtx = this.deps.getFileContextManager();
       fileCtx?.resetForNewConversation();
@@ -260,6 +232,28 @@ export class ConversationController {
     this.updateWelcomeVisibility();
 
     this.callbacks.onConversationLoaded?.();
+  }
+
+  /** Resets chat state to the entry point (no active conversation). */
+  private resetToEntryPointState(): void {
+    const { plugin, state } = this.deps;
+
+    state.currentConversationId = null;
+    state.clearMessages();
+    state.usage = null;
+    state.currentTodos = null;
+    state.pendingNewSessionPlan = null;
+    state.planFilePath = null;
+    state.prePlanPermissionMode = null;
+    state.autoScrollEnabled = plugin.settings.enableAutoScroll ?? true;
+    state.hasPendingConversationSave = false;
+
+    // Reset agent service session (no session ID for entry point).
+    // Pass persistent paths to prevent stale external contexts.
+    this.getAgentService()?.syncConversationState(
+      null,
+      plugin.settings.persistentExternalContextPaths || []
+    );
   }
 
   /** Switches to a different conversation. */
@@ -924,7 +918,7 @@ export class ConversationController {
       case 'open':
         return `Open in ${this.getHistoryTabLabel(status)}`;
       case 'closed':
-        return this.formatDate(timestamp);
+        return formatConversationTimestamp(timestamp);
     }
   }
 
@@ -1236,17 +1230,6 @@ export class ConversationController {
         this.updateHistoryDropdown();
       }
     );
-  }
-
-  /** Formats a timestamp for display. */
-  formatDate(timestamp: number): string {
-    const date = new Date(timestamp);
-    const now = new Date();
-
-    if (date.toDateString() === now.toDateString()) {
-      return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
-    }
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   }
 
   // ============================================

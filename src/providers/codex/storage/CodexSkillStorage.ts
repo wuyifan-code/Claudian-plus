@@ -1,7 +1,11 @@
 import * as path from 'path';
 
 import type { VaultFileAdapter } from '../../../core/storage/VaultFileAdapter';
-import { parseSlashCommandContent, serializeSlashCommandMarkdown } from '../../../utils/slashCommand';
+import {
+  parseSlashCommandContent,
+  scanVaultSkillMarkdown,
+  serializeSlashCommandMarkdown,
+} from '../../../utils/slashCommand';
 
 export const CODEX_VAULT_SKILLS_PATH = '.codex/skills';
 export const AGENTS_VAULT_SKILLS_PATH = '.agents/skills';
@@ -209,30 +213,15 @@ export class CodexSkillStorage {
     const results: CodexSkillEntry[] = [];
 
     for (const rootId of roots) {
-      const rootPath = ROOT_PATH_BY_ID[rootId];
-      try {
-        const folders = await adapter.listFolders(rootPath);
-        for (const folder of folders) {
-          const skillName = folder.split('/').pop()!;
-          const skillPath = `${rootPath}/${skillName}/SKILL.md`;
-
-          try {
-            const content = await adapter.read(skillPath);
-            const parsed = parseSlashCommandContent(content);
-
-            results.push({
-              name: skillName,
-              description: parsed.description,
-              content: parsed.promptContent,
-              provenance,
-              rootId,
-            });
-          } catch {
-            // Skip malformed files
-          }
-        }
-      } catch {
-        // Root doesn't exist or can't be read
+      const scanned = await scanVaultSkillMarkdown(adapter, ROOT_PATH_BY_ID[rootId]);
+      for (const skill of scanned) {
+        results.push({
+          name: skill.name,
+          description: skill.parsed.description,
+          content: skill.parsed.promptContent,
+          provenance,
+          rootId,
+        });
       }
     }
 

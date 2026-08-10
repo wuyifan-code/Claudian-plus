@@ -5,17 +5,18 @@ import {
   computeSystemPromptKey,
   type SystemPromptSettings,
 } from '../../../core/prompt/mainAgent';
+import { sameStringList, sameStringMap } from '../../../core/providers/compareCollections';
 import { getRuntimeEnvironmentText } from '../../../core/providers/providerEnvironment';
 import type { ProviderHost } from '../../../core/providers/ProviderHost';
 import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
+import { ensureProviderProjectionMap } from '../../../core/providers/settingsProjection';
 import type {
   ProviderCapabilities,
 } from '../../../core/providers/types';
 import type { ChatRuntime } from '../../../core/runtime/ChatRuntime';
 import type {
   ApprovalCallback,
-  ApprovalDecisionOption,
   AskUserQuestionCallback,
   AutoTurnCallback,
   ChatRewindMode,
@@ -29,7 +30,6 @@ import type {
   SessionUpdateResult,
 } from '../../../core/runtime/types';
 import type {
-  ApprovalDecision,
   ChatMessage,
   Conversation,
   ExitPlanModeCallback,
@@ -64,11 +64,12 @@ import { updateOpencodeDiscoveryState } from '../discoveryState';
 import {
   sameDiscoveredModels,
   sameModes,
-  sameStringList,
-  sameStringMap,
   sameThinkingOptionsByModel,
 } from '../internal/compareCollections';
-import { ensureProviderProjectionMap } from '../internal/providerProjection';
+import {
+  buildAcpApprovalDecisionOptions,
+  mapApprovalDecision,
+} from '../internal/permissionMapping';
 import {
   decodeOpencodeModelId,
   encodeOpencodeModelId,
@@ -1832,75 +1833,4 @@ function formatPermissionLabel(permissionId: string): string {
     .filter(Boolean)
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
     .join(' ');
-}
-
-function mapApprovalDecision(
-  decision: ApprovalDecision,
-  options: readonly {
-    kind: 'allow_once' | 'allow_always' | 'reject_once' | 'reject_always';
-    optionId: string;
-  }[],
-): AcpRequestPermissionResponse {
-  if (decision === 'allow') {
-    return selectPermissionOption(options, ['allow_once', 'allow_always']);
-  }
-
-  if (decision === 'allow-always') {
-    return selectPermissionOption(options, ['allow_always', 'allow_once']);
-  }
-
-  if (decision === 'deny') {
-    return selectPermissionOption(options, ['reject_once', 'reject_always']);
-  }
-
-  if (typeof decision === 'object' && decision.type === 'select-option') {
-    return {
-      outcome: {
-        optionId: decision.value,
-        outcome: 'selected',
-      },
-    };
-  }
-
-  return { outcome: { outcome: 'cancelled' } };
-}
-
-function buildAcpApprovalDecisionOptions(
-  options: readonly {
-    kind: 'allow_once' | 'allow_always' | 'reject_once' | 'reject_always';
-    name: string;
-    optionId: string;
-  }[],
-): ApprovalDecisionOption[] {
-  return options.map((option) => ({
-    ...(option.kind === 'allow_once'
-      ? { decision: 'allow' as const }
-      : option.kind === 'allow_always'
-      ? { decision: 'allow-always' as const }
-      : {}),
-    label: option.name,
-    value: option.optionId,
-  }));
-}
-
-function selectPermissionOption(
-  options: readonly {
-    kind: 'allow_once' | 'allow_always' | 'reject_once' | 'reject_always';
-    optionId: string;
-  }[],
-  preferredKinds: readonly ('allow_once' | 'allow_always' | 'reject_once' | 'reject_always')[],
-): AcpRequestPermissionResponse {
-  for (const kind of preferredKinds) {
-    const option = options.find((entry) => entry.kind === kind);
-    if (option) {
-      return {
-        outcome: {
-          optionId: option.optionId,
-          outcome: 'selected',
-        },
-      };
-    }
-  }
-
-  return { outcome: { outcome: 'cancelled' } };
 }

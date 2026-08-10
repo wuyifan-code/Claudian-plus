@@ -1,9 +1,6 @@
+import { isCompactCommand } from '../../../core/runtime/compactCommand';
 import type { ChatTurnRequest, PreparedChatTurn } from '../../../core/runtime/types';
 import { appendVaultContext } from '../../../utils/context';
-
-function isCompactCommand(text: string): boolean {
-  return /^\/compact(\s|$)/i.test(text);
-}
 
 export function encodeCodexTurn(request: ChatTurnRequest): PreparedChatTurn {
   const isCompact = isCompactCommand(request.text);

@@ -1,4 +1,5 @@
 import type { VaultFileAdapter } from '../storage/VaultFileAdapter';
+import { backupFileBeforeWrite } from './backup';
 import {
   ACTIVITY_FILE,
   type ActivityEntry,
@@ -21,7 +22,6 @@ import {
   USER_TEMPLATE,
 } from './consciousness-types';
 import { escapePromptTagCloser } from './memoryPrompt';
-import { backupFileBeforeWrite } from './backup';
 import type { MemoryEntry } from './types';
 
 /**
@@ -250,8 +250,8 @@ export class ConsciousnessEngine {
       } else {
         updated = `${profile.trimEnd()}\n\n${sectionHeader}\n- ${content.trim()}\n`;
       }
-      await this.adapter.write(USER_FILE, updated);
       await backupFileBeforeWrite(this.adapter, USER_FILE, 'user');
+      await this.adapter.write(USER_FILE, updated);
     });
 
     await this.logActivity('user-profile-update', `更新用户画像: ${section}`);

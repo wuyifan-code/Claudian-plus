@@ -1,3 +1,5 @@
+import { escapeHtml } from './html';
+
 export interface BrowserSelectionContext {
   source: string;
   selectedText: string;
@@ -5,25 +7,17 @@ export interface BrowserSelectionContext {
   url?: string;
 }
 
-function escapeXmlAttribute(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
 function buildAttributeList(context: BrowserSelectionContext): string {
   const attrs: string[] = [];
   const source = context.source.trim() || 'unknown';
-  attrs.push(`source="${escapeXmlAttribute(source)}"`);
+  attrs.push(`source="${escapeHtml(source)}"`);
 
   if (context.title?.trim()) {
-    attrs.push(`title="${escapeXmlAttribute(context.title.trim())}"`);
+    attrs.push(`title="${escapeHtml(context.title.trim())}"`);
   }
 
   if (context.url?.trim()) {
-    attrs.push(`url="${escapeXmlAttribute(context.url.trim())}"`);
+    attrs.push(`url="${escapeHtml(context.url.trim())}"`);
   }
 
   return attrs.join(' ');

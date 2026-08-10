@@ -1,8 +1,11 @@
+import { sameStringList } from '../../../core/providers/compareCollections';
 import { getRuntimeEnvironmentText } from '../../../core/providers/providerEnvironment';
+import {
+  computeEnvironmentHash,
+  invalidateSessionsForProvider,
+} from '../../../core/providers/settingsReconciler';
 import type { ProviderSettingsReconciler } from '../../../core/providers/types';
 import type { Conversation } from '../../../core/types';
-import { parseEnvironmentVariables } from '../../../utils/env';
-import { sameStringList } from '../internal/compareCollections';
 import {
   clampPiThinkingLevel,
   decodePiModelId,
@@ -28,32 +31,13 @@ const PI_ENV_HASH_KEYS = [
   'PI_CACHE_RETENTION',
 ] as const;
 
-function computePiEnvHash(envText: string): string {
-  const envVars = parseEnvironmentVariables(envText || '');
-  return PI_ENV_HASH_KEYS
-    .filter((key) => envVars[key])
-    .map((key) => `${key}=${envVars[key]}`)
-    .sort()
-    .join('|');
+function hasPersistedPiSession(conversation: Conversation): boolean {
+  const state = getPiState(conversation.providerState);
+  return Boolean(state.sessionId || state.sessionFile);
 }
 
 function invalidatePiConversationSessions(conversations: Conversation[]): Conversation[] {
-  const invalidatedConversations: Conversation[] = [];
-  for (const conversation of conversations) {
-    if (conversation.providerId !== 'pi') {
-      continue;
-    }
-
-    const state = getPiState(conversation.providerState);
-    if (!conversation.sessionId && !state.sessionId && !state.sessionFile) {
-      continue;
-    }
-
-    conversation.sessionId = null;
-    conversation.providerState = undefined;
-    invalidatedConversations.push(conversation);
-  }
-  return invalidatedConversations;
+  return invalidateSessionsForProvider(conversations, 'pi', hasPersistedPiSession);
 }
 
 export const piSettingsReconciler: ProviderSettingsReconciler = {
@@ -75,7 +59,7 @@ export const piSettingsReconciler: ProviderSettingsReconciler = {
     conversations: Conversation[],
   ): { changed: boolean; invalidatedConversations: Conversation[] } {
     const envText = getRuntimeEnvironmentText(settings, 'pi');
-    const currentHash = computePiEnvHash(envText);
+    const currentHash = computeEnvironmentHash(envText, PI_ENV_HASH_KEYS);
     const savedHash = getPiProviderSettings(settings).environmentHash;
 
     if (currentHash === savedHash) {

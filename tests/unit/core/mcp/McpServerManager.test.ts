@@ -279,36 +279,6 @@ describe('McpServerManager', () => {
     });
   });
 
-  describe('getEnabledCount', () => {
-    it('returns 0 for no servers', async () => {
-      const manager = await createManager([]);
-      expect(manager.getEnabledCount()).toBe(0);
-    });
-
-    it('counts only enabled servers', async () => {
-      const manager = await createManager([
-        { name: 'a', config: { command: 'a' }, enabled: true, contextSaving: false },
-        { name: 'b', config: { command: 'b' }, enabled: false, contextSaving: false },
-        { name: 'c', config: { command: 'c' }, enabled: true, contextSaving: false },
-      ]);
-      expect(manager.getEnabledCount()).toBe(2);
-    });
-  });
-
-  describe('hasServers', () => {
-    it('returns false for empty', async () => {
-      const manager = await createManager([]);
-      expect(manager.hasServers()).toBe(false);
-    });
-
-    it('returns true when servers exist', async () => {
-      const manager = await createManager([
-        { name: 'a', config: { command: 'a' }, enabled: false, contextSaving: false },
-      ]);
-      expect(manager.hasServers()).toBe(true);
-    });
-  });
-
   describe('getServers', () => {
     it('returns loaded servers', async () => {
       const servers: ManagedMcpServer[] = [

@@ -14,7 +14,7 @@ const mockedStat = fs.statSync as jest.Mock;
 describe('PiCliResolver', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (fs.existsSync as jest.Mock).mockReturnValue(false);
+    (fs.existsSync as jest.Mock).mockReturnValue(true);
   });
 
   it('resolves the current host path before the legacy Pi CLI path', () => {
