@@ -109,20 +109,8 @@ export interface ClaudianPlusSettings {
   mediaFolder: string;
   systemPrompt: string;
   persistentExternalContextPaths: string[];
-  /** Automatically retrieve relevant vault notes for each normal chat turn. */
-  vaultAutoContextEnabled?: boolean;
   /** Enable the lightweight vault knowledge summary injected into awareness context. */
   vaultKnowledgeEnabled?: boolean;
-  /** Enable periodic Markdown vault review reports. */
-  vaultReviewEnabled?: boolean;
-  /** Enable semantic reranking through an explicitly configured local endpoint. */
-  semanticSearchEnabled?: boolean;
-  /** Ollama or OpenAI-compatible embeddings endpoint. */
-  semanticEmbeddingEndpoint?: string;
-  /** Embedding model name understood by the configured local endpoint. */
-  semanticEmbeddingModel?: string;
-  /** Show source-backed link candidates after saving the active Markdown note. */
-  vaultAutoLinkRecommendationsEnabled?: boolean;
 
   // Environment
   sharedEnvironmentVariables: string;

@@ -7,8 +7,6 @@ import type {
 } from '../core/memory';
 import type { ProviderHost } from '../core/providers/ProviderHost';
 import type { AppTabManagerState, ProviderId } from '../core/providers/types';
-import type { VaultRetrievalService } from '../core/retrieval/VaultRetrievalService';
-import type { VaultReviewService } from '../core/retrieval/VaultReviewService';
 import type { ChatRuntime } from '../core/runtime/ChatRuntime';
 import type { AgentSkillRepository } from '../core/skills/AgentSkillRepository';
 import type { Conversation, ConversationMeta } from '../core/types';
@@ -35,8 +33,6 @@ export interface FeatureViewHost extends TabManagerViewHost {
 /** Application capabilities consumed by user-facing features. */
 export interface FeatureHost extends ProviderHost {
   readonly providerHost: ProviderHost;
-  readonly vaultRetrievalService?: VaultRetrievalService;
-  readonly vaultReviewService?: VaultReviewService;
   readonly memoryExtractor: MemoryExtractor;
 
   /** Get the memory store for saving/loading user memories. */
@@ -51,8 +47,6 @@ export interface FeatureHost extends ProviderHost {
   /** Get the vault knowledge index for awareness reset and retrieval features. */
   getVaultKnowledgeEngine(): VaultKnowledgeEngine;
 
-  /** Applies settings that affect the optional semantic retrieval provider. */
-  refreshSemanticRetrieval?(): void;
   getActiveEnvironmentVariables(providerId?: ProviderId): string;
 
   /** Notifies providers that shared vault agent skills changed. */

@@ -14,7 +14,7 @@
 
 ## Tab 与会话
 
-- [ ] 新建 Tab（+ 按钮），选择 provider（Claude / Codex / OpenCode / Pi）
+- [ ] 新建 Tab（+ 按钮），选择 provider（Claude / Codex / OpenCode / Kimi / Pi）
 - [ ] 发送简单 prompt（如 "hello"），确认收到流式回复
 - [ ] 关闭 Tab（✕），重新打开面板，确认 Tab 恢复
 - [ ] 多个 Tab 之间切换，确认状态保持
@@ -30,6 +30,7 @@
 - [ ] Claude: 发送 prompt，确认工具调用（如文件读写）正常
 - [ ] Codex: 发送 prompt，确认回复正常
 - [ ] OpenCode: 发送 prompt，确认回复正常
+- [ ] Kimi: 设置页启用 Kimi → 模型目录加载 → 发送 prompt，确认流式回复与权限审批正常
 - [ ] Pi: 发送 prompt，确认回复正常
 
 ## 拖拽上下文
@@ -44,33 +45,14 @@
 - [ ] "建议邻居笔记" → 确认推荐面板出现
 - [ ] Canvas 写入后 → undo → 确认撤销成功
 
-## Vault 检索与语义
-
-- [ ] 输入 prompt 涉及 vault 内容 → 确认自动注入上下文（vault_context 标签）
-- [ ] 打开 Vault Health panel → 确认显示文件统计、断链、孤儿笔记
-- [ ] 确认语义索引状态显示（已初始化/索引中/就绪）
-- [ ] 如果配置了 Ollama / OpenAI embedding → 确认语义 reranking 生效
-
-## 洞察建议（新增）
-
-- [ ] Vault Health → Tag inconsistencies 卡片出现（如果 vault 有标签不一致）
-- [ ] 点击 "Normalize" → 确认弹出确认框 → 确认后标签统一
-- [ ] Vault Health → MOC suggestions 卡片出现（如果主题跨目录散布）
-- [ ] 点击 "Preview" → 确认弹出 MOC 内容预览
-- [ ] 点击 "Create MOC" → 确认弹出确认框 → 确认后文件创建成功
-
 ## 编辑器集成
 
-- [ ] 选中文字 → 浮动工具栏出现 → 选择动作（解释/翻译/重写）
-- [ ] 输入 `@agent 指令` → 按 Enter 触发 → 确认 inline 替换
 - [ ] 文件浏览器右键 → Claudian Plus → "发送到聊天"
 
 ## 性能
 
 - [ ] 启动冷加载时间（Console 中 StartupProfiler 输出）
 - [ ] 发送 prompt 到首次 token 出现的时间
-- [ ] 大 vault（>1000 文件）下 vault health panel 加载时间
-- [ ] 语义索引后台构建时不阻塞 UI
 
 ## 无障碍
 

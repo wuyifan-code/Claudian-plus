@@ -190,13 +190,6 @@
       "desc": "启用后，Enter 会插入换行。macOS 使用 Command+Enter 发送；Windows 和 Linux 使用 Ctrl+Enter 发送。"
     },
     "hotkeys": "快捷键",
-    "inlineEditHotkey": {
-      "name": "内联编辑",
-      "descWithKey": "当前快捷键：{hotkey}",
-      "descNoKey": "未设置快捷键",
-      "btnChange": "更改",
-      "btnSet": "设置快捷键"
-    },
     "openChatHotkey": {
       "name": "打开聊天",
       "descWithKey": "当前快捷键：{hotkey}",
@@ -377,26 +370,6 @@
     "livePreviewComposer": {
       "name": "实时预览输入框",
       "desc": "输入时渲染支持的 Markdown 和库引用。禁用则使用纯文本输入框。重新打开聊天视图后生效。"
-    },
-    "vaultAutoContext": {
-      "name": "自动加载 Vault 上下文",
-      "desc": "为每次普通对话检索相关本地笔记并自动加入上下文。关闭后仅在手动搜索时检索。"
-    },
-    "semanticSearch": {
-      "name": "本地语义检索",
-      "desc": "可选使用本地 Ollama 或 OpenAI 兼容的向量服务重排 Vault 检索结果。服务不可用时会继续使用普通关键词检索。"
-    },
-    "autoLinkRecommendations": {
-      "name": "保存后推荐双链",
-      "desc": "保存当前 Markdown 笔记后，显示去重且有来源依据的链接候选。不会自动插入任何链接。"
-    },
-    "semanticEmbeddingEndpoint": {
-      "name": "向量服务地址",
-      "desc": "本地向量服务的基础地址。OpenAI 兼容服务使用 /v1/embeddings，Ollama 使用基础地址。"
-    },
-    "semanticEmbeddingModel": {
-      "name": "向量模型",
-      "desc": "本地向量服务中已安装的模型名称，例如 nomic-embed-text。"
     },
     "claudeServices": {
       "heading": "第三方模型服务",

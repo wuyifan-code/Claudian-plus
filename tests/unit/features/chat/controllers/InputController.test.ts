@@ -225,42 +225,6 @@ function createSendableDeps(
   return result;
 }
 
-describe('InputController vault context', () => {
-  it('injects retrieved context into the provider request while keeping display text clean', async () => {
-    const deps = createMockDeps();
-    const retrievalService = {
-      buildChatContext: jest.fn().mockResolvedValue(
-        '<vault_context>\nSource: notes/topic.md\n</vault_context>',
-      ),
-    };
-    (deps.plugin as any).vaultRetrievalService = retrievalService;
-    (deps.plugin.settings as any).vaultAutoContextEnabled = true;
-
-    const controller = new InputController(deps);
-    const submission = (controller as any).buildTurnSubmission({
-      content: 'Explain this topic',
-    });
-    const enriched = await (controller as any).addVaultContext(
-      submission,
-      'Explain this topic',
-    );
-
-    expect(retrievalService.buildChatContext).toHaveBeenCalledWith('Explain this topic');
-    expect(enriched.displayContent).toBe('Explain this topic');
-    expect(enriched.turnRequest.vaultContext).toContain('notes/topic.md');
-  });
-
-  it('skips automatic retrieval when the setting is disabled', () => {
-    const deps = createMockDeps();
-    (deps.plugin as any).vaultRetrievalService = { buildChatContext: jest.fn() };
-    (deps.plugin.settings as any).vaultAutoContextEnabled = false;
-
-    const controller = new InputController(deps);
-
-    expect((controller as any).shouldAutoRetrieveVaultContext('Explain this topic')).toBe(false);
-  });
-});
-
 describe('InputController memory extraction', () => {
   function createMemoryStore() {
     return {

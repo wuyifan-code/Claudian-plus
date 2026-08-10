@@ -1,6 +1,5 @@
 import { isCompactCommand } from '../../../core/runtime/compactCommand';
 import type { ChatTurnRequest, PreparedChatTurn } from '../../../core/runtime/types';
-import { appendVaultContext } from '../../../utils/context';
 
 export function encodeCodexTurn(request: ChatTurnRequest): PreparedChatTurn {
   const isCompact = isCompactCommand(request.text);
@@ -43,7 +42,7 @@ export function encodeCodexTurn(request: ChatTurnRequest): PreparedChatTurn {
     }
   }
 
-  const prompt = appendVaultContext(sections.join(''), request.vaultContext);
+  const prompt = sections.join('');
 
   return {
     request,

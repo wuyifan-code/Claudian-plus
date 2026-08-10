@@ -5,9 +5,8 @@ patchSetMaxListenersForElectron();
 
 StartupProfiler.finishModuleEvaluation();
 
-import type { EditorView } from '@codemirror/view';
-import type { Editor, TAbstractFile, WorkspaceLeaf } from 'obsidian';
-import { MarkdownView, Notice, Plugin, TFile } from 'obsidian';
+import type { Editor, WorkspaceLeaf } from 'obsidian';
+import { MarkdownView, Notice, Plugin } from 'obsidian';
 
 import { ConversationRepository } from './app/conversations/ConversationRepository';
 import { ClaudianPlusProviderHost } from './app/providers/ClaudianPlusProviderHost';
@@ -48,13 +47,6 @@ import type {
 } from './core/providers/types';
 import type { AppTabManagerState } from './core/providers/types';
 import { DEFAULT_CHAT_PROVIDER_ID } from './core/providers/types';
-import { LocalEmbeddingProvider } from './core/retrieval/EmbeddingProvider';
-import {
-  buildLinkRecommendationQuery,
-  filterLinkRecommendationCandidates,
-} from './core/retrieval/linkRecommendations';
-import { VaultRetrievalService } from './core/retrieval/VaultRetrievalService';
-import { VaultReviewService } from './core/retrieval/VaultReviewService';
 import { AgentSkillRepository } from './core/skills/AgentSkillRepository';
 import type {
   ClaudianPlusSettings,
@@ -71,20 +63,13 @@ import { LivePreviewComposerEnhancement } from './features/chat/composer/LivePre
 import type { ComposerEnhancement } from './features/chat/composer/types';
 import { registerFileMenu } from './features/chat/fileMenu';
 import { QuickAgentInputModal } from './features/chat/QuickAgentInputModal';
-import { VaultHealthModal } from './features/chat/VaultHealthModal';
-import { createAgentInlinePlugin } from './features/inline-edit/editorAgentInline';
-import { type InlineEditContext, InlineEditModal } from './features/inline-edit/ui/InlineEditModal';
 import { ClaudianPlusSettingTab } from './features/settings/ClaudianPlusSettings';
 import { localeText, setLocale } from './i18n/i18n';
 import type { Locale } from './i18n/types';
 import { migrateClaudeServiceSettings } from './providers/claude/services/ClaudeServiceMigration';
 import { OPENCODE_PLAN_MODE_ID, OPENCODE_SAFE_MODE_ID } from './providers/opencode/modes';
-import { VaultRetrievalModal } from './shared/modals/VaultRetrievalModal';
-import { buildCursorContext, getEditorView } from './utils/editor';
 import { revealWorkspaceLeaf } from './utils/obsidianCompat';
 import { getVaultPath } from './utils/path';
-
-const HIGH_CONFIDENCE_LINK_SCORE = 0.42;
 
 function isClaudianPlusView(value: unknown): value is ClaudianPlusView {
   return !!value
@@ -139,8 +124,6 @@ export default class ClaudianPlusPlugin extends Plugin {
   settings!: ClaudianPlusSettings;
   storage!: SharedAppStorage;
   readonly providerHost = new ClaudianPlusProviderHost(this);
-  readonly vaultRetrievalService = new VaultRetrievalService(this.app);
-  readonly vaultReviewService = new VaultReviewService(this.app, undefined, this.vaultRetrievalService);
   readonly memoryExtractor = new MemoryExtractor();
   private _memoryStore: MemoryStore | null = null;
   private _consciousnessEngine: ConsciousnessEngine | null = null;
@@ -160,9 +143,6 @@ export default class ClaudianPlusPlugin extends Plugin {
   private remainingSessionMetadataLoad: Promise<void> | null = null;
   private isUnloading = false;
   private obsidianToolBridge: ObsidianToolBridge | null = null;
-  private readonly autoLinkRecommendationTimers = new Map<string, number>();
-  private readonly autoLinkRecommendationLastShownAt = new Map<string, number>();
-  private autoLinkRecommendationOpen = false;
 
   async onload() {
     StartupProfiler.startOnload();
@@ -178,43 +158,12 @@ export default class ClaudianPlusPlugin extends Plugin {
         'settings-load',
         () => this.loadSettings({ deferNonRestoredSessionMetadata: true }),
       );
-      this.refreshSemanticRetrieval();
-      this.vaultRetrievalService.bindToVaultEvents((eventRef) => this.registerEvent(eventRef));
-      if (typeof this.app.vault.on === 'function') {
-        this.registerEvent(this.app.vault.on('modify', (file) => {
-          this.scheduleAutoLinkRecommendation(file);
-        }));
-      }
       const registerCleanup = (this as unknown as {
         register?: (callback: () => void) => void;
       }).register;
-      // Lexical retrieval is built lazily on the first search() call to keep
-      // startup free of full-vault indexing. Only the optional semantic index
-      // gets an opt-in background pass at startup.
-      if (this.settings.semanticSearchEnabled) {
-        const semanticWarmupTimer = window.setTimeout(() => {
-          void this.vaultRetrievalService.warmupSemantic().catch(() => {
-            // Semantic search is optional; lexical retrieval remains available.
-          });
-        }, 1_000);
-        registerCleanup?.call(this, () => window.clearTimeout(semanticWarmupTimer));
-      }
-      this.vaultReviewService.updateConfig({
-        enabled: this.settings.vaultReviewEnabled ?? this.settings.consciousnessAutoMemory,
-      });
-      const reviewInterval = window.setInterval(() => {
-        if (this.vaultReviewService.isReviewDue()) {
-          void this.vaultReviewService.runReview();
-        }
-      }, this.vaultReviewService.getCheckInterval());
       const registerInterval = (this as unknown as {
         registerInterval?: (intervalId: number) => void;
       }).registerInterval;
-      if (typeof registerInterval === 'function') {
-        registerInterval.call(this, reviewInterval);
-      } else {
-        window.clearInterval(reviewInterval);
-      }
 
       // Dream memory consolidation runs on its own hourly check so the model
       // call only happens when short-term logs actually accumulated.
@@ -273,52 +222,6 @@ export default class ClaudianPlusPlugin extends Plugin {
         name: 'Open chat view',
         callback: () => {
           void this.activateView();
-        },
-      });
-
-      this.addCommand({
-        id: 'inline-edit',
-        name: 'Inline edit',
-        editorCallback: async (editor: Editor, ctx) => {
-          const view = ctx instanceof MarkdownView
-            ? ctx
-            : this.app.workspace.getActiveViewOfType(MarkdownView);
-          if (!view) {
-            new Notice('Inline edit unavailable: could not access the active Markdown view.');
-            return;
-          }
-
-          const selectedText = editor.getSelection();
-          const notePath = view.file?.path || 'unknown';
-
-          let editContext: InlineEditContext;
-          if (selectedText.trim()) {
-            editContext = { mode: 'selection', selectedText };
-          } else {
-            const cursor = editor.getCursor();
-            const cursorContext = buildCursorContext(
-              (line) => editor.getLine(line),
-              editor.lineCount(),
-              cursor.line,
-              cursor.ch
-            );
-            editContext = { mode: 'cursor', cursorContext };
-          }
-
-          const modal = new InlineEditModal(
-            this.app,
-            this,
-            editor,
-            view,
-            editContext,
-            notePath,
-            () => this.getView()?.getActiveTab()?.ui.externalContextSelector?.getExternalContexts() ?? []
-          );
-          const result = await modal.openAndWait();
-
-          if (result.decision === 'accept' && result.editedText !== undefined) {
-            new Notice(editContext.mode === 'cursor' ? 'Inserted' : 'Edit applied');
-          }
         },
       });
 
@@ -427,19 +330,6 @@ export default class ClaudianPlusPlugin extends Plugin {
       });
 
       this.addCommand({
-        id: 'open-vault-health',
-        name: 'Open vault health',
-        callback: () => {
-          new VaultHealthModal(this.app, {
-            retrievalService: this.vaultRetrievalService,
-            onAskAgent: (prompt, contextFiles) => {
-              void this.sendPromptToChat(prompt, contextFiles);
-            },
-          }).open();
-        },
-      });
-
-      this.addCommand({
         id: 'undo-last-canvas-write',
         name: 'Undo last canvas write',
         callback: async () => {
@@ -451,33 +341,6 @@ export default class ClaudianPlusPlugin extends Plugin {
           }
         },
       });
-
-      this.addCommand({
-        id: 'recommend-links-for-current-note',
-        name: 'Recommend links for current note',
-        callback: () => {
-          void this.recommendLinksForActiveNote();
-        },
-      });
-
-      this.addCommand({
-        id: 'generate-vault-review',
-        name: 'Generate vault review',
-        callback: () => {
-          void this.vaultReviewService.runReview(true);
-        },
-      });
-
-      // Older Obsidian test harnesses (and a few third-party embedders) may not
-      // expose CodeMirror's editor-extension registration API.
-      const registerEditorExtension = (this as unknown as {
-        registerEditorExtension?: (extension: unknown) => void;
-      }).registerEditorExtension;
-      registerEditorExtension?.call(this, createAgentInlinePlugin({
-        onSubmit: ({ instruction, view }) => {
-          void this.executeAgentInlineInstruction(instruction, view);
-        },
-      }));
 
       this.addCommand({
         id: 'scan-vault-knowledge',
@@ -496,20 +359,6 @@ export default class ClaudianPlusPlugin extends Plugin {
             new Notice(`Vault knowledge scanned: ${index.noteCount} notes, ${index.totalWords.toLocaleString()} words`);
           } catch (error) {
             new Notice(`Failed to scan vault: ${error}`);
-          }
-        },
-      });
-
-      this.addCommand({
-        id: 'rebuild-vault-retrieval-index',
-        name: 'Rebuild vault retrieval index',
-        callback: async () => {
-          new Notice('Rebuilding vault retrieval index...');
-          try {
-            const result = await this.vaultRetrievalService.rebuildIndex();
-            new Notice(`Vault retrieval index ready: ${result.fileCount} files, ${result.blockCount} sections`);
-          } catch (error) {
-            new Notice(`Failed to rebuild vault retrieval index: ${error instanceof Error ? error.message : String(error)}`);
           }
         },
       });
@@ -761,196 +610,6 @@ export default class ClaudianPlusPlugin extends Plugin {
     } else {
       new Notice('Could not send to chat: tab not available (max tabs reached?).');
     }
-  }
-
-  private async executeAgentInlineInstruction(
-    instruction: string,
-    editorView: EditorView,
-  ): Promise<void> {
-    const markdownView = this.resolveMarkdownViewForEditor(editorView);
-    if (!markdownView || !this.markdownViewOwnsEditorView(markdownView, editorView)) {
-      new Notice(localeText(
-        '无法执行内联 Agent：当前 Markdown 编辑器已发生变化。',
-        'Inline agent unavailable: the active Markdown editor changed.',
-      ));
-      return;
-    }
-
-    const editor = markdownView.editor;
-    const cursor = editor.getCursor();
-    const cursorContext = buildCursorContext(
-      (line) => editor.getLine(line),
-      editor.lineCount(),
-      cursor.line,
-      cursor.ch,
-    );
-    const modal = new InlineEditModal(
-      this.app,
-      this,
-      editor,
-      markdownView,
-      { mode: 'cursor', cursorContext },
-      markdownView.file?.path ?? 'unknown',
-      () => this.getView()?.getActiveTab()?.ui.externalContextSelector?.getExternalContexts() ?? [],
-      instruction,
-    );
-    const result = await modal.openAndWait();
-    if (result.decision === 'accept') {
-      new Notice('Inline agent result applied.');
-    }
-  }
-
-  private resolveMarkdownViewForEditor(editorView?: EditorView): MarkdownView | null {
-    if (editorView) {
-      const matchingLeaf = this.app.workspace.getLeavesOfType('markdown').find((leaf) => {
-        const view = leaf.view as MarkdownView | undefined;
-        return !!view && this.markdownViewOwnsEditorView(view, editorView);
-      });
-      if (matchingLeaf?.view) {
-        return matchingLeaf.view as MarkdownView;
-      }
-    }
-
-    return this.app.workspace.getActiveViewOfType(MarkdownView);
-  }
-
-  private markdownViewOwnsEditorView(view: MarkdownView, editorView: EditorView): boolean {
-    if (getEditorView(view.editor) === editorView) return true;
-
-    // Obsidian may recreate the CM6 instance during a Live Preview update. In
-    // that short window the old view can still be attached to the same
-    // Markdown leaf; DOM ownership is a safe fallback while the modal uses the
-    // leaf's current editor instance.
-    return !!editorView.dom && view.containerEl.contains(editorView.dom);
-  }
-
-  /** Show source-backed link candidates for the active note or selection. */
-  private async recommendLinksForActiveNote(): Promise<void> {
-    const file = this.app.workspace.getActiveFile();
-    if (!file || file.extension !== 'md') {
-      new Notice('Open a Markdown note before requesting link recommendations.');
-      return;
-    }
-
-    try {
-      const editor = this.app.workspace.activeEditor?.editor;
-      const noteContent = editor?.getValue() ?? await this.app.vault.read(file);
-      const selection = editor?.getSelection() ?? '';
-      const { query, candidates } = await this.getLinkRecommendations(file, noteContent, selection);
-      if (!query) {
-        new Notice('The current note does not contain enough text to recommend links.');
-        return;
-      }
-
-      new VaultRetrievalModal(this.app, {
-        title: 'Recommended links',
-        query: selection.trim() || file.basename,
-        results: candidates,
-        onInsertReference: (result) => {
-          this.insertRecommendedLink(result.path);
-        },
-      }).open();
-    } catch (error) {
-      new Notice(`Link recommendation failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
-  private async getLinkRecommendations(
-    file: TFile,
-    noteContent: string,
-    selection = '',
-    useSemantic = true,
-    minScore = 0.16,
-  ): Promise<{ query: string; candidates: ReturnType<typeof filterLinkRecommendationCandidates> }> {
-    const query = buildLinkRecommendationQuery(noteContent, selection);
-    if (!query) return { query: '', candidates: [] };
-
-    const results = await this.vaultRetrievalService.search(query, {
-      limit: 16,
-      maxExcerptLength: 260,
-      semantic: useSemantic,
-    });
-    const outgoing = this.app.metadataCache.resolvedLinks?.[file.path] ?? {};
-    return {
-      query,
-      candidates: filterLinkRecommendationCandidates(file.path, results, outgoing, {
-        limit: 8,
-        minScore,
-      }),
-    };
-  }
-
-  private scheduleAutoLinkRecommendation(file: TAbstractFile): void {
-    if (!this.settings.vaultAutoLinkRecommendationsEnabled) return;
-    if (!(file instanceof TFile) || file.extension !== 'md') return;
-    if (file.path.startsWith('.claudian-plus/') || file.path.startsWith('.claudian/')) return;
-    if (this.app.workspace.getActiveFile()?.path !== file.path) return;
-
-    const previousTimer = this.autoLinkRecommendationTimers.get(file.path);
-    if (previousTimer !== undefined) window.clearTimeout(previousTimer);
-    const timer = window.setTimeout(() => {
-      this.autoLinkRecommendationTimers.delete(file.path);
-      void this.showAutoLinkRecommendations(file);
-    }, 1_000);
-    this.autoLinkRecommendationTimers.set(file.path, timer);
-  }
-
-  private async showAutoLinkRecommendations(file: TFile): Promise<void> {
-    if (!this.settings.vaultAutoLinkRecommendationsEnabled) return;
-    if (this.autoLinkRecommendationOpen || this.app.workspace.getActiveFile()?.path !== file.path) return;
-
-    const now = Date.now();
-    const lastShownAt = this.autoLinkRecommendationLastShownAt.get(file.path) ?? 0;
-    if (now - lastShownAt < 10 * 60 * 1000) return;
-
-    try {
-      const editor = this.app.workspace.activeEditor?.editor;
-      const noteContent = editor?.getValue() ?? await this.app.vault.cachedRead(file);
-      const selection = editor?.getSelection() ?? '';
-      const semanticReady = this.vaultRetrievalService.getIndexStats().semanticReady;
-      const { query, candidates } = await this.getLinkRecommendations(
-        file,
-        noteContent,
-        selection,
-        semanticReady,
-        HIGH_CONFIDENCE_LINK_SCORE,
-      );
-      if (!query || candidates.length === 0) return;
-
-      this.autoLinkRecommendationOpen = true;
-      this.autoLinkRecommendationLastShownAt.set(file.path, now);
-      new VaultRetrievalModal(this.app, {
-        title: '高置信度链接建议',
-        query: selection.trim() || file.basename,
-        results: candidates,
-        compact: true,
-        highConfidenceOnly: true,
-        onInsertReference: (result) => this.insertRecommendedLink(result.path),
-        onClose: () => {
-          this.autoLinkRecommendationOpen = false;
-        },
-      }).open();
-    } catch (error) {
-      new Notice(`Automatic link suggestions failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
-  private insertRecommendedLink(path: string): void {
-    const editor = this.app.workspace.activeEditor?.editor;
-    if (!editor) {
-      new Notice('No active editor is available for inserting the link.');
-      return;
-    }
-
-    const linkTarget = path.replace(/\.md$/i, '');
-    const link = `[[${linkTarget}]]`;
-    const selectedText = editor.getSelection();
-    if (selectedText.trim()) {
-      editor.replaceSelection(`${selectedText} ${link}`);
-    } else {
-      editor.replaceRange(link, editor.getCursor());
-    }
-    new Notice(`Inserted link: ${link}`);
   }
 
   async loadSettings(options: { deferNonRestoredSessionMetadata?: boolean } = {}) {
@@ -1351,20 +1010,6 @@ export default class ClaudianPlusPlugin extends Plugin {
 
   async mutateSettings(mutation: SettingsMutation<ClaudianPlusSettings>): Promise<void> {
     await this.settingsCoordinator.mutate(mutation);
-  }
-
-  refreshSemanticRetrieval(): void {
-    const enabled = this.settings.semanticSearchEnabled === true;
-    const endpoint = this.settings.semanticEmbeddingEndpoint?.trim() ?? '';
-    const model = this.settings.semanticEmbeddingModel?.trim() ?? '';
-    if (!enabled || !endpoint || !model) {
-      this.vaultRetrievalService.configureEmbeddingProvider(null);
-      return;
-    }
-    this.vaultRetrievalService.configureEmbeddingProvider(new LocalEmbeddingProvider({
-      endpoint,
-      model,
-    }));
   }
 
   async mutateSettingsConditionally(

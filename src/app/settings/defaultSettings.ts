@@ -33,11 +33,6 @@ export const DEFAULT_CLAUDIAN_PLUS_SETTINGS: ClaudianPlusSettings = {
   mediaFolder: '',
   systemPrompt: '',
   persistentExternalContextPaths: [],
-  vaultAutoContextEnabled: true,
-  semanticSearchEnabled: false,
-  semanticEmbeddingEndpoint: 'http://127.0.0.1:11434',
-  semanticEmbeddingModel: 'nomic-embed-text',
-  vaultAutoLinkRecommendationsEnabled: false,
 
   sharedEnvironmentVariables: '',
   envSnippets: [],

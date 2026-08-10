@@ -154,11 +154,3 @@ export function appendContextFiles(prompt: string, files: string[]): string {
   return `${prompt}\n\n${formatContextFilesLine(files)}`;
 }
 
-/**
- * Appends source-backed vault context to the provider prompt without changing
- * the user-visible message or the persisted turn text.
- */
-export function appendVaultContext(prompt: string, vaultContext?: string): string {
-  const trimmed = vaultContext?.trim();
-  return trimmed ? `${prompt}\n\n${trimmed}` : prompt;
-}

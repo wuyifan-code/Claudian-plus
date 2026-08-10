@@ -4,7 +4,6 @@ import {
   claudeWorkspaceRegistration,
   getClaudeWorkspaceServices,
 } from './app/ClaudeWorkspaceServices';
-import { InlineEditService as ClaudeInlineEditService } from './auxiliary/ClaudeInlineEditService';
 import { InstructionRefineService as ClaudeInstructionRefineService } from './auxiliary/ClaudeInstructionRefineService';
 import { TitleGenerationService as ClaudeTitleGenerationService } from './auxiliary/ClaudeTitleGenerationService';
 import { CLAUDE_PROVIDER_CAPABILITIES } from './capabilities';
@@ -65,7 +64,6 @@ export const claudeProviderRegistration: ProviderModule = {
   },
   createTitleGenerationService: (plugin) => new ClaudeTitleGenerationService(plugin),
   createInstructionRefineService: (plugin) => new ClaudeInstructionRefineService(plugin),
-  createInlineEditService: (plugin) => new ClaudeInlineEditService(plugin),
   createAuxQueryRunner: (plugin) => new ClaudeAuxQueryRunner(plugin),
   historyService: new ClaudeConversationHistoryService(),
   taskResultInterpreter: new ClaudeTaskResultInterpreter(),

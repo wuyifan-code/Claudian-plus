@@ -5,7 +5,7 @@ The fork keeps provider compatibility while making Codex the default agent runti
 
 ## Product principles
 
-- Keep the agent runtime, model selection, retrieval, and UI context layers independent.
+- Keep the agent runtime, model selection, and UI context layers independent.
 - Preserve existing Claudian conversations and provider-owned history files.
 - Keep search indexes local by default and make every retrieved fact traceable to a source.
 - Reuse the existing `@file` and `@folder/` context semantics instead of creating a second attachment model.
@@ -42,20 +42,6 @@ The fork keeps provider compatibility while making Codex the default agent runti
 - Add a provider-neutral local full-text index for user and assistant messages (next iteration).
 - Support date, provider, and model filters with direct navigation to a matched message.
 - Delete index records when a conversation is removed.
-
-### M3: Hybrid vault retrieval — local MVP delivered
-
-- Incrementally index Markdown blocks by path, heading, modification time, and content hash.
-- Combine lexical overlap with heading/path/link/recency boosts; embeddings and optional reranking are next.
-- Give explicit context, the current note, and linked notes predictable priority.
-- Return clickable block-level citations and expose index privacy controls.
-
-### M4: Insight engine — source-backed entry point delivered
-
-- Surface related older notes, topic evolution, and useful follow-up questions.
-- `/insight` now builds a source-grounded prompt with numbered citations and an explicit uncertainty check.
-- Start with user-triggered reviews before adding optional scheduled discovery.
-- Learn from useful, not useful, and mute-topic feedback.
 
 ## Verification baseline
 

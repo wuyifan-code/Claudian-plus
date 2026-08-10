@@ -119,57 +119,6 @@ describe('ClaudianPlusPlugin', () => {
       expect(plugin.settings.hiddenProviderCommands).toEqual(DEFAULT_SETTINGS.hiddenProviderCommands);
     });
 
-    it('does not eagerly warm up vault retrieval during onload', async () => {
-      const warmupSpy = jest.spyOn(plugin.vaultRetrievalService, 'warmup');
-      const semanticWarmupSpy = jest.spyOn(plugin.vaultRetrievalService, 'warmupSemantic');
-
-      await plugin.onload();
-
-      // Full-vault indexing must wait for the first search() call so that a
-      // large vault cannot freeze startup.
-      expect(warmupSpy).not.toHaveBeenCalled();
-      expect(semanticWarmupSpy).not.toHaveBeenCalled();
-      warmupSpy.mockRestore();
-      semanticWarmupSpy.mockRestore();
-    });
-
-    it('schedules semantic warmup on onload only when semantic search is enabled', async () => {
-      jest.useFakeTimers();
-      try {
-        jest.spyOn(plugin as any, 'scheduleRemainingSessionMetadataLoad')
-          .mockImplementation(() => undefined);
-        const semanticWarmupSpy = jest.spyOn(plugin.vaultRetrievalService, 'warmupSemantic');
-
-        await plugin.onload();
-        jest.advanceTimersByTime(1_000);
-        expect(semanticWarmupSpy).not.toHaveBeenCalled();
-        semanticWarmupSpy.mockRestore();
-
-        const enabledPlugin = new ClaudianPlusPlugin(mockApp, mockManifest);
-        // Settings load reads the persisted file, not plugin.loadData().
-        mockApp.vault.adapter.exists.mockImplementation(async (path: string) => (
-          path === '.claudian-plus/claudian-plus-settings.json'
-        ));
-        mockApp.vault.adapter.read.mockImplementation(async (path: string) => {
-          if (path === '.claudian-plus/claudian-plus-settings.json') {
-            return JSON.stringify({ semanticSearchEnabled: true });
-          }
-          return '';
-        });
-        jest.spyOn(enabledPlugin as any, 'scheduleRemainingSessionMetadataLoad')
-          .mockImplementation(() => undefined);
-        const enabledSemanticWarmupSpy = jest.spyOn(enabledPlugin.vaultRetrievalService, 'warmupSemantic');
-
-        await enabledPlugin.onload();
-        expect(enabledPlugin.settings.semanticSearchEnabled).toBe(true);
-        jest.advanceTimersByTime(1_000);
-        expect(enabledSemanticWarmupSpy).toHaveBeenCalledTimes(1);
-        enabledSemanticWarmupSpy.mockRestore();
-      } finally {
-        jest.useRealTimers();
-      }
-    });
-
     // Note: With multi-tab, agentService is per-tab via TabManager, not on plugin
 
     it('should register the view', async () => {

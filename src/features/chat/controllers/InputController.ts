@@ -13,7 +13,6 @@ import {
   type ProviderId,
   type TitleGenerationService,
 } from '../../../core/providers/types';
-import { VaultRetrievalService } from '../../../core/retrieval/VaultRetrievalService';
 import type { ChatRuntime } from '../../../core/runtime/ChatRuntime';
 import { isCompactCommand } from '../../../core/runtime/compactCommand';
 import {
@@ -32,7 +31,6 @@ import type { ApprovalDecision, ChatMessage, ExitPlanModeDecision, StreamChunk }
 import { t } from '../../../i18n/i18n';
 import { ResumeSessionDropdown } from '../../../shared/components/ResumeSessionDropdown';
 import { InstructionModal } from '../../../shared/modals/InstructionConfirmModal';
-import { VaultRetrievalModal } from '../../../shared/modals/VaultRetrievalModal';
 import type { BrowserSelectionContext } from '../../../utils/browser';
 import type { CanvasSelectionContext } from '../../../utils/canvas';
 import { extractUserDisplayContent } from '../../../utils/context';
@@ -169,11 +167,6 @@ export class InputController {
     return this.deps.getAuxiliaryModel?.()
       ?? this.getAgentService()?.getAuxiliaryModel?.()
       ?? null;
-  }
-
-  private getVaultRetrievalService(): VaultRetrievalService {
-    return this.deps.plugin.vaultRetrievalService
-      ?? new VaultRetrievalService(this.deps.plugin.app);
   }
 
   private syncInstructionRefineModelOverride(
@@ -375,9 +368,7 @@ export class InputController {
         browserContextOverride: browserContext,
         canvasContextOverride: canvasContext,
       });
-      const { displayContent, turnRequest } = this.shouldAutoRetrieveVaultContext(content)
-        ? await this.addVaultContext(submission, content)
-        : submission;
+      const { displayContent, turnRequest } = submission;
       state.queuedMessage = this.mergeQueuedMessages(
         state.queuedMessage,
         this.createQueuedMessage(displayContent, turnRequest),
@@ -441,9 +432,7 @@ export class InputController {
         browserContextOverride: options?.browserContextOverride,
         canvasContextOverride: options?.canvasContextOverride,
       });
-      turnSubmission = this.shouldAutoRetrieveVaultContext(content)
-        ? await this.addVaultContext(submission, content)
-        : submission;
+      turnSubmission = submission;
     }
     const { displayContent, turnRequest } = turnSubmission;
     const messagesBeforeTurn = state.messages;
@@ -987,38 +976,6 @@ export class InputController {
           : undefined,
       },
     };
-  }
-
-  private shouldAutoRetrieveVaultContext(content: string): boolean {
-    return !isCompactCommand(content)
-      && this.deps.plugin.vaultRetrievalService !== undefined
-      && (this.deps.plugin.vaultRetrievalService.isReady?.() ?? true)
-      && (this.deps.plugin.settings.vaultAutoContextEnabled ?? true);
-  }
-
-  private async addVaultContext(
-    submission: { displayContent: string; turnRequest: ChatTurnRequest },
-    content: string,
-  ): Promise<{ displayContent: string; turnRequest: ChatTurnRequest }> {
-    const retrievalService = this.deps.plugin.vaultRetrievalService;
-    if (!retrievalService) return submission;
-
-    try {
-      const vaultContext = await retrievalService.buildChatContext(content);
-      return vaultContext
-        ? {
-          ...submission,
-          turnRequest: {
-            ...submission.turnRequest,
-            vaultContext,
-          },
-        }
-        : submission;
-    } catch {
-      // Retrieval is an enhancement; a transient vault/index failure must not
-      // prevent the user's message from reaching the selected provider.
-      return submission;
-    }
   }
 
   private getQueuedMessageDisplay(message: QueuedMessage | null): string {
@@ -1948,40 +1905,6 @@ export class InputController {
           return;
         }
         await this.deps.onForkAll();
-        break;
-      }
-      case 'vault-search': {
-        if (!args) {
-          new Notice('Usage: /vault-search [query]');
-          return;
-        }
-        try {
-          const results = await this.getVaultRetrievalService().search(args);
-          new VaultRetrievalModal(this.deps.plugin.app, {
-            title: 'Vault search',
-            query: args,
-            results,
-          }).open();
-        } catch (error) {
-          new Notice(`Vault search failed: ${error instanceof Error ? error.message : String(error)}`);
-        }
-        break;
-      }
-      case 'insight': {
-        try {
-          const retrieval = await this.getVaultRetrievalService().buildInsightPrompt(args);
-          new VaultRetrievalModal(this.deps.plugin.app, {
-            title: 'Vault insight',
-            query: args,
-            results: retrieval.results,
-            prompt: retrieval.prompt,
-            onAskAgent: (prompt) => {
-              void this.sendMessage({ content: prompt });
-            },
-          }).open();
-        } catch (error) {
-          new Notice(`Insight preparation failed: ${error instanceof Error ? error.message : String(error)}`);
-        }
         break;
       }
       default: {

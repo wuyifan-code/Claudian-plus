@@ -1,7 +1,6 @@
 import { NoopTaskResultInterpreter } from '../../core/providers/NoopTaskResultInterpreter';
 import type { ProviderModule } from '../../core/providers/types';
 import { piWorkspaceRegistration } from './app/PiWorkspaceServices';
-import { PiInlineEditService } from './auxiliary/PiInlineEditService';
 import { PiInstructionRefineService } from './auxiliary/PiInstructionRefineService';
 import { PiTitleGenerationService } from './auxiliary/PiTitleGenerationService';
 import { PI_PROVIDER_CAPABILITIES } from './capabilities';
@@ -18,7 +17,6 @@ export const piProviderRegistration: ProviderModule = {
   blankTabOrder: 11,
   capabilities: PI_PROVIDER_CAPABILITIES,
   chatUIConfig: piChatUIConfig,
-  createInlineEditService: (plugin) => new PiInlineEditService(plugin),
   createInstructionRefineService: (plugin) => new PiInstructionRefineService(plugin),
   createRuntime: ({ plugin }) => new PiChatRuntime(plugin, {
     extensionUiRenderer: new ObsidianPiExtensionUiRenderer(plugin.app),

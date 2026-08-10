@@ -38,16 +38,6 @@ describe('buildOpencodePromptText', () => {
     expect(prompt).not.toContain('/tmp/project');
   });
 
-  it('includes source-backed vault context in the prompt', () => {
-    const prompt = buildOpencodePromptText({
-      text: 'Explain this topic',
-      vaultContext: '<vault_context>\nSource: notes/topic.md\n</vault_context>',
-    });
-
-    expect(prompt).toContain('<vault_context>');
-    expect(prompt).toContain('notes/topic.md');
-  });
-
   it('rebuilds prior conversation context when a native session must be recreated', () => {
     const prompt = buildOpencodePromptText(
       {
