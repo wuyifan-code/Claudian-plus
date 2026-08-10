@@ -29,7 +29,20 @@ export const DREAM_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
 interface DreamState {
   lastDreamAt: number;
+  /** Basenames processed at least once (legacy ledger; see processedFingerprints). */
   processedLogs: string[];
+  /**
+   * Per-file fingerprint (`mtime:size`) captured when the file was processed.
+   * A log appended after processing has a different fingerprint, so it is
+   * picked up by the next dream instead of being skipped forever.
+   */
+  processedFingerprints: Record<string, string>;
+}
+
+/** A pending log file with the fingerprint captured before its content is read. */
+interface ProcessedLogEntry {
+  path: string;
+  fingerprint: string | null;
 }
 
 export interface DreamServiceConfig {
@@ -158,7 +171,10 @@ export class DreamService {
         return emptyResult('no-new-logs');
       }
 
-      const sanitized = await this.consolidate(state, pendingLogs);
+      const sanitized = await this.consolidate(
+        state,
+        pendingLogs.map(entry => entry.path),
+      );
       return await this.persist(state, sanitized, pendingLogs);
     } catch (error) {
       return {
@@ -220,13 +236,14 @@ export class DreamService {
   private async persist(
     state: DreamState,
     result: DreamMemoryResult,
-    processedLogs: string[],
+    processedLogs: ProcessedLogEntry[],
   ): Promise<DreamRunResult> {
     // Phase 2.5: write new facts through MemoryStore so its dedupe applies.
     const memories = await this.deps.memoryStore.load();
     const existingContents = new Set<string>(
       memories.map(entry => normalizeContent(entry.content)),
     );
+
     let newFacts = 0;
     for (const fact of result.newFacts) {
       const key = normalizeContent(fact.content);
@@ -242,10 +259,34 @@ export class DreamService {
       newFacts += 1;
     }
 
+    // Insights are durable meta-observations; persist them under their own
+    // category, deduped against everything already written this cycle.
+    let insights = 0;
+    for (const insight of result.insights) {
+      const key = normalizeContent(insight.content);
+      if (existingContents.has(key)) {
+        continue;
+      }
+      existingContents.add(key);
+      await this.deps.memoryStore.add({
+        category: 'Insights',
+        content: insight.content,
+        source: 'user-implicit',
+      });
+      insights += 1;
+    }
+
     // Profile updates are implicit extraction and obey its privacy gate.
+    // They share the dedupe set so a fact and a profile update stating the
+    // same thing are never written twice.
     let profileUpdates = 0;
     if (this.deps.consciousness.privacyConfig.allowImplicitExtraction) {
       for (const update of result.profileUpdates) {
+        const key = normalizeContent(update.content);
+        if (existingContents.has(key)) {
+          continue;
+        }
+        existingContents.add(key);
         await this.deps.consciousness.updateUserProfile(update.section, update.content);
         profileUpdates += 1;
       }
@@ -253,23 +294,34 @@ export class DreamService {
 
     const awareness = await this.deps.consciousness.getAwarenessState(memories);
     const journalPath = await this.writeDreamJournal(result, awareness);
+
+    const fingerprints: Record<string, string> = {};
+    for (const entry of processedLogs) {
+      if (entry.fingerprint) {
+        fingerprints[entry.path.split('/').pop() ?? entry.path] = entry.fingerprint;
+      }
+    }
     await this.saveState({
       lastDreamAt: Date.now(),
       processedLogs: dedupe([
         ...state.processedLogs,
-        ...processedLogs.map(path => path.split('/').pop() ?? path),
+        ...processedLogs.map(entry => entry.path.split('/').pop() ?? entry.path),
       ]),
+      processedFingerprints: {
+        ...state.processedFingerprints,
+        ...fingerprints,
+      },
     });
     await this.deps.consciousness.logActivity(
       'consolidation',
-      `Dream consolidation: ${newFacts} fact(s), ${profileUpdates} profile update(s), ${result.insights.length} insight(s)`,
+      `Dream consolidation: ${newFacts} fact(s), ${profileUpdates} profile update(s), ${insights} insight(s)`,
     );
 
     return {
       ran: true,
       newFacts,
       profileUpdates,
-      insights: result.insights.length,
+      insights,
       journalPath,
     };
   }
@@ -284,7 +336,7 @@ export class DreamService {
     const lines: string[] = [
       `## ${new Date().toISOString()}`,
       '',
-      `> Memories: ${awareness.totalMemories} | Confidence: ${awareness.confidenceLevel} | Insights: ${awareness.insightCount}`,
+      `> Memories: ${awareness.totalMemories} | Confidence: ${awareness.confidenceLevel} | Insights: ${result.insights.length}`,
       '',
     ];
     if (result.newFacts.length > 0) {
@@ -314,47 +366,96 @@ export class DreamService {
     return filePath;
   }
 
-  private async findPendingLogs(state: DreamState): Promise<string[]> {
-    const processed = new Set(state.processedLogs);
+  /**
+   * Fingerprint of a log file (`mtime:size`). Null when stat fails, in which
+   * case the file is treated as pending once and never re-checked.
+   */
+  private async statFingerprint(path: string): Promise<string | null> {
+    try {
+      const stat = await this.deps.adapter.stat(path);
+      if (!stat) {
+        return null;
+      }
+      return `${stat.mtime}:${stat.size}`;
+    } catch {
+      return null;
+    }
+  }
+
+  private async findPendingLogs(state: DreamState): Promise<ProcessedLogEntry[]> {
+    const legacyProcessed = new Set(state.processedLogs);
     const cutoff = Date.now() - this.config.maxLogDays * 24 * 60 * 60 * 1000;
     const candidates = [
       ...await this.deps.adapter.listFilesRecursive(SHORT_TERM_DIR),
       ...await this.deps.adapter.listFilesRecursive(LEGACY_SHORT_TERM_DIR),
     ];
 
-    return [...new Set(candidates)].filter(path => {
+    const pending: ProcessedLogEntry[] = [];
+    for (const path of [...new Set(candidates)]) {
       const basename = path.split('/').pop() ?? '';
       if (!isDatedLog(basename)) {
-        return false;
-      }
-      if (processed.has(basename)) {
-        return false;
+        continue;
       }
       const fileTime = new Date(basename.slice(0, 10)).getTime();
-      return Number.isFinite(fileTime) && fileTime >= cutoff;
-    }).sort();
+      if (!Number.isFinite(fileTime) || fileTime < cutoff) {
+        continue;
+      }
+
+      const fingerprint = await this.statFingerprint(path);
+      const recorded = state.processedFingerprints[basename];
+      if (recorded !== undefined && recorded === fingerprint) {
+        continue;
+      }
+      // Pre-fingerprint ledger entries: process once and never re-check, so
+      // the upgrade keeps old behavior for files we cannot re-verify.
+      if (recorded === undefined && legacyProcessed.has(basename)) {
+        continue;
+      }
+      pending.push({ path, fingerprint });
+    }
+    return pending.sort((left, right) => left.path.localeCompare(right.path));
   }
 
   private async loadState(): Promise<DreamState> {
     try {
       const content = await this.deps.adapter.read(DREAM_STATE_FILE);
       const parsed = JSON.parse(content) as Partial<DreamState>;
+      const fingerprints: Record<string, string> = {};
+      if (parsed.processedFingerprints && typeof parsed.processedFingerprints === 'object') {
+        for (const [name, fingerprint] of Object.entries(parsed.processedFingerprints)) {
+          if (typeof fingerprint === 'string' && fingerprint) {
+            fingerprints[name] = fingerprint;
+          }
+        }
+      }
       return {
         lastDreamAt: typeof parsed.lastDreamAt === 'number' ? parsed.lastDreamAt : 0,
         processedLogs: Array.isArray(parsed.processedLogs)
           ? parsed.processedLogs.filter((log): log is string => typeof log === 'string')
           : [],
+        processedFingerprints: fingerprints,
       };
     } catch {
-      return { lastDreamAt: 0, processedLogs: [] };
+      return { lastDreamAt: 0, processedLogs: [], processedFingerprints: {} };
     }
   }
 
   private async saveState(state: DreamState): Promise<void> {
     const kept = dedupe(state.processedLogs).slice(-MAX_STATE_PROCESSED_LOGS);
+    const fingerprints: Record<string, string> = {};
+    for (const name of kept) {
+      const fingerprint = state.processedFingerprints[name];
+      if (fingerprint) {
+        fingerprints[name] = fingerprint;
+      }
+    }
     await this.deps.adapter.write(
       DREAM_STATE_FILE,
-      JSON.stringify({ lastDreamAt: state.lastDreamAt, processedLogs: kept }, null, 2),
+      JSON.stringify({
+        lastDreamAt: state.lastDreamAt,
+        processedLogs: kept,
+        processedFingerprints: fingerprints,
+      }, null, 2),
     );
   }
 }

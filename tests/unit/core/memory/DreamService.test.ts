@@ -34,7 +34,10 @@ function createMockAdapter(files: Record<string, string> = {}): VaultFileAdapter
     listFolders: jest.fn(async () => []),
     ensureFolder: jest.fn(),
     rename: jest.fn(),
-    stat: jest.fn(),
+    stat: jest.fn(async (path: string) => {
+      if (!(path in store)) return null;
+      return { mtime: 1000, size: store[path].length };
+    }),
     deleteFolder: jest.fn(),
   } as unknown as VaultFileAdapter;
 }
@@ -80,7 +83,7 @@ function createHarness(options: {
   const { runner, queryMock } = createFakeRunner(
     options.response ?? JSON.stringify({
       newFacts: [{ category: 'User Preferences', content: 'Prefers dark mode' }],
-      profileUpdates: [{ section: '偏好', content: 'Prefers dark mode' }],
+      profileUpdates: [{ section: '偏好', content: 'Prefers dark mode in all apps' }],
       insights: [{ content: 'User values privacy' }],
     }),
   );
@@ -218,21 +221,25 @@ describe('DreamService', () => {
 
       const memoryContent = await adapter.read('.claudian-plus/memory.md');
       expect(memoryContent).toContain('Prefers dark mode');
-      expect(memoryContent).toContain('## User Preferences');
+      expect(memoryContent).toContain('## Insights');
+      expect(memoryContent).toContain('User values privacy');
 
       const userContent = await adapter.read(USER_FILE);
-      expect(userContent).toContain('- Prefers dark mode');
+      expect(userContent).toContain('Prefers dark mode in all apps');
 
       const journal = await adapter.read(`${DREAM_DIR}/${TODAY}.md`);
       expect(journal).toContain('Prefers dark mode');
       expect(journal).toContain('User values privacy');
+      expect(journal).toContain('Insights: 1');
 
       const state = JSON.parse(await adapter.read(DREAM_STATE_FILE)) as {
         lastDreamAt: number;
         processedLogs: string[];
+        processedFingerprints: Record<string, string>;
       };
       expect(state.lastDreamAt).toBeGreaterThan(0);
       expect(state.processedLogs).toEqual(expect.arrayContaining([`${TODAY}.md`, `${YESTERDAY}.md`]));
+      expect(state.processedFingerprints[`${TODAY}.md`]).toBeDefined();
 
       const activity = JSON.parse(await adapter.read(ACTIVITY_FILE)) as Array<{ type: string }>;
       expect(activity.some(entry => entry.type === 'consolidation')).toBe(true);
@@ -285,6 +292,99 @@ describe('DreamService', () => {
       expect(result).toMatchObject({ ran: true, newFacts: 0 });
       const memoryContent = await adapter.read('.claudian-plus/memory.md');
       expect(memoryContent.match(/- Prefers dark mode/g)).toHaveLength(1);
+    });
+
+    it('re-dreams a log appended after it was processed', async () => {
+      const { adapter, service } = createHarness({
+        files: {
+          ...dayLog(TODAY, 'User: morning'),
+          [DREAM_STATE_FILE]: JSON.stringify({
+            lastDreamAt: 0,
+            processedLogs: [`${TODAY}.md`],
+            processedFingerprints: {
+              [`${TODAY}.md`]: `1000:${'User: morning'.length}`,
+            },
+          }),
+        },
+      });
+
+      expect((await service.runDream(true)).ran).toBe(false);
+
+      await adapter.append(`${SHORT_TERM_DIR}/${TODAY}.md`, '\nUser: evening');
+
+      const result = await service.runDream(true);
+      expect(result).toMatchObject({ ran: true, newFacts: 1 });
+
+      const state = JSON.parse(await adapter.read(DREAM_STATE_FILE)) as {
+        processedFingerprints: Record<string, string>;
+      };
+      const appendedContent = 'User: morning\nUser: evening';
+      expect(state.processedFingerprints[`${TODAY}.md`]).toBe(`1000:${appendedContent.length}`);
+    });
+
+    it('skips unchanged logs recorded with fingerprints', async () => {
+      const { service } = createHarness({
+        files: {
+          ...dayLog(TODAY, 'User: morning'),
+          [DREAM_STATE_FILE]: JSON.stringify({
+            lastDreamAt: 0,
+            processedLogs: [`${TODAY}.md`],
+            processedFingerprints: {
+              [`${TODAY}.md`]: `1000:${'User: morning'.length}`,
+            },
+          }),
+        },
+      });
+
+      const result = await service.runDream(true);
+
+      expect(result).toMatchObject({ ran: false, reason: 'no-new-logs' });
+    });
+
+    it('drops profile updates duplicating a fact from the same dream', async () => {
+      const { adapter, service } = createHarness({
+        files: {
+          ...dayLog(TODAY, 'User: hi'),
+          [USER_FILE]: '# 用户画像\n\n## 偏好\n\n<!-- 由对话自动提取 -->\n',
+        },
+        response: JSON.stringify({
+          newFacts: [{ category: 'User Preferences', content: 'Prefers dark mode' }],
+          profileUpdates: [{ section: '偏好', content: 'Prefers dark mode' }],
+        }),
+      });
+
+      const result = await service.runDream(true);
+
+      expect(result).toMatchObject({ ran: true, newFacts: 1, profileUpdates: 0 });
+      const memoryContent = await adapter.read('.claudian-plus/memory.md');
+      expect(memoryContent.match(/- Prefers dark mode/g)).toHaveLength(1);
+      const userContent = await adapter.read(USER_FILE);
+      expect(userContent).not.toContain('Prefers dark mode');
+    });
+
+    it('does not re-add insights already present in long-term memory', async () => {
+      const { adapter, service } = createHarness({
+        files: {
+          ...dayLog(TODAY, 'User: hi'),
+          '.claudian-plus/memory.md': [
+            '# Claudian Plus Memory',
+            '',
+            '## Insights',
+            '',
+            '- User values privacy',
+            '',
+          ].join('\n'),
+        },
+        response: JSON.stringify({
+          insights: [{ content: 'User values privacy' }],
+        }),
+      });
+
+      const result = await service.runDream(true);
+
+      expect(result).toMatchObject({ ran: true, newFacts: 0, insights: 0 });
+      const memoryContent = await adapter.read('.claudian-plus/memory.md');
+      expect(memoryContent.match(/- User values privacy/g)).toHaveLength(1);
     });
 
     it('skips profile updates when implicit extraction is disallowed', async () => {
