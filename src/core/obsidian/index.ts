@@ -29,26 +29,18 @@ export type {
   CanvasReadResult,
   CanvasWritePlan,
   FrontmatterRecord,
-  ObsidianRichContext,
-  PropertiesBatchOperation,
   PropertiesReadResult,
   PropertiesSetOperation,
 } from './ObsidianContextService';
 export {
-  appendObsidianContext,
   applyCanvasWritePlan,
-  buildObsidianRichContext,
   commitCanvasWritePlan,
-  detectPropertyInconsistencies,
   diffCanvasWritePlan,
   diffPropertiesWrite,
-  formatCanvasForPrompt,
-  formatPropertiesForPrompt,
   readCanvas,
   readProperties,
   serializeCanvasData,
   writeProperties,
-  writePropertiesBatch,
 } from './ObsidianContextService';
 export type {
   ObsidianToolBridgeError,

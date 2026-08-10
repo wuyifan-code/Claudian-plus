@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import { getRuntimeEnvironmentText } from '../../../core/providers/providerEnvironment';
+import { invalidateSessionsForProvider } from '../../../core/providers/settingsReconciler';
 import type { ProviderSettingsReconciler } from '../../../core/providers/types';
 import type { Conversation } from '../../../core/types';
 import { parseEnvironmentVariables } from '../../../utils/env';
@@ -24,16 +25,11 @@ export function computeCodexEnvHash(envText: string): string {
 }
 
 function invalidateCodexConversationSessions(conversations: Conversation[]): Conversation[] {
-  const invalidatedConversations: Conversation[] = [];
-  for (const conversation of conversations) {
-    const state = getCodexState(conversation.providerState);
-    if (conversation.providerId === 'codex' && (conversation.sessionId || state.threadId)) {
-      conversation.sessionId = null;
-      conversation.providerState = undefined;
-      invalidatedConversations.push(conversation);
-    }
-  }
-  return invalidatedConversations;
+  return invalidateSessionsForProvider(
+    conversations,
+    'codex',
+    (conversation) => Boolean(getCodexState(conversation.providerState).threadId),
+  );
 }
 
 export const codexSettingsReconciler: ProviderSettingsReconciler = {

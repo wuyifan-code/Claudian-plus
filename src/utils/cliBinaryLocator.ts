@@ -6,10 +6,25 @@ import { expandHomePath, parsePathEntries } from './path';
 
 export function isExistingFile(filePath: string): boolean {
   try {
-    return fs.statSync(filePath).isFile();
+    return fs.existsSync(filePath) && fs.statSync(filePath).isFile();
   } catch {
     return false;
   }
+}
+
+export function findFirstExistingPath(entries: string[], candidates: string[]): string | null {
+  for (const dir of entries) {
+    if (!dir) continue;
+
+    for (const candidateName of candidates) {
+      const candidate = path.join(dir, candidateName);
+      if (isExistingFile(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  return null;
 }
 
 export function resolveConfiguredCliPath(configuredPath: string | undefined): string | null {
@@ -38,18 +53,7 @@ export function findCliBinaryPath(
     ? parsePathEntries(getEnhancedPath(additionalPath))
     : parsePathEntriesForPlatform(additionalPath, platform);
 
-  for (const dir of searchEntries) {
-    if (!dir) continue;
-
-    for (const candidateName of binaryNames) {
-      const candidate = path.join(dir, candidateName);
-      if (isExistingFile(candidate)) {
-        return candidate;
-      }
-    }
-  }
-
-  return null;
+  return findFirstExistingPath(searchEntries, binaryNames);
 }
 
 function parsePathEntriesForPlatform(pathValue: string | undefined, platform: NodeJS.Platform): string[] {

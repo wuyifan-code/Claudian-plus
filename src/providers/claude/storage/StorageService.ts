@@ -1,151 +1,29 @@
 import type { App } from 'obsidian';
-import { Notice } from 'obsidian';
 
-import { ClaudianPlusSettingsStorage, type StoredClaudianPlusSettings } from '../../../app/settings/ClaudianPlusSettingsStorage';
-import { SESSIONS_PATH, SessionStorage } from '../../../core/bootstrap/SessionStorage';
-import { CLAUDIAN_PLUS_STORAGE_PATH } from '../../../core/bootstrap/StoragePaths';
-import { normalizeTabManagerState } from '../../../core/bootstrap/tabManagerState';
-import type { AppTabManagerState } from '../../../core/providers/types';
 import { VaultFileAdapter } from '../../../core/storage/VaultFileAdapter';
-import type {
-  SlashCommand,
-} from '../../../core/types';
-import {
-  type CCPermissions,
-  type CCSettings,
-  createPermissionRule,
-} from '../types/settings';
-import { AGENTS_PATH, AgentVaultStorage } from './AgentVaultStorage';
+import { AgentVaultStorage } from './AgentVaultStorage';
 import { CCSettingsStorage } from './CCSettingsStorage';
 import { McpStorage } from './McpStorage';
-import { SKILLS_PATH, SkillStorage } from './SkillStorage';
-import { COMMANDS_PATH, SlashCommandStorage } from './SlashCommandStorage';
-
-export const CLAUDE_PATH = '.claude';
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
-}
-
-export interface CombinedSettings {
-  cc: CCSettings;
-  claudianPlus: StoredClaudianPlusSettings;
-}
+import { SkillStorage } from './SkillStorage';
+import { SlashCommandStorage } from './SlashCommandStorage';
 
 interface StorageServicePlugin {
   readonly app: App;
-  loadData(): Promise<unknown>;
-  saveData(data: unknown): Promise<void>;
 }
 
 export class StorageService {
   readonly ccSettings: CCSettingsStorage;
-  readonly claudianPlusSettings: ClaudianPlusSettingsStorage;
   readonly commands: SlashCommandStorage;
   readonly skills: SkillStorage;
-  readonly sessions: SessionStorage;
   readonly mcp: McpStorage;
   readonly agents: AgentVaultStorage;
 
-  private adapter: VaultFileAdapter;
-  private plugin: StorageServicePlugin;
-  private app: App;
-
   constructor(plugin: StorageServicePlugin, adapter?: VaultFileAdapter) {
-    this.plugin = plugin;
-    this.app = plugin.app;
-    this.adapter = adapter ?? new VaultFileAdapter(this.app);
-    this.ccSettings = new CCSettingsStorage(this.adapter);
-    this.claudianPlusSettings = new ClaudianPlusSettingsStorage(this.adapter);
-    this.commands = new SlashCommandStorage(this.adapter);
-    this.skills = new SkillStorage(this.adapter);
-    this.sessions = new SessionStorage(this.adapter);
-    this.mcp = new McpStorage(this.adapter);
-    this.agents = new AgentVaultStorage(this.adapter);
-  }
-
-  async initialize(): Promise<CombinedSettings> {
-    await this.ensureDirectories();
-
-    const cc = await this.ccSettings.load();
-    const claudianPlus = await this.claudianPlusSettings.load();
-
-    return { cc, claudianPlus };
-  }
-
-  async ensureDirectories(): Promise<void> {
-    await this.adapter.ensureFolder(CLAUDE_PATH);
-    await this.adapter.ensureFolder(CLAUDIAN_PLUS_STORAGE_PATH);
-    await this.adapter.ensureFolder(COMMANDS_PATH);
-    await this.adapter.ensureFolder(SKILLS_PATH);
-    await this.adapter.ensureFolder(SESSIONS_PATH);
-    await this.adapter.ensureFolder(AGENTS_PATH);
-  }
-
-  async loadAllSlashCommands(): Promise<SlashCommand[]> {
-    const commands = await this.commands.loadAll();
-    const skills = await this.skills.loadAll();
-    return [...commands, ...skills];
-  }
-
-  getAdapter(): VaultFileAdapter {
-    return this.adapter;
-  }
-
-  async getPermissions(): Promise<CCPermissions> {
-    return this.ccSettings.getPermissions();
-  }
-
-  async updatePermissions(permissions: CCPermissions): Promise<void> {
-    return this.ccSettings.updatePermissions(permissions);
-  }
-
-  async addAllowRule(rule: string): Promise<void> {
-    return this.ccSettings.addAllowRule(createPermissionRule(rule));
-  }
-
-  async addDenyRule(rule: string): Promise<void> {
-    return this.ccSettings.addDenyRule(createPermissionRule(rule));
-  }
-
-  async removePermissionRule(rule: string): Promise<void> {
-    return this.ccSettings.removeRule(createPermissionRule(rule));
-  }
-
-  async updateClaudianPlusSettings(updates: Partial<StoredClaudianPlusSettings>): Promise<void> {
-    return this.claudianPlusSettings.update(updates);
-  }
-
-  async saveClaudianPlusSettings(settings: StoredClaudianPlusSettings): Promise<void> {
-    return this.claudianPlusSettings.save(settings);
-  }
-
-  async loadClaudianPlusSettings(): Promise<StoredClaudianPlusSettings> {
-    return this.claudianPlusSettings.load();
-  }
-
-  async getTabManagerState(): Promise<TabManagerPersistedState | null> {
-    try {
-      const data: unknown = await this.plugin.loadData();
-      if (isRecord(data) && data.tabManagerState) {
-        return normalizeTabManagerState(data.tabManagerState);
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  }
-
-  async setTabManagerState(state: TabManagerPersistedState): Promise<void> {
-    try {
-      const loaded: unknown = await this.plugin.loadData();
-      const data = isRecord(loaded) ? loaded : {};
-      data.tabManagerState = state;
-      await this.plugin.saveData(data);
-    } catch {
-      new Notice('Failed to save tab layout');
-    }
+    const vaultAdapter = adapter ?? new VaultFileAdapter(plugin.app);
+    this.ccSettings = new CCSettingsStorage(vaultAdapter);
+    this.commands = new SlashCommandStorage(vaultAdapter);
+    this.skills = new SkillStorage(vaultAdapter);
+    this.mcp = new McpStorage(vaultAdapter);
+    this.agents = new AgentVaultStorage(vaultAdapter);
   }
 }
-
-export type TabManagerPersistedState = AppTabManagerState;

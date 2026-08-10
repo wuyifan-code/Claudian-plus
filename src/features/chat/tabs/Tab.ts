@@ -1251,7 +1251,7 @@ export function initializeTabUI(
     tab.ui.navigationSidebar = new NavigationSidebar(
       dom.messagesEl.parentElement,
       dom.messagesEl,
-      plugin.settings.outlineStyle ?? 'bar',
+      plugin.settings.outlineSide ?? 'left',
     );
   }
 

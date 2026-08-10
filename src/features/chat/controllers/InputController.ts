@@ -15,6 +15,7 @@ import {
 } from '../../../core/providers/types';
 import { VaultRetrievalService } from '../../../core/retrieval/VaultRetrievalService';
 import type { ChatRuntime } from '../../../core/runtime/ChatRuntime';
+import { isCompactCommand } from '../../../core/runtime/compactCommand';
 import {
   cloneChatTurnRequest,
   mergeQueuedChatTurns,
@@ -419,7 +420,7 @@ export class InputController {
     // SDK handles expansion, $ARGUMENTS, @file references, and frontmatter options
     const images = imageOverride ?? imageContextManager?.getAttachedImages() ?? [];
     const imagesForMessage = images.length > 0 ? [...images] : undefined;
-    const isCompact = /^\/compact(\s|$)/i.test(content);
+    const isCompact = isCompactCommand(content);
 
     // Only clear images if we consumed user input (not for programmatic content override)
     if (shouldUseInput) {
@@ -964,7 +965,7 @@ export class InputController {
       : canvasSelectionController.getContext();
 
     const externalContextPaths = externalContextSelector?.getExternalContexts();
-    const isCompact = /^\/compact(\s|$)/i.test(options.content);
+    const isCompact = isCompactCommand(options.content);
     const transformedText = !isCompact && fileContextManager
       ? fileContextManager.transformContextMentions(options.content)
       : options.content;
@@ -989,7 +990,7 @@ export class InputController {
   }
 
   private shouldAutoRetrieveVaultContext(content: string): boolean {
-    return !/^\/compact(\s|$)/i.test(content)
+    return !isCompactCommand(content)
       && this.deps.plugin.vaultRetrievalService !== undefined
       && (this.deps.plugin.vaultRetrievalService.isReady?.() ?? true)
       && (this.deps.plugin.settings.vaultAutoContextEnabled ?? true);

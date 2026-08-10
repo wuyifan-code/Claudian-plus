@@ -3,6 +3,7 @@ import { Menu } from 'obsidian';
 
 import type { CanvasContextAction, CanvasSelectionContext } from '../../../utils/canvas';
 import type { ComposerContextTray } from '../ui/ComposerContextTray';
+import { setSelectionIndicator } from './selectionIndicator';
 
 const CANVAS_POLL_INTERVAL = 250;
 
@@ -181,22 +182,18 @@ export class CanvasSelectionController {
   }
 
   private updateIndicator(): void {
-    if (this.storedSelection) {
-      const { nodeIds } = this.storedSelection;
-      const nodeLabel = nodeIds.length === 1 ? '1 node' : `${nodeIds.length} nodes`;
-      const label = `${nodeLabel} selected`;
-      this.contextTray.setItems('canvas-selection', [{
+    const sel = this.storedSelection;
+    setSelectionIndicator(
+      this.contextTray,
+      'canvas-selection',
+      sel ? {
         id: 'canvas-selection',
-        kind: 'selection',
-        label,
+        label: `${sel.nodeIds.length === 1 ? '1 node' : `${sel.nodeIds.length} nodes`} selected`,
         icon: 'network',
-        ariaLabel: label,
-        onRemove: () => this.clear(),
-      }]);
-    } else {
-      this.contextTray.clearItems('canvas-selection');
-    }
-    this.updateContextRowVisibility();
+      } : null,
+      () => this.clear(),
+      () => this.updateContextRowVisibility(),
+    );
   }
 
   updateContextRowVisibility(): void {

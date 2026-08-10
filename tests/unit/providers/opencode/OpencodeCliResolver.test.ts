@@ -14,7 +14,7 @@ const mockedStat = fs.statSync as jest.Mock;
 describe('OpencodeCliResolver', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (fs.existsSync as jest.Mock).mockReturnValue(false);
+    (fs.existsSync as jest.Mock).mockReturnValue(true);
   });
 
   it('uses the current host path instead of another synced host path', () => {

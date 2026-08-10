@@ -1,11 +1,19 @@
-/* Floating conversation outline — fixed, vertically centered on the left */
+/* Floating conversation outline — Wave TOC style rail anchored to the chat
+   wrapper: thin level-based ticks, a gaussian hover wave, and a soft rounded
+   hover bubble. */
+
 .claudian-plus-messages-wrapper {
   container-name: claudian-plus-chat;
   container-type: inline-size;
 }
 
 .claudian-plus-nav-sidebar {
-  position: fixed;
+  --cp-nav-tick-gap: 15px;
+  --cp-nav-tick-h: 3px;
+  --cp-nav-tick-w-1: 27px;
+  --cp-nav-tick-w-2: 20px;
+  --cp-nav-tick-w-3: 15px;
+  position: absolute;
   top: 50%;
   left: 8px;
   z-index: 100;
@@ -18,249 +26,247 @@
   transition: opacity 200ms ease;
 }
 
+.claudian-plus-nav-sidebar.claudian-plus-nav-outline-right {
+  left: auto;
+  right: 8px;
+}
+
 .claudian-plus-nav-sidebar.visible {
   opacity: 1;
   pointer-events: auto;
 }
 
-/* ── Outline track (tick-mark rail) ── */
+/* ── Outline track (tick rail) ── */
 
 .claudian-plus-nav-outline-track {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 8px;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--cp-nav-tick-gap);
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.claudian-plus-nav-outline-right .claudian-plus-nav-outline-track {
+  align-items: flex-end;
 }
 
 .claudian-plus-nav-outline-track:empty {
   display: none;
 }
 
-/* ── Tick-mark marker ── */
+/* ── Tick markers ── */
 
 button.claudian-plus-nav-outline-marker {
   all: unset;
   box-sizing: border-box;
   position: relative;
+  flex: 0 0 3px;
   width: 28px;
-  height: 18px;
+  height: 3px;
+  min-height: 3px;
+  max-height: 3px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  opacity: 0.45;
-  transition: opacity 180ms ease;
+  --cp-nav-tick-w: var(--cp-nav-tick-w-1);
+  opacity: 0.86;
+  /* Width is driven per-frame by the hover wave via --cp-nav-tick-w, so the
+     only transitioned properties here are color and resting opacity. */
+  transition: opacity 100ms linear;
+}
+
+button.claudian-plus-nav-outline-marker[data-outline-level='2'] {
+  --cp-nav-tick-w: var(--cp-nav-tick-w-2);
+}
+
+button.claudian-plus-nav-outline-marker[data-outline-level='3'] {
+  --cp-nav-tick-w: var(--cp-nav-tick-w-3);
 }
 
 button.claudian-plus-nav-outline-marker::before {
   position: absolute;
-  left: 50%;
+  left: 0;
   top: 50%;
-  width: 6px;
-  height: 2.5px;
-  border-radius: 1.25px;
-  background: var(--text-faint);
+  width: var(--cp-nav-tick-w);
+  height: var(--cp-nav-tick-h);
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--text-normal) 27%, transparent);
   content: "";
-  transform: translate(-50%, -50%);
+  transform: translateY(-50%);
+  transform-origin: left center;
   transition:
-    width 280ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    height 280ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    background-color 240ms ease,
-    box-shadow 240ms ease;
+    background-color 160ms ease,
+    opacity 100ms linear;
 }
 
-/* Active state: bar extends to the left and highlights */
+/* Active state: color deepens without changing tick length */
 button.claudian-plus-nav-outline-marker.is-active {
   opacity: 1;
 }
 
 button.claudian-plus-nav-outline-marker.is-active::before {
-  width: 14px;
-  height: 3px;
-  background: var(--text-accent);
-  box-shadow:
-    0 0 6px color-mix(in srgb, var(--text-accent) 30%, transparent);
-  /* Extend to the left: shift the transform origin */
-  transform: translate(calc(-50% - 2px), -50%);
+  background: color-mix(in srgb, var(--text-normal) 88%, transparent);
 }
 
-/* Hover state */
-button.claudian-plus-nav-outline-marker:hover,
+/* While scanning the rail the hovered tick takes over: the previously active
+   tick softens back to the resting tint instead of staying highlighted. */
+.claudian-plus-nav-sidebar.is-hovering button.claudian-plus-nav-outline-marker.is-active:not(.is-hovered) {
+  opacity: 0.86;
+}
+
+.claudian-plus-nav-sidebar.is-hovering button.claudian-plus-nav-outline-marker.is-active:not(.is-hovered)::before {
+  background: color-mix(in srgb, var(--text-normal) 27%, transparent);
+}
+
+button.claudian-plus-nav-outline-marker.is-hovered,
 button.claudian-plus-nav-outline-marker:focus-visible {
-  opacity: 0.85;
+  opacity: 1;
 }
 
-button.claudian-plus-nav-outline-marker:hover::before,
+button.claudian-plus-nav-outline-marker.is-hovered::before,
 button.claudian-plus-nav-outline-marker:focus-visible::before {
-  width: 10px;
-  height: 3px;
-  background: var(--text-muted);
+  background: var(--text-normal);
 }
 
-/* Dim non-interacted markers when hovering the rail */
-.claudian-plus-nav-sidebar:hover button.claudian-plus-nav-outline-marker:not(:hover):not(.is-active):not(:focus-visible) {
-  opacity: 0.2;
+/* Right-side rail: align tick tails to the inner edge */
+.claudian-plus-nav-outline-right button.claudian-plus-nav-outline-marker::before {
+  left: auto;
+  right: 0;
+  transform-origin: right center;
 }
 
-/* ── Dot marker (dot mode only) ── */
-
-.claudian-plus-nav-outline-dot {
-  display: none;
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-muted);
-  transform: translate(-50%, -50%);
-  transition: width 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
-              height 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
-              background-color 180ms ease;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.claudian-plus-nav-outline-dot-mode button.claudian-plus-nav-outline-marker::before {
-  display: none;
-}
-
-.claudian-plus-nav-outline-dot-mode button.claudian-plus-nav-outline-marker .claudian-plus-nav-outline-dot {
-  display: block;
-  top: 50%;
-  width: 6px;
-  height: 6px;
-}
-
-.claudian-plus-nav-outline-dot-mode button.claudian-plus-nav-outline-marker:hover .claudian-plus-nav-outline-dot {
-  width: 10px;
-  height: 10px;
-}
-
-.claudian-plus-nav-outline-dot-mode button.claudian-plus-nav-outline-marker.is-active .claudian-plus-nav-outline-dot {
-  width: 12px;
-  height: 12px;
-  background: var(--text-accent);
-  box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--text-accent) 12%, transparent),
-    0 0 12px color-mix(in srgb, var(--text-accent) 25%, transparent);
-}
-
-/* ── Preview tooltip ── */
+/* ── Preview bubble (Wave TOC hover card) ── */
 
 .claudian-plus-nav-outline-preview {
+  --cp-preview-shift: -8px;
   position: fixed;
-  left: calc(28px + 24px);
+  left: var(--claudian-plus-outline-preview-left, 44px);
   top: var(--claudian-plus-outline-preview-top, 0);
-  z-index: 101;
+  z-index: var(--layer-popover);
   display: flex;
   flex-direction: column;
-  gap: 6px;
   box-sizing: border-box;
-  width: min(240px, calc(100vw - 80px));
-  max-height: min(180px, calc(100vh - 40px));
-  padding: 10px 12px;
+  max-width: min(360px, 42vw);
+  padding: 13px 17px;
   overflow: hidden;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--text-normal) 12%, transparent);
+  border-radius: 18px;
   color: var(--text-normal);
-  background: var(--background-primary);
-  box-shadow:
-    0 8px 28px rgba(0, 0, 0, 0.14),
-    0 2px 6px rgba(0, 0, 0, 0.08);
+  background: color-mix(in srgb, var(--background-primary) 94%, var(--text-normal) 6%);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  opacity: 0;
   pointer-events: none;
-  /* Spring slide for vertical movement */
-  transition: transform 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
-  animation: claudian-plus-outline-card-fade-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translate3d(var(--cp-preview-shift), -50%, 0) scale(0.97);
+  transform-origin: left center;
+  transition:
+    opacity 120ms ease,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.claudian-plus-nav-outline-preview::before {
-  position: absolute;
-  top: 12px;
-  left: -5px;
-  width: 10px;
-  height: 10px;
-  background: var(--background-primary);
-  border-top: 1px solid var(--background-modifier-border);
-  border-left: 1px solid var(--background-modifier-border);
-  content: "";
-  transform: rotate(-45deg);
+.claudian-plus-nav-outline-preview.is-visible {
+  opacity: 1;
+  transform: translate3d(0, -50%, 0) scale(1);
+}
+
+.claudian-plus-nav-outline-preview.has-preview {
+  width: min(420px, 48vw);
+  max-width: min(420px, 48vw);
+  padding: 15px 18px 16px;
+  border-radius: 20px;
+}
+
+.claudian-plus-nav-outline-right .claudian-plus-nav-outline-preview {
+  --cp-preview-shift: 8px;
+  transform-origin: right center;
 }
 
 .claudian-plus-nav-outline-preview-badge {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 12px;
+  right: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  border-radius: 4px;
+  border-radius: 5px;
   color: var(--text-muted);
-  background: var(--background-secondary);
+  background: color-mix(in srgb, var(--text-normal) 10%, transparent);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
 }
 
+.claudian-plus-nav-outline-preview-excerpt.is-hidden,
+.claudian-plus-nav-outline-preview-badge.is-hidden {
+  display: none;
+}
+
 .claudian-plus-nav-outline-preview-title {
   min-width: 0;
   padding-right: 26px;
+  overflow: hidden;
   color: var(--text-normal);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claudian-plus-nav-outline-preview.has-preview
+  .claudian-plus-nav-outline-preview-title {
   display: -webkit-box;
+  padding-right: 30px;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  overflow: hidden;
+  white-space: normal;
 }
 
 .claudian-plus-nav-outline-preview-excerpt {
   display: -webkit-box;
+  margin-top: 8px;
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 430;
   line-height: 1.55;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
 }
 
-@keyframes claudian-plus-outline-card-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-.claudian-plus-nav-outline-preview-leaving {
-  animation: claudian-plus-outline-card-fade-out 120ms ease forwards;
-  pointer-events: none;
-}
-
-@keyframes claudian-plus-outline-card-fade-out {
-  from { opacity: 1; }
-  to   { opacity: 0; }
-}
-
 /* ── Responsive ── */
 
 @container claudian-plus-chat (max-width: 479px) {
-  .claudian-plus-nav-sidebar { left: 4px; }
-  .claudian-plus-nav-outline-preview { left: calc(28px + 18px); }
-}
+  .claudian-plus-nav-sidebar {
+    --cp-nav-tick-w-1: 22px;
+    --cp-nav-tick-w-2: 17px;
+    --cp-nav-tick-w-3: 13px;
+    left: 4px;
+  }
 
-@media (pointer: coarse) {
-  .claudian-plus-nav-outline-preview { display: none; }
+  .claudian-plus-nav-sidebar.claudian-plus-nav-outline-right {
+    left: auto;
+    right: 4px;
+  }
+
+  .claudian-plus-nav-outline-preview {
+    max-width: min(240px, 68vw);
+  }
+
+  .claudian-plus-nav-outline-preview.has-preview {
+    width: min(280px, 72vw);
+    max-width: min(280px, 72vw);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .claudian-plus-nav-outline-marker::before,
-  .claudian-plus-nav-outline-preview,
-  .claudian-plus-nav-outline-dot {
+  .claudian-plus-nav-outline-preview {
     transition: none;
     animation: none;
   }

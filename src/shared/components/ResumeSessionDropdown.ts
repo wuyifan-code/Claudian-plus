@@ -8,6 +8,7 @@
 import { setIcon } from 'obsidian';
 
 import type { ConversationMeta } from '../../core/types';
+import { formatConversationTimestamp } from '../../utils/date';
 
 export interface ResumeSessionDropdownCallbacks {
   onSelect: (conversationId: string) => void;
@@ -155,8 +156,7 @@ export class ResumeSessionDropdown {
       titleEl.setAttribute('title', conv.title);
       content.createDiv({
         cls: 'claudian-plus-resume-item-date',
-        text: isCurrent ? 'Current session' : this.formatDate(conv.lastResponseAt ?? conv.createdAt),
-      });
+        text: isCurrent ? 'Current session' : formatConversationTimestamp(conv.lastResponseAt ?? conv.createdAt),      });
 
       item.addEventListener('click', () => {
         if (isCurrent) {
@@ -172,14 +172,5 @@ export class ResumeSessionDropdown {
       });
     }
   }
-
-  private formatDate(timestamp: number): string {
-    const date = new Date(timestamp);
-    const now = new Date();
-
-    if (date.toDateString() === now.toDateString()) {
-      return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
-    }
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  }
 }
+

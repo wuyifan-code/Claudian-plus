@@ -18,9 +18,9 @@ import { SharedStorageService } from './app/storage/SharedStorageService';
 import type { SharedAppStorage } from './core/bootstrap/storage';
 import {
   ConsciousnessEngine,
-  escapePromptTagCloser,
   DREAM_CHECK_INTERVAL_MS,
   DreamService,
+  escapePromptTagCloser,
   MemoryExtractor,
   MemoryStore,
   VaultKnowledgeEngine,
@@ -69,12 +69,6 @@ import type { ChatViewPlacement, EnvironmentScope } from './core/types/settings'
 import { ClaudianPlusView } from './features/chat/ClaudianPlusView';
 import { LivePreviewComposerEnhancement } from './features/chat/composer/LivePreviewComposerEnhancement';
 import type { ComposerEnhancement } from './features/chat/composer/types';
-import {
-  buildFloatingBarPrompt,
-  createEditorFloatingBarPlugin,
-  type EditorFloatingBarAction,
-  FloatingToolbarWidget,
-} from './features/chat/editing/EditorFloatingBar';
 import { registerFileMenu } from './features/chat/fileMenu';
 import { QuickAgentInputModal } from './features/chat/QuickAgentInputModal';
 import { VaultHealthModal } from './features/chat/VaultHealthModal';
@@ -87,7 +81,7 @@ import { migrateClaudeServiceSettings } from './providers/claude/services/Claude
 import { OPENCODE_PLAN_MODE_ID, OPENCODE_SAFE_MODE_ID } from './providers/opencode/modes';
 import { VaultRetrievalModal } from './shared/modals/VaultRetrievalModal';
 import { buildCursorContext, getEditorView } from './utils/editor';
-import { getActiveDocument, revealWorkspaceLeaf } from './utils/obsidianCompat';
+import { revealWorkspaceLeaf } from './utils/obsidianCompat';
 import { getVaultPath } from './utils/path';
 
 const HIGH_CONFIDENCE_LINK_SCORE = 0.42;
@@ -165,7 +159,6 @@ export default class ClaudianPlusPlugin extends Plugin {
   private sessionMetadataLoadTimer: number | null = null;
   private remainingSessionMetadataLoad: Promise<void> | null = null;
   private isUnloading = false;
-  private floatingToolbarFallback: FloatingToolbarWidget | null = null;
   private obsidianToolBridge: ObsidianToolBridge | null = null;
   private readonly autoLinkRecommendationTimers = new Map<string, number>();
   private readonly autoLinkRecommendationLastShownAt = new Map<string, number>();
@@ -475,68 +468,16 @@ export default class ClaudianPlusPlugin extends Plugin {
         },
       });
 
-      // Register editor floating bar plugin for text selections
-      const floatingBarOptions = {
-        onAction: (action: EditorFloatingBarAction, selectedText: string, view?: EditorView) => {
-          void this.executeFloatingBarAction(action, selectedText, view).catch((error: unknown) => {
-            new Notice(`Text action failed: ${error instanceof Error ? error.message : String(error)}`);
-          });
-        },
-      };
-
       // Older Obsidian test harnesses (and a few third-party embedders) may not
-      // expose CodeMirror's editor-extension registration API. The floating
-      // bar has a DOM fallback below, so keep startup resilient when the API is
-      // unavailable while using it whenever the host provides it.
+      // expose CodeMirror's editor-extension registration API.
       const registerEditorExtension = (this as unknown as {
         registerEditorExtension?: (extension: unknown) => void;
       }).registerEditorExtension;
-      registerEditorExtension?.call(this, createEditorFloatingBarPlugin(floatingBarOptions));
       registerEditorExtension?.call(this, createAgentInlinePlugin({
         onSubmit: ({ instruction, view }) => {
           void this.executeAgentInlineInstruction(instruction, view);
         },
       }));
-
-      // Global fallback listener so existing/already-open editor views immediately react to selections
-      const globalWidget = new FloatingToolbarWidget(null, floatingBarOptions);
-      this.floatingToolbarFallback = globalWidget;
-      const isMarkdownSelection = (selection: Selection | null): boolean => {
-        if (!selection || selection.isCollapsed || !selection.anchorNode || !selection.focusNode) {
-          return false;
-        }
-
-        const getElement = (node: Node): Element | null => {
-          const candidate = node as Node & { closest?: unknown };
-          if (typeof candidate.closest === 'function') return node as unknown as Element;
-          return node.parentElement;
-        };
-        return [selection.anchorNode, selection.focusNode].every((node) => (
-          !!node
-          && getElement(node)?.closest('.markdown-source-view, .markdown-preview-view') !== null
-        ));
-      };
-      const handleGlobalSelection = () => {
-        const hostDocument = getActiveDocument();
-        if (!hostDocument) return;
-        const selection = hostDocument.getSelection?.();
-        if (!isMarkdownSelection(selection)) {
-          // Hiding is cheap and must not be deferred; also cancel any pending
-          // frame update so it cannot re-show the bar for a stale selection.
-          globalWidget.hide();
-          return;
-        }
-        globalWidget.schedulePositionUpdate();
-      };
-      const doc = getActiveDocument();
-      const registerDomEvent = (this as unknown as {
-        registerDomEvent?: (target: Document, event: string, callback: () => void) => void;
-      }).registerDomEvent;
-      if (doc && typeof registerDomEvent === 'function') {
-        registerDomEvent.call(this, doc, 'selectionchange', handleGlobalSelection);
-        registerDomEvent.call(this, doc, 'mouseup', handleGlobalSelection);
-        registerDomEvent.call(this, doc, 'keyup', handleGlobalSelection);
-      }
 
       this.addCommand({
         id: 'scan-vault-knowledge',
@@ -641,6 +582,27 @@ export default class ClaudianPlusPlugin extends Plugin {
         },
       });
 
+      this.addCommand({
+        id: 'dream-consolidate-memory',
+        name: 'Dream: consolidate short-term memories',
+        callback: async () => {
+          if (!this.settings.consciousnessEnabled || !this.settings.consciousnessAutoMemory) {
+            new Notice('Dream memory requires consciousness and auto-memory to be enabled.');
+            return;
+          }
+          const result = await this.getDreamService().runDream(true);
+          if (result.ran) {
+            new Notice(`Memory consolidated: ${result.newFacts} fact(s), ${result.profileUpdates} profile update(s), ${result.insights} insight(s).`);
+          } else if (result.reason === 'no-new-logs') {
+            new Notice('No new short-term memories to consolidate.');
+          } else if (result.reason === 'already-running') {
+            new Notice('A memory consolidation is already running.');
+          } else if (result.reason === 'failed') {
+            new Notice(`Memory consolidation failed: ${result.error ?? 'unknown error'}`);
+          }
+        },
+      });
+
       this.addSettingTab(new ClaudianPlusSettingTab(this.app, this));
       this.scheduleRemainingSessionMetadataLoad();
     } finally {
@@ -650,11 +612,6 @@ export default class ClaudianPlusPlugin extends Plugin {
 
   onunload(): void {
     this.isUnloading = true;
-    // Cancel any frame-scheduled position update before tearing the widget
-    // down so the callback cannot run against a half-destroyed DOM.
-    this.floatingToolbarFallback?.cancelScheduledUpdate();
-    this.floatingToolbarFallback?.destroy();
-    this.floatingToolbarFallback = null;
     if (this.sessionMetadataLoadTimer !== null) {
       window.clearTimeout(this.sessionMetadataLoadTimer);
       this.sessionMetadataLoadTimer = null;
@@ -804,66 +761,6 @@ export default class ClaudianPlusPlugin extends Plugin {
     } else {
       new Notice('Could not send to chat: tab not available (max tabs reached?).');
     }
-  }
-
-  private async executeFloatingBarAction(
-    action: EditorFloatingBarAction,
-    selectedText: string,
-    editorView?: EditorView,
-  ): Promise<void> {
-    const mode = action.mode ?? (action.inlineEdit ? 'inline' : 'chat');
-    // The toolbar's mousedown handler intentionally keeps focus in the editor,
-    // but Obsidian can still report the chat pane (or another leaf) as active by
-    // the time this callback runs. Resolve the Markdown view that owns the
-    // EditorView first instead of relying on the active-leaf heuristic.
-    const markdownView = this.resolveMarkdownViewForEditor(editorView);
-    const notePath = markdownView?.file?.path;
-
-    if (mode === 'custom') {
-      new QuickAgentInputModal(
-        this.app,
-        async (instruction) => {
-          const prompt = [
-            instruction.trim(),
-            '',
-            'Selected text:',
-            selectedText,
-          ].join('\n');
-          await this.sendPromptToChat(prompt, notePath ? [notePath] : undefined);
-        },
-        localeText('询问选中的文本…', 'Ask about the selected text...'),
-      ).open();
-      return;
-    }
-
-    if (mode === 'inline') {
-      if (!markdownView || !editorView || !this.markdownViewOwnsEditorView(markdownView, editorView)) {
-        new Notice(localeText(
-          '无法执行内联编辑：当前 Markdown 编辑器已发生变化。',
-          'Inline edit unavailable: the active Markdown editor changed.',
-        ));
-        return;
-      }
-
-      const modal = new InlineEditModal(
-        this.app,
-        this,
-        markdownView.editor,
-        markdownView,
-        { mode: 'selection', selectedText },
-        notePath ?? 'unknown',
-        () => this.getView()?.getActiveTab()?.ui.externalContextSelector?.getExternalContexts() ?? [],
-        action.initialInstruction ?? buildFloatingBarPrompt(action, selectedText),
-      );
-      const result = await modal.openAndWait();
-      if (result.decision === 'accept') {
-        new Notice(`${action.label} applied.`);
-      }
-      return;
-    }
-
-    const prompt = buildFloatingBarPrompt(action, selectedText);
-    await this.sendPromptToChat(prompt, notePath ? [notePath] : undefined);
   }
 
   private async executeAgentInlineInstruction(
@@ -1727,7 +1624,39 @@ export default class ClaudianPlusPlugin extends Plugin {
     return this._vaultKnowledgeEngine;
   }
 
-  /** Get the consciousness injection text for system prompt, or null if disabled. */
+  /** Get or create the DreamService instance. */
+  getDreamService(): DreamService {
+    if (!this._dreamService) {
+      this._dreamService = new DreamService({
+        adapter: this.storage.getAdapter(),
+        memoryStore: this.getMemoryStore(),
+        consciousness: this.getConsciousnessEngine(),
+        createRunner: (providerId) => ProviderRegistry.createAuxQueryRunner(this, providerId),
+        getConversationContext: () => this.getActiveChatContext(),
+        isEnabled: () => !!this.settings.consciousnessEnabled && !!this.settings.consciousnessAutoMemory,
+        config: {
+          intervalMs: this.settings.dreamIntervalMs,
+          maxLogDays: this.settings.dreamMaxLogDays,
+          inputCharCap: this.settings.dreamInputCharCap,
+          maxNewFacts: this.settings.dreamMaxNewFacts,
+        },
+      });
+    }
+    return this._dreamService;
+  }
+
+  /** Provider + model of the active chat tab, or null when the view is closed. */
+  getActiveChatContext(): { providerId: ProviderId; model: string | null } | null {
+    const tab = this.getView()?.getActiveTab();
+    if (!tab) {
+      return null;
+    }
+    return {
+      providerId: tab.providerId,
+      model: tab.service?.getAuxiliaryModel?.() ?? null,
+    };
+  }
+
   /** Notify once when old-plugin data is still present so nothing is silently dropped. */
   private async checkLegacyDataPresence(): Promise<void> {
     try {
@@ -1780,39 +1709,7 @@ export default class ClaudianPlusPlugin extends Plugin {
     }
   }
 
-  /** Get or create the DreamService instance. */
-  getDreamService(): DreamService {
-    if (!this._dreamService) {
-      this._dreamService = new DreamService({
-        adapter: this.storage.getAdapter(),
-        memoryStore: this.getMemoryStore(),
-        consciousness: this.getConsciousnessEngine(),
-        createRunner: (providerId) => ProviderRegistry.createAuxQueryRunner(this, providerId),
-        getConversationContext: () => this.getActiveChatContext(),
-        isEnabled: () => !!this.settings.consciousnessEnabled && !!this.settings.consciousnessAutoMemory,
-        config: {
-          intervalMs: this.settings.dreamIntervalMs,
-          maxLogDays: this.settings.dreamMaxLogDays,
-          inputCharCap: this.settings.dreamInputCharCap,
-          maxNewFacts: this.settings.dreamMaxNewFacts,
-        },
-      });
-    }
-    return this._dreamService;
-  }
-
-  /** Provider + model of the active chat tab, or null when the view is closed. */
-  getActiveChatContext(): { providerId: ProviderId; model: string | null } | null {
-    const tab = this.getView()?.getActiveTab();
-    if (!tab) {
-      return null;
-    }
-    return {
-      providerId: tab.providerId,
-      model: tab.service?.getAuxiliaryModel?.() ?? null,
-    };
-  }
-
+  /** Get the consciousness injection text for system prompt, or null if disabled. */
   async getConsciousnessInjectionText(): Promise<string | null> {
     const consciousnessEnabled = this.settings.consciousnessEnabled;
     const vaultKnowledgeEnabled = this.settings.vaultKnowledgeEnabled ?? consciousnessEnabled;

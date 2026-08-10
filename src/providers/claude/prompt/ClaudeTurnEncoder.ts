@@ -1,13 +1,10 @@
 import type { McpServerManager } from '../../../core/mcp/McpServerManager';
+import { isCompactCommand } from '../../../core/runtime/compactCommand';
 import type { ChatTurnRequest, PreparedChatTurn } from '../../../core/runtime/types';
 import { appendBrowserContext } from '../../../utils/browser';
 import { appendCanvasContext } from '../../../utils/canvas';
 import { appendCurrentNote, appendVaultContext } from '../../../utils/context';
 import { appendEditorContext } from '../../../utils/editor';
-
-function isCompactCommand(text: string): boolean {
-  return /^\/compact(\s|$)/i.test(text);
-}
 
 export function encodeClaudeTurn(
   request: ChatTurnRequest,

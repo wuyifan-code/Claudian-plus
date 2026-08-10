@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import { Setting } from 'obsidian';
 
+import { sameStringList } from '../../../core/providers/compareCollections';
 import type {
   ProviderSettingsTabRenderer,
   ProviderSettingsTabRendererContext,
@@ -17,7 +18,6 @@ import { getHostnameKey } from '../../../utils/env';
 import { expandHomePath } from '../../../utils/path';
 import { maybeGetOpencodeWorkspaceServices } from '../app/OpencodeWorkspaceServices';
 import { clearOpencodeDiscoveryState } from '../discoveryState';
-import { sameStringList } from '../internal/compareCollections';
 import {
   buildOpencodeBaseModels,
   encodeOpencodeModelId,

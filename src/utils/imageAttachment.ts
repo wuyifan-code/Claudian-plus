@@ -27,7 +27,7 @@ export interface BuildImageAttachmentOptions {
   name?: string;
 }
 
-export function normalizeImageMediaType(value: unknown): ImageMediaType | null {
+function normalizeImageMediaType(value: unknown): ImageMediaType | null {
   if (typeof value !== 'string') {
     return null;
   }

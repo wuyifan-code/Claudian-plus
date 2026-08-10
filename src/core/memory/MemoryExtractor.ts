@@ -132,18 +132,6 @@ export class MemoryExtractor {
   }
 
   /**
-   * Placeholder for LLM-based extraction (Phase 2).
-   */
-  async extractWithModel(
-    _message: string,
-    _existingEntries: MemoryEntry[],
-    _modelQuery: (prompt: string) => Promise<string>,
-  ): Promise<MemoryExtractionResult> {
-    // Phase 2: use model to extract implicit memories
-    return { entries: [] };
-  }
-
-  /**
    * Extract implicit memories from a message without requiring trigger words.
    * This is the core of the "consciousness" mechanism - automatically identifying
    * important information worth remembering from natural conversation.

@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
+import { findFirstExistingPath, isExistingFile } from '../../../utils/cliBinaryLocator';
 import { parsePathEntries, resolveNvmDefaultBin } from '../../../utils/path';
 
 const CLAUDE_CODE_PACKAGE_SEGMENTS = ['node_modules', '@anthropic-ai', 'claude-code'];
@@ -19,27 +20,6 @@ function dedupePaths(entries: string[]): string[] {
     seen.add(key);
     return true;
   });
-}
-
-function findFirstExistingPath(entries: string[], candidates: string[]): string | null {
-  for (const dir of entries) {
-    if (!dir) continue;
-    for (const candidate of candidates) {
-      const fullPath = path.join(dir, candidate);
-      if (isExistingFile(fullPath)) {
-        return fullPath;
-      }
-    }
-  }
-  return null;
-}
-
-function isExistingFile(filePath: string): boolean {
-  try {
-    return fs.existsSync(filePath) && fs.statSync(filePath).isFile();
-  } catch {
-    return false;
-  }
 }
 
 function findClaudeCodeNodeEntrypoint(packageRoot: string): string | null {

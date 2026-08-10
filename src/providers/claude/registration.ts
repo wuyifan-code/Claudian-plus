@@ -10,8 +10,8 @@ import { TitleGenerationService as ClaudeTitleGenerationService } from './auxili
 import { CLAUDE_PROVIDER_CAPABILITIES } from './capabilities';
 import { claudeSettingsReconciler } from './env/ClaudeSettingsReconciler';
 import { ClaudeConversationHistoryService } from './history/ClaudeConversationHistoryService';
-import { ClaudeChatRuntime } from './runtime/ClaudeChatRuntime';
 import { ClaudeAuxQueryRunner } from './runtime/ClaudeAuxQueryRunner';
+import { ClaudeChatRuntime } from './runtime/ClaudeChatRuntime';
 import { ClaudeTaskResultInterpreter } from './runtime/ClaudeTaskResultInterpreter';
 import { getClaudeProviderSettings, updateClaudeProviderSettings } from './settings';
 import { claudeChatUIConfig } from './ui/ClaudeChatUIConfig';

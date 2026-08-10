@@ -1,3 +1,4 @@
+import { parseConfiguredCustomModelIds } from '../../core/providers/modelOptions';
 import { getRuntimeEnvironmentVariables } from '../../core/providers/providerEnvironment';
 import type { ProviderUIOption } from '../../core/providers/types';
 import { getCodexModelsInPickerOrder, getDefaultCodexModel } from './models';
@@ -28,23 +29,6 @@ export function getConfiguredEnvCustomModel(settings: Record<string, unknown>): 
   const modelId = getConfiguredEnvModel(settings);
   const discoveredModels = getCodexProviderSettings(settings).discoveredModels;
   return modelId && !discoveredModels.some(model => model.model === modelId) ? modelId : null;
-}
-
-export function parseConfiguredCustomModelIds(value: string): string[] {
-  const modelIds: string[] = [];
-  const seen = new Set<string>();
-
-  for (const line of value.split(/\r?\n/)) {
-    const modelId = line.trim();
-    if (!modelId || seen.has(modelId)) {
-      continue;
-    }
-
-    seen.add(modelId);
-    modelIds.push(modelId);
-  }
-
-  return modelIds;
 }
 
 export function getCodexModelOptions(settings: Record<string, unknown>): ProviderUIOption[] {

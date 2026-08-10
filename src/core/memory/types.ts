@@ -6,18 +6,6 @@ export interface MemoryEntry {
   source: 'user-explicit' | 'user-implicit';
   createdAt: number;
   updatedAt: number;
-  /** Optional provenance for audit and user review. */
-  sourceContext?: MemorySourceContext;
-}
-
-/** Provenance metadata explaining where a memory came from. */
-export interface MemorySourceContext {
-  /** Conversation or session ID where the memory was extracted. */
-  conversationId?: string;
-  /** Brief description of the extraction trigger. */
-  trigger?: string;
-  /** Whether the user explicitly confirmed this memory. */
-  userConfirmed?: boolean;
 }
 
 /** Result from the memory extraction process. */

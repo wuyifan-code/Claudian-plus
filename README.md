@@ -52,7 +52,7 @@ Bring context into the composer with `@note`, `@folder`, drag-and-drop, image at
 
 ### A calmer chat surface
 
-The floating outline is designed for navigation, not decoration: prompt markers and assistant headings stay visible, while thoughts and tool output remain collapsed in the chat body. Choose the bars or dots style from settings.
+The floating outline is designed for navigation, not decoration: prompt markers and assistant headings stay visible, while thoughts and tool output remain collapsed in the chat body. Ticks scale by heading level and only change color for the current section; hover a tick for a preview bubble. Choose the rail side (left or right) from settings.
 
 ### One workspace for agent resources
 

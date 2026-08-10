@@ -170,11 +170,11 @@ export class ClaudianPlusView extends ItemView {
     this.tabManager?.invalidateProviderCommandCaches(providerIds);
   }
 
-  /** Applies the outline style setting to all open tab sidebars. */
-  refreshOutlineStyle(): void {
-    const style = this.plugin.settings.outlineStyle ?? 'bar';
+  /** Applies the outline side setting to all open tab sidebars. */
+  refreshOutlineSide(): void {
+    const side = this.plugin.settings.outlineSide ?? 'left';
     for (const tab of this.tabManager?.getAllTabs() ?? []) {
-      tab.ui.navigationSidebar?.setOutlineStyle(style);
+      tab.ui.navigationSidebar?.setSide(side);
     }
   }
 

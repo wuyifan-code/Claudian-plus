@@ -30,6 +30,11 @@
   background: var(--background-modifier-hover);
 }
 
+.claudian-plus-settings-tab:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
 .claudian-plus-settings-tab--active {
   color: var(--text-on-accent, #ffffff) !important;
   background: var(--interactive-accent) !important;
@@ -43,6 +48,7 @@
 
 .claudian-plus-settings-tab-content--active {
   display: block;
+  padding-bottom: 32px;
   animation: claudian-plus-fade-in 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -247,6 +253,7 @@
   font-size: 13px !important;
   color: var(--text-muted) !important;
   line-height: 1.5 !important;
+  max-width: 56ch;
   opacity: 0.88;
 }
 
@@ -291,6 +298,10 @@
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+.claudian-plus-settings select.dropdown {
+  min-width: 180px;
+}
+
 .claudian-plus-settings select.dropdown:focus,
 .claudian-plus-settings input[type="text"]:focus,
 .claudian-plus-settings textarea:focus {
@@ -305,6 +316,37 @@
   cursor: pointer;
   height: 6px;
   border-radius: 3px;
+}
+
+.claudian-plus-settings .setting-item-control:has(input[type="range"]) {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.claudian-plus-settings .slider-value {
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 20px;
+  text-align: center;
+  line-height: 1;
+}
+
+.claudian-plus-max-tabs-scale {
+  display: flex;
+  justify-content: space-between;
+  flex: 1 0 100%;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+/* Toggle micro-interaction: fade the off state so it reads as a switch. */
+.claudian-plus-settings .setting-item-control .checkbox-container {
+  transition: opacity 0.15s ease;
+}
+
+.claudian-plus-settings .setting-item-control .checkbox-container:not(.is-enabled) {
+  opacity: 0.55;
 }
 
 /* Custom section descriptions - align with items */

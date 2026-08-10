@@ -10,6 +10,11 @@ import {
   buildTagNormalizations,
 } from '../../core/retrieval/VaultInsightService';
 import type { SemanticIndexProgress, VaultRetrievalService } from '../../core/retrieval/VaultRetrievalService';
+import {
+  getRecentlyModifiedFiles,
+  getUnresolvedLinks,
+} from '../../core/retrieval/vaultStats';
+import { formatDuration } from '../../utils/date';
 
 interface HealthStats {
   totalFiles: number;
@@ -445,8 +450,7 @@ export class VaultHealthModal extends Modal {
     const mc = this.app.metadataCache as unknown as Record<string, unknown>;
     const resolvedLinks = typeof mc.resolvedLinks === 'object' && mc.resolvedLinks
       ? mc.resolvedLinks as Record<string, unknown> : {};
-    const unresolvedLinks = typeof mc.unresolvedLinks === 'object' && mc.unresolvedLinks
-      ? mc.unresolvedLinks as Record<string, unknown> : {};
+    const unresolvedLinks = getUnresolvedLinks(this.app);
 
     const markdownFiles = this.app.vault.getMarkdownFiles();
     let retrieval: HealthStats['retrieval'] = null;
@@ -458,7 +462,6 @@ export class VaultHealthModal extends Modal {
         // Link health remains useful when retrieval cache I/O is unavailable.
       }
     }
-    const now = Date.now();
 
     // Broken links
     let totalUnresolved = 0;
@@ -485,9 +488,7 @@ export class VaultHealthModal extends Modal {
     const orphanSamples = orphans.slice(0, 20).map(f => f.path);
 
     // Recent files
-    const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
-    const recent = markdownFiles.filter(f => f.stat.mtime > weekAgo)
-      .sort((a, b) => b.stat.mtime - a.stat.mtime);
+    const recent = getRecentlyModifiedFiles(this.app, 7);
 
     // Tags
     const tagCounts = new Map<string, number>();
@@ -704,16 +705,3 @@ export class VaultHealthModal extends Modal {
  * Renders a duration in seconds as a short human-readable label.
  * `Infinity` and `NaN` collapse to "—"; sub-second to "<1s".
  */
-function formatDuration(totalSeconds: number): string {
-  if (!Number.isFinite(totalSeconds) || totalSeconds < 0) return '—';
-  if (totalSeconds < 1) return '<1s';
-  if (totalSeconds < 60) return `${Math.round(totalSeconds)}s`;
-  if (totalSeconds < 3600) {
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = Math.round(totalSeconds - minutes * 60);
-    return seconds === 0 ? `${minutes}m` : `${minutes}m ${seconds}s`;
-  }
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.round((totalSeconds - hours * 3600) / 60);
-  return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`;
-}

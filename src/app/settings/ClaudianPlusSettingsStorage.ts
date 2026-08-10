@@ -1,8 +1,8 @@
 import {
+  ARCHIVED_LEGACY_DIR,
   CLAUDIAN_PLUS_SETTINGS_PATH,
   LEGACY_CLAUDIAN_PLUS_SETTINGS_PATH,
   LEGACY_SETTINGS_PATHS,
-  ARCHIVED_LEGACY_DIR,
 } from '../../core/bootstrap/StoragePaths';
 import {
   normalizeHiddenCommandList,

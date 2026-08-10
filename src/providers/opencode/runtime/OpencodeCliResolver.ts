@@ -1,39 +1,19 @@
+import { CachedCliResolver } from '../../../core/providers/CachedCliResolver';
 import { getRuntimeEnvironmentText } from '../../../core/providers/providerEnvironment';
 import { findCliBinaryPath, resolveConfiguredCliPath } from '../../../utils/cliBinaryLocator';
-import { getHostnameKey, parseEnvironmentVariables } from '../../../utils/env';
+import { parseEnvironmentVariables } from '../../../utils/env';
 import { getOpencodeProviderSettings } from '../settings';
 
-export class OpencodeCliResolver {
-  private readonly cachedHostname = getHostnameKey();
-  private lastCliPath = '';
-  private lastHostnamePath = '';
-  private lastEnvText = '';
-  private resolvedPath: string | null = null;
-
+export class OpencodeCliResolver extends CachedCliResolver {
   resolveFromSettings(settings: Record<string, unknown>): string | null {
     const opencodeSettings = getOpencodeProviderSettings(settings);
     const cliPath = opencodeSettings.cliPath.trim();
     const hostnamePath = (opencodeSettings.cliPathsByHost[this.cachedHostname] ?? '').trim();
     const envText = getRuntimeEnvironmentText(settings, 'opencode');
 
-    if (
-      this.resolvedPath !== null
-      && cliPath === this.lastCliPath
-      && hostnamePath === this.lastHostnamePath
-      && envText === this.lastEnvText
-    ) {
-      return this.resolvedPath;
-    }
-
-    this.lastCliPath = cliPath;
-    this.lastHostnamePath = hostnamePath;
-    this.lastEnvText = envText;
-    this.resolvedPath = this.resolve(
-      opencodeSettings.cliPathsByHost,
-      cliPath,
-      envText,
-    );
-    return this.resolvedPath;
+    return this.resolveMemoized(cliPath, hostnamePath, envText, () => (
+      this.resolve(opencodeSettings.cliPathsByHost, cliPath, envText)
+    ));
   }
 
   resolve(
@@ -46,12 +26,5 @@ export class OpencodeCliResolver {
     return resolveConfiguredCliPath(hostnamePath)
       ?? resolveConfiguredCliPath(legacyPath.trim())
       ?? findCliBinaryPath('opencode', customEnv.PATH);
-  }
-
-  reset(): void {
-    this.lastCliPath = '';
-    this.lastHostnamePath = '';
-    this.lastEnvText = '';
-    this.resolvedPath = null;
   }
 }

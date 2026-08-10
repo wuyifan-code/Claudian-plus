@@ -1,121 +1,32 @@
-import { Notice } from 'obsidian';
-
 import { t } from '../../../i18n/i18n';
+import {
+  TriggerModeManager,
+  type TriggerModeManagerCallbacks,
+} from './TriggerModeManager';
 
-export interface BangBashModeCallbacks {
-  onSubmit: (command: string) => Promise<void>;
-  getInputWrapper: () => HTMLElement | null;
-  resetInputHeight?: () => void;
-}
+export type BangBashModeCallbacks = TriggerModeManagerCallbacks;
 
 export interface BangBashModeState {
   active: boolean;
   rawCommand: string;
 }
 
-export class BangBashModeManager {
-  private inputEl: HTMLTextAreaElement;
-  private callbacks: BangBashModeCallbacks;
-  private state: BangBashModeState = { active: false, rawCommand: '' };
-  private isSubmitting = false;
-  private originalPlaceholder: string = '';
-
+export class BangBashModeManager extends TriggerModeManager {
   constructor(
     inputEl: HTMLTextAreaElement,
-    callbacks: BangBashModeCallbacks
+    callbacks: BangBashModeCallbacks,
   ) {
-    this.inputEl = inputEl;
-    this.callbacks = callbacks;
-    this.originalPlaceholder = inputEl.placeholder;
-  }
-
-  handleTriggerKey(e: KeyboardEvent): boolean {
-    if (!this.state.active && this.inputEl.value === '' && e.key === '!') {
-      if (this.enterMode()) {
-        e.preventDefault();
-        return true;
-      }
-    }
-    return false;
-  }
-
-  handleInputChange(): void {
-    if (!this.state.active) return;
-    this.state.rawCommand = this.inputEl.value;
-  }
-
-  private enterMode(): boolean {
-    const wrapper = this.callbacks.getInputWrapper();
-    if (!wrapper) return false;
-
-    wrapper.addClass('claudian-plus-input-bang-bash-mode');
-    this.state = { active: true, rawCommand: '' };
-    this.inputEl.placeholder = t('chat.bangBash.placeholder');
-    return true;
-  }
-
-  private exitMode(): void {
-    const wrapper = this.callbacks.getInputWrapper();
-    if (wrapper) {
-      wrapper.removeClass('claudian-plus-input-bang-bash-mode');
-    }
-    this.state = { active: false, rawCommand: '' };
-    this.inputEl.placeholder = this.originalPlaceholder;
-  }
-
-  handleKeydown(e: KeyboardEvent): boolean {
-    if (!this.state.active) return false;
-
-    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
-      e.preventDefault();
-      if (this.state.rawCommand.trim()) {
-        void this.submit();
-      }
-      return true;
-    }
-
-    if (e.key === 'Escape' && !e.isComposing) {
-      e.preventDefault();
-      this.clear();
-      return true;
-    }
-
-    return false;
-  }
-
-  isActive(): boolean {
-    return this.state.active;
+    super(inputEl, callbacks, {
+      triggerKey: '!',
+      modeClass: 'claudian-plus-input-bang-bash-mode',
+      placeholder: t('chat.bangBash.placeholder'),
+      blockEmptySubmit: true,
+      clearBeforeSubmit: true,
+      showSubmitError: true,
+    });
   }
 
   getRawCommand(): string {
-    return this.state.rawCommand;
-  }
-
-  private async submit(): Promise<void> {
-    if (this.isSubmitting) return;
-
-    const rawCommand = this.state.rawCommand.trim();
-    if (!rawCommand) return;
-
-    this.isSubmitting = true;
-
-    try {
-      this.clear();
-      await this.callbacks.onSubmit(rawCommand);
-    } catch (e) {
-      new Notice(`Command failed: ${e instanceof Error ? e.message : String(e)}`);
-    } finally {
-      this.isSubmitting = false;
-    }
-  }
-
-  clear(): void {
-    this.inputEl.value = '';
-    this.exitMode();
-    this.callbacks.resetInputHeight?.();
-  }
-
-  destroy(): void {
-    this.exitMode();
+    return this.getRawText();
   }
 }

@@ -85,46 +85,6 @@ describe('ProviderSettingsCoordinator', () => {
     });
   });
 
-  describe('applyModelSelection', () => {
-    it('clamps reasoning and service tier values to the selected model metadata', () => {
-      const settings: Record<string, unknown> = {
-        model: TEST_CODEX_MODEL,
-        effortLevel: 'unsupported',
-        serviceTier: 'priority',
-        providerConfigs: {
-          codex: {
-            enabled: true,
-            discoveredModels: TEST_CODEX_CATALOG,
-          },
-        },
-      };
-
-      ProviderSettingsCoordinator.applyModelSelection(settings, 'codex', 'gpt-5.4-mini');
-
-      expect(settings.model).toBe('gpt-5.4-mini');
-      expect(settings.effortLevel).toBe('medium');
-      expect(settings.serviceTier).toBe('default');
-    });
-
-    it('applies high as the default when switching to a Codex model that supports it', () => {
-      const settings: Record<string, unknown> = {
-        model: 'gpt-5.4-mini',
-        effortLevel: 'low',
-        serviceTier: 'default',
-        providerConfigs: {
-          codex: {
-            enabled: true,
-            discoveredModels: TEST_CODEX_CATALOG,
-          },
-        },
-      };
-
-      ProviderSettingsCoordinator.applyModelSelection(settings, 'codex', TEST_CODEX_MODEL);
-
-      expect(settings.effortLevel).toBe('high');
-    });
-  });
-
   describe('normalizeProviderSelection', () => {
     it('falls back to claude when codex is disabled', () => {
       const settings: Record<string, unknown> = {
@@ -183,41 +143,6 @@ describe('ProviderSettingsCoordinator', () => {
       expect(ProviderRegistry.isEnabled('codex', settings)).toBe(false);
       expect(settings.settingsProvider).toBe('claude');
       expect(settings.titleGenerationModel).toBe('');
-    });
-  });
-
-  describe('reconcileAllProviders', () => {
-    it('delegates to each registered provider reconciler with its own conversations', () => {
-      const settings: Record<string, unknown> = { model: 'haiku' };
-      const claudeConv = { providerId: 'claude', messages: [] } as unknown as Conversation;
-      const conversations = [claudeConv];
-
-      const result = ProviderSettingsCoordinator.reconcileAllProviders(settings, conversations);
-
-      expect(result).toHaveProperty('changed');
-      expect(result).toHaveProperty('invalidatedConversations');
-      expect(Array.isArray(result.invalidatedConversations)).toBe(true);
-    });
-
-    it('filters conversations per provider', () => {
-      const reconcileSpy = jest.spyOn(
-        ProviderRegistry.getSettingsReconciler('claude'),
-        'reconcileModelWithEnvironment',
-      );
-
-      const claudeConv = { providerId: 'claude', messages: [] } as unknown as Conversation;
-      const otherConv = { providerId: 'codex', messages: [] } as unknown as Conversation;
-      const settings: Record<string, unknown> = { model: 'haiku' };
-
-      ProviderSettingsCoordinator.reconcileAllProviders(settings, [claudeConv, otherConv]);
-
-      // Claude reconciler should only receive claude conversations
-      expect(reconcileSpy).toHaveBeenCalledWith(
-        settings,
-        [claudeConv],
-      );
-
-      reconcileSpy.mockRestore();
     });
   });
 
@@ -775,7 +700,7 @@ describe('ProviderSettingsCoordinator', () => {
         savedProviderThinkingBudget: { claude: 'off', codex: 'off' },
       };
 
-      const result = ProviderSettingsCoordinator.reconcileAllProviders(settings, [codexConv]);
+      const result = ProviderSettingsCoordinator.reconcileProviders(settings, [codexConv], ['codex']);
 
       expect(result.changed).toBe(true);
       expect(codexConv.sessionId).toBeNull();

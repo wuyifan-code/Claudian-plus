@@ -175,37 +175,6 @@ export function serializeCanvasData(data: CanvasData): string {
 }
 
 /**
- * Formats canvas data as a readable summary string for prompt injection.
- */
-export function formatCanvasForPrompt(result: CanvasReadResult): string {
-  const { path, data } = result;
-  const lines: string[] = [
-    `<obsidian_canvas path="${path}">`,
-    `  Nodes (${data.nodes.length}):`,
-  ];
-
-  for (const node of data.nodes) {
-    const textPreview = node.text
-      ? ` "${truncate(node.text, 200)}"`
-      : node.file
-        ? ` → ${node.file}`
-        : '';
-    lines.push(`  - [${node.id}] ${node.type}${textPreview}`);
-  }
-
-  if (data.edges.length > 0) {
-    lines.push(`  Edges (${data.edges.length}):`);
-    for (const edge of data.edges) {
-      const label = edge.label ? ` (${edge.label})` : '';
-      lines.push(`  - ${edge.fromNode} → ${edge.toNode}${label}`);
-    }
-  }
-
-  lines.push('</obsidian_canvas>');
-  return lines.join('\n');
-}
-
-/**
  * Generates a compact diff preview for a Canvas write plan.
  */
 export function diffCanvasWritePlan(

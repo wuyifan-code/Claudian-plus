@@ -3,6 +3,7 @@ import { Notice } from 'obsidian';
 
 import { buildVaultInsights, type InsightSource, type VaultInsightReport } from './VaultInsightService';
 import type { VaultRetrievalService } from './VaultRetrievalService';
+import { countBrokenLinks, getRecentlyModifiedFiles, getUnresolvedLinks } from './vaultStats';
 
 export type ReviewFrequency = 'daily' | 'weekly' | 'monthly';
 
@@ -107,12 +108,10 @@ export class VaultReviewService {
     lines.push('');
 
     // Recent files
-    const recent = markdownFiles
-      .filter(f => f.stat.mtime > now.getTime() - lookbackMs)
-      .sort((a, b) => b.stat.mtime - a.stat.mtime);
+    const recent = getRecentlyModifiedFiles(this.app, lookbackMs / (24 * 60 * 60 * 1000));
 
     const relatedSources = await this.collectRelatedSources(recent);
-    const unresolvedLinks = this.collectUnresolvedLinks();
+    const unresolvedLinks = this.getUnresolvedLinks();
     const insights = await this.collectInsights(recent, unresolvedLinks);
 
     if (recent.length > 0) {
@@ -142,8 +141,7 @@ export class VaultReviewService {
     this.appendInsightSections(lines, insights);
 
     // Link health snapshot
-    const totalUnresolved = Object.values(unresolvedLinks)
-      .reduce((sum, links) => sum + Object.keys(links).length, 0);
+    const totalUnresolved = countBrokenLinks(unresolvedLinks);
     lines.push(`## 🔗 Link Health Snapshot`);
     lines.push('');
     lines.push(`- Broken links: ${totalUnresolved}`);
@@ -238,12 +236,8 @@ export class VaultReviewService {
     return buildVaultInsights(sources, unresolvedLinks);
   }
 
-  private collectUnresolvedLinks(): Record<string, Record<string, number>> {
-    const metadataCache = this.app.metadataCache as unknown as Record<string, unknown>;
-    const unresolvedLinks = metadataCache.unresolvedLinks;
-    return typeof unresolvedLinks === 'object' && unresolvedLinks
-      ? unresolvedLinks as Record<string, Record<string, number>>
-      : {};
+  private getUnresolvedLinks(): Record<string, Record<string, number>> {
+    return getUnresolvedLinks(this.app);
   }
 
   private appendInsightSections(lines: string[], insights: VaultInsightReport): void {

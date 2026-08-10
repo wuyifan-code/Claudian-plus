@@ -1,6 +1,10 @@
 import type { VaultFileAdapter } from '../../../core/storage/VaultFileAdapter';
 import type { SlashCommand } from '../../../core/types';
-import { parsedToSlashCommand, parseSlashCommandContent, serializeCommand } from '../../../utils/slashCommand';
+import {
+  parsedToSlashCommand,
+  scanVaultSkillMarkdown,
+  serializeCommand,
+} from '../../../utils/slashCommand';
 
 export const SKILLS_PATH = '.claude/skills';
 
@@ -8,38 +12,16 @@ export class SkillStorage {
   constructor(private adapter: VaultFileAdapter) {}
 
   async loadAll(): Promise<SlashCommand[]> {
-    const skills: SlashCommand[] = [];
+    const scanned = await scanVaultSkillMarkdown(this.adapter, SKILLS_PATH);
 
-    try {
-      const folders = await this.adapter.listFolders(SKILLS_PATH);
-
-      for (const folder of folders) {
-        const skillName = folder.split('/').pop()!;
-        const skillPath = `${SKILLS_PATH}/${skillName}/SKILL.md`;
-
-        try {
-          if (!(await this.adapter.exists(skillPath))) continue;
-
-          const content = await this.adapter.read(skillPath);
-          const parsed = parseSlashCommandContent(content);
-
-          skills.push({
-            ...parsedToSlashCommand(parsed, {
-              id: `skill-${skillName}`,
-              name: skillName,
-              source: 'user',
-            }),
-            kind: 'skill',
-          });
-        } catch {
-          // Non-critical: skip malformed skill files
-        }
-      }
-    } catch {
-      return [];
-    }
-
-    return skills;
+    return scanned.map((skill) => ({
+      ...parsedToSlashCommand(skill.parsed, {
+        id: `skill-${skill.name}`,
+        name: skill.name,
+        source: 'user',
+      }),
+      kind: 'skill',
+    }));
   }
 
   async save(skill: SlashCommand): Promise<void> {

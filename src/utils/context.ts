@@ -119,9 +119,9 @@ export function extractUserQuery(prompt: string): string {
  * small plain-text projection so cold-start history search does not need to
  * hydrate every provider session or expose hidden prompt context.
  */
-export const MAX_CONVERSATION_SEARCH_TEXT_LENGTH = 12_000;
+const MAX_CONVERSATION_SEARCH_TEXT_LENGTH = 12_000;
 
-export function buildConversationSearchText(conversation: Pick<Conversation, 'title' | 'messages'>): string {
+function buildConversationSearchText(conversation: Pick<Conversation, 'title' | 'messages'>): string {
   const parts: string[] = [];
   if (conversation.title.trim()) parts.push(conversation.title.trim());
 

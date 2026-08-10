@@ -45,7 +45,7 @@
   /* Transitions */
   --claudian-plus-transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
   --claudian-plus-transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  --claudian-plus-transition-bounce: 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  --claudian-plus-transition-bounce: 240ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 body.theme-light .claudian-plus-container {
@@ -206,7 +206,7 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
 }
 
 .claudian-plus-header:hover .claudian-plus-logo {
-  transform: scale(1.1) rotate(6deg);
+  transform: scale(1.08) rotate(3deg);
 }
 
 
@@ -619,9 +619,29 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
   gap: 12px;
 }
 
-/* Floating outline — reserve space so text doesn't overlap the rail */
+/* Floating outline — reserve a gutter so text never overlaps the rail. The
+   gutter clears the 51px wave peak (8px offset + 51px bar + 1px breathing
+   room = 60px). */
 .claudian-plus-messages-wrapper.claudian-plus-has-nav-sidebar .claudian-plus-messages {
-  padding-inline-start: 48px;
+  padding-inline-start: 60px;
+}
+
+.claudian-plus-messages-wrapper.claudian-plus-has-nav-sidebar.claudian-plus-nav-outline-right
+  .claudian-plus-messages {
+  padding-inline-start: 0;
+  padding-inline-end: 60px;
+}
+
+@container claudian-plus-chat (max-width: 479px) {
+  .claudian-plus-messages-wrapper.claudian-plus-has-nav-sidebar .claudian-plus-messages {
+    padding-inline-start: 56px;
+  }
+
+  .claudian-plus-messages-wrapper.claudian-plus-has-nav-sidebar.claudian-plus-nav-outline-right
+    .claudian-plus-messages {
+    padding-inline-start: 0;
+    padding-inline-end: 56px;
+  }
 }
 
 /* Focusable messages panel for vim-style navigation */
@@ -951,14 +971,22 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
 /* ============================================
    components/nav-sidebar.css
    ============================================ */
-/* Floating conversation outline — fixed, vertically centered on the left */
+/* Floating conversation outline — Wave TOC style rail anchored to the chat
+   wrapper: thin level-based ticks, a gaussian hover wave, and a soft rounded
+   hover bubble. */
+
 .claudian-plus-messages-wrapper {
   container-name: claudian-plus-chat;
   container-type: inline-size;
 }
 
 .claudian-plus-nav-sidebar {
-  position: fixed;
+  --cp-nav-tick-gap: 15px;
+  --cp-nav-tick-h: 3px;
+  --cp-nav-tick-w-1: 27px;
+  --cp-nav-tick-w-2: 20px;
+  --cp-nav-tick-w-3: 15px;
+  position: absolute;
   top: 50%;
   left: 8px;
   z-index: 100;
@@ -971,249 +999,247 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
   transition: opacity 200ms ease;
 }
 
+.claudian-plus-nav-sidebar.claudian-plus-nav-outline-right {
+  left: auto;
+  right: 8px;
+}
+
 .claudian-plus-nav-sidebar.visible {
   opacity: 1;
   pointer-events: auto;
 }
 
-/* ── Outline track (tick-mark rail) ── */
+/* ── Outline track (tick rail) ── */
 
 .claudian-plus-nav-outline-track {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 8px;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--cp-nav-tick-gap);
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.claudian-plus-nav-outline-right .claudian-plus-nav-outline-track {
+  align-items: flex-end;
 }
 
 .claudian-plus-nav-outline-track:empty {
   display: none;
 }
 
-/* ── Tick-mark marker ── */
+/* ── Tick markers ── */
 
 button.claudian-plus-nav-outline-marker {
   all: unset;
   box-sizing: border-box;
   position: relative;
+  flex: 0 0 3px;
   width: 28px;
-  height: 18px;
+  height: 3px;
+  min-height: 3px;
+  max-height: 3px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  opacity: 0.45;
-  transition: opacity 180ms ease;
+  --cp-nav-tick-w: var(--cp-nav-tick-w-1);
+  opacity: 0.86;
+  /* Width is driven per-frame by the hover wave via --cp-nav-tick-w, so the
+     only transitioned properties here are color and resting opacity. */
+  transition: opacity 100ms linear;
+}
+
+button.claudian-plus-nav-outline-marker[data-outline-level='2'] {
+  --cp-nav-tick-w: var(--cp-nav-tick-w-2);
+}
+
+button.claudian-plus-nav-outline-marker[data-outline-level='3'] {
+  --cp-nav-tick-w: var(--cp-nav-tick-w-3);
 }
 
 button.claudian-plus-nav-outline-marker::before {
   position: absolute;
-  left: 50%;
+  left: 0;
   top: 50%;
-  width: 6px;
-  height: 2.5px;
-  border-radius: 1.25px;
-  background: var(--text-faint);
+  width: var(--cp-nav-tick-w);
+  height: var(--cp-nav-tick-h);
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--text-normal) 27%, transparent);
   content: "";
-  transform: translate(-50%, -50%);
+  transform: translateY(-50%);
+  transform-origin: left center;
   transition:
-    width 280ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    height 280ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    background-color 240ms ease,
-    box-shadow 240ms ease;
+    background-color 160ms ease,
+    opacity 100ms linear;
 }
 
-/* Active state: bar extends to the left and highlights */
+/* Active state: color deepens without changing tick length */
 button.claudian-plus-nav-outline-marker.is-active {
   opacity: 1;
 }
 
 button.claudian-plus-nav-outline-marker.is-active::before {
-  width: 14px;
-  height: 3px;
-  background: var(--text-accent);
-  box-shadow:
-    0 0 6px color-mix(in srgb, var(--text-accent) 30%, transparent);
-  /* Extend to the left: shift the transform origin */
-  transform: translate(calc(-50% - 2px), -50%);
+  background: color-mix(in srgb, var(--text-normal) 88%, transparent);
 }
 
-/* Hover state */
-button.claudian-plus-nav-outline-marker:hover,
+/* While scanning the rail the hovered tick takes over: the previously active
+   tick softens back to the resting tint instead of staying highlighted. */
+.claudian-plus-nav-sidebar.is-hovering button.claudian-plus-nav-outline-marker.is-active:not(.is-hovered) {
+  opacity: 0.86;
+}
+
+.claudian-plus-nav-sidebar.is-hovering button.claudian-plus-nav-outline-marker.is-active:not(.is-hovered)::before {
+  background: color-mix(in srgb, var(--text-normal) 27%, transparent);
+}
+
+button.claudian-plus-nav-outline-marker.is-hovered,
 button.claudian-plus-nav-outline-marker:focus-visible {
-  opacity: 0.85;
+  opacity: 1;
 }
 
-button.claudian-plus-nav-outline-marker:hover::before,
+button.claudian-plus-nav-outline-marker.is-hovered::before,
 button.claudian-plus-nav-outline-marker:focus-visible::before {
-  width: 10px;
-  height: 3px;
-  background: var(--text-muted);
+  background: var(--text-normal);
 }
 
-/* Dim non-interacted markers when hovering the rail */
-.claudian-plus-nav-sidebar:hover button.claudian-plus-nav-outline-marker:not(:hover):not(.is-active):not(:focus-visible) {
-  opacity: 0.2;
+/* Right-side rail: align tick tails to the inner edge */
+.claudian-plus-nav-outline-right button.claudian-plus-nav-outline-marker::before {
+  left: auto;
+  right: 0;
+  transform-origin: right center;
 }
 
-/* ── Dot marker (dot mode only) ── */
-
-.claudian-plus-nav-outline-dot {
-  display: none;
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-muted);
-  transform: translate(-50%, -50%);
-  transition: width 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
-              height 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
-              background-color 180ms ease;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.claudian-plus-nav-outline-dot-mode button.claudian-plus-nav-outline-marker::before {
-  display: none;
-}
-
-.claudian-plus-nav-outline-dot-mode button.claudian-plus-nav-outline-marker .claudian-plus-nav-outline-dot {
-  display: block;
-  top: 50%;
-  width: 6px;
-  height: 6px;
-}
-
-.claudian-plus-nav-outline-dot-mode button.claudian-plus-nav-outline-marker:hover .claudian-plus-nav-outline-dot {
-  width: 10px;
-  height: 10px;
-}
-
-.claudian-plus-nav-outline-dot-mode button.claudian-plus-nav-outline-marker.is-active .claudian-plus-nav-outline-dot {
-  width: 12px;
-  height: 12px;
-  background: var(--text-accent);
-  box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--text-accent) 12%, transparent),
-    0 0 12px color-mix(in srgb, var(--text-accent) 25%, transparent);
-}
-
-/* ── Preview tooltip ── */
+/* ── Preview bubble (Wave TOC hover card) ── */
 
 .claudian-plus-nav-outline-preview {
+  --cp-preview-shift: -8px;
   position: fixed;
-  left: calc(28px + 24px);
+  left: var(--claudian-plus-outline-preview-left, 44px);
   top: var(--claudian-plus-outline-preview-top, 0);
-  z-index: 101;
+  z-index: var(--layer-popover);
   display: flex;
   flex-direction: column;
-  gap: 6px;
   box-sizing: border-box;
-  width: min(240px, calc(100vw - 80px));
-  max-height: min(180px, calc(100vh - 40px));
-  padding: 10px 12px;
+  max-width: min(360px, 42vw);
+  padding: 13px 17px;
   overflow: hidden;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--text-normal) 12%, transparent);
+  border-radius: 18px;
   color: var(--text-normal);
-  background: var(--background-primary);
-  box-shadow:
-    0 8px 28px rgba(0, 0, 0, 0.14),
-    0 2px 6px rgba(0, 0, 0, 0.08);
+  background: color-mix(in srgb, var(--background-primary) 94%, var(--text-normal) 6%);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  opacity: 0;
   pointer-events: none;
-  /* Spring slide for vertical movement */
-  transition: transform 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
-  animation: claudian-plus-outline-card-fade-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translate3d(var(--cp-preview-shift), -50%, 0) scale(0.97);
+  transform-origin: left center;
+  transition:
+    opacity 120ms ease,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.claudian-plus-nav-outline-preview::before {
-  position: absolute;
-  top: 12px;
-  left: -5px;
-  width: 10px;
-  height: 10px;
-  background: var(--background-primary);
-  border-top: 1px solid var(--background-modifier-border);
-  border-left: 1px solid var(--background-modifier-border);
-  content: "";
-  transform: rotate(-45deg);
+.claudian-plus-nav-outline-preview.is-visible {
+  opacity: 1;
+  transform: translate3d(0, -50%, 0) scale(1);
+}
+
+.claudian-plus-nav-outline-preview.has-preview {
+  width: min(420px, 48vw);
+  max-width: min(420px, 48vw);
+  padding: 15px 18px 16px;
+  border-radius: 20px;
+}
+
+.claudian-plus-nav-outline-right .claudian-plus-nav-outline-preview {
+  --cp-preview-shift: 8px;
+  transform-origin: right center;
 }
 
 .claudian-plus-nav-outline-preview-badge {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 12px;
+  right: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  border-radius: 4px;
+  border-radius: 5px;
   color: var(--text-muted);
-  background: var(--background-secondary);
+  background: color-mix(in srgb, var(--text-normal) 10%, transparent);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
 }
 
+.claudian-plus-nav-outline-preview-excerpt.is-hidden,
+.claudian-plus-nav-outline-preview-badge.is-hidden {
+  display: none;
+}
+
 .claudian-plus-nav-outline-preview-title {
   min-width: 0;
   padding-right: 26px;
+  overflow: hidden;
   color: var(--text-normal);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claudian-plus-nav-outline-preview.has-preview
+  .claudian-plus-nav-outline-preview-title {
   display: -webkit-box;
+  padding-right: 30px;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  overflow: hidden;
+  white-space: normal;
 }
 
 .claudian-plus-nav-outline-preview-excerpt {
   display: -webkit-box;
+  margin-top: 8px;
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 430;
   line-height: 1.55;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
 }
 
-@keyframes claudian-plus-outline-card-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-.claudian-plus-nav-outline-preview-leaving {
-  animation: claudian-plus-outline-card-fade-out 120ms ease forwards;
-  pointer-events: none;
-}
-
-@keyframes claudian-plus-outline-card-fade-out {
-  from { opacity: 1; }
-  to   { opacity: 0; }
-}
-
 /* ── Responsive ── */
 
 @container claudian-plus-chat (max-width: 479px) {
-  .claudian-plus-nav-sidebar { left: 4px; }
-  .claudian-plus-nav-outline-preview { left: calc(28px + 18px); }
-}
+  .claudian-plus-nav-sidebar {
+    --cp-nav-tick-w-1: 22px;
+    --cp-nav-tick-w-2: 17px;
+    --cp-nav-tick-w-3: 13px;
+    left: 4px;
+  }
 
-@media (pointer: coarse) {
-  .claudian-plus-nav-outline-preview { display: none; }
+  .claudian-plus-nav-sidebar.claudian-plus-nav-outline-right {
+    left: auto;
+    right: 4px;
+  }
+
+  .claudian-plus-nav-outline-preview {
+    max-width: min(240px, 68vw);
+  }
+
+  .claudian-plus-nav-outline-preview.has-preview {
+    width: min(280px, 72vw);
+    max-width: min(280px, 72vw);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .claudian-plus-nav-outline-marker::before,
-  .claudian-plus-nav-outline-preview,
-  .claudian-plus-nav-outline-dot {
+  .claudian-plus-nav-outline-preview {
     transition: none;
     animation: none;
   }
@@ -2309,6 +2335,7 @@ body.theme-light .claudian-plus-message-content pre {
   min-height: var(--claudian-plus-textarea-min-height, 60px);
   max-height: var(--claudian-plus-textarea-max-height, 50vh);
   min-width: 0;
+  overflow: hidden;
 }
 
 .claudian-plus-live-preview-composer.cm-editor {
@@ -2737,184 +2764,6 @@ body.theme-light .claudian-plus-message-content pre {
 
 .claudian-plus-context-meter.warning .claudian-plus-context-meter-percent {
   color: #E57373;
-}
-
-
-/* ============================================
-   components/editor-floating-bar.css
-   ============================================ */
-/* Modern Floating Action Bar — Sleek Capsule Pill Design */
-.claudian-plus-floating-bar {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  max-width: calc(100vw - 16px);
-  padding: 3.5px 5px;
-  background: var(--background-secondary-alt, var(--background-secondary));
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 9999px;
-  box-shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.1);
-  position: fixed;
-  z-index: 99999;
-  user-select: none;
-  pointer-events: auto;
-  animation: claudian-plus-floating-bar-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.claudian-plus-floating-bar-hidden {
-  display: none !important;
-}
-
-.claudian-plus-floating-bar-primary {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.claudian-plus-floating-bar-more {
-  position: relative;
-  display: flex;
-  align-items: center;
-  margin-left: 2px;
-  padding-left: 3px;
-  border-left: 1px solid var(--background-modifier-border);
-}
-
-@keyframes claudian-plus-floating-bar-in {
-  from {
-    opacity: 0;
-    transform: translateY(4px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* Individual Pill Buttons */
-.claudian-plus-floating-bar-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  height: 26px;
-  padding: 0 10px;
-  color: var(--text-muted);
-  background: transparent;
-  border: none;
-  border-radius: 9999px;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 140ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.claudian-plus-floating-bar-btn:hover,
-.claudian-plus-floating-bar-btn:focus-visible,
-.claudian-plus-floating-bar-more-btn[aria-expanded='true'] {
-  color: var(--text-normal);
-  background: var(--background-modifier-hover);
-  border: none;
-  outline: none;
-}
-
-/* Primary AI Action Pill (First Action, e.g., 改写) */
-.claudian-plus-floating-bar-primary .claudian-plus-floating-bar-btn:first-child {
-  color: var(--text-on-accent, #ffffff);
-  background: var(--interactive-accent);
-  font-weight: 600;
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--interactive-accent) 40%, transparent);
-}
-
-.claudian-plus-floating-bar-primary .claudian-plus-floating-bar-btn:first-child:hover {
-  background: var(--interactive-accent-hover, var(--interactive-accent));
-  opacity: 0.94;
-  transform: translateY(-0.5px);
-}
-
-.claudian-plus-floating-bar-primary .claudian-plus-floating-bar-btn:first-child .claudian-plus-floating-bar-icon {
-  color: var(--text-on-accent, #ffffff);
-}
-
-.claudian-plus-floating-bar-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-  color: var(--text-muted);
-  line-height: 1;
-  transition: color 140ms ease;
-}
-
-.claudian-plus-floating-bar-btn:hover .claudian-plus-floating-bar-icon {
-  color: var(--text-normal);
-}
-
-.claudian-plus-floating-bar-icon svg {
-  width: 13px;
-  height: 13px;
-  stroke-width: 2.2;
-}
-
-.claudian-plus-floating-bar-label {
-  font-size: 12px;
-  letter-spacing: 0.2px;
-}
-
-/* Dropdown Menu Popup */
-.claudian-plus-floating-bar-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 120px;
-  padding: 5px;
-  background: var(--background-secondary);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 12px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
-  animation: claudian-plus-floating-bar-in 120ms ease-out;
-}
-
-.claudian-plus-floating-bar-menu-hidden {
-  display: none !important;
-}
-
-.claudian-plus-floating-bar-menu-btn {
-  width: 100%;
-  justify-content: flex-start;
-  height: 28px;
-  padding-inline: 10px;
-  border-radius: 8px;
-}
-
-@media (max-width: 520px) {
-  .claudian-plus-floating-bar-label {
-    display: none;
-  }
-
-  .claudian-plus-floating-bar-btn {
-    padding: 0 7px;
-  }
-
-  .claudian-plus-floating-bar-menu-btn .claudian-plus-floating-bar-label {
-    display: inline;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .claudian-plus-floating-bar {
-    animation: none;
-  }
 }
 
 
@@ -6128,6 +5977,11 @@ code .claudian-plus-file-link:hover {
   background: var(--background-modifier-hover);
 }
 
+.claudian-plus-settings-tab:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
 .claudian-plus-settings-tab--active {
   color: var(--text-on-accent, #ffffff) !important;
   background: var(--interactive-accent) !important;
@@ -6141,6 +5995,7 @@ code .claudian-plus-file-link:hover {
 
 .claudian-plus-settings-tab-content--active {
   display: block;
+  padding-bottom: 32px;
   animation: claudian-plus-fade-in 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -6345,6 +6200,7 @@ code .claudian-plus-file-link:hover {
   font-size: 13px !important;
   color: var(--text-muted) !important;
   line-height: 1.5 !important;
+  max-width: 56ch;
   opacity: 0.88;
 }
 
@@ -6389,6 +6245,10 @@ code .claudian-plus-file-link:hover {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+.claudian-plus-settings select.dropdown {
+  min-width: 180px;
+}
+
 .claudian-plus-settings select.dropdown:focus,
 .claudian-plus-settings input[type="text"]:focus,
 .claudian-plus-settings textarea:focus {
@@ -6403,6 +6263,37 @@ code .claudian-plus-file-link:hover {
   cursor: pointer;
   height: 6px;
   border-radius: 3px;
+}
+
+.claudian-plus-settings .setting-item-control:has(input[type="range"]) {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.claudian-plus-settings .slider-value {
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 20px;
+  text-align: center;
+  line-height: 1;
+}
+
+.claudian-plus-max-tabs-scale {
+  display: flex;
+  justify-content: space-between;
+  flex: 1 0 100%;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+/* Toggle micro-interaction: fade the off state so it reads as a switch. */
+.claudian-plus-settings .setting-item-control .checkbox-container {
+  transition: opacity 0.15s ease;
+}
+
+.claudian-plus-settings .setting-item-control .checkbox-container:not(.is-enabled) {
+  opacity: 0.55;
 }
 
 /* Custom section descriptions - align with items */

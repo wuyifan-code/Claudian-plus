@@ -13,6 +13,10 @@ import { getRuntimeEnvironmentText } from '../../../core/providers/providerEnvir
 import type { ProviderHost } from '../../../core/providers/ProviderHost';
 import type { ProviderCapabilities } from '../../../core/providers/types';
 import type { ChatRuntime } from '../../../core/runtime/ChatRuntime';
+import {
+  isCompactCommand,
+  stripCompactCommand,
+} from '../../../core/runtime/compactCommand';
 import type {
   ApprovalCallback,
   AskUserQuestionCallback,
@@ -1221,14 +1225,6 @@ export class PiChatRuntime implements ChatRuntime {
     }
     return true;
   }
-}
-
-function stripCompactCommand(text: string): string {
-  return text.trim().replace(/^\/compact(?:\s|$)/i, '').trim();
-}
-
-function isCompactCommand(text: string): boolean {
-  return /^\/compact(\s|$)/i.test(text);
 }
 
 function normalizePiRuntimeCommands(response: unknown): SlashCommand[] {

@@ -17,9 +17,29 @@
   gap: 12px;
 }
 
-/* Floating outline — reserve space so text doesn't overlap the rail */
+/* Floating outline — reserve a gutter so text never overlaps the rail. The
+   gutter clears the 51px wave peak (8px offset + 51px bar + 1px breathing
+   room = 60px). */
 .claudian-plus-messages-wrapper.claudian-plus-has-nav-sidebar .claudian-plus-messages {
-  padding-inline-start: 48px;
+  padding-inline-start: 60px;
+}
+
+.claudian-plus-messages-wrapper.claudian-plus-has-nav-sidebar.claudian-plus-nav-outline-right
+  .claudian-plus-messages {
+  padding-inline-start: 0;
+  padding-inline-end: 60px;
+}
+
+@container claudian-plus-chat (max-width: 479px) {
+  .claudian-plus-messages-wrapper.claudian-plus-has-nav-sidebar .claudian-plus-messages {
+    padding-inline-start: 56px;
+  }
+
+  .claudian-plus-messages-wrapper.claudian-plus-has-nav-sidebar.claudian-plus-nav-outline-right
+    .claudian-plus-messages {
+    padding-inline-start: 0;
+    padding-inline-end: 56px;
+  }
 }
 
 /* Focusable messages panel for vim-style navigation */

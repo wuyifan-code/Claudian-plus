@@ -17,6 +17,7 @@ import {
   AcpSubprocess,
   extractAcpSessionModelState,
 } from '../../acp';
+import { selectPermissionOption } from '../internal/permissionMapping';
 import { decodeOpencodeModelId } from '../models';
 import { opencodeChatUIConfig } from '../ui/OpencodeChatUIConfig';
 import {
@@ -422,24 +423,3 @@ function buildOpencodeAuxAgentConfig(profile: OpencodeAuxAgentProfile): Opencode
   };
 }
 
-function selectPermissionOption(
-  options: readonly {
-    kind: 'allow_once' | 'allow_always' | 'reject_once' | 'reject_always';
-    optionId: string;
-  }[],
-  preferredKinds: readonly ('allow_once' | 'allow_always' | 'reject_once' | 'reject_always')[],
-): AcpRequestPermissionResponse {
-  for (const kind of preferredKinds) {
-    const option = options.find((entry) => entry.kind === kind);
-    if (option) {
-      return {
-        outcome: {
-          optionId: option.optionId,
-          outcome: 'selected',
-        },
-      };
-    }
-  }
-
-  return { outcome: { outcome: 'cancelled' } };
-}

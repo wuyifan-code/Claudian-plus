@@ -1,12 +1,12 @@
 import { getProviderConfig, setProviderConfig } from '../../core/providers/providerConfig';
 import { getProviderEnvironmentVariables } from '../../core/providers/providerEnvironment';
+import { ensureProviderProjectionMap } from '../../core/providers/settingsProjection';
 import type { HostnameCliPaths } from '../../core/types/settings';
 import {
   getHostnameKey,
   getLegacyHostnameKey,
   migrateLegacyHostnameKeyedMap,
 } from '../../utils/env';
-import { ensureProviderProjectionMap } from './internal/providerProjection';
 import {
   clampPiThinkingLevel,
   decodePiModelId,

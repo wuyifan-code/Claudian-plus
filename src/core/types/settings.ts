@@ -159,7 +159,7 @@ export interface ClaudianPlusSettings {
   // UI preferences
   maxTabs: number;
   enableAutoScroll: boolean;
-  outlineStyle: 'bar' | 'dot';
+  outlineSide: 'left' | 'right';
   deferMathRenderingDuringStreaming: boolean;
   expandFileEditsByDefault: boolean;
   chatViewPlacement: ChatViewPlacement;
