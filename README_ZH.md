@@ -4,38 +4,57 @@
   <img src="docs/assets/claudian-plus-overview.png" alt="Claudian Plus 在 Obsidian 中的工作区" width="1120">
 </p>
 
-<p align="center"><strong>让 Agent 靠近你的笔记，让对话沉淀为可检索的知识。</strong></p>
+<p align="center">
+  <strong>你的笔记记得，你的 AI 也该记得。</strong><br>
+  一个本地优先的 Obsidian AI 工作空间，把对话、记忆与 Provider 会话都留在你的 Vault 里。
+</p>
 
-[![GitHub release](https://img.shields.io/github/v/release/wuyifan-code/Claudian-plus)](https://github.com/wuyifan-code/Claudian-plus/releases)
-[![License](https://img.shields.io/github/license/wuyifan-code/Claudian-plus)](LICENSE)
+<p align="center">
+  <a href="https://github.com/wuyifan-code/Claudian-plus/releases"><img src="https://img.shields.io/github/v/release/wuyifan-code/Claudian-plus?display_name=tag&sort=semver" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/wuyifan-code/Claudian-plus" alt="License"></a>
+  <a href="https://obsidian.md/"><img src="https://img.shields.io/badge/Obsidian-desktop-purple" alt="Obsidian desktop"></a>
+  <a href="https://github.com/wuyifan-code/Claudian-plus/actions"><img src="https://img.shields.io/github/actions/workflow/status/wuyifan-code/Claudian-plus/ci.yml?branch=main&label=checks" alt="Checks"></a>
+</p>
 
-[English](README.md)
+<p align="center"><a href="README.md">English</a></p>
 
-Claudian Plus 是一个以 Codex 为优先的 Obsidian AI 工作空间。它把对话、Provider 会话、本地记忆和 Vault 上下文保留在本地 Vault 中，同时支持 Codex、Claude、OpenCode、Kimi 和 Pi 五种独立运行时。
+Claudian Plus 把编码 Agent 放进你的笔记所在之处。它在同一个仅桌面端的 Obsidian 工作空间里整合 Codex、Claude、OpenCode、Kimi 与 Pi——对话结束后，它不会把一切忘光，而是安静地把对话沉淀为 Vault 内持久、可检索的记忆。
 
-## 当前能力
+## 它与别的 AI 工具有什么不同
 
-- 多 Tab 对话：历史检索、恢复、分叉、回退、Provider 原生历史，以及悬浮对话大纲。
-- Codex 默认 Provider：支持模型发现，检测到时优先使用 `gpt-5.6-sol`。
-- 本地记忆与意识文件：可选自动记忆提取、意识文件、短期日志与 Dream 记忆整合。
-- Obsidian 原生上下文：`@note`、`@folder`、拖拽文件、图片附件、编辑器选区操作和文件浏览器菜单。
-- Provider 适配的 Obsidian 工具：Canvas、Properties、链接、图谱邻居和只读 Dataview 查询。Canvas 选中节点后右键“Suggest neighboring notes”，可查看方向、来源、打开和明确的插入链接动作。Codex/Claude 使用进程内适配；OpenCode 使用托管的本地 MCP sidecar；Pi 使用托管的 RPC 扩展。写入始终保持 Vault 范围，并经过 Provider 的确认流程；Canvas 写入会返回结构化 diff，并可在当前 Obsidian 会话中使用“Undo last Canvas write”撤销。
-- Provider CLI 健康检查，以及可操作的 CLI 缺失提示。
-- Provider 独立的权限和能力边界，不假设不同运行时功能完全一致。
-- Kimi Code CLI 支持：通过标准 ACP 协议接入 `kimi acp`，模型/命令自动发现、图片附件、按工具调用审批、Kimi 原生 `session/set_model` 模型切换。
+### 它会记得你聊过什么
 
-OpenCode 和 Pi 在 Obsidian JavaScript 进程之外运行，因此它们的托管适配器是基于文件的兼容层：OpenCode sidecar 只使用 Node 内置模块，Pi 扩展复用 Pi 已提供的 TypeBox 包。常见的 `FROM` 查询可读取 frontmatter，但不会调用 Dataview 插件 API。如果 Provider 环境中找不到 Node，聊天仍可使用，只会跳过外部工具层。
+意识机制在后台安静工作：空闲时，一次轻量模型调用会把短期日志蒸馏为长期记忆和用户画像。下个月再问，答案已经在那里。全程 opt-in、本地保存，随时可以用「打开记忆文件」浏览。
 
-## 环境要求
+### Codex 优先，Provider 中立
 
-- Obsidian 桌面版 1.11.4 或更高版本。
-- 至少安装并登录一个 Provider CLI：
-  - [Codex CLI](https://github.com/openai/codex)（`codex`）
-  - [Claude Code](https://claude.ai/claude-code)（`claude`）
-  - [OpenCode](https://opencode.ai/)（`opencode`）
-  - [Kimi Code CLI](https://github.com/MoonshotAI/kimi-cli)（`kimi`）
-  - [Pi](https://github.com/badlogic/pi-mono)（`pi`）
-- 只有从源码构建时才需要 Node.js。
+检测到 Codex 时它作为默认 Agent，本地 CLI 暴露 `gpt-5.6-sol` 时优先选用。Claude、OpenCode、Kimi 与 Pi 依然是一等公民——各自保留能力、历史格式、权限与运行时边界，你永远不会被某个厂商的假设锁死。
+
+Kimi 通过标准 ACP 协议接入，支持模型/命令自动发现、图片附件、按工具调用审批和 Kimi 原生模型切换。OpenCode 和 Pi 在 Obsidian 进程之外运行，托管适配器是基于文件的兼容层：OpenCode sidecar 只使用 Node 内置模块，Pi 扩展复用 Pi 已提供的 TypeBox 包。`FROM` 查询读取 frontmatter，不会调用 Dataview 插件 API；如果 Provider 环境缺少 Node，聊天仍可使用，只会跳过外部工具层。
+
+### 你的 Vault 就是工作区
+
+用 `@note`、`@folder`、拖拽文件、图片附件、编辑器选区和文件浏览器菜单把上下文带进对话。Provider 原生工具可以读取，并在你批准后更新 Canvas、Properties、链接与图谱邻居。写入始终限定在 Vault 范围内、展示结构化 diff、支持会话内撤销。
+
+### 更平静的对话界面
+
+悬浮大纲栏只呈现用户提示与助手标题，折叠思考与工具噪音，让你在长对话里始终保持方向感。悬停 tick 预览、跳转不丢状态，左右位置随你设置。
+
+### 默认本地
+
+无遥测、无云端索引。对话、记忆与知识数据都在 Vault 的 `.claudian-plus/` 下；旧版 `.claudian/` 数据会自动读取并迁移。
+
+## 为什么选择 Claudian Plus？
+
+多数 AI 工具把聊天记录当成一次性的。Claudian Plus 把对话当作一场工作会话：上下文进来，记忆留下，一个月后每个有用的结论依然可查。
+
+| 你想要… | Claudian Plus 给你… |
+| --- | --- |
+| 用你熟悉的 Agent 工作 | Codex 优先的默认值、Provider 原生会话、模型发现与独立的权限流 |
+| 让 Vault 始终在上下文里 | `@note` / `@folder` 上下文、拖拽文件、图片、编辑器选区、文件浏览器菜单、Canvas、Properties 与链接 |
+| 找到上个月聊过的事 | 本地对话历史搜索、恢复、分叉、回退与 Provider 原生回放 |
+| 不靠云端索引搭建第二大脑 | 可选记忆、意识文件与本地优先存储 |
+| 在长对话里保持方向感 | 紧凑的悬浮大纲：提示与标题常驻，思考与工具噪音折叠 |
 
 ## 从 Release 安装
 
@@ -44,7 +63,11 @@ OpenCode 和 Pi 在 Obsidian JavaScript 进程之外运行，因此它们的托�
 3. 将三个文件复制到该目录。
 4. 在 Obsidian「设置 → 第三方插件」中启用 **Claudian Plus**。
 
+Claudian Plus 仅限桌面端，因为它需要集成本地 Agent CLI 与桌面文件系统能力。
+
 ## 从源码构建
+
+环境要求：Node.js 24，以及至少一个受支持的 Provider CLI（[Codex](https://github.com/openai/codex)、[Claude Code](https://claude.ai/claude-code)、[OpenCode](https://opencode.ai/)、[Kimi](https://github.com/MoonshotAI/kimi-cli) 或 [Pi](https://github.com/badlogic/pi-mono)）。
 
 ```bash
 git clone https://github.com/wuyifan-code/Claudian-plus.git
@@ -60,7 +83,7 @@ npm run build
 OBSIDIAN_VAULT=D:\\Obsidian\\My Vault
 ```
 
-然后运行 `npm run build`。
+然后重新运行 `npm run build`。构建会把三个插件文件复制到 `<vault>/.obsidian/plugins/claudian-plus/`。
 
 ## 第一次使用
 
@@ -68,36 +91,37 @@ OBSIDIAN_VAULT=D:\\Obsidian\\My Vault
 2. 打开 Claudian Plus 设置；如果 Obsidian 没有继承终端的 `PATH`，请填写 CLI 的绝对路径。
 3. 熟悉各 Provider 的确认流程前，建议保持权限模式为 `normal`。
 4. 仅在需要时开启记忆和意识功能。
-5. 如需探索 Canvas 邻近笔记，选中文件或链接节点后右键 Canvas，选择 **Suggest neighboring notes**。面板只读取 Obsidian 已解析的链接图，不会未经明确点击写入。
+5. 如需探索 Canvas 邻近笔记：选中文件或链接节点后右键 Canvas，选择 **Suggest neighboring notes**。面板只读取 Obsidian 已解析的链接图，不会未经明确点击写入。
 
 ## 常用命令
 
-- **打开聊天窗口**
-- **快速 Agent 输入**
-- **撤销最近一次 Canvas 写入**（当前 Obsidian 会话）
-- **检查 Provider CLI 健康状态**
-- **打开记忆文件**
-- **扫描 Vault 知识**
+- **打开聊天窗口** — 打开主工作空间。
+- **快速 Agent 输入** — 带上当前编辑器上下文发送一个聚焦请求。
+- **搜索对话** — 按标题、Provider、模型、日期或首条消息筛选历史记录。
+- **打开记忆文件** / **扫描 Vault 知识** — 查看或刷新本地记忆层。
+- **撤销最近一次 Canvas 写入** — 撤销当前 Obsidian 会话中已批准的 Canvas 操作。
+- **检查 Provider CLI 健康状态** — 诊断缺失或过期的 Provider CLI。
 
 可以把笔记或文件夹拖入输入框，或从文件浏览器右键菜单添加。
 
-## 隐私与安全
+## 隐私、权限与存储
 
-插件不提供遥测服务。请求会按照所选 Provider 自身的配置发送到本地 CLI/运行时。知识索引和记忆数据保存在 `.claudian-plus/` 下；升级时会兼容读取旧的 `.claudian/` 数据。结构化工具运行前会校验 Vault 路径，Canvas 和 Properties 写入需要用户确认。
+插件不提供遥测服务。请求只会通过你显式配置的 Provider CLI、SDK、MCP 服务器或嵌入端点发送。知识索引和记忆数据保存在 Vault 内的 `.claudian-plus/` 下。
 
-不要同时运行旧版 Claudian 和 Claudian Plus 访问同一个 Vault。
+插件会读取旧版 `.claudian/` 数据，并在相关数据下次保存时迁移到 `.claudian-plus/`。不要同时运行旧版 Claudian 和 Claudian Plus 访问同一个 Vault。Agent 工具可以读取文件、运行命令并修改已批准的 Vault 数据；处理敏感笔记前，请先确认当前 Provider 与权限模式。
 
 ## 验证命令
 
 ```bash
 npm run typecheck
 npm run lint
-npm run test:unit
+npm run test
 npm run test:architecture
 npm run build
+npm run check:performance
 ```
 
-## 致谢
+## 上游项目、许可与致谢
 
 Claudian Plus 建立在两个上游项目之上。它们的原作者、许可证和贡献如下：
 
@@ -112,4 +136,4 @@ Claudian Plus 建立在两个上游项目之上。它们的原作者、许可证
 
 ## 许可证
 
-MIT，详见 [LICENSE](LICENSE)。
+MIT，详见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)。上文的上游许可条款是发行版的一部分。

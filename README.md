@@ -5,8 +5,8 @@
 </p>
 
 <p align="center">
-  <strong>A Codex-first AI workspace for people who think in notes.</strong><br>
-  Chat with local agents, bring your Vault into context, and turn conversations into durable knowledge.
+  <strong>Your notes remember. Now your AI does too.</strong><br>
+  A local-first AI workspace for Obsidian that keeps conversations, memory, and provider sessions in your Vault.
 </p>
 
 <p align="center">
@@ -18,11 +18,35 @@
 
 <p align="center"><a href="README_ZH.md">简体中文</a></p>
 
-Claudian Plus keeps the power of coding agents close to your notes. It combines Codex, Claude, OpenCode, Kimi, and Pi in one desktop-only Obsidian workspace while keeping conversations, memory, and provider sessions local to your Vault.
+Claudian Plus puts coding agents where your thinking already lives: your notes. It combines Codex, Claude, OpenCode, Kimi, and Pi in one desktop-only Obsidian workspace — and instead of forgetting everything when the chat closes, it quietly turns conversations into durable, searchable memory inside your Vault.
+
+## What makes Claudian Plus different
+
+### It remembers what you talked about
+
+A consciousness mechanism works quietly in the background: while you are idle, a lightweight model call distills short-term logs into long-term memory and your user profile. Ask again next month and the answer is already there. Everything is opt-in, stored locally, and browsable from **Open memory file**.
+
+### Codex-first, provider-neutral
+
+Codex is the default agent when available, preferring `gpt-5.6-sol` when your local CLI exposes it. Claude, OpenCode, Kimi, and Pi remain first-class alternatives — each with its own capabilities, history format, permissions, and runtime boundary. You are never locked into one vendor's assumptions.
+
+Kimi joins through the standard ACP protocol with model/command auto-discovery, image attachments, per-tool-call approval, and Kimi-native model switching. OpenCode and Pi run outside the Obsidian process, so their hosted adapters are file-based compatibility layers: the OpenCode sidecar uses only Node built-ins, and the Pi extension reuses the TypeBox that Pi already ships. `FROM` queries read frontmatter without calling the Dataview plugin API; if Node is missing in the provider environment, chat still works and only the external tool layer is skipped.
+
+### Your Vault is the workspace
+
+Drop context into the composer with `@note`, `@folder`, drag-and-drop, images, editor selection, and File Explorer actions. Provider-native tools can read and — with your approval — update Canvas, Properties, links, and graph neighbors. Writes stay Vault-scoped, show a structured diff, and can be undone in-session.
+
+### A calmer conversation surface
+
+The floating outline keeps you oriented in long sessions: user prompts and assistant headings stay visible while thought and tool noise collapse. Hover a tick for a preview, jump without losing state, and choose the rail side that fits.
+
+### Local by default
+
+No telemetry, no cloud index. Conversations, memory, and knowledge data live under `.claudian-plus/` in your Vault, and legacy `.claudian/` data is read and migrated automatically.
 
 ## Why Claudian Plus?
 
-Most AI chat tools forget the context that matters. Claudian Plus starts from the opposite assumption: your notes are the workspace, the conversation is a working session, and useful conclusions should remain discoverable after the chat is closed.
+Most AI tools treat your chat history as disposable. Claudian Plus treats a conversation like a working session: context in, memory out, and every useful conclusion still discoverable a month later.
 
 | You want to… | Claudian Plus gives you… |
 | --- | --- |
@@ -30,30 +54,7 @@ Most AI chat tools forget the context that matters. Claudian Plus starts from th
 | Keep the Vault in the loop | `@note` / `@folder` context, drag-and-drop files, images, editor selection, File Explorer actions, Canvas, Properties, and links |
 | Find something you discussed last month | Local conversation history search, restore, fork, rewind, and provider-native replay |
 | Build a second brain without a cloud index | Opt-in memory, awareness files, and local-first storage |
-| Stay oriented in a long conversation | A compact floating outline that surfaces user prompts and assistant headings while collapsing thought/tool noise |
-
-## Highlights
-
-### Codex-first, provider-aware
-
-Codex is the default agent when available, with a preference for `gpt-5.6-sol` when the local CLI exposes it. Claude, OpenCode, Kimi, and Pi remain first-class alternatives, but each provider keeps its own capabilities, history format, permissions, and runtime boundary.
-
-### Local memory
-
-- Opt-in automatic memory extraction and explicit remember/forget commands.
-- Awareness files for long-term memory, user profile, short-term context, and activity.
-
-### Native Obsidian context
-
-Bring context into the composer with `@note`, `@folder`, drag-and-drop, image attachments, and File Explorer actions. Provider-native tools can read and, with approval, update Canvas, Properties, links, and graph neighbors. Writes remain Vault-scoped, show a structured diff, and support session-level undo where available.
-
-### A calmer chat surface
-
-The floating outline is designed for navigation, not decoration: prompt markers and assistant headings stay visible, while thoughts and tool output remain collapsed in the chat body. Ticks scale by heading level and only change color for the current section; hover a tick for a preview bubble. Choose the rail side (left or right) from settings.
-
-### One workspace for agent resources
-
-Manage MCP servers, slash commands, Skills, subagents, provider enablement, and environment snippets from the same settings surface. UI language follows the selected Obsidian locale.
+| Stay oriented in a long conversation | A compact floating outline that surfaces prompts and headings while collapsing thought/tool noise |
 
 ## Install from a release
 
@@ -66,7 +67,7 @@ Claudian Plus is desktop-only because it integrates with local agent CLIs and de
 
 ## Build from source
 
-Requirements: Node.js 24 and at least one supported provider CLI.
+Requirements: Node.js 24 and at least one supported provider CLI ([Codex](https://github.com/openai/codex), [Claude Code](https://claude.ai/claude-code), [OpenCode](https://opencode.ai/), [Kimi](https://github.com/MoonshotAI/kimi-cli), or [Pi](https://github.com/badlogic/pi-mono)).
 
 ```bash
 git clone https://github.com/wuyifan-code/Claudian-plus.git
@@ -90,6 +91,7 @@ Then run `npm run build` again. The build copies the three plugin files into `<v
 2. Open **Claudian Plus → Settings**. If Obsidian does not inherit your shell `PATH`, set the provider's absolute CLI path.
 3. Keep the permission mode at `normal` until you understand the provider-specific approval flow.
 4. Enable memory and awareness features only when you want them.
+5. For Canvas neighbors: right-click a file or link node and choose **Suggest neighboring notes**. The panel only reads Obsidian's resolved link graph and never writes without an explicit click.
 
 ## Useful commands and workflows
 
@@ -98,12 +100,13 @@ Then run `npm run build` again. The build copies the three plugin files into `<v
 - **Search conversations** — filter saved history by title, provider, model, date, or first message.
 - **Open memory file** / **Scan vault knowledge** — inspect or refresh the local memory layer.
 - **Undo last Canvas write** — undo an approved Canvas operation during the current Obsidian session.
+- **Check provider CLI health** — diagnose missing or stale provider CLIs.
 
 You can drag a note or folder into the composer at any time.
 
 ## Privacy, permissions, and storage
 
-Claudian Plus has no telemetry service. Provider requests are sent only through the provider, CLI, SDK, MCP server, or embedding endpoint that you explicitly configure. Vault knowledge and memory data are stored locally under `.claudian-plus/`.
+Claudian Plus has no telemetry service. Provider requests are sent only through the provider CLI, SDK, MCP server, or embedding endpoint that you explicitly configure. Vault knowledge and memory data are stored locally under `.claudian-plus/`.
 
 The plugin reads legacy `.claudian/` data and migrates it to `.claudian-plus/` when the relevant data is next saved. Do not run an old Claudian build and Claudian Plus against the same Vault at the same time. Agent tools can read files, run commands, and modify approved Vault data; review the active provider and permission mode before working with sensitive notes.
 
