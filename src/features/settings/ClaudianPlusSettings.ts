@@ -525,6 +525,26 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
           })
       );
 
+    new Setting(displayCard)
+      .setName(t('settings.welcomeAnimation.name'))
+      .setDesc(t('settings.welcomeAnimation.desc'))
+      .addDropdown((dropdown) => {
+        dropdown
+          .addOption('full', t('settings.welcomeAnimation.full'))
+          .addOption('lite', t('settings.welcomeAnimation.lite'))
+          .addOption('off', t('settings.welcomeAnimation.off'))
+          .setValue(this.plugin.settings.welcomeAnimationMode ?? 'full')
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.welcomeAnimationMode = value as 'full' | 'lite' | 'off';
+            });
+            // Refresh open views so the welcome animation switches immediately.
+            for (const view of this.plugin.getAllViews()) {
+              view.refreshWelcomeAnimation?.();
+            }
+          });
+      });
+
     // --- Conversations ---
     const convCard = this.createCard(container, t('settings.conversations'));
 

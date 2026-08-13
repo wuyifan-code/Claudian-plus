@@ -152,6 +152,14 @@ export interface ClaudianPlusSettings {
   expandFileEditsByDefault: boolean;
   chatViewPlacement: ChatViewPlacement;
 
+  /**
+   * Welcome animation mode. `full` renders the Three.js constellation cube,
+   * `lite` uses the dependency-free 2D canvas animation, and `off` shows only
+   * the greeting. Optional because upgrades keep the legacy full-cube default;
+   * fresh installs resolve to `lite` in `main.ts`.
+   */
+  welcomeAnimationMode?: 'full' | 'lite' | 'off';
+
   // Provider command visibility
   hiddenProviderCommands: HiddenProviderCommands;
 

@@ -355,6 +355,13 @@
       "name": "Dateibearbeitungen standardmäßig ausklappen",
       "desc": "Write- und Edit-Diffs beim ersten Erscheinen ausgeklappt anzeigen."
     },
+    "welcomeAnimation": {
+      "name": "Begrüßungsanimation",
+      "desc": "Wählen Sie die Animation auf der leeren Chat-Registerkarte. Voll nutzt den Three.js-Sternbild-Würfel; Leicht nutzt eine abhängigkeitsfreie 2D-Canvas-Animation; Aus zeigt nur die Begrüßung.",
+      "full": "Voll",
+      "lite": "Leicht",
+      "off": "Aus"
+    },
     "chatViewPlacement": {
       "name": "Claudian Plus öffnen in",
       "desc": "Wählen Sie, wo das Chat-Panel beim Erstellen geöffnet wird",

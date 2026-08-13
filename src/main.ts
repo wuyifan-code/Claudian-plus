@@ -620,13 +620,18 @@ export default class ClaudianPlusPlugin extends Plugin {
       this.storage.initialize(),
       this.storage.getTabManagerState(),
     ]);
-    const { claudianPlus } = settingsResult;
+    const { claudianPlus, hasPersistedSettings } = settingsResult;
     this.lastKnownTabManagerState = tabManagerState;
 
     this.settings = {
       ...DEFAULT_CLAUDIAN_PLUS_SETTINGS,
       ...claudianPlus,
     };
+    // Fresh installs get the lightweight welcome animation by default while
+    // upgrades keep the legacy Three.js cube they already saw.
+    if (this.settings.welcomeAnimationMode === undefined) {
+      this.settings.welcomeAnimationMode = hasPersistedSettings ? 'full' : 'lite';
+    }
     // Move legacy Claude-compatible endpoint environment blocks into the
     // structured service registry before provider state is normalized. This
     // keeps existing vaults working while making the new service UI/runtime

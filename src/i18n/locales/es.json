@@ -355,6 +355,13 @@
       "name": "Expandir ediciones de archivo por defecto",
       "desc": "Mostrar los diffs de Write y Edit expandidos cuando aparecen por primera vez."
     },
+    "welcomeAnimation": {
+      "name": "Animación de bienvenida",
+      "desc": "Elige la animación de la pestaña de chat vacía. Completa usa el cubo de constelaciones Three.js; Ligera usa una animación 2D Canvas sin dependencias; Desactivada muestra solo el saludo.",
+      "full": "Completa",
+      "lite": "Ligera",
+      "off": "Desactivada"
+    },
     "chatViewPlacement": {
       "name": "Abrir Claudian Plus en",
       "desc": "Elige dónde se abre el panel de chat cuando se crea",

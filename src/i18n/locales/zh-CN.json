@@ -355,6 +355,13 @@
       "name": "默认展开文件编辑",
       "desc": "Write 和 Edit diff 首次出现时以展开状态显示。"
     },
+    "welcomeAnimation": {
+      "name": "欢迎页动画",
+      "desc": "选择空聊天标签页显示的动画。完整版使用 Three.js 星座立方体；轻量版使用无依赖的 2D Canvas 动画；关闭则仅显示问候语。",
+      "full": "完整版",
+      "lite": "轻量版",
+      "off": "关闭"
+    },
     "chatViewPlacement": {
       "name": "Claudian Plus 打开位置",
       "desc": "选择新建聊天面板时的打开位置",

@@ -851,7 +851,10 @@ describe('ClaudianPlusPlugin', () => {
 
       await plugin.loadSettings();
 
-      expect(plugin.settings).toEqual(DEFAULT_SETTINGS);
+      expect(plugin.settings).toEqual({
+        ...DEFAULT_SETTINGS,
+        welcomeAnimationMode: 'lite',
+      });
     });
 
     it('should use defaults when loadData returns empty object', async () => {
@@ -861,7 +864,10 @@ describe('ClaudianPlusPlugin', () => {
 
       await plugin.loadSettings();
 
-      expect(plugin.settings).toEqual(DEFAULT_SETTINGS);
+      expect(plugin.settings).toEqual({
+        ...DEFAULT_SETTINGS,
+        welcomeAnimationMode: 'lite',
+      });
     });
 
     it('should migrate legacy openInMainTab true to main-tab placement', async () => {

@@ -355,6 +355,13 @@
       "name": "Développer les modifications de fichiers par défaut",
       "desc": "Afficher les diffs Write et Edit développés lors de leur première apparition."
     },
+    "welcomeAnimation": {
+      "name": "Animation de bienvenue",
+      "desc": "Choisissez l'animation affichée sur l'onglet de chat vide. Complète utilise le cube de constellation Three.js ; Légère utilise une animation 2D Canvas sans dépendance ; Désactivée n'affiche que le message de bienvenue.",
+      "full": "Complète",
+      "lite": "Légère",
+      "off": "Désactivée"
+    },
     "chatViewPlacement": {
       "name": "Ouvrir Claudian Plus dans",
       "desc": "Choisissez où le panneau de chat s'ouvre lors de sa création",

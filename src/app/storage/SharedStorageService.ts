@@ -28,9 +28,10 @@ export class SharedStorageService implements SharedAppStorage {
     this.sessions = new SessionStorage(this.adapter);
   }
 
-  async initialize(): Promise<{ claudianPlus: Record<string, unknown> }> {
+  async initialize(): Promise<{ claudianPlus: Record<string, unknown>; hasPersistedSettings: boolean }> {
     const claudianPlus = await this.claudianPlusSettings.load();
-    return { claudianPlus };
+    const hasPersistedSettings = await this.claudianPlusSettings.exists();
+    return { claudianPlus, hasPersistedSettings };
   }
 
   async saveClaudianPlusSettings(settings: Record<string, unknown>): Promise<void> {
