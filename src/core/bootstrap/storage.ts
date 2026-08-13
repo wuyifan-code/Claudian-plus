@@ -11,7 +11,10 @@ import type { VaultFileAdapter } from '../storage/VaultFileAdapter';
  * agents, MCP config) live behind provider-owned modules.
  */
 export interface SharedAppStorage {
-  initialize(): Promise<{ claudianPlus: Record<string, unknown> }>;
+  initialize(): Promise<{
+    claudianPlus: Record<string, unknown>;
+    hasPersistedSettings: boolean;
+  }>;
   saveClaudianPlusSettings(settings: Record<string, unknown>): Promise<void>;
   setTabManagerState(state: AppTabManagerState): Promise<void>;
   getTabManagerState(): Promise<AppTabManagerState | null>;

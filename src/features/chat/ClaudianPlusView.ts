@@ -178,6 +178,18 @@ export class ClaudianPlusView extends ItemView {
     }
   }
 
+  /** Re-renders empty-tab welcome elements after the animation mode changes. */
+  refreshWelcomeAnimation(): void {
+    for (const tab of this.tabManager?.getAllTabs() ?? []) {
+      const controller = tab.controllers.conversationController;
+      if (!controller || tab.state.messages.length > 0) continue;
+      const welcomeEl = controller.getWelcomeEl();
+      if (welcomeEl && !welcomeEl.hasClass('claudian-plus-hidden')) {
+        controller.initializeWelcome();
+      }
+    }
+  }
+
   /** Updates provider-scoped hidden commands on all tabs after settings changes. */
   updateHiddenProviderCommands(): void {
     for (const tab of this.tabManager?.getAllTabs() ?? []) {

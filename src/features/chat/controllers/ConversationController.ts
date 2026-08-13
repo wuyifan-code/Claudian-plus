@@ -1142,6 +1142,11 @@ export class ConversationController {
     }
   }
 
+  /** Returns the current welcome element, if any. */
+  getWelcomeEl(): HTMLElement | null {
+    return this.deps.getWelcomeEl();
+  }
+
   /**
    * Initializes the welcome greeting for a new tab without a conversation.
    * Called when a new tab is activated and has no conversation loaded.

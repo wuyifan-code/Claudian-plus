@@ -28,6 +28,8 @@ export interface FeatureViewHost extends TabManagerViewHost {
   refreshTabControls(): void;
   updateHiddenProviderCommands(): void;
   refreshOutlineSide?(): void;
+  /** Re-renders the empty-tab welcome animation after the mode setting changes. */
+  refreshWelcomeAnimation?(): void;
 }
 
 /** Application capabilities consumed by user-facing features. */

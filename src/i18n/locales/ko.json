@@ -355,6 +355,13 @@
       "name": "파일 편집을 기본적으로 펼치기",
       "desc": "Write 및 Edit diff가 처음 표시될 때 펼친 상태로 보여줍니다."
     },
+    "welcomeAnimation": {
+      "name": "환영 애니메이션",
+      "desc": "빈 채팅 탭에 표시할 애니메이션을 선택합니다. 전체는 Three.js 별자리 큐브, 경량은 의존성이 없는 2D Canvas 애니메이션, 끄기는 인사말만 표시합니다.",
+      "full": "전체",
+      "lite": "경량",
+      "off": "끄기"
+    },
     "chatViewPlacement": {
       "name": "Claudian Plus 열 위치",
       "desc": "채팅 패널이 생성될 때 열릴 위치를 선택합니다",

@@ -21,6 +21,26 @@ describe('SharedStorageService', () => {
     expect(adapter.write).not.toHaveBeenCalled();
   });
 
+  it('reports whether a settings file already exists for upgrade detection', async () => {
+    const adapter = {
+      exists: jest.fn().mockResolvedValue(true),
+      read: jest.fn().mockResolvedValue(JSON.stringify({ model: 'gpt-5.6-sol' })),
+      write: jest.fn(),
+      mkdir: jest.fn(),
+    };
+    const plugin = {
+      app: { vault: { adapter } },
+    } as any;
+    const storage = new SharedStorageService(plugin);
+
+    const fresh = await storage.initialize();
+    expect(fresh.hasPersistedSettings).toBe(true);
+
+    adapter.exists.mockResolvedValue(false);
+    const empty = await storage.initialize();
+    expect(empty.hasPersistedSettings).toBe(false);
+  });
+
   it('reports and propagates tab layout persistence failures', async () => {
     const error = new Error('disk full');
     const plugin = {

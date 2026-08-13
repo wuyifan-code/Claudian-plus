@@ -128,6 +128,38 @@ describe('MessageRenderer', () => {
     expect(welcomeEl.hasClass('claudian-plus-welcome')).toBe(true);
   });
 
+  it('routes welcome animation to the full Three.js cube by default', () => {
+    const { renderer } = createRenderer();
+    const loadSpy = jest
+      .spyOn(renderer as any, 'loadWelcomeAnimation')
+      .mockResolvedValue({});
+
+    renderer.renderMessages([], () => 'Welcome!');
+
+    expect(loadSpy).toHaveBeenCalledWith('full');
+  });
+
+  it('routes welcome animation to the lightweight canvas cube in lite mode', () => {
+    const { renderer } = createRenderer(undefined, 'claude', { welcomeAnimationMode: 'lite' });
+    const loadSpy = jest
+      .spyOn(renderer as any, 'loadWelcomeAnimation')
+      .mockResolvedValue({});
+
+    renderer.renderMessages([], () => 'Welcome!');
+
+    expect(loadSpy).toHaveBeenCalledWith('lite');
+  });
+
+  it('skips welcome animation entirely in off mode', () => {
+    const { renderer } = createRenderer(undefined, 'claude', { welcomeAnimationMode: 'off' });
+    const loadSpy = jest.spyOn(renderer as any, 'loadWelcomeAnimation');
+
+    const welcomeEl = renderer.renderMessages([], () => 'Welcome!');
+
+    expect(loadSpy).not.toHaveBeenCalled();
+    expect(welcomeEl.hasClass('claudian-plus-welcome')).toBe(true);
+  });
+
   // ============================================
   // renderStoredMessage
   // ============================================

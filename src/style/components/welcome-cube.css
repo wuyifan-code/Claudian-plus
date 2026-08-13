@@ -28,6 +28,15 @@
   cursor: grabbing;
 }
 
+/* The lightweight 2D canvas animation does not support drag rotation. */
+.claudian-plus-welcome-cube-wrapper--lite {
+  cursor: default;
+}
+
+.claudian-plus-welcome-cube-wrapper--lite:active {
+  cursor: default;
+}
+
 .claudian-plus-welcome-cube-canvas {
   width: 100% !important;
   height: 100% !important;

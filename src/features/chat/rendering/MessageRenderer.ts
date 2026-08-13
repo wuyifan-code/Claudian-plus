@@ -25,7 +25,7 @@ import {
 } from '../../../utils/markdownMath';
 import type { FeatureHost } from '../../FeatureHost';
 import { findRewindContext } from '../rewind';
-import type { ConstellationCubeWelcome } from '../ui/ConstellationCubeWelcome';
+import type { WelcomeAnimation, WelcomeAnimationMode } from '../ui/welcomeAnimation';
 import { formatConversationDirectoryTitle } from '../utils/conversationDirectoryTitle';
 import { resolveSubagentLifecycleAdapter } from './subagentLifecycleResolution';
 import {
@@ -189,6 +189,24 @@ export class MessageRenderer {
     this.activeCubeWelcome = null;
   }
 
+  private getWelcomeAnimationMode(): WelcomeAnimationMode {
+    const mode = this.plugin.settings?.welcomeAnimationMode;
+    return mode === 'lite' || mode === 'off' ? mode : 'full';
+  }
+
+  private loadWelcomeAnimation(mode: 'full' | 'lite'): Promise<{
+    new (parentEl: HTMLElement): WelcomeAnimation;
+  }> {
+    if (mode === 'lite') {
+      return import('../ui/LightweightCubeWelcome').then(
+        ({ LightweightCubeWelcome }) => LightweightCubeWelcome,
+      );
+    }
+    return import('../ui/ConstellationCubeWelcome').then(
+      ({ ConstellationCubeWelcome }) => ConstellationCubeWelcome,
+    );
+  }
+
   private getSubagentLifecycleAdapter(toolName?: string) {
     return resolveSubagentLifecycleAdapter(this.getCapabilities().providerId, toolName);
   }
@@ -313,7 +331,7 @@ export class MessageRenderer {
   // Stored Message Rendering (Batch/Replay)
   // ============================================
 
-  private activeCubeWelcome: ConstellationCubeWelcome | null = null;
+  private activeCubeWelcome: WelcomeAnimation | null = null;
   private welcomeRenderToken = 0;
 
   /**
@@ -334,21 +352,24 @@ export class MessageRenderer {
 
     if (messages.length === 0) {
       const newWelcomeEl = this.messagesEl.createDiv({ cls: 'claudian-plus-welcome' });
-      // Keep Three.js out of the initial chat-renderer module graph. The
-      // welcome animation is optional and should not delay normal chat or
-      // make the renderer's unit tests depend on Three's ESM modules.
-      void import('../ui/ConstellationCubeWelcome').then(({ ConstellationCubeWelcome: WelcomeCube }) => {
-        if (this.disposed || renderToken !== this.welcomeRenderToken || !newWelcomeEl.isConnected) {
-          return;
-        }
-        try {
-          this.activeCubeWelcome = new WelcomeCube(newWelcomeEl);
-        } catch {
-          // Keep the greeting available when WebGL is unavailable.
-        }
-      }).catch(() => {
-        // Keep the greeting available when the optional animation cannot load.
-      });
+      const welcomeMode = this.getWelcomeAnimationMode();
+      if (welcomeMode !== 'off') {
+        // Keep the animation modules out of the initial chat-renderer module
+        // graph. The welcome animation is optional and should not delay normal
+        // chat or make the renderer's unit tests depend on Three's ESM modules.
+        void this.loadWelcomeAnimation(welcomeMode).then((WelcomeCube) => {
+          if (this.disposed || renderToken !== this.welcomeRenderToken || !newWelcomeEl.isConnected) {
+            return;
+          }
+          try {
+            this.activeCubeWelcome = new WelcomeCube(newWelcomeEl);
+          } catch {
+            // Keep the greeting available when WebGL or canvas is unavailable.
+          }
+        }).catch(() => {
+          // Keep the greeting available when the optional animation cannot load.
+        });
+      }
       newWelcomeEl.createDiv({ cls: 'claudian-plus-welcome-greeting', text: getGreeting() });
       return newWelcomeEl;
     }
