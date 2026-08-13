@@ -6,6 +6,7 @@ import type {
   JsonRpcRequestOptions,
 } from '../../../../src/providers/acp';
 import {
+  ACP_SESSION_OPERATION_TIMEOUT_MS,
   AcpClientConnection,
   AcpJsonRpcTransport,
   JsonRpcErrorResponse,
@@ -244,5 +245,45 @@ describe('AcpClientConnection', () => {
       harness.transport.dispose();
       harness.close();
     }
+  });
+
+  it('applies the extended session-operation timeout to session creation and loading', async () => {
+    const requests: Array<{
+      method: string;
+      options?: JsonRpcRequestOptions;
+      params?: unknown;
+    }> = [];
+    const transport = {
+      notify: () => undefined,
+      onNotification: () => () => undefined,
+      onRequest: () => () => undefined,
+      request: async (method: string, params?: unknown, options?: JsonRpcRequestOptions) => {
+        requests.push({ method, options, params });
+        return { sessionId: 'session-1' };
+      },
+      signal: new AbortController().signal,
+    } as unknown as AcpJsonRpcTransport;
+    const connection = new AcpClientConnection({ transport });
+
+    await expect(connection.newSession({ cwd: '/tmp/project', mcpServers: [] }))
+      .resolves.toEqual({ sessionId: 'session-1' });
+    await expect(connection.loadSession({
+      cwd: '/tmp/project',
+      mcpServers: [],
+      sessionId: 'session-1',
+    })).resolves.toEqual({ sessionId: 'session-1' });
+
+    expect(requests).toEqual([
+      {
+        method: 'session/new',
+        options: { timeoutMs: ACP_SESSION_OPERATION_TIMEOUT_MS },
+        params: { cwd: '/tmp/project', mcpServers: [] },
+      },
+      {
+        method: 'session/load',
+        options: { timeoutMs: ACP_SESSION_OPERATION_TIMEOUT_MS },
+        params: { cwd: '/tmp/project', mcpServers: [], sessionId: 'session-1' },
+      },
+    ]);
   });
 });

@@ -117,7 +117,7 @@ function loadAgentResources(providerIds: readonly ProviderId[]): WorkspaceResour
       key: `${providerId}:${agent.id}`,
       name: agent.name,
       providerIds: [providerId],
-      source: `${providerId} ${agent.source} agents`,
+      source: agent.source === 'global' ? 'Home agents' : `${providerId} vault agents`,
       status: agent.source === 'vault' ? 'available' : 'readonly',
     }));
   });

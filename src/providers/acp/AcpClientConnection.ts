@@ -55,6 +55,11 @@ type SessionNotificationListener = (
 // ACP prompt turns are long-running RPCs; session/update notifications stream progress until the final response.
 const ACP_PROMPT_TURN_TIMEOUT_MS = 0;
 
+// Session creation and loading scan project files, start MCP servers, and load
+// provider state, so they can far exceed the default request timeout on cold
+// vaults. Keep the default for ordinary RPCs and only extend these operations.
+export const ACP_SESSION_OPERATION_TIMEOUT_MS = 180_000;
+
 export interface AcpFileSystemDelegate {
   readTextFile?: (request: AcpReadTextFileRequest) => Promise<AcpReadTextFileResponse>;
   writeTextFile?: (request: AcpWriteTextFileRequest) => Promise<AcpWriteTextFileResponse>;
@@ -153,11 +158,15 @@ export class AcpClientConnection {
   }
 
   newSession(request: AcpNewSessionRequest): Promise<AcpNewSessionResponse> {
-    return this.requestWithFallback<AcpNewSessionResponse>('newSession', request);
+    return this.requestWithFallback<AcpNewSessionResponse>('newSession', request, {
+      timeoutMs: ACP_SESSION_OPERATION_TIMEOUT_MS,
+    });
   }
 
   loadSession(request: AcpLoadSessionRequest): Promise<AcpLoadSessionResponse> {
-    return this.requestWithFallback<AcpLoadSessionResponse>('loadSession', request);
+    return this.requestWithFallback<AcpLoadSessionResponse>('loadSession', request, {
+      timeoutMs: ACP_SESSION_OPERATION_TIMEOUT_MS,
+    });
   }
 
   listSessions(request: AcpListSessionsRequest = {}): Promise<AcpListSessionsResponse> {
