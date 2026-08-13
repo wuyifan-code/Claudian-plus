@@ -151,6 +151,80 @@ describe('OpencodeChatRuntime', () => {
     ]);
   });
 
+  it('attaches the underlying session failure reason when readiness fails', async () => {
+    const runtime = new OpencodeChatRuntime(createMockPlugin({
+      settings: {
+        providerConfigs: {
+          opencode: {
+            enabled: true,
+          },
+        },
+      },
+    }));
+    jest.spyOn(runtime, 'ensureReady').mockResolvedValue(false);
+    (runtime as any).lastSessionError = {
+      message: 'Request timeout: session/new (30000ms)',
+      stderr: 'opencode: failed to connect to OpenCode Go',
+    };
+
+    const chunks: unknown[] = [];
+    for await (const chunk of runtime.query(runtime.prepareTurn({ text: 'Hello' }))) {
+      chunks.push(chunk);
+    }
+
+    expect(chunks).toEqual([
+      {
+        type: 'error',
+        content: [
+          'Failed to start OpenCode. Check the CLI path and login state.',
+          '',
+          'Request timeout: session/new (30000ms)',
+          '',
+          'opencode: failed to connect to OpenCode Go',
+        ].join('\n'),
+      },
+      { type: 'done' },
+    ]);
+  });
+
+  it('records the underlying failure when session creation rejects', async () => {
+    const runtime = new OpencodeChatRuntime(createMockPlugin());
+    (runtime as any).connection = {
+      newSession: jest.fn().mockRejectedValue(new Error('Request timeout: session/new (30000ms)')),
+    };
+    (runtime as any).process = {
+      getStderrSnapshot: () => 'opencode: failed to connect to OpenCode Go',
+    };
+
+    await expect((runtime as any).createSession('/tmp/claudian-plus-test-vault')).resolves.toBeNull();
+
+    expect((runtime as any).lastSessionError).toEqual({
+      message: 'Request timeout: session/new (30000ms)',
+      stderr: 'opencode: failed to connect to OpenCode Go',
+    });
+  });
+
+  it('clears the recorded session failure after a successful session creation', async () => {
+    const runtime = new OpencodeChatRuntime(createMockPlugin());
+    (runtime as any).lastSessionError = {
+      message: 'previous failure',
+      stderr: '',
+    };
+    (runtime as any).connection = {
+      newSession: jest.fn().mockResolvedValue({
+        sessionId: 'session-1',
+        configOptions: [],
+      }),
+    };
+    (runtime as any).process = {
+      getStderrSnapshot: () => '',
+    };
+
+    await expect((runtime as any).createSession('/tmp/claudian-plus-test-vault')).resolves.toBe('session-1');
+
+    expect((runtime as any).lastSessionError).toBeNull();
+  });
+
   it('does not create a session when commands are requested before a session exists', async () => {
     const runtime = new OpencodeChatRuntime(createMockPlugin());
 

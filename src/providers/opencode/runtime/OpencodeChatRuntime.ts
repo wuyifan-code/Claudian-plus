@@ -162,6 +162,7 @@ export class OpencodeChatRuntime implements ChatRuntime {
   private currentSessionModeId: string | null = null;
   private currentTurnMetadata: ChatTurnMetadata = {};
   private loadedSessionId: string | null = null;
+  private lastSessionError: { message: string; stderr: string } | null = null;
   private permissionModeSyncCallback: ((mode: string) => void) | null = null;
   private process: AcpSubprocess | null = null;
   private promptUsage: AcpUsage | null = null;
@@ -466,10 +467,14 @@ export class OpencodeChatRuntime implements ChatRuntime {
     }
 
     if (!ready) {
-      const message = getOpencodeProviderSettings(this.plugin.settings).enabled
+      const baseMessage = getOpencodeProviderSettings(this.plugin.settings).enabled
         ? 'Failed to start OpenCode. Check the CLI path and login state.'
         : 'OpenCode is disabled. Enable OpenCode in Claudian Plus settings before starting a chat.';
-      yield { type: 'error', content: message };
+      const lastError = this.lastSessionError;
+      const detail = lastError
+        ? `\n\n${lastError.message}${lastError.stderr ? `\n\n${lastError.stderr}` : ''}`
+        : '';
+      yield { type: 'error', content: `${baseMessage}${detail}` };
       yield { type: 'done' };
       return;
     }
@@ -789,6 +794,7 @@ export class OpencodeChatRuntime implements ChatRuntime {
     this.connectionGeneration += 1;
     this.setReady(false);
     this.settleActiveTurn();
+    this.lastSessionError = null;
     this.currentSessionModelId = null;
     this.currentSessionModeId = null;
     this.setSupportedCommands([]);
@@ -1360,6 +1366,7 @@ export class OpencodeChatRuntime implements ChatRuntime {
       if (!this.isConversationCurrent(conversationGeneration)) {
         return null;
       }
+      this.lastSessionError = null;
       this.loadedSessionId = response.sessionId;
       this.sessionId = response.sessionId;
       this.sessionCwds.set(response.sessionId, cwd);
@@ -1378,7 +1385,11 @@ export class OpencodeChatRuntime implements ChatRuntime {
         return null;
       }
       return response.sessionId;
-    } catch {
+    } catch (error) {
+      this.lastSessionError = {
+        message: error instanceof Error ? error.message : 'OpenCode session creation failed',
+        stderr: this.process?.getStderrSnapshot() ?? '',
+      };
       return null;
     }
   }
@@ -1402,6 +1413,7 @@ export class OpencodeChatRuntime implements ChatRuntime {
       if (!this.isConversationCurrent(conversationGeneration)) {
         return false;
       }
+      this.lastSessionError = null;
       this.sessionInvalidated = false;
       this.loadedSessionId = response.sessionId;
       this.sessionId = response.sessionId;
@@ -1421,7 +1433,11 @@ export class OpencodeChatRuntime implements ChatRuntime {
         return false;
       }
       return true;
-    } catch {
+    } catch (error) {
+      this.lastSessionError = {
+        message: error instanceof Error ? error.message : 'OpenCode session load failed',
+        stderr: this.process?.getStderrSnapshot() ?? '',
+      };
       return false;
     }
   }
