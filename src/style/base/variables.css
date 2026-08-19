@@ -12,14 +12,16 @@
   --claudian-plus-brand-pi: #8b5cf6;
   --claudian-plus-brand-pi-rgb: 139, 92, 246;
 
-  /* Status Colors */
-  --claudian-plus-error: #ef4444;
+  /* Status Colors: Obsidian semantics with fallback to the previous palette.
+     The -rgb triplets stay literal (Obsidian exposes no rgb status vars) for
+     rgba(var(--x-rgb), a) alpha compositing. */
+  --claudian-plus-error: var(--text-error, #ef4444);
   --claudian-plus-error-rgb: 239, 68, 68;
-  --claudian-plus-success: #10b981;
+  --claudian-plus-success: var(--text-success, #10b981);
   --claudian-plus-success-rgb: 16, 185, 129;
-  --claudian-plus-warning: #f59e0b;
+  --claudian-plus-warning: var(--text-warning, #f59e0b);
   --claudian-plus-warning-rgb: 245, 158, 11;
-  --claudian-plus-compact: #3b82f6;
+  --claudian-plus-compact: var(--color-blue, #3b82f6);
 
   /* Design System Radii */
   --claudian-plus-radius-xs: 4px;
