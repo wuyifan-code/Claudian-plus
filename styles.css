@@ -85,6 +85,39 @@ body.theme-light .claudian-plus-container {
 
 
 /* ============================================
+   base/tokens.css
+   ============================================ */
+/* Semantic tokens mapped to Obsidian theme variables.
+   Modules must reference these instead of hard-coded values, so community
+   themes re-skin the plugin automatically. Scoped like variables.css. */
+.claudian-plus-container {
+  /* Surfaces */
+  --claudian-plus-surface-primary: var(--background-primary);
+  --claudian-plus-surface-secondary: var(--background-secondary);
+  --claudian-plus-surface-alt: var(--background-secondary-alt);
+  --claudian-plus-surface-hover: var(--background-modifier-hover);
+
+  /* Text */
+  --claudian-plus-text-normal: var(--text-normal);
+  --claudian-plus-text-muted: var(--text-muted);
+  --claudian-plus-text-faint: var(--text-faint);
+  --claudian-plus-text-accent: var(--text-accent);
+  --claudian-plus-text-on-accent: var(--text-on-accent);
+
+  /* Borders */
+  --claudian-plus-border: var(--background-modifier-border);
+  --claudian-plus-border-hover: var(--background-modifier-border-hover);
+  --claudian-plus-border-focus: var(--background-modifier-border-focus);
+
+  /* Interactive */
+  --claudian-plus-accent: var(--interactive-accent);
+  --claudian-plus-accent-hover: var(--interactive-accent-hover);
+  --claudian-plus-interactive-normal: var(--interactive-normal);
+  --claudian-plus-interactive-hover: var(--interactive-hover);
+}
+
+
+/* ============================================
    base/container.css
    ============================================ */
 /* The panel must track the sidebar width exactly; no min-width here or the
@@ -656,14 +689,6 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
   text-align: center;
   padding: 20px;
   min-height: 200px;
-}
-
-.claudian-plus-welcome-greeting {
-  font-family: 'Copernicus', 'Tiempos Headline', 'Tiempos', Georgia, 'Times New Roman', serif;
-  font-size: 28px;
-  font-weight: 300;
-  color: var(--text-muted);
-  letter-spacing: -0.01em;
 }
 
 .claudian-plus-message {
@@ -6417,6 +6442,11 @@ code .claudian-plus-file-link:hover {
   text-transform: uppercase;
 }
 
+.claudian-plus-sp-scope-badge--home {
+  background: var(--background-modifier-hover);
+  color: var(--text-accent);
+}
+
 
 /* ============================================
    settings/mcp-settings.css
@@ -6869,6 +6899,122 @@ code .claudian-plus-file-link:hover {
 
 .claudian-plus-agent-skill-delete-description {
   color: var(--text-warning);
+}
+
+
+/* ============================================
+   settings/workspace-resources.css
+   ============================================ */
+/* ── Workspace Resources — second-level sub-tabs & toolbar ── */
+
+.claudian-plus-wr-manager {
+  /* container for sub-tabs, toolbar, and content */
+}
+
+/* Sub-tab pill bar (smaller than the main settings tabs) */
+.claudian-plus-wr-subtabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--background-secondary-alt, var(--background-secondary));
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  margin-bottom: 14px;
+  width: fit-content;
+}
+
+.claudian-plus-wr-subtab {
+  padding: 5px 14px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.claudian-plus-wr-subtab:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.claudian-plus-wr-subtab--active {
+  color: var(--text-normal);
+  background: var(--background-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Toolbar row: search input + create button */
+.claudian-plus-wr-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.claudian-plus-wr-search {
+  flex: 1;
+}
+
+.claudian-plus-wr-create {
+  white-space: nowrap;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent, #ffffff);
+  border: none;
+  border-radius: 8px;
+  padding: 6px 16px;
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.claudian-plus-wr-create:hover {
+  opacity: 0.9;
+}
+
+.claudian-plus-wr-create--hidden {
+  display: none;
+}
+
+/* Loading spinner placeholder */
+.claudian-plus-wr-loading {
+  padding: 24px 18px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+/* Status badges (variant colors) */
+.claudian-plus-wr-status--available {
+  background: rgba(46, 160, 67, 0.12);
+  color: #2ea043;
+}
+
+.claudian-plus-wr-status--readonly {
+  background: var(--background-modifier-border);
+  color: var(--text-muted);
+}
+
+.claudian-plus-wr-status--connected {
+  background: rgba(56, 132, 244, 0.12);
+  color: #3884f4;
+}
+
+.claudian-plus-wr-status--disabled {
+  background: rgba(218, 75, 75, 0.12);
+  color: #da4b4b;
+}
+
+.claudian-plus-wr-item-source {
+  font-size: 11px;
+  color: var(--text-faint);
+  font-family: var(--font-monospace);
+  margin-top: 2px;
 }
 
 
