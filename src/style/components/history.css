@@ -15,7 +15,7 @@
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--background-modifier-border);
   border-radius: 8px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--claudian-plus-shadow-lg);
   z-index: 1000;
   max-height: 400px;
   width: min(320px, calc(100vw - 32px));

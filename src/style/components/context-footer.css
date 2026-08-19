@@ -68,9 +68,9 @@
 
 /* Warning state (> 80%) - pale red */
 .claudian-plus-context-meter.warning .claudian-plus-meter-fill {
-  stroke: #E57373;
+  stroke: var(--claudian-plus-error);
 }
 
 .claudian-plus-context-meter.warning .claudian-plus-context-meter-percent {
-  color: #E57373;
+  color: var(--claudian-plus-error);
 }

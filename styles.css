@@ -317,23 +317,23 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
 }
 
 .claudian-plus-tab-badge-streaming {
-  border-color: var(--claudian-plus-brand, #da7756);
+  border-color: var(--claudian-plus-brand);
 }
 
 .claudian-plus-tab-badge-streaming[data-provider="claude"] {
-  border-color: var(--claudian-plus-brand-claude, #D97757);
+  border-color: var(--claudian-plus-brand-claude);
 }
 
 .claudian-plus-tab-badge-streaming[data-provider="codex"] {
-  border-color: var(--claudian-plus-brand-codex, #d0d0d0);
+  border-color: var(--claudian-plus-brand-codex);
 }
 
 .claudian-plus-tab-badge-streaming[data-provider="opencode"] {
-  border-color: var(--claudian-plus-brand-opencode, #C8C8C8);
+  border-color: var(--claudian-plus-brand-opencode);
 }
 
 .claudian-plus-tab-badge-streaming[data-provider="pi"] {
-  border-color: var(--claudian-plus-brand-pi, #ffffff);
+  border-color: var(--claudian-plus-brand-pi);
 }
 
 .claudian-plus-tab-badge-attention {
@@ -382,7 +382,7 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--background-modifier-border);
   border-radius: 8px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--claudian-plus-shadow-lg);
   z-index: 1000;
   max-height: 400px;
   width: min(320px, calc(100vw - 32px));
@@ -703,14 +703,14 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
 
 .claudian-plus-message-user {
   position: relative;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--claudian-plus-surface-secondary);
   align-self: flex-end;
   border-end-end-radius: 4px;
 }
 
 /* Text selection in user messages - visible highlight */
 .claudian-plus-message-user ::selection {
-  background: rgba(255, 255, 255, 0.35);
+  background: color-mix(in srgb, var(--claudian-plus-text-on-accent) 35%, transparent);
   color: inherit;
 }
 
@@ -731,7 +731,7 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
 }
 
 .claudian-plus-interrupted {
-  color: #d45d5d;
+  color: var(--claudian-plus-error);
 }
 
 .claudian-plus-interrupted-hint {
@@ -1163,7 +1163,7 @@ button.claudian-plus-nav-outline-marker:focus-visible::before {
   border-radius: 18px;
   color: var(--text-normal);
   background: color-mix(in srgb, var(--background-primary) 94%, var(--text-normal) 6%);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--claudian-plus-shadow-lg);
   opacity: 0;
   pointer-events: none;
   transform: translate3d(var(--cp-preview-shift), -50%, 0) scale(0.97);
@@ -1292,7 +1292,7 @@ button.claudian-plus-nav-outline-marker:focus-visible::before {
 /* Code blocks in chat messages */
 .claudian-plus-code-wrapper pre,
 .claudian-plus-message-content pre {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--code-background);
   padding: 8px 12px;
   border-radius: 6px;
   overflow-x: auto;
@@ -1302,7 +1302,7 @@ button.claudian-plus-nav-outline-marker:focus-visible::before {
 /* Light mode: use a lighter background so hljs comment colors stay readable */
 body.theme-light .claudian-plus-code-wrapper pre,
 body.theme-light .claudian-plus-message-content pre {
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--code-background);
 }
 
 /* Code blocks without language - wrap content */
@@ -2541,14 +2541,14 @@ body.theme-light .claudian-plus-message-content pre {
 
 /* Light blue border when instruction mode is active */
 .claudian-plus-input-wrapper.claudian-plus-input-instruction-mode {
-  --claudian-plus-input-wrapper-border-color: #60a5fa;
-  --claudian-plus-input-wrapper-box-shadow: 0 0 0 1px #60a5fa;
+  --claudian-plus-input-wrapper-border-color: var(--claudian-plus-compact);
+  --claudian-plus-input-wrapper-box-shadow: 0 0 0 1px var(--claudian-plus-compact);
 }
 
 /* Pink border when bash mode is active */
 .claudian-plus-input-wrapper.claudian-plus-input-bang-bash-mode {
-  --claudian-plus-input-wrapper-border-color: #f472b6;
-  --claudian-plus-input-wrapper-box-shadow: 0 0 0 1px #f472b6;
+  --claudian-plus-input-wrapper-border-color: var(--claudian-plus-error);
+  --claudian-plus-input-wrapper-box-shadow: 0 0 0 1px var(--claudian-plus-error);
 }
 
 /* Monospace input while in bash mode */
@@ -2795,11 +2795,11 @@ body.theme-light .claudian-plus-message-content pre {
 
 /* Warning state (> 80%) - pale red */
 .claudian-plus-context-meter.warning .claudian-plus-meter-fill {
-  stroke: #E57373;
+  stroke: var(--claudian-plus-error);
 }
 
 .claudian-plus-context-meter.warning .claudian-plus-context-meter-percent {
-  color: #E57373;
+  color: var(--claudian-plus-error);
 }
 
 

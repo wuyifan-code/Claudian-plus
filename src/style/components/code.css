@@ -7,7 +7,7 @@
 /* Code blocks in chat messages */
 .claudian-plus-code-wrapper pre,
 .claudian-plus-message-content pre {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--code-background);
   padding: 8px 12px;
   border-radius: 6px;
   overflow-x: auto;
@@ -17,7 +17,7 @@
 /* Light mode: use a lighter background so hljs comment colors stay readable */
 body.theme-light .claudian-plus-code-wrapper pre,
 body.theme-light .claudian-plus-message-content pre {
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--code-background);
 }
 
 /* Code blocks without language - wrap content */

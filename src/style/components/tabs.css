@@ -69,23 +69,23 @@
 }
 
 .claudian-plus-tab-badge-streaming {
-  border-color: var(--claudian-plus-brand, #da7756);
+  border-color: var(--claudian-plus-brand);
 }
 
 .claudian-plus-tab-badge-streaming[data-provider="claude"] {
-  border-color: var(--claudian-plus-brand-claude, #D97757);
+  border-color: var(--claudian-plus-brand-claude);
 }
 
 .claudian-plus-tab-badge-streaming[data-provider="codex"] {
-  border-color: var(--claudian-plus-brand-codex, #d0d0d0);
+  border-color: var(--claudian-plus-brand-codex);
 }
 
 .claudian-plus-tab-badge-streaming[data-provider="opencode"] {
-  border-color: var(--claudian-plus-brand-opencode, #C8C8C8);
+  border-color: var(--claudian-plus-brand-opencode);
 }
 
 .claudian-plus-tab-badge-streaming[data-provider="pi"] {
-  border-color: var(--claudian-plus-brand-pi, #ffffff);
+  border-color: var(--claudian-plus-brand-pi);
 }
 
 .claudian-plus-tab-badge-attention {
