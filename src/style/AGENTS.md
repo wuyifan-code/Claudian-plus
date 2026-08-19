@@ -6,7 +6,7 @@
 
 ```text
 src/style/
-├── base/           # container, animations, variables
+├── base/           # container, animations, variables, tokens
 ├── components/     # header, history, messages, code, thinking, toolcalls, status-panel, input, tabs
 ├── toolbar/        # model selector, thinking selector, permission toggles, external context, MCP selector
 ├── features/       # file/image context, inline edit, diff, commands, plan mode, ask-user, resume session
@@ -30,6 +30,7 @@ src/style/
 - Avoid `!important` unless overriding Obsidian defaults.
 - Use Obsidian CSS variables such as `--background-*`, `--text-*`, and `--interactive-*`.
 - Use `var(--font-monospace)` for code blocks.
+- Reference semantic tokens from `base/tokens.css` and `base/variables.css` instead of hard-coded colors/radii; `tests/unit/style/style-tokens.test.ts` enforces this.
 
 ## Gotchas
 
