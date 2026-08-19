@@ -8,6 +8,7 @@ import type {
 import type { ProviderHost } from '../core/providers/ProviderHost';
 import type { AppTabManagerState, ProviderId } from '../core/providers/types';
 import type { ChatRuntime } from '../core/runtime/ChatRuntime';
+import type { AgentSkillRegistry } from '../core/skills/AgentSkillRegistry';
 import type { AgentSkillRepository } from '../core/skills/AgentSkillRepository';
 import type { Conversation, ConversationMeta } from '../core/types';
 import type { ComposerEnhancement } from './chat/composer/types';
@@ -59,6 +60,9 @@ export interface FeatureHost extends ProviderHost {
 
   /** Shared agent-skill repository for vault .agents/skills management. */
   getAgentSkillRepository(): AgentSkillRepository;
+
+  /** Read-only registry that scans shared skill roots and produces snapshots. */
+  getAgentSkillRegistry(): AgentSkillRegistry;
 
   createConversation(options?: {
     providerId?: ProviderId;

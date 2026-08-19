@@ -1094,6 +1094,7 @@ describe('InputController - Message Queue', () => {
       const sendPromise = controller.sendMessage();
       await Promise.resolve();
       await Promise.resolve();
+      await Promise.resolve();
 
       expect(deps.state.messages).toHaveLength(2);
       const discardedAssistant = deps.state.messages[1];

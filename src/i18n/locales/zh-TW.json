@@ -429,6 +429,8 @@
       "sharedExpectation": "管理 .agents/skills/ 中所有啟用提供商共享的技能。",
       "noSkills": "尚未配置共享技能。點擊 + 建立一個。",
       "skillBadge": "技能",
+      "homeBadge": "home",
+      "vaultBadge": "vault",
       "diagnosticsTitle": "需要關注的技能",
       "loadFailed": "無法載入共享技能。",
       "savedRefreshFailed": "已儲存，但提供商重新整理失敗。",
@@ -457,6 +459,35 @@
         "title": "刪除共享技能",
         "description": "整個技能資料夾（包括指令碼、引用和資源）將被移至垃圾桶。",
         "confirm": "移至垃圾桶"
+      }
+    },
+    "workspaceResources": {
+      "cardTitle": "工作區資源",
+      "cardDesc": "集中檢視所有啟用供應商的技能、子代理、MCP 服務與命令。共享技能可在此建立和編輯，其餘資源請前往對應供應商標籤頁管理。",
+      "tabs": {
+        "skills": "Skills",
+        "agents": "子代理",
+        "mcp": "MCP",
+        "commands": "命令",
+        "memory": "記憶",
+        "consciousness": "意識"
+      },
+      "searchPlaceholder": "搜尋名称或路径",
+      "create": "新建",
+      "loading": "正在載入資源…",
+      "loadFailed": "無法載入工作區資源。",
+      "empty": {
+        "skills": "暫無技能。點擊「新建」建立共享技能。",
+        "agents": "啟用供應商未發現子代理。",
+        "mcp": "啟用供應商尚未設定 MCP 服務。",
+        "commands": "啟用供應商未發現命令。"
+      },
+      "noMatch": "沒有符合「{query}」的資源。",
+      "status": {
+        "available": "可用",
+        "readonly": "唯讀",
+        "connected": "已連線",
+        "disabled": "已停用"
       }
     },
     "providerEnablement": {

@@ -429,6 +429,8 @@
       "sharedExpectation": "Manage skills shared across all enabled providers in .agents/skills/.",
       "noSkills": "No shared skills configured. Click + to create one.",
       "skillBadge": "skill",
+      "homeBadge": "home",
+      "vaultBadge": "vault",
       "diagnosticsTitle": "Skills needing attention",
       "loadFailed": "Could not load shared skills.",
       "savedRefreshFailed": "Saved, but provider refresh failed.",
@@ -457,6 +459,35 @@
         "title": "Delete Shared Skill",
         "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.",
         "confirm": "Move to trash"
+      }
+    },
+    "workspaceResources": {
+      "cardTitle": "ワークスペース リソース",
+      "cardDesc": "すべての有効なプロバイダのスキル、サブエージェント、MCP サーバー、コマンドを一覧表示します。共有スキルはここで作成・編集でき、その他のリソースは各プロバイダのタブで管理します。",
+      "tabs": {
+        "skills": "スキル",
+        "agents": "サブエージェント",
+        "mcp": "MCP",
+        "commands": "コマンド",
+        "memory": "メモリ",
+        "consciousness": "意識"
+      },
+      "searchPlaceholder": "名前またはパスで検索",
+      "create": "新規",
+      "loading": "リソースを読み込み…",
+      "loadFailed": "ワークスペース リソースを読み込めませんでした。",
+      "empty": {
+        "skills": "スキルがありません。「新規」をクリックして共有スキルを作成してください。",
+        "agents": "有効なプロバイダにサブエージェントが見つかりません。",
+        "mcp": "有効なプロバイダに MCP サーバーが設定されていません。",
+        "commands": "有効なプロバイダにコマンドが見つかりません。"
+      },
+      "noMatch": "「{query}」に一致するリソースがありません。",
+      "status": {
+        "available": "利用可能",
+        "readonly": "読み取り専用",
+        "connected": "接続済み",
+        "disabled": "無効"
       }
     },
     "providerEnablement": {

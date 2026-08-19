@@ -20,7 +20,7 @@
     "test:architecture": "node --test scripts/check-architecture-boundaries.test.mjs",
     "test:watch": "node scripts/run-jest.js --watch",
     "test:coverage": "node scripts/run-jest.js --coverage",
-    "preversion": "bun install --frozen-lockfile",
+    "preversion": "npm ci",
     "version": "node scripts/sync-version.js && git add manifest.json"
   },
   "keywords": [
@@ -55,7 +55,6 @@
     "jest-environment-jsdom": "^30.3.0",
     "obsidian": "latest",
     "ts-jest": "^29.4.9",
-    "tsx": "^4.21.0",
     "typescript": "^6.0.2"
   },
   "dependencies": {

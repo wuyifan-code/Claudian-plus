@@ -26,6 +26,8 @@ import type {
   ChatRuntimeQueryOptions,
   ChatTurnRequest,
 } from '../../../core/runtime/types';
+import type { AgentRole,AgentSkillContext } from '../../../core/skills/AgentSkillContext';
+import type { AgentSkillRegistry } from '../../../core/skills/AgentSkillRegistry';
 import { TOOL_EXIT_PLAN_MODE } from '../../../core/tools/toolNames';
 import type { ApprovalDecision, ChatMessage, ExitPlanModeDecision, StreamChunk } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
@@ -108,6 +110,12 @@ export interface InputControllerDeps {
   getAuxiliaryModel?: () => string | null;
   getAgentService?: () => ChatRuntime | null;
   getSubagentManager: () => SubagentManager;
+  getAgentSkillRegistry?: () => AgentSkillRegistry | null;
+  /**
+   * Skill names explicitly attached to the next turn. The slash dropdown calls
+   * this to record the selection before the user sends the turn.
+   */
+  consumeAttachedSkillNames?: () => string[];
   /** Tab-level provider fallback for blank tabs (derived from draft model). */
   getTabProviderId?: () => ProviderId;
   /** Rejects delayed UI actions after the owning tab starts teardown. */
@@ -127,6 +135,10 @@ export interface SendMessageOptions {
   content?: string;
   images?: ChatMessage['images'];
   turnRequestOverride?: ChatTurnRequest;
+  /** Skill names explicitly attached to this send. */
+  enabledAgentSkillNames?: string[];
+  /** Role tag used when building the agent skill context. */
+  agentRole?: AgentRole;
 }
 
 export class InputController {
@@ -341,6 +353,14 @@ export class InputController {
       : (imageContextManager?.hasImages() ?? false);
     if (!content && !hasImages) return;
 
+    // Build the agent skill context once per send so the same snapshot flows
+    // through queued, steer, and provider-side activation.
+    const agentSkillContext = await this.buildAgentSkillContext(options?.agentRole ?? 'chat',
+      options?.enabledAgentSkillNames);
+    const enabledAgentSkillNames = options?.enabledAgentSkillNames
+      ?? this.deps.consumeAttachedSkillNames?.()
+      ?? [];
+
     // Check for built-in commands first (e.g., /clear, /new, /add-dir)
     const builtInCmd = detectBuiltInCommand(content);
     if (builtInCmd) {
@@ -367,6 +387,8 @@ export class InputController {
         editorContextOverride: editorContext,
         browserContextOverride: browserContext,
         canvasContextOverride: canvasContext,
+        agentSkillContext,
+        enabledAgentSkillNames,
       });
       const { displayContent, turnRequest } = submission;
       state.queuedMessage = this.mergeQueuedMessages(
@@ -430,6 +452,8 @@ export class InputController {
         images: imagesForMessage,
         editorContextOverride: options?.editorContextOverride,
         browserContextOverride: options?.browserContextOverride,
+        agentSkillContext,
+        enabledAgentSkillNames,
         canvasContextOverride: options?.canvasContextOverride,
       });
       turnSubmission = submission;
@@ -920,12 +944,40 @@ export class InputController {
     );
   }
 
+  private async buildAgentSkillContext(
+    role: AgentRole,
+    requestedSkills?: string[],
+  ): Promise<AgentSkillContext | null> {
+    const registry = this.deps.getAgentSkillRegistry?.();
+    if (!registry) return null;
+    const snapshot = await registry.snapshot();
+    return {
+      role,
+      registryRevision: snapshot.revision,
+      availableSkills: snapshot.skills,
+      requestedSkills: requestedSkills ?? [],
+    };
+  }
+
+  private applyRequestedSkillsToContext(
+    context: AgentSkillContext | null | undefined,
+    requestedSkills: string[] | undefined,
+  ): AgentSkillContext | null {
+    if (!context) return null;
+    if (!requestedSkills || requestedSkills.length === 0) {
+      return context;
+    }
+    return { ...context, requestedSkills };
+  }
+
   private buildTurnSubmission(options: {
     content: string;
     images?: ChatMessage['images'];
     editorContextOverride?: EditorSelectionContext | null;
     browserContextOverride?: BrowserSelectionContext | null;
     canvasContextOverride?: CanvasSelectionContext | null;
+    agentSkillContext?: AgentSkillContext | null;
+    enabledAgentSkillNames?: string[];
   }): {
     displayContent: string;
     turnRequest: ChatTurnRequest;
@@ -974,6 +1026,10 @@ export class InputController {
         enabledMcpServers: enabledMcpServers && enabledMcpServers.size > 0
           ? enabledMcpServers
           : undefined,
+        agentSkillContext: this.applyRequestedSkillsToContext(
+          options.agentSkillContext,
+          options.enabledAgentSkillNames,
+        ) ?? undefined,
       },
     };
   }
@@ -1263,6 +1319,13 @@ export class InputController {
       this.deps.renderer.addMessage(userMessage);
     }
 
+    this.beginAssistantTurn();
+    this.deps.state.responseStartTime = performance.now();
+    this.awaitingProviderAssistantStart = true;
+  }
+
+  /** Creates and activates the next assistant turn message. */
+  private beginAssistantTurn(): ChatMessage {
     const assistantMessage: ChatMessage = {
       id: this.deps.generateId(),
       role: 'assistant',
@@ -1275,8 +1338,7 @@ export class InputController {
     this.activeStreamingAssistantMessage = assistantMessage;
     this.activateStreamingAssistantMessage(assistantMessage);
     this.deps.streamController.showThinkingIndicator();
-    this.deps.state.responseStartTime = performance.now();
-    this.awaitingProviderAssistantStart = true;
+    return assistantMessage;
   }
 
   private async handleProviderAssistantMessageStart(): Promise<void> {
@@ -1291,18 +1353,7 @@ export class InputController {
       await this.deps.streamController.finalizeCurrentTextBlock(previousAssistant);
     }
 
-    const assistantMessage: ChatMessage = {
-      id: this.deps.generateId(),
-      role: 'assistant',
-      content: '',
-      timestamp: Date.now(),
-      toolCalls: [],
-      contentBlocks: [],
-    };
-    this.deps.state.addMessage(assistantMessage);
-    this.activeStreamingAssistantMessage = assistantMessage;
-    this.activateStreamingAssistantMessage(assistantMessage);
-    this.deps.streamController.showThinkingIndicator();
+    this.beginAssistantTurn();
   }
 
   private shouldDiscardPendingAssistantPlaceholder(message: ChatMessage | null): boolean {

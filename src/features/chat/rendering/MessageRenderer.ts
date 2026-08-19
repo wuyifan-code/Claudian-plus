@@ -263,13 +263,7 @@ export class MessageRenderer {
     const contentEl = msgEl.createDiv({ cls: 'claudian-plus-message-content', attr: { dir: 'auto' } });
 
     if (msg.role === 'user') {
-      const textToShow = this.getUserMessageTextToShow(msg);
-      if (textToShow) {
-        const textEl = contentEl.createDiv({ cls: 'claudian-plus-text-block' });
-        void this.renderContent(textEl, textToShow);
-        this.addUserCopyButton(msgEl, textToShow);
-        this.applyTocTitle(msgEl, textToShow);
-      }
+      this.renderUserText(msg, msgEl, contentEl);
       if (this.rewindCallback || this.forkCallback) {
         this.liveMessageEls.set(msg.id, msgEl);
       }
@@ -429,13 +423,7 @@ export class MessageRenderer {
     const contentEl = msgEl.createDiv({ cls: 'claudian-plus-message-content', attr: { dir: 'auto' } });
 
     if (msg.role === 'user') {
-      const textToShow = this.getUserMessageTextToShow(msg);
-      if (textToShow) {
-        const textEl = contentEl.createDiv({ cls: 'claudian-plus-text-block' });
-        void this.renderContent(textEl, textToShow);
-        this.addUserCopyButton(msgEl, textToShow);
-        this.applyTocTitle(msgEl, textToShow);
-      }
+      this.renderUserText(msg, msgEl, contentEl);
       if (msg.userMessageId) {
         if (this.rewindCallback && this.isRewindEligible(allMessages, index)) {
           this.addRewindButton(msgEl, msg.id);
@@ -924,13 +912,16 @@ export class MessageRenderer {
   addTextCopyButton(textEl: HTMLElement, markdown: string): void {
     const copyBtn = textEl.createSpan({ cls: 'claudian-plus-text-copy-btn' });
     setIcon(copyBtn, 'copy');
+    this.wireCopyFeedback(copyBtn, markdown);
+  }
 
+  /** Copies to the clipboard and shows temporary "copied!" feedback. */
+  private wireCopyFeedback(copyBtn: HTMLElement, markdown: string): void {
     let feedbackTimeout: RendererTimeout | null = null;
 
     copyBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       runRendererAction(async () => {
-
         try {
           await navigator.clipboard.writeText(markdown);
         } catch {
@@ -996,35 +987,23 @@ export class MessageRenderer {
     return msgEl.createDiv({ cls: 'claudian-plus-user-msg-actions' });
   }
 
+
+  /** Renders the user message text with copy button and TOC title wiring. */
+  private renderUserText(msg: ChatMessage, msgEl: HTMLElement, contentEl: HTMLElement): void {
+    const textToShow = this.getUserMessageTextToShow(msg);
+    if (textToShow) {
+      const textEl = contentEl.createDiv({ cls: 'claudian-plus-text-block' });
+      void this.renderContent(textEl, textToShow);
+      this.addUserCopyButton(msgEl, textToShow);
+      this.applyTocTitle(msgEl, textToShow);
+    }
+  }
   private addUserCopyButton(msgEl: HTMLElement, content: string): void {
     const toolbar = this.getOrCreateActionsToolbar(msgEl);
     const copyBtn = toolbar.createSpan({ cls: 'claudian-plus-user-msg-copy-btn' });
     setIcon(copyBtn, 'copy');
     copyBtn.setAttribute('aria-label', 'Copy message');
-
-    let feedbackTimeout: RendererTimeout | null = null;
-
-    copyBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      runRendererAction(async () => {
-        try {
-          await navigator.clipboard.writeText(content);
-        } catch {
-          return;
-        }
-        if (this.disposed || copyBtn.isConnected === false) return;
-        this.clearTimeout(feedbackTimeout);
-        copyBtn.empty();
-        copyBtn.setText('Copied!');
-        copyBtn.classList.add('copied');
-        feedbackTimeout = this.scheduleTimeout(copyBtn, () => {
-          copyBtn.empty();
-          setIcon(copyBtn, 'copy');
-          copyBtn.classList.remove('copied');
-          feedbackTimeout = null;
-        }, 1500);
-      });
-    });
+    this.wireCopyFeedback(copyBtn, content);
   }
 
   private addRewindButton(msgEl: HTMLElement, messageId: string): void {

@@ -429,6 +429,8 @@
       "sharedExpectation": "Manage skills shared across all enabled providers in .agents/skills/.",
       "noSkills": "No shared skills configured. Click + to create one.",
       "skillBadge": "skill",
+      "homeBadge": "home",
+      "vaultBadge": "vault",
       "diagnosticsTitle": "Skills needing attention",
       "loadFailed": "Could not load shared skills.",
       "savedRefreshFailed": "Saved, but provider refresh failed.",
@@ -457,6 +459,35 @@
         "title": "Delete Shared Skill",
         "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.",
         "confirm": "Move to trash"
+      }
+    },
+    "workspaceResources": {
+      "cardTitle": "Ресурсы рабочего пространства",
+      "cardDesc": "Просматривайте навыки, подагенты, MCP-серверы и команды всех включённых провайдеров. Общие навыки можно создавать и редактировать здесь; остальные ресурсы управляются на вкладке каждого провайдера.",
+      "tabs": {
+        "skills": "Навыки",
+        "agents": "Подагенты",
+        "mcp": "MCP",
+        "commands": "Команды",
+        "memory": "Память",
+        "consciousness": "Сознание"
+      },
+      "searchPlaceholder": "Поиск по имени или пути",
+      "create": "Создать",
+      "loading": "Загрузка ресурсов…",
+      "loadFailed": "Не удалось загрузить ресурсы рабочего пространства.",
+      "empty": {
+        "skills": "Навыков пока нет. Нажмите «Создать», чтобы добавить общий навык.",
+        "agents": "Подагенты не найдены для включённых провайдеров.",
+        "mcp": "MCP-серверы не настроены для включённых провайдеров.",
+        "commands": "Команды не найдены для включённых провайдеров."
+      },
+      "noMatch": "Нет ресурсов, соответствующих «{query}».",
+      "status": {
+        "available": "Доступен",
+        "readonly": "Только чтение",
+        "connected": "Подключён",
+        "disabled": "Отключён"
       }
     },
     "providerEnablement": {

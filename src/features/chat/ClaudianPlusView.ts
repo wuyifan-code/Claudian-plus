@@ -24,6 +24,7 @@ import { TabStatePersistenceCoordinator } from './services/TabStatePersistenceCo
 import {
   getTabProviderId,
   onProviderAvailabilityChanged,
+  refreshTabProviderSelectors,
   sendTabInputMessageFromExplicitEnterShortcut,
   updatePlanModeUI,
 } from './tabs/Tab';
@@ -150,13 +151,7 @@ export class ClaudianPlusView extends ItemView {
         tab.state.usage = recalculateUsageForModel(tab.state.usage, model, contextWindow);
       }
 
-      tab.ui.modelSelector?.updateDisplay();
-      tab.ui.modelSelector?.renderOptions();
-      tab.ui.modeSelector?.updateDisplay();
-      tab.ui.modeSelector?.renderOptions();
-      tab.ui.thinkingBudgetSelector?.updateDisplay();
-      tab.ui.permissionToggle?.updateDisplay();
-      tab.ui.serviceTierToggle?.updateDisplay();
+      refreshTabProviderSelectors(tab, this.plugin);
       tab.dom.inputWrapper.toggleClass(
         'claudian-plus-input-plan-mode',
         providerSettings.permissionMode === 'plan' && capabilities.supportsPlanMode,

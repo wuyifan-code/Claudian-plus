@@ -1,7 +1,7 @@
 import type { VaultFileAdapter } from '../storage/VaultFileAdapter';
 
 /** Shared backup location for memory and awareness files. */
-export const MEMORY_BACKUP_DIR = '.claudian-plus/backups';
+const MEMORY_BACKUP_DIR = '.claudian-plus/backups';
 
 /**
  * Copy a file to the backup directory before it is overwritten.
@@ -33,7 +33,7 @@ export async function backupFileBeforeWrite(
 }
 
 /** Keep only the newest `maxKeep` backup files for a prefix. */
-export async function pruneBackups(
+async function pruneBackups(
   adapter: VaultFileAdapter,
   namePrefix: string,
   maxKeep: number,

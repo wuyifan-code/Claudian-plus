@@ -7,4 +7,5 @@ export * from './AcpToolStreamAdapter';
 export * from './buildAcpUsageInfo';
 export * from './methodNames';
 export * from './permissionMapping';
+export * from './toolNormalization';
 export * from './types';

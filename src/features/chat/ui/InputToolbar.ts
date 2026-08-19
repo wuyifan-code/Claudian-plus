@@ -535,6 +535,16 @@ export type AddExternalContextResult =
   | { success: true; normalizedPath: string }
   | { success: false; error: string };
 
+/** Shows the count badge when more than one item is active. */
+function updateCountBadge(badgeEl: HTMLElement, count: number): void {
+  if (count > 1) {
+    badgeEl.setText(String(count));
+    badgeEl.addClass('visible');
+  } else {
+    badgeEl.removeClass('visible');
+  }
+}
+
 export class ExternalContextSelector {
   private container: HTMLElement;
   private iconEl: HTMLElement | null = null;
@@ -898,12 +908,7 @@ export class ExternalContextSelector {
       this.iconEl.setAttribute('title', `${count} external context${count > 1 ? 's' : ''} (click to add more)`);
 
       // Show badge only when more than 1 path
-      if (count > 1) {
-        this.badgeEl.setText(String(count));
-        this.badgeEl.addClass('visible');
-      } else {
-        this.badgeEl.removeClass('visible');
-      }
+      updateCountBadge(this.badgeEl, count);
     } else {
       this.iconEl.removeClass('active');
       this.iconEl.setAttribute('title', 'Add external contexts (click)');
@@ -1149,12 +1154,7 @@ export class McpServerSelector {
       this.iconEl.setAttribute('title', `${count} MCP server${count > 1 ? 's' : ''} enabled (click to manage)`);
 
       // Show badge only when more than 1
-      if (count > 1) {
-        this.badgeEl.setText(String(count));
-        this.badgeEl.addClass('visible');
-      } else {
-        this.badgeEl.removeClass('visible');
-      }
+      updateCountBadge(this.badgeEl, count);
     } else {
       this.iconEl.removeClass('active');
       this.iconEl.setAttribute('title', 'Mcp servers (click to enable)');

@@ -296,7 +296,18 @@ export class AgentSkillSettings {
       text: t('settings.agentSkills.skillBadge'),
       cls: 'claudian-plus-slash-item-badge',
     });
+    itemHeader.createSpan({
+      text: skill.scope === 'home'
+        ? t('settings.agentSkills.homeBadge')
+        : t('settings.agentSkills.vaultBadge'),
+      cls: `claudian-plus-slash-item-badge claudian-plus-sp-scope-badge claudian-plus-sp-scope-badge--${skill.scope ?? 'vault'}`,
+    });
     info.createDiv({ text: skill.description, cls: 'claudian-plus-sp-item-desc' });
+
+    // Home skills are shared with other tooling; keep them read-only here.
+    if (skill.scope === 'home') {
+      return;
+    }
 
     const actions = item.createDiv({ cls: 'claudian-plus-sp-item-actions' });
     const editButton = actions.createEl('button', {

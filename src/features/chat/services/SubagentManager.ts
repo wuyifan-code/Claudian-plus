@@ -216,15 +216,33 @@ export class SubagentManager {
 
     this.pendingTasks.delete(toolId);
 
+    return this.spawnPendingTask(
+      pending.toolCall.id,
+      input,
+      targetEl,
+      input.run_in_background === true ? 'async' : 'sync',
+    );
+  }
+
+  /**
+   * Spawns a pending task into the active stream. Mode is resolved by the
+   * caller; failures leave the task incomplete without crashing the stream.
+   */
+  private spawnPendingTask(
+    toolCallId: string,
+    input: Record<string, unknown>,
+    targetEl: HTMLElement,
+    mode: 'async' | 'sync',
+  ): RenderPendingResult | null {
     try {
-      if (input.run_in_background === true) {
-        const result = this.createAsyncTask(pending.toolCall.id, input, targetEl);
+      if (mode === 'async') {
+        const result = this.createAsyncTask(toolCallId, input, targetEl);
         if (result.action === 'created_async') {
           this._spawnedThisStream++;
           return { mode: 'async', info: result.info, domState: result.domState };
         }
       } else {
-        const result = this.createSyncTask(pending.toolCall.id, input, targetEl);
+        const result = this.createSyncTask(toolCallId, input, targetEl);
         if (result.action === 'created_sync') {
           this._spawnedThisStream++;
           return { mode: 'sync', subagentState: result.subagentState };
@@ -263,25 +281,12 @@ export class SubagentManager {
 
     this.pendingTasks.delete(toolId);
 
-    try {
-      if (inferredMode === 'async') {
-        const result = this.createAsyncTask(pending.toolCall.id, input, targetEl);
-        if (result.action === 'created_async') {
-          this._spawnedThisStream++;
-          return { mode: 'async', info: result.info, domState: result.domState };
-        }
-      } else {
-        const result = this.createSyncTask(pending.toolCall.id, input, targetEl);
-        if (result.action === 'created_sync') {
-          this._spawnedThisStream++;
-          return { mode: 'sync', subagentState: result.subagentState };
-        }
-      }
-    } catch {
-      // Non-fatal: task appears incomplete but doesn't crash the stream
-    }
-
-    return null;
+    return this.spawnPendingTask(
+      pending.toolCall.id,
+      input,
+      targetEl,
+      inferredMode === 'async' ? 'async' : 'sync',
+    );
   }
 
   // ============================================

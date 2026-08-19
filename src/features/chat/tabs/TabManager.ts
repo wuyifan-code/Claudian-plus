@@ -1099,29 +1099,25 @@ export class TabManager implements TabManagerInterface {
         ? conversation?.externalContextPaths ?? []
         : this.plugin.settings.persistentExternalContextPaths ?? []);
     const runtime = tab.service?.providerId === providerId ? tab.service : null;
+    const tabContext = {
+      conversationId: tab.conversationId,
+      draftModel: tab.draftModel,
+      lifecycleState: tab.lifecycleState,
+      providerId,
+    };
     const warmupMode = this.resolveProviderTabWarmupMode({
       conversation,
       externalContextPaths,
       plugin: this.plugin.providerHost,
       runtime,
-      tab: {
-        conversationId: tab.conversationId,
-        draftModel: tab.draftModel,
-        lifecycleState: tab.lifecycleState,
-        providerId,
-      },
+      tab: tabContext,
     });
 
     return {
       conversation,
       externalContextPaths,
       runtime,
-      tab: {
-        conversationId: tab.conversationId,
-        draftModel: tab.draftModel,
-        lifecycleState: tab.lifecycleState,
-        providerId,
-      },
+      tab: tabContext,
       warmupMode,
     };
   }

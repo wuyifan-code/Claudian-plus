@@ -1,6 +1,9 @@
+import type { AgentSkillContext } from '../skills/AgentSkillContext';
+
 export interface AuxQueryConfig {
   systemPrompt: string;
   model?: string;
+  agentSkillContext?: AgentSkillContext;
   abortController?: AbortController;
   onTextChunk?: (accumulatedText: string) => void;
 }

@@ -36,7 +36,12 @@ function parseFrontmatter(source: string): Record<string, unknown> {
   return parsed;
 }
 
-export function parseAgentSkillMarkdown(content: string, directoryName: string): ParsedAgentSkill {
+export function parseAgentSkillMarkdown(
+  content: string,
+  directoryName: string,
+  options: { strictDirectoryName?: boolean } = {},
+): ParsedAgentSkill {
+  const strictDirectoryName = options.strictDirectoryName ?? true;
   const match = content.match(FRONTMATTER_PATTERN);
   if (!match) {
     throw new AgentSkillCodecError('SKILL.md must start with YAML frontmatter');
@@ -48,9 +53,6 @@ export function parseAgentSkillMarkdown(content: string, directoryName: string):
   }
   if (typeof frontmatter.description !== 'string') {
     throw new AgentSkillCodecError('SKILL.md frontmatter requires a string description');
-  }
-  if (frontmatter.name !== directoryName) {
-    throw new AgentSkillCodecError('SKILL.md name must match its containing directory');
   }
 
   const parsed: ParsedAgentSkill = {
@@ -66,6 +68,11 @@ export function parseAgentSkillMarkdown(content: string, directoryName: string):
       throw new AgentSkillCodecError(error.message, { cause: error });
     }
     throw error;
+  }
+  if (strictDirectoryName && parsed.name !== directoryName) {
+    throw new AgentSkillCodecError(
+      `SKILL.md frontmatter name "${parsed.name}" must match its directory "${directoryName}"`,
+    );
   }
   return parsed;
 }

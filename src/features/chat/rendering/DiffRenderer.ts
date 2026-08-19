@@ -75,6 +75,20 @@ export function splitIntoHunks(diffLines: DiffLine[], contextLines = 3): DiffHun
 /** Max lines to render for all-inserts diffs (new file creation). */
 const NEW_FILE_DISPLAY_CAP = 20;
 
+/** Renders a single diff line with prefix marker inside a hunk. */
+function renderDiffLine(
+  hunkEl: HTMLElement,
+  type: DiffLine['type'],
+  text: string | undefined,
+): void {
+  const lineEl = hunkEl.createDiv({ cls: `claudian-plus-diff-line claudian-plus-diff-${type}` });
+  const prefix = type === 'insert' ? '+' : type === 'delete' ? '-' : ' ';
+  const prefixEl = lineEl.createSpan({ cls: 'claudian-plus-diff-prefix' });
+  prefixEl.setText(prefix);
+  const contentEl = lineEl.createSpan({ cls: 'claudian-plus-diff-text' });
+  contentEl.setText(text || ' ');
+}
+
 export function renderDiffContent(
   containerEl: HTMLElement,
   diffLines: DiffLine[],
@@ -87,11 +101,7 @@ export function renderDiffContent(
   if (allInserts && diffLines.length > NEW_FILE_DISPLAY_CAP) {
     const hunkEl = containerEl.createDiv({ cls: 'claudian-plus-diff-hunk' });
     for (const line of diffLines.slice(0, NEW_FILE_DISPLAY_CAP)) {
-      const lineEl = hunkEl.createDiv({ cls: 'claudian-plus-diff-line claudian-plus-diff-insert' });
-      const prefixEl = lineEl.createSpan({ cls: 'claudian-plus-diff-prefix' });
-      prefixEl.setText('+');
-      const contentEl = lineEl.createSpan({ cls: 'claudian-plus-diff-text' });
-      contentEl.setText(line.text || ' ');
+      renderDiffLine(hunkEl, 'insert', line.text);
     }
     const remaining = diffLines.length - NEW_FILE_DISPLAY_CAP;
     const separator = containerEl.createDiv({ cls: 'claudian-plus-diff-separator' });
@@ -119,16 +129,7 @@ export function renderDiffContent(
     const hunkEl = containerEl.createDiv({ cls: 'claudian-plus-diff-hunk' });
 
     for (const line of hunk.lines) {
-      const lineEl = hunkEl.createDiv({ cls: `claudian-plus-diff-line claudian-plus-diff-${line.type}` });
-
-      // Line prefix
-      const prefix = line.type === 'insert' ? '+' : line.type === 'delete' ? '-' : ' ';
-      const prefixEl = lineEl.createSpan({ cls: 'claudian-plus-diff-prefix' });
-      prefixEl.setText(prefix);
-
-      // Line content
-      const contentEl = lineEl.createSpan({ cls: 'claudian-plus-diff-text' });
-      contentEl.setText(line.text || ' '); // Show space for empty lines
+      renderDiffLine(hunkEl, line.type, line.text);
     }
   });
 }

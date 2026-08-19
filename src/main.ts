@@ -47,7 +47,10 @@ import type {
 } from './core/providers/types';
 import type { AppTabManagerState } from './core/providers/types';
 import { DEFAULT_CHAT_PROVIDER_ID } from './core/providers/types';
+import type { AgentSkillRegistry} from './core/skills/AgentSkillRegistry';
+import { createAgentSkillRegistry } from './core/skills/AgentSkillRegistry';
 import { AgentSkillRepository } from './core/skills/AgentSkillRepository';
+import { HomeFileAdapter } from './core/storage/HomeFileAdapter';
 import type {
   ClaudianPlusSettings,
   Conversation,
@@ -130,6 +133,7 @@ export default class ClaudianPlusPlugin extends Plugin {
   private _vaultKnowledgeEngine: VaultKnowledgeEngine | null = null;
   private _dreamService: DreamService | null = null;
   private agentSkillRepository: AgentSkillRepository | null = null;
+  private agentSkillRegistry: AgentSkillRegistry | null = null;
   private settingsCoordinator!: SettingsCoordinator<ClaudianPlusSettings>;
   private conversationRepository!: ConversationRepository;
   private lastKnownTabManagerState: AppTabManagerState | null = null;
@@ -1526,6 +1530,7 @@ export default class ClaudianPlusPlugin extends Plugin {
   }
 
   async notifyAgentSkillsChanged(): Promise<void> {
+    this.agentSkillRegistry?.invalidate();
     const providerIds = ProviderRegistry.getRegisteredProviderIds().filter(providerId => (
       ProviderRegistry.getCapabilities(providerId).supportsSharedAgentSkills === true
     ));
@@ -1540,9 +1545,22 @@ export default class ClaudianPlusPlugin extends Plugin {
 
   getAgentSkillRepository(): AgentSkillRepository {
     if (!this.agentSkillRepository) {
-      this.agentSkillRepository = new AgentSkillRepository(this.storage.getAdapter());
+      this.agentSkillRepository = new AgentSkillRepository(
+        this.storage.getAdapter(),
+        new HomeFileAdapter(),
+      );
     }
     return this.agentSkillRepository;
+  }
+
+  getAgentSkillRegistry(): AgentSkillRegistry {
+    if (!this.agentSkillRegistry) {
+      this.agentSkillRegistry = createAgentSkillRegistry(
+        this.storage.getAdapter(),
+        new HomeFileAdapter(),
+      );
+    }
+    return this.agentSkillRegistry;
   }
 
   findConversationAcrossViews(conversationId: string): { view: ClaudianPlusView; tabId: string } | null {

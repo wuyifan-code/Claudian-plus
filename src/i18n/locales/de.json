@@ -429,6 +429,8 @@
       "sharedExpectation": "Manage skills shared across all enabled providers in .agents/skills/.",
       "noSkills": "No shared skills configured. Click + to create one.",
       "skillBadge": "skill",
+      "homeBadge": "home",
+      "vaultBadge": "vault",
       "diagnosticsTitle": "Skills needing attention",
       "loadFailed": "Could not load shared skills.",
       "savedRefreshFailed": "Saved, but provider refresh failed.",
@@ -457,6 +459,35 @@
         "title": "Delete Shared Skill",
         "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.",
         "confirm": "Move to trash"
+      }
+    },
+    "workspaceResources": {
+      "cardTitle": "Arbeitsbereich-Ressourcen",
+      "cardDesc": "Skills, Subagenten, MCP-Server und Befehle aller aktivierten Provider anzeigen. Geteilte Skills können hier erstellt und bearbeitet werden; andere Ressourcen werden im jeweiligen Provider-Tab verwaltet.",
+      "tabs": {
+        "skills": "Skills",
+        "agents": "Subagenten",
+        "mcp": "MCP",
+        "commands": "Befehle",
+        "memory": "Speicher",
+        "consciousness": "Bewusstsein"
+      },
+      "searchPlaceholder": "Name oder Pfad suchen",
+      "create": "Neu",
+      "loading": "Ressourcen werden geladen…",
+      "loadFailed": "Arbeitsbereich-Ressourcen konnten nicht geladen werden.",
+      "empty": {
+        "skills": "Noch keine Skills. Klicken Sie auf Neu, um einen geteilten Skill zu erstellen.",
+        "agents": "Keine Subagenten für aktivierte Provider gefunden.",
+        "mcp": "Keine MCP-Server für aktivierte Provider konfiguriert.",
+        "commands": "Keine Befehle für aktivierte Provider gefunden."
+      },
+      "noMatch": "Keine Ressourcen passen zu „{query}“.",
+      "status": {
+        "available": "Verfügbar",
+        "readonly": "Nur lesen",
+        "connected": "Verbunden",
+        "disabled": "Deaktiviert"
       }
     },
     "providerEnablement": {
