@@ -429,6 +429,8 @@
       "sharedExpectation": "Manage skills shared across all enabled providers in .agents/skills/.",
       "noSkills": "No shared skills configured. Click + to create one.",
       "skillBadge": "skill",
+      "homeBadge": "home",
+      "vaultBadge": "vault",
       "diagnosticsTitle": "Skills needing attention",
       "loadFailed": "Could not load shared skills.",
       "savedRefreshFailed": "Saved, but provider refresh failed.",
@@ -457,6 +459,35 @@
         "title": "Delete Shared Skill",
         "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.",
         "confirm": "Move to trash"
+      }
+    },
+    "workspaceResources": {
+      "cardTitle": "워크스페이스 리소스",
+      "cardDesc": "모든 활성화된 제공자의 스킬, 서비에이턴드, MCP 서버, 명령을 하나에 확인합니다. 공유 스킬은 곹에서 생성하고 편집할 수 있며, 누름에만 리소스는 각 제공자 탭에서 관리합니다.",
+      "tabs": {
+        "skills": "스킬",
+        "agents": "서비에이턴드",
+        "mcp": "MCP",
+        "commands": "명령",
+        "memory": "메모리",
+        "consciousness": "의식"
+      },
+      "searchPlaceholder": "이름 또는 경롔로 검색",
+      "create": "새로 만들기",
+      "loading": "리소스 로드 중…",
+      "loadFailed": "워크스페이스 리소스를 로드할 수 없습니다.",
+      "empty": {
+        "skills": "스킬이 없습니다. 「새로 만들기」를 클릭하여 공유 스킬을 생성하세요.",
+        "agents": "활성화된 제공자에 서비에이턴드가 없습니다.",
+        "mcp": "활성화된 제공자에 MCP 서버가 구성되지 않았습니다.",
+        "commands": "활성화된 제공자에 명령이 없습니다."
+      },
+      "noMatch": "「{query}」과 일치하는 리소스가 없습니다.",
+      "status": {
+        "available": "사용 가능",
+        "readonly": "읽기 전용",
+        "connected": "연결됨",
+        "disabled": "비활성화됨"
       }
     },
     "providerEnablement": {

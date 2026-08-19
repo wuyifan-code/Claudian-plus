@@ -216,6 +216,19 @@ function getTabPermissionMode(
     : 'normal';
 }
 
+async function restorePrePlanPermissionMode(tab: TabData, plugin: FeatureHost): Promise<void> {
+  if (getTabPermissionMode(tab, plugin) === 'plan') {
+    const restoreMode = tab.state.prePlanPermissionMode ?? 'normal';
+    try {
+      await updatePlanModeUI(tab, plugin, restoreMode);
+    } finally {
+      if (getTabPermissionMode(tab, plugin) !== 'plan') {
+        tab.state.prePlanPermissionMode = null;
+      }
+    }
+  }
+}
+
 function getTabHiddenCommands(
   tab: TabProviderContext,
   plugin: FeatureHost,
@@ -373,6 +386,11 @@ async function updateTabProviderSettings(
     );
   });
   return snapshot;
+}
+
+/** Refreshes the shared provider selectors on a tab's toolbar. */
+export function refreshTabProviderSelectors(tab: TabData, plugin: FeatureHost): void {
+  refreshTabProviderUI(tab, plugin);
 }
 
 function refreshTabProviderUI(tab: TabData, plugin: FeatureHost): void {
@@ -1701,18 +1719,7 @@ export function initializeTabControllers(
     onForkAll: forkRequestCallback
       ? () => handleForkAll(tab, plugin, forkRequestCallback)
       : undefined,
-    restorePrePlanPermissionModeIfNeeded: async () => {
-      if (getTabPermissionMode(tab, plugin) === 'plan') {
-        const restoreMode = tab.state.prePlanPermissionMode ?? 'normal';
-        try {
-          await updatePlanModeUI(tab, plugin, restoreMode);
-        } finally {
-          if (getTabPermissionMode(tab, plugin) !== 'plan') {
-            tab.state.prePlanPermissionMode = null;
-          }
-        }
-      }
-    },
+    restorePrePlanPermissionModeIfNeeded: () => restorePrePlanPermissionMode(tab, plugin),
   });
 
   tab.controllers.navigationController = new NavigationController({
@@ -2157,16 +2164,7 @@ export function setupServiceCallbacks(tab: TabData, plugin: FeatureHost): void {
         // Revert only on approve; feedback and cancel keep plan mode active.
         if (decision !== null && decision.type !== 'feedback') {
           // Only restore permission mode if still in plan mode — user may have toggled out via Shift+Tab
-          if (getTabPermissionMode(tab, plugin) === 'plan') {
-            const restoreMode = tab.state.prePlanPermissionMode ?? 'normal';
-            try {
-              await updatePlanModeUI(tab, plugin, restoreMode);
-            } finally {
-              if (getTabPermissionMode(tab, plugin) !== 'plan') {
-                tab.state.prePlanPermissionMode = null;
-              }
-            }
-          }
+          await restorePrePlanPermissionMode(tab, plugin);
           if (decision.type === 'approve-new-session') {
             tab.state.pendingNewSessionPlan = decision.planContent;
             tab.state.cancelRequested = true;

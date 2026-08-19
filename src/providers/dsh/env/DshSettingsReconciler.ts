@@ -1,10 +1,4 @@
-import { getRuntimeEnvironmentText } from '../../../core/providers/providerEnvironment';
-import {
-  computeEnvironmentHash,
-  invalidateSessionsForProvider,
-} from '../../../core/providers/settingsReconciler';
-import type { ProviderSettingsReconciler } from '../../../core/providers/types';
-import type { Conversation } from '../../../core/types';
+import { createProviderSettingsReconciler } from '../../../core/providers/settingsReconciler';
 import { clearDshDiscoveryState } from '../discoveryState';
 import {
   decodeDshModelId,
@@ -22,39 +16,12 @@ const DSH_ENV_HASH_KEYS = [
   'DEEPSEEK_BASE_URL',
 ] as const;
 
-function invalidateDshConversationSessions(conversations: Conversation[]): Conversation[] {
-  return invalidateSessionsForProvider(
-    conversations,
-    'dsh',
-    (conversation) => typeof conversation.sessionId === 'string' && conversation.sessionId.length > 0,
-  );
-}
-
-export const dshSettingsReconciler: ProviderSettingsReconciler = {
-  handleEnvironmentChange(settings: Record<string, unknown>): boolean {
-    return clearDshDiscoveryState(settings);
-  },
-
-  invalidateConversationSessions: invalidateDshConversationSessions,
-
-  reconcileModelWithEnvironment(
-    settings: Record<string, unknown>,
-    conversations: Conversation[],
-  ): { changed: boolean; invalidatedConversations: Conversation[] } {
-    const envText = getRuntimeEnvironmentText(settings, 'dsh');
-    const currentHash = computeEnvironmentHash(envText, DSH_ENV_HASH_KEYS);
-    const savedHash = getDshProviderSettings(settings).environmentHash;
-
-    if (currentHash === savedHash) {
-      return { changed: false, invalidatedConversations: [] };
-    }
-
-    const invalidatedConversations = invalidateDshConversationSessions(conversations);
-
-    updateDshProviderSettings(settings, { environmentHash: currentHash });
-    return { changed: true, invalidatedConversations };
-  },
-
+export const dshSettingsReconciler = createProviderSettingsReconciler({
+  providerId: 'dsh',
+  envHashKeys: DSH_ENV_HASH_KEYS,
+  clearDiscoveryState: clearDshDiscoveryState,
+  getSettings: getDshProviderSettings,
+  updateSettings: updateDshProviderSettings,
   normalizeModelVariantSettings(settings: Record<string, unknown>): boolean {
     let changed = false;
 
@@ -90,4 +57,4 @@ export const dshSettingsReconciler: ProviderSettingsReconciler = {
 
     return changed;
   },
-};
+});

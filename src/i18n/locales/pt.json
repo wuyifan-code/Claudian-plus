@@ -429,6 +429,8 @@
       "sharedExpectation": "Manage skills shared across all enabled providers in .agents/skills/.",
       "noSkills": "No shared skills configured. Click + to create one.",
       "skillBadge": "skill",
+      "homeBadge": "home",
+      "vaultBadge": "vault",
       "diagnosticsTitle": "Skills needing attention",
       "loadFailed": "Could not load shared skills.",
       "savedRefreshFailed": "Saved, but provider refresh failed.",
@@ -457,6 +459,35 @@
         "title": "Delete Shared Skill",
         "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.",
         "confirm": "Move to trash"
+      }
+    },
+    "workspaceResources": {
+      "cardTitle": "Recursos do espaço de trabalho",
+      "cardDesc": "Visualize habilidades, subagentes, servidores MCP e comandos de todos os provedores habilitados. Habilidades compartilhadas podem ser criadas e editadas aqui; outros recursos são gerenciados na aba de cada provedor.",
+      "tabs": {
+        "skills": "Habilidades",
+        "agents": "Subagentes",
+        "mcp": "MCP",
+        "commands": "Comandos",
+        "memory": "Memória",
+        "consciousness": "Consciência"
+      },
+      "searchPlaceholder": "Pesquisar por nome ou caminho",
+      "create": "Novo",
+      "loading": "Carregando recursos…",
+      "loadFailed": "Não foi possível carregar os recursos do espaço de trabalho.",
+      "empty": {
+        "skills": "Nenhuma habilidade ainda. Clique em Novo para criar uma habilidade compartilhada.",
+        "agents": "Nenhum subagente encontrado para provedores habilitados.",
+        "mcp": "Nenhum servidor MCP configurado para provedores habilitados.",
+        "commands": "Nenhum comando encontrado para provedores habilitados."
+      },
+      "noMatch": "Nenhum recurso corresponde a «{query}».",
+      "status": {
+        "available": "Disponível",
+        "readonly": "Somente leitura",
+        "connected": "Conectado",
+        "disabled": "Desativado"
       }
     },
     "providerEnablement": {

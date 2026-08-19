@@ -1,6 +1,7 @@
 import type { BrowserSelectionContext } from '../../utils/browser';
 import type { CanvasSelectionContext } from '../../utils/canvas';
 import type { EditorSelectionContext } from '../../utils/editor';
+import type { AgentSkillContext } from '../skills/AgentSkillContext';
 import type {
   ApprovalDecision,
   Conversation,
@@ -51,6 +52,7 @@ export interface ChatTurnRequest {
   canvasSelection?: CanvasSelectionContext | null;
   externalContextPaths?: string[];
   enabledMcpServers?: Set<string>;
+  agentSkillContext?: AgentSkillContext;
 }
 
 export interface PreparedChatTurn {
@@ -59,6 +61,7 @@ export interface PreparedChatTurn {
   prompt: string;
   isCompact: boolean;
   mcpMentions: Set<string>;
+  agentSkillContext?: AgentSkillContext | null | undefined;
 }
 
 export interface ChatRuntimeQueryOptions {
@@ -68,6 +71,7 @@ export interface ChatRuntimeQueryOptions {
   enabledMcpServers?: Set<string>;
   forceColdStart?: boolean;
   externalContextPaths?: string[];
+  agentSkillContext?: AgentSkillContext;
 }
 
 export interface ChatRuntimeEnsureReadyOptions {

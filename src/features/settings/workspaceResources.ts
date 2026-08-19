@@ -4,16 +4,37 @@ import { ProviderWorkspaceRegistry } from '../../core/providers/ProviderWorkspac
 import type { ProviderId } from '../../core/providers/types';
 import type { AgentSkillListResult } from '../../core/skills/AgentSkill';
 
-export type WorkspaceResourceSection = 'skills' | 'agents' | 'mcp' | 'commands';
+export type WorkspaceResourceSection = 'skills' | 'agents' | 'mcp' | 'commands' | 'memory' | 'consciousness';
+
+/** Row key prefix identifying shared .agents/skills rows loaded via loadSharedSkills. */
+export const SHARED_SKILL_ROW_KEY_PREFIX = 'shared-agent-skill:';
 
 export type WorkspaceResourceStatus = 'available' | 'connected' | 'disabled' | 'readonly';
 
 export interface WorkspaceResourceRow {
   key: string;
   name: string;
+  description?: string;
   providerIds: ProviderId[];
   source: string;
   status: WorkspaceResourceStatus;
+}
+
+/**
+ * Case-insensitive substring match across name, description, and source path.
+ * A blank query returns every row.
+ */
+export function filterWorkspaceResourceRows(
+  rows: readonly WorkspaceResourceRow[],
+  query: string,
+): WorkspaceResourceRow[] {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return [...rows];
+  return rows.filter(row => (
+    row.name.toLowerCase().includes(needle)
+    || row.source.toLowerCase().includes(needle)
+    || (row.description?.toLowerCase().includes(needle) ?? false)
+  ));
 }
 
 export interface WorkspaceResourceLoadOptions {
@@ -73,6 +94,7 @@ async function loadCommandResources(
         .map((entry): WorkspaceResourceRow => ({
           key: `${providerId}:${entry.id}`,
           name: entry.name,
+          description: entry.description,
           providerIds: [providerId],
           source: fallbackCommandSource(entry),
           status: entry.isEditable ? 'available' : 'readonly',
@@ -98,8 +120,9 @@ async function loadSharedSkillResources(
   try {
     const { skills } = await loadSharedSkills();
     return skills.map(skill => ({
-      key: `shared-agent-skill:${skill.name}`,
+      key: `${SHARED_SKILL_ROW_KEY_PREFIX}${skill.name}`,
       name: skill.name,
+      description: skill.description,
       providerIds: [...supportedProviderIds],
       source: skill.filePath,
       status: 'available',
@@ -109,24 +132,28 @@ async function loadSharedSkillResources(
   }
 }
 
-function loadAgentResources(providerIds: readonly ProviderId[]): WorkspaceResourceRow[] {
-  return providerIds.flatMap((providerId) => {
+async function loadAgentResources(providerIds: readonly ProviderId[]): Promise<WorkspaceResourceRow[]> {
+  const rows = await Promise.all(providerIds.map(async (providerId) => {
     const provider = ProviderWorkspaceRegistry.getAgentMentionProvider(providerId);
     if (!provider) return [];
+    await provider.ensureLoaded?.();
     return provider.searchAgents('').map((agent): WorkspaceResourceRow => ({
       key: `${providerId}:${agent.id}`,
       name: agent.name,
+      description: agent.description,
       providerIds: [providerId],
       source: agent.source === 'global' ? 'Home agents' : `${providerId} vault agents`,
       status: agent.source === 'vault' ? 'available' : 'readonly',
     }));
-  });
+  }));
+  return rows.flat();
 }
 
-function loadMcpResources(providerIds: readonly ProviderId[]): WorkspaceResourceRow[] {
-  return providerIds.flatMap((providerId) => {
+async function loadMcpResources(providerIds: readonly ProviderId[]): Promise<WorkspaceResourceRow[]> {
+  const rows = await Promise.all(providerIds.map(async (providerId) => {
     const manager = ProviderWorkspaceRegistry.getMcpServerManager(providerId);
     if (!manager) return [];
+    await manager.ensureLoaded?.();
     const source = `${providerId} MCP configuration`;
     return manager.getServers().map((server): WorkspaceResourceRow => ({
       key: `${providerId}:${server.name}`,
@@ -135,7 +162,8 @@ function loadMcpResources(providerIds: readonly ProviderId[]): WorkspaceResource
       source,
       status: server.enabled ? 'connected' : 'disabled',
     }));
-  });
+  }));
+  return rows.flat();
 }
 
 export async function loadWorkspaceResources(
@@ -151,7 +179,7 @@ export async function loadWorkspaceResources(
     : section === 'commands'
       ? await loadCommandResources(providerIds, section)
       : section === 'agents'
-        ? loadAgentResources(providerIds)
-        : loadMcpResources(providerIds);
+        ? await loadAgentResources(providerIds)
+        : await loadMcpResources(providerIds);
   return mergeRows(rows, providerIds);
 }

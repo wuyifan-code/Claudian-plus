@@ -6,7 +6,7 @@ import type { VaultFileAdapter } from '../storage/VaultFileAdapter';
 /**
  * Knowledge extracted from a single vault note.
  */
-export interface NoteKnowledge {
+interface NoteKnowledge {
   path: string;
   title: string;
   tags: string[];
@@ -20,7 +20,7 @@ export interface NoteKnowledge {
 /**
  * Vault knowledge index containing all extracted note knowledge.
  */
-export interface VaultKnowledgeIndex {
+interface VaultKnowledgeIndex {
   version: number;
   lastScanAt: number;
   noteCount: number;
@@ -33,7 +33,7 @@ export interface VaultKnowledgeIndex {
 /**
  * Configuration for vault knowledge scanning.
  */
-export interface VaultKnowledgeConfig {
+interface VaultKnowledgeConfig {
   /** Enable vault knowledge indexing. */
   enabled: boolean;
   /** Maximum notes to index (0 = unlimited). */
@@ -47,7 +47,7 @@ export interface VaultKnowledgeConfig {
 }
 
 /** Default vault knowledge configuration. */
-export const DEFAULT_VAULT_KNOWLEDGE_CONFIG: VaultKnowledgeConfig = {
+const DEFAULT_VAULT_KNOWLEDGE_CONFIG: VaultKnowledgeConfig = {
   enabled: true,
   maxNotes: 500,
   // The vault's actual config directory is always excluded at runtime

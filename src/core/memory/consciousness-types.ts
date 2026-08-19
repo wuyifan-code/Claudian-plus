@@ -14,7 +14,7 @@ import { DEFAULT_MEMORY_FILE_PATH } from './types';
 
 /** Awareness file paths relative to vault root. */
 export const AWARENESS_DIR = '.claudian-plus/awareness';
-export const LEGACY_AWARENESS_DIR = '.claudian/awareness';
+const LEGACY_AWARENESS_DIR = '.claudian/awareness';
 export const SOUL_FILE = `${AWARENESS_DIR}/SOUL.md`;
 export const USER_FILE = `${AWARENESS_DIR}/USER.md`;
 export const LEGACY_SOUL_FILE = `${LEGACY_AWARENESS_DIR}/SOUL.md`;
@@ -30,16 +30,6 @@ export const LEGACY_ACTIVITY_FILE = `${LEGACY_AWARENESS_DIR}/activity.json`;
 /** Files removed by a reset land here for the retention window. */
 export const TRASH_DIR = '.claudian-plus/trash';
 export const TRASH_MAX_AGE_DAYS = 30;
-
-/** Reflection insight extracted from conversation analysis. */
-export interface ReflectionInsight {
-  id: string;
-  type: 'pattern' | 'preference' | 'correction' | 'synthesis';
-  content: string;
-  confidence: number; // 0-1
-  sourceMemories: string[]; // IDs of related memories
-  createdAt: number;
-}
 
 /** Activity log entry types. */
 export type ActivityType =
@@ -67,13 +57,6 @@ export interface AwarenessState {
   insightCount: number;
   activityCount: number;
   confidenceLevel: 'low' | 'medium' | 'high';
-}
-
-/** Consolidation result from merging memories. */
-export interface ConsolidationResult {
-  mergedCount: number;
-  removedDuplicates: number;
-  newInsights: ReflectionInsight[];
 }
 
 /** Consciousness configuration. */

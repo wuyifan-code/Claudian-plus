@@ -6,8 +6,13 @@ describe('KimiChatUIConfig', () => {
     expect(kimiChatUIConfig.getProviderIcon?.()).toBe(KIMI_PROVIDER_ICON);
   });
 
-  it('exposes no permission-mode toggle (single default ACP mode)', () => {
-    expect(kimiChatUIConfig.getPermissionModeToggle?.()).toBeNull();
+  it('exposes the Safe/YOLO permission-mode toggle', () => {
+    expect(kimiChatUIConfig.getPermissionModeToggle?.()).toEqual({
+      activeLabel: 'YOLO',
+      activeValue: 'yolo',
+      inactiveLabel: 'Safe',
+      inactiveValue: 'normal',
+    });
   });
 
   it('owns only kimi selection ids', () => {

@@ -127,7 +127,7 @@ export function parseSubagentToml(
 ): CodexSubagentDefinition | null {
   let parsed: Record<string, unknown>;
   try {
-    parsed = parseToml(content) as Record<string, unknown>;
+    parsed = parseToml(content);
   } catch {
     return null;
   }

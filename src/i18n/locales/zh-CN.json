@@ -429,6 +429,8 @@
       "sharedExpectation": "管理 .agents/skills/ 中所有启用提供商共享的技能。",
       "noSkills": "尚未配置共享技能。点击 + 创建一个。",
       "skillBadge": "技能",
+      "homeBadge": "home",
+      "vaultBadge": "vault",
       "diagnosticsTitle": "需要关注的技能",
       "loadFailed": "无法加载共享技能。",
       "savedRefreshFailed": "已保存，但提供商刷新失败。",
@@ -457,6 +459,35 @@
         "title": "删除共享技能",
         "description": "整个技能文件夹（包括脚本、引用和资源）将被移至回收站。",
         "confirm": "移至回收站"
+      }
+    },
+    "workspaceResources": {
+      "cardTitle": "工作区资源",
+      "cardDesc": "集中查看所有启用提供商的技能、子代理、MCP 服务与命令。共享技能可在此创建和编辑，其余资源请前往对应提供商标签页管理。",
+      "tabs": {
+        "skills": "Skills",
+        "agents": "子代理",
+        "mcp": "MCP",
+        "commands": "命令",
+        "memory": "记忆",
+        "consciousness": "意识"
+      },
+      "searchPlaceholder": "搜索名称或路径",
+      "create": "新建",
+      "loading": "正在加载资源…",
+      "loadFailed": "无法加载工作区资源。",
+      "empty": {
+        "skills": "暂无技能。点击「新建」创建共享技能。",
+        "agents": "启用提供商未发现子代理。",
+        "mcp": "启用提供商尚未配置 MCP 服务。",
+        "commands": "启用提供商未发现命令。"
+      },
+      "noMatch": "没有匹配「{query}」的资源。",
+      "status": {
+        "available": "可用",
+        "readonly": "只读",
+        "connected": "已连接",
+        "disabled": "已禁用"
       }
     },
     "providerEnablement": {

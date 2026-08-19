@@ -258,6 +258,31 @@ export class StreamController {
    * Handles regular tool_use chunks by buffering them.
    * Tools are rendered when flushPendingTools is called (on next content type or tool_result).
    */
+
+  /**
+   * Appends a new running tool call to the message. When withContentBlock is
+   * true, also records the ordering entry so renderers can interleave content.
+   */
+  private pushToolCall(
+    msg: ChatMessage,
+    chunk: { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> },
+    withContentBlock: boolean,
+  ): ToolCallInfo {
+    const toolCall: ToolCallInfo = {
+      id: chunk.id,
+      name: chunk.name,
+      input: chunk.input,
+      status: 'running',
+      isExpanded: false,
+    };
+    msg.toolCalls = msg.toolCalls || [];
+    msg.toolCalls.push(toolCall);
+    if (withContentBlock) {
+      msg.contentBlocks = msg.contentBlocks || [];
+      msg.contentBlocks.push({ type: 'tool_use', toolId: chunk.id });
+    }
+    return toolCall;
+  }
   private handleRegularToolUse(
     chunk: { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> },
     msg: ChatMessage
@@ -303,20 +328,8 @@ export class StreamController {
       return;
     }
 
-    // Create new tool call
-    const toolCall: ToolCallInfo = {
-      id: chunk.id,
-      name: chunk.name,
-      input: chunk.input,
-      status: 'running',
-      isExpanded: false,
-    };
-    msg.toolCalls = msg.toolCalls || [];
-    msg.toolCalls.push(toolCall);
-
-    // Add to contentBlocks for ordering
-    msg.contentBlocks = msg.contentBlocks || [];
-    msg.contentBlocks.push({ type: 'tool_use', toolId: chunk.id });
+    // Create new tool call and record it for render ordering
+    const toolCall = this.pushToolCall(msg, chunk, true);
 
     // TodoWrite: update panel state immediately (side effect), but still buffer render
     if (chunk.name === TOOL_TODO_WRITE) {
@@ -469,17 +482,7 @@ export class StreamController {
   ): void {
     const { state } = this.deps;
 
-    const toolCall: ToolCallInfo = {
-      id: chunk.id,
-      name: chunk.name,
-      input: chunk.input,
-      status: 'running',
-      isExpanded: false,
-    };
-    msg.toolCalls = msg.toolCalls || [];
-    msg.toolCalls.push(toolCall);
-    msg.contentBlocks = msg.contentBlocks || [];
-    msg.contentBlocks.push({ type: 'tool_use', toolId: chunk.id });
+    const toolCall = this.pushToolCall(msg, chunk, true);
 
     // Render as subagent block immediately
     if (state.currentContentEl) {
@@ -499,15 +502,7 @@ export class StreamController {
     msg: ChatMessage
   ): void {
     // Track in toolCalls for data completeness, but don't create DOM or content block
-    const toolCall: ToolCallInfo = {
-      id: chunk.id,
-      name: chunk.name,
-      input: chunk.input,
-      status: 'running',
-      isExpanded: false,
-    };
-    msg.toolCalls = msg.toolCalls || [];
-    msg.toolCalls.push(toolCall);
+    this.pushToolCall(msg, chunk, false);
   }
 
   /**
@@ -1444,7 +1439,7 @@ export class StreamController {
   // ============================================
 
   /** Debounce delay before showing thinking indicator (ms). */
-  private static readonly THINKING_INDICATOR_DELAY = 400;
+  private static readonly THINKING_INDICATOR_DELAY = 12000;
 
   /**
    * Schedules showing the thinking indicator after a delay.

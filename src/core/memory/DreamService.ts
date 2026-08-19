@@ -26,6 +26,11 @@ export const DREAM_STATE_FILE = `${DREAM_DIR}/state.json`;
 const MAX_STATE_PROCESSED_LOGS = 400;
 /** Check interval for the periodic dream trigger (matches vault review cadence). */
 export const DREAM_CHECK_INTERVAL_MS = 60 * 60 * 1000;
+/**
+ * Max wall-clock time for one dream model call. A hung provider subprocess
+ * must not block consolidation (and the `running` lock) indefinitely.
+ */
+const DREAM_QUERY_TIMEOUT_MS = 120_000;
 
 interface DreamState {
   lastDreamAt: number;
@@ -45,7 +50,7 @@ interface ProcessedLogEntry {
   fingerprint: string | null;
 }
 
-export interface DreamServiceConfig {
+interface DreamServiceConfig {
   /** Minimum interval between automatic dreams in ms. */
   intervalMs?: number;
   /** How many recent days of logs to consider. */
@@ -55,9 +60,11 @@ export interface DreamServiceConfig {
   maxNewFacts?: number;
   maxProfileUpdates?: number;
   maxInsights?: number;
+  /** Max wall-clock time for one dream model call before it is aborted. */
+  queryTimeoutMs?: number;
 }
 
-export interface DreamRunResult {
+interface DreamRunResult {
   ran: boolean;
   reason?: 'disabled' | 'already-running' | 'no-new-logs' | 'failed';
   error?: string;
@@ -67,7 +74,7 @@ export interface DreamRunResult {
   journalPath?: string;
 }
 
-export interface DreamServiceDependencies {
+interface DreamServiceDependencies {
   adapter: VaultFileAdapter;
   memoryStore: MemoryStore;
   consciousness: ConsciousnessEngine;
@@ -87,6 +94,7 @@ const DEFAULT_DREAM_CONFIG: Required<DreamServiceConfig> = {
   maxNewFacts: DREAM_DEFAULT_MAX_NEW_FACTS,
   maxProfileUpdates: DREAM_DEFAULT_MAX_PROFILE_UPDATES,
   maxInsights: DREAM_DEFAULT_MAX_INSIGHTS,
+  queryTimeoutMs: DREAM_QUERY_TIMEOUT_MS,
 };
 
 function normalizeContent(content: string): string {
@@ -138,11 +146,6 @@ export class DreamService {
 
     const state = await this.loadState();
     if (Date.now() - state.lastDreamAt < this.config.intervalMs) {
-      return false;
-    }
-
-    const memories = await this.deps.memoryStore.load();
-    if (!this.deps.consciousness.shouldReflect(memories, state.processedLogs.length)) {
       return false;
     }
 
@@ -212,9 +215,18 @@ export class DreamService {
     const context = this.deps.getConversationContext?.() ?? null;
     const providerId = context?.providerId ?? DEFAULT_CHAT_PROVIDER_ID;
     const runner = this.deps.createRunner(providerId);
+    const abortController = new AbortController();
+    const timeoutId = window.setTimeout(
+      () => abortController.abort(),
+      this.config.queryTimeoutMs,
+    );
     try {
       const response = await runner.query(
-        { systemPrompt: DREAM_MEMORY_SYSTEM_PROMPT, model: context?.model ?? undefined },
+        {
+          systemPrompt: DREAM_MEMORY_SYSTEM_PROMPT,
+          model: context?.model ?? undefined,
+          abortController,
+        },
         buildDreamPrompt({
           logs: logsCapped,
           existingMemories: existingCapped,
@@ -229,6 +241,7 @@ export class DreamService {
         maxInsights: this.config.maxInsights,
       });
     } finally {
+      window.clearTimeout(timeoutId);
       runner.reset();
     }
   }
@@ -295,8 +308,25 @@ export class DreamService {
     const awareness = await this.deps.consciousness.getAwarenessState(memories);
     const journalPath = await this.writeDreamJournal(result, awareness);
 
-    const fingerprints: Record<string, string> = {};
+    // Only logs that did not change while the model call ran count as
+    // consumed. A log appended mid-dream was only partially distilled;
+    // leaving it out of both the ledger and the fingerprints lets the next
+    // dream consolidate the appended content (the legacy process-once path
+    // keys off `processedLogs`, so it must stay in sync with fingerprints).
+    const retained: ProcessedLogEntry[] = [];
     for (const entry of processedLogs) {
+      if (entry.fingerprint) {
+        const current = await this.statFingerprint(entry.path);
+        if (current === entry.fingerprint) {
+          retained.push(entry);
+        }
+      } else {
+        retained.push(entry);
+      }
+    }
+
+    const fingerprints: Record<string, string> = {};
+    for (const entry of retained) {
       if (entry.fingerprint) {
         fingerprints[entry.path.split('/').pop() ?? entry.path] = entry.fingerprint;
       }
@@ -305,7 +335,7 @@ export class DreamService {
       lastDreamAt: Date.now(),
       processedLogs: dedupe([
         ...state.processedLogs,
-        ...processedLogs.map(entry => entry.path.split('/').pop() ?? entry.path),
+        ...retained.map(entry => entry.path.split('/').pop() ?? entry.path),
       ]),
       processedFingerprints: {
         ...state.processedFingerprints,

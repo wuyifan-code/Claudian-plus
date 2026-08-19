@@ -17,6 +17,9 @@ import { AgentSkillValidationError, validateAgentSkillInput, validateAgentSkillN
 export const AGENT_SKILLS_ROOT = '.agents/skills';
 const SKILL_FILENAME = 'SKILL.md';
 
+/** Filesystem surface needed to scan the home-level skill root. */
+export type HomeSkillFiles = Pick<VaultFileAdapter, 'exists' | 'listFolders' | 'read'>;
+
 export class AgentSkillRepositoryError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options);
@@ -53,30 +56,57 @@ function skillFilePath(name: string): string {
 export class AgentSkillRepository {
   private mutationQueue: Promise<void> = Promise.resolve();
 
-  constructor(private readonly files: VaultFileAdapter) {}
+  constructor(
+    private readonly files: VaultFileAdapter,
+    private readonly homeFiles?: HomeSkillFiles | null,
+  ) {}
 
   async list(): Promise<AgentSkillListResult> {
-    if (!(await this.files.exists(AGENT_SKILLS_ROOT))) {
-      return { skills: [], diagnostics: [] };
-    }
-
-    const listing = await this.files.listFolders(AGENT_SKILLS_ROOT);
-    const directPackages = listing
-      .filter(folder => path.posix.dirname(folder) === AGENT_SKILLS_ROOT)
-      .sort((left, right) => left.localeCompare(right));
     const skills: AgentSkillDocument[] = [];
     const diagnostics: AgentSkillListResult['diagnostics'] = [];
+    const seenNames = new Set<string>();
 
-    for (const directoryPath of directPackages) {
-      const name = path.posix.basename(directoryPath);
-      try {
-        const document = await this.readDocument(name);
-        skills.push(document);
-      } catch (error) {
-        diagnostics.push({
-          directoryPath,
-          message: error instanceof Error ? error.message : 'Could not read skill package',
-        });
+    if (await this.files.exists(AGENT_SKILLS_ROOT)) {
+      const listing = await this.files.listFolders(AGENT_SKILLS_ROOT);
+      const directPackages = listing
+        .filter(folder => path.posix.dirname(folder) === AGENT_SKILLS_ROOT)
+        .sort((left, right) => left.localeCompare(right));
+
+      for (const directoryPath of directPackages) {
+        const folderName = path.posix.basename(directoryPath);
+        try {
+          const document = await this.readDocument(folderName);
+          if (seenNames.has(document.name)) continue;
+          seenNames.add(document.name);
+          skills.push(document);
+        } catch (error) {
+          diagnostics.push({
+            directoryPath,
+            message: error instanceof Error ? error.message : 'Could not read skill package',
+          });
+        }
+      }
+    }
+
+    if (this.homeFiles && await this.homeFiles.exists(AGENT_SKILLS_ROOT)) {
+      const listing = await this.homeFiles.listFolders(AGENT_SKILLS_ROOT);
+      const directPackages = listing
+        .filter(folder => path.posix.dirname(folder) === AGENT_SKILLS_ROOT)
+        .sort((left, right) => left.localeCompare(right));
+
+      for (const directoryPath of directPackages) {
+        const folderName = path.posix.basename(directoryPath);
+        try {
+          const document = await this.readHomeDocument(folderName);
+          if (seenNames.has(document.name)) continue;
+          seenNames.add(document.name);
+          skills.push(document);
+        } catch (error) {
+          diagnostics.push({
+            directoryPath,
+            message: error instanceof Error ? error.message : 'Could not read skill package',
+          });
+        }
       }
     }
 
@@ -165,6 +195,38 @@ export class AgentSkillRepository {
     return (await this.readDocumentWithRaw(name)).skill;
   }
 
+  /**
+   * Read a home-level skill package by its folder name. Home skills commonly
+   * live in versioned folders (e.g. `a-stock-analysis-1.0.0`) whose frontmatter
+   * `name` differs from the folder name; the frontmatter name is the identity.
+   */
+  private async readHomeDocument(folderName: string): Promise<AgentSkillDocument> {
+    const directoryPath = `${AGENT_SKILLS_ROOT}/${folderName}`;
+    const filePath = `${directoryPath}/${SKILL_FILENAME}`;
+    if (!(await this.homeFiles!.exists(filePath))) {
+      throw new AgentSkillCodecError(`Skill package "${folderName}" is missing ${SKILL_FILENAME}`);
+    }
+    const raw = await this.homeFiles!.read(filePath);
+    return this.homeDocumentFromRaw(folderName, raw);
+  }
+
+  private homeDocumentFromRaw(folderName: string, raw: string): AgentSkillDocument {
+    let parsed;
+    try {
+      parsed = parseAgentSkillMarkdown(raw, folderName, { strictDirectoryName: false });
+    } catch (error) {
+      if (error instanceof AgentSkillCodecError) throw error;
+      throw new AgentSkillCodecError('Could not parse SKILL.md', { cause: error });
+    }
+    return {
+      ...parsed,
+      directoryPath: `${AGENT_SKILLS_ROOT}/${folderName}`,
+      filePath: `${AGENT_SKILLS_ROOT}/${folderName}/${SKILL_FILENAME}`,
+      revision: digest(raw),
+      scope: 'home',
+    };
+  }
+
   private async readDocumentWithRaw(name: string): Promise<{
     skill: AgentSkillDocument;
     raw: string;
@@ -195,6 +257,7 @@ export class AgentSkillRepository {
       directoryPath: packagePath(name),
       filePath: skillFilePath(name),
       revision: digest(raw),
+      scope: 'vault',
     };
   }
 

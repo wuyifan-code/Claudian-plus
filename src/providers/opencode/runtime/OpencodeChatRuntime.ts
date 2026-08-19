@@ -61,6 +61,7 @@ import {
   extractAcpSessionThoughtLevelState,
   mapApprovalDecision,
 } from '../../acp';
+import { normalizeApprovalInput } from '../../acp/permissionPresentation';
 import { OPENCODE_PROVIDER_CAPABILITIES } from '../capabilities';
 import { updateOpencodeDiscoveryState } from '../discoveryState';
 import {
@@ -1638,15 +1639,6 @@ export class OpencodeChatRuntime implements ChatRuntime {
   }
 }
 
-function normalizeApprovalInput(rawInput: unknown): Record<string, unknown> {
-  if (rawInput && typeof rawInput === 'object' && !Array.isArray(rawInput)) {
-    return rawInput as Record<string, unknown>;
-  }
-  if (rawInput === undefined) {
-    return {};
-  }
-  return { value: rawInput };
-}
 
 function buildOpencodePermissionPresentation(
   rawTitle: string | null | undefined,

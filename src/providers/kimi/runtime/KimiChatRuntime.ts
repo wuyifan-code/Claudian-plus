@@ -1230,6 +1230,11 @@ export class KimiChatRuntime implements ChatRuntime {
   private async handlePermissionRequest(
     request: AcpRequestPermissionRequest,
   ): Promise<AcpRequestPermissionResponse> {
+    if (this.getProviderSettings().permissionMode === 'yolo') {
+      // Prefer one-shot grants so YOLO does not persist approval state in Kimi.
+      return mapApprovalDecision('allow', request.options);
+    }
+
     if (!this.approvalCallback) {
       return { outcome: { outcome: 'cancelled' } };
     }

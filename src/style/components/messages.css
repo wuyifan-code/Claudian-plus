@@ -59,14 +59,6 @@
   min-height: 200px;
 }
 
-.claudian-plus-welcome-greeting {
-  font-family: 'Copernicus', 'Tiempos Headline', 'Tiempos', Georgia, 'Times New Roman', serif;
-  font-size: 28px;
-  font-weight: 300;
-  color: var(--text-muted);
-  letter-spacing: -0.01em;
-}
-
 .claudian-plus-message {
   padding: 10px 14px;
   border-radius: 8px;

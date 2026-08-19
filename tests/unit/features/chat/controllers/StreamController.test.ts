@@ -1014,7 +1014,7 @@ describe('StreamController - Text Content', () => {
       deps.state.responseStartTime = performance.now();
 
       controller.showThinkingIndicator();
-      jest.advanceTimersByTime(500); // Past the debounce delay
+      jest.advanceTimersByTime(12000); // Past the debounce delay
 
       expect(deps.state.flavorTimerInterval).not.toBeNull();
     });
@@ -1023,7 +1023,7 @@ describe('StreamController - Text Content', () => {
       deps.state.responseStartTime = performance.now();
 
       controller.showThinkingIndicator();
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(12000);
       expect(deps.state.flavorTimerInterval).not.toBeNull();
 
       controller.hideThinkingIndicator();
@@ -1070,13 +1070,13 @@ describe('StreamController - Text Content', () => {
       deps.state.responseStartTime = performance.now();
 
       controller.showThinkingIndicator();
-      expect(ownerSetTimeout).toHaveBeenCalledWith(expect.any(Function), 400);
+      expect(ownerSetTimeout).toHaveBeenCalledWith(expect.any(Function), 12000);
 
       controller.hideThinkingIndicator();
       expect(ownerClearTimeout).toHaveBeenCalled();
 
       controller.showThinkingIndicator();
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(12000);
       expect(ownerSetInterval).toHaveBeenCalledWith(expect.any(Function), 1000);
 
       controller.hideThinkingIndicator();
@@ -1087,7 +1087,7 @@ describe('StreamController - Text Content', () => {
       deps.state.responseStartTime = performance.now();
 
       controller.showThinkingIndicator();
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(12000);
       expect(deps.state.flavorTimerInterval).not.toBeNull();
 
       controller.resetStreamingState();
@@ -1100,12 +1100,17 @@ describe('StreamController - Text Content', () => {
       const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
 
       controller.showThinkingIndicator();
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(12000);
       const firstInterval = deps.state.flavorTimerInterval;
+
+      // Mock spans have no isConnected (falsy), so the first interval tick
+      // would self-clear; mark it connected to isolate the no-duplicate check.
+      const timerSpan = deps.state.thinkingEl!.children[1];
+      Object.defineProperty(timerSpan, 'isConnected', { value: true, configurable: true });
 
       // Second call while indicator exists should not create a new interval
       controller.showThinkingIndicator();
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(12000);
 
       // Should still have the same interval (no new one created since element exists)
       expect(deps.state.flavorTimerInterval).toBe(firstInterval);
@@ -1216,7 +1221,7 @@ describe('StreamController - Text Content', () => {
       deps.state.currentContentEl = null;
 
       controller.showThinkingIndicator();
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(12000);
 
       expect(deps.state.thinkingEl).toBeNull();
     });
@@ -1225,7 +1230,7 @@ describe('StreamController - Text Content', () => {
       deps.state.currentThinkingState = { content: 'thinking...', container: {}, contentEl: {}, startTime: Date.now() } as any;
 
       controller.showThinkingIndicator();
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(12000);
 
       expect(deps.state.thinkingEl).toBeNull();
     });
@@ -1234,7 +1239,7 @@ describe('StreamController - Text Content', () => {
       deps.state.responseStartTime = performance.now();
 
       controller.showThinkingIndicator();
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(12000);
 
       const thinkingEl = deps.state.thinkingEl;
       expect(thinkingEl).not.toBeNull();
@@ -2510,7 +2515,7 @@ describe('StreamController - Text Content', () => {
       deps.state.responseStartTime = performance.now();
 
       controller.showThinkingIndicator();
-      jest.advanceTimersByTime(500); // Past debounce delay
+      jest.advanceTimersByTime(12000); // Past debounce delay
 
       expect(deps.state.flavorTimerInterval).not.toBeNull();
 
@@ -2554,7 +2559,7 @@ describe('StreamController - Text Content', () => {
       deps.state.setFlavorTimerInterval(activeWindow.setInterval(() => {}, 9999), activeWindow);
 
       controller.showThinkingIndicator();
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(12000);
 
       // clearInterval should have been called for the pre-existing interval
       expect(clearIntervalSpy).toHaveBeenCalled();
@@ -2573,7 +2578,7 @@ describe('StreamController - Text Content', () => {
       deps.state.setFlavorTimerInterval(0, activeWindow);
 
       controller.showThinkingIndicator();
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(12000);
 
       expect(clearIntervalSpy).toHaveBeenCalledWith(0);
       expect(deps.state.flavorTimerInterval).not.toBeNull();
@@ -2598,7 +2603,7 @@ describe('StreamController - Text Content', () => {
       deps.state.responseStartTime = 0;
 
       controller.showThinkingIndicator();
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(12000);
 
       const timerSpan = deps.state.thinkingEl!.children[1];
       Object.defineProperty(timerSpan, 'isConnected', { value: true, configurable: true });
@@ -2613,7 +2618,7 @@ describe('StreamController - Text Content', () => {
       deps.state.responseStartTime = performance.now();
 
       controller.showThinkingIndicator();
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(12000);
 
       expect(deps.state.thinkingEl).not.toBeNull();
 

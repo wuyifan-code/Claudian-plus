@@ -15,7 +15,7 @@ export interface FileMenuHost {
   sendPromptToChat(prompt: string): Promise<void>;
 }
 
-export async function addFileToClaudianPlus(host: FileMenuHost, file: TFile): Promise<boolean> {
+async function addFileToClaudianPlus(host: FileMenuHost, file: TFile): Promise<boolean> {
   try {
     await host.activateView();
     const appended = host.getView()?.appendToActiveInput(`@${file.path} `) ?? false;
@@ -27,7 +27,7 @@ export async function addFileToClaudianPlus(host: FileMenuHost, file: TFile): Pr
   }
 }
 
-export async function addFolderToClaudianPlus(host: FileMenuHost, folder: TFolder): Promise<boolean> {
+async function addFolderToClaudianPlus(host: FileMenuHost, folder: TFolder): Promise<boolean> {
   try {
     await host.activateView();
     const appended = host.getView()?.appendToActiveInput(`@${folder.path}/ `) ?? false;
@@ -39,19 +39,19 @@ export async function addFolderToClaudianPlus(host: FileMenuHost, folder: TFolde
   }
 }
 
-export async function askAboutFile(host: FileMenuHost, file: TFile): Promise<void> {
+async function askAboutFile(host: FileMenuHost, file: TFile): Promise<void> {
   await host.sendPromptToChat(
     `I'd like to discuss file "${file.path}"\n\nRead the file and tell me about what it contains and how it connects to my vault.`
   );
 }
 
-export async function summarizeFile(host: FileMenuHost, file: TFile): Promise<void> {
+async function summarizeFile(host: FileMenuHost, file: TFile): Promise<void> {
   await host.sendPromptToChat(
     `Provide a concise summary of the file "${file.path}".\n\nInclude key topics, structure, and how it relates to other notes.`
   );
 }
 
-export async function suggestTagsForFile(host: FileMenuHost, file: TFile): Promise<void> {
+async function suggestTagsForFile(host: FileMenuHost, file: TFile): Promise<void> {
   await host.sendPromptToChat(
     `Analyze "${file.path}" and suggest relevant tags and metadata for its frontmatter.\n\nSuggest tags and any other useful properties (status, type, etc.) based on the content.`
   );

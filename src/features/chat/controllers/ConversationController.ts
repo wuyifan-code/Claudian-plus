@@ -608,6 +608,21 @@ export class ConversationController {
    * Renders history dropdown items to a container.
    * Shared implementation for updateHistoryDropdown() and renderHistoryDropdown().
    */
+
+  /** Opens a history conversation in a new tab, showing a notice on failure. */
+  private openConversationInNewTab(
+    options: HistoryRenderOptions,
+    conversationId: string,
+    activate: boolean,
+  ): void {
+    runConversationAction(
+      () => this.runHistoryAction(
+        () => options.onOpenConversationInNewTab?.(conversationId, activate),
+        'Failed to load conversation',
+      ),
+      'Failed to load conversation',
+    );
+  }
   private renderHistoryItems(
     container: HTMLElement,
     options: HistoryRenderOptions
@@ -727,13 +742,7 @@ export class ConversationController {
           e.stopPropagation();
           if (this.isHistoryNewTabModifierClick(e) && options.onOpenConversationInNewTab) {
             e.preventDefault();
-            runConversationAction(
-              () => this.runHistoryAction(
-                () => options.onOpenConversationInNewTab?.(conv.id, true),
-                'Failed to load conversation',
-              ),
-              'Failed to load conversation',
-            );
+            this.openConversationInNewTab(options, conv.id, true);
             return;
           }
 
@@ -751,13 +760,7 @@ export class ConversationController {
             if (e.button !== 1) return;
             e.preventDefault();
             e.stopPropagation();
-            runConversationAction(
-              () => this.runHistoryAction(
-                () => options.onOpenConversationInNewTab?.(conv.id, true),
-                'Failed to load conversation',
-              ),
-              'Failed to load conversation',
-            );
+            this.openConversationInNewTab(options, conv.id, true);
           });
         }
       }
@@ -796,13 +799,7 @@ export class ConversationController {
         openInNewTabBtn.setAttribute('aria-label', 'Open in new tab');
         openInNewTabBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          runConversationAction(
-            () => this.runHistoryAction(
-              () => options.onOpenConversationInNewTab?.(conv.id, true),
-              'Failed to load conversation',
-            ),
-            'Failed to load conversation',
-          );
+          this.openConversationInNewTab(options, conv.id, true);
         });
       }
 

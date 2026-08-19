@@ -429,6 +429,8 @@
       "sharedExpectation": "Manage skills shared across all enabled providers in .agents/skills/.",
       "noSkills": "No shared skills configured. Click + to create one.",
       "skillBadge": "skill",
+      "homeBadge": "home",
+      "vaultBadge": "vault",
       "diagnosticsTitle": "Skills needing attention",
       "loadFailed": "Could not load shared skills.",
       "savedRefreshFailed": "Saved, but provider refresh failed.",
@@ -457,6 +459,35 @@
         "title": "Delete Shared Skill",
         "description": "The entire skill folder, including scripts, references, and assets, will be moved to trash.",
         "confirm": "Move to trash"
+      }
+    },
+    "workspaceResources": {
+      "cardTitle": "Workspace resources",
+      "cardDesc": "Browse skills, subagents, MCP servers, and commands across all enabled providers. Shared skills can be created and edited here; other resources are managed in each provider’s tab.",
+      "tabs": {
+        "skills": "Skills",
+        "agents": "Subagents",
+        "mcp": "MCP",
+        "commands": "Commands",
+        "memory": "Memory",
+        "consciousness": "Consciousness"
+      },
+      "searchPlaceholder": "Search name or path",
+      "create": "New",
+      "loading": "Loading resources…",
+      "loadFailed": "Could not load workspace resources.",
+      "empty": {
+        "skills": "No skills yet. Click New to create a shared skill.",
+        "agents": "No subagents found for enabled providers.",
+        "mcp": "No MCP servers configured for enabled providers.",
+        "commands": "No commands found for enabled providers."
+      },
+      "noMatch": "No resources match “{query}”.",
+      "status": {
+        "available": "Available",
+        "readonly": "Read-only",
+        "connected": "Connected",
+        "disabled": "Disabled"
       }
     },
     "providerEnablement": {

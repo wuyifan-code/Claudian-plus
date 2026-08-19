@@ -1,5 +1,5 @@
-export const DSH_SYNTHETIC_MODEL_ID = 'dsh';
-export const DSH_MODEL_PREFIX = 'dsh:';
+const DSH_SYNTHETIC_MODEL_ID = 'dsh';
+const DSH_MODEL_PREFIX = 'dsh:';
 
 export interface DshDiscoveredModel {
   label?: string;

@@ -1,5 +1,6 @@
 import type {
   ProviderChatUIConfig,
+  ProviderPermissionModeToggleConfig,
   ProviderReasoningOption,
   ProviderUIOption,
 } from '../../../core/providers/types';
@@ -18,6 +19,12 @@ const KIMI_MODELS: ProviderUIOption[] = [
   { value: KIMI_SYNTHETIC_MODEL_ID, label: 'Kimi', description: 'Kimi Code CLI' },
 ];
 const DEFAULT_CONTEXT_WINDOW = 200_000;
+const KIMI_PERMISSION_MODE_TOGGLE: ProviderPermissionModeToggleConfig = {
+  inactiveValue: 'normal',
+  inactiveLabel: 'Safe',
+  activeValue: 'yolo',
+  activeLabel: 'YOLO',
+};
 
 export const kimiChatUIConfig: ProviderChatUIConfig = {
   getModelOptions(settings): ProviderUIOption[] {
@@ -195,10 +202,8 @@ export const kimiChatUIConfig: ProviderChatUIConfig = {
     return null;
   },
 
-  getPermissionModeToggle(): null {
-    // Kimi ACP exposes a single `default` mode; permissions are requested per
-    // tool call through the standard ACP approval flow.
-    return null;
+  getPermissionModeToggle(): ProviderPermissionModeToggleConfig {
+    return KIMI_PERMISSION_MODE_TOGGLE;
   },
 
   getProviderIcon() {

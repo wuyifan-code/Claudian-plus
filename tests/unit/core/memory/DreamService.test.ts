@@ -1,4 +1,4 @@
-import type { AuxQueryRunner } from '@/core/auxiliary/AuxQueryRunner';
+import type { AuxQueryConfig, AuxQueryRunner } from '@/core/auxiliary/AuxQueryRunner';
 import { ACTIVITY_FILE, SHORT_TERM_DIR, USER_FILE } from '@/core/memory/consciousness-types';
 import { ConsciousnessEngine } from '@/core/memory/ConsciousnessEngine';
 import {
@@ -66,6 +66,7 @@ function createHarness(options: {
   enabled?: boolean;
   privacy?: { allowImplicitExtraction: boolean };
   intervalMs?: number;
+  queryTimeoutMs?: number;
   context?: { providerId: ProviderId; model: string | null } | null;
 } = {}): ServiceHarness {
   const adapter = createMockAdapter(options.files);
@@ -96,7 +97,7 @@ function createHarness(options: {
     createRunner: runnerFactory,
     getConversationContext: () => options.context ?? null,
     isEnabled: () => options.enabled ?? true,
-    config: { intervalMs: options.intervalMs ?? 0 },
+    config: { intervalMs: options.intervalMs ?? 0, queryTimeoutMs: options.queryTimeoutMs },
   });
 
   return { adapter, service, queryMock, runnerFactory };
@@ -322,6 +323,86 @@ describe('DreamService', () => {
       expect(state.processedFingerprints[`${TODAY}.md`]).toBe(`1000:${appendedContent.length}`);
     });
 
+    it('passes an abort controller that fires after the query timeout', async () => {
+      const adapter = createMockAdapter({ ...dayLog(TODAY, 'User: hi') });
+      const memoryStore = new MemoryStore(adapter);
+      const consciousness = new ConsciousnessEngine(adapter, { enabled: true, autoMemoryEnabled: true });
+      let capturedConfig!: AuxQueryConfig;
+      const queryMock = jest.fn((config: AuxQueryConfig) => new Promise<string>((resolve) => {
+        capturedConfig = config;
+        config.abortController?.signal.addEventListener('abort', () => resolve(JSON.stringify({ newFacts: [] })));
+      }));
+      const service = new DreamService({
+        adapter,
+        memoryStore,
+        consciousness,
+        createRunner: () => ({ query: queryMock, reset: jest.fn() }) as unknown as AuxQueryRunner,
+        config: { queryTimeoutMs: 25 },
+      });
+
+      const result = await service.runDream(true);
+
+      expect(capturedConfig.abortController).toBeDefined();
+      expect(capturedConfig.abortController!.signal.aborted).toBe(true);
+      expect(result).toMatchObject({ ran: true });
+    });
+
+    it('leaves logs pending when the model call is aborted', async () => {
+      const adapter = createMockAdapter({ ...dayLog(TODAY, 'User: hi') });
+      const memoryStore = new MemoryStore(adapter);
+      const consciousness = new ConsciousnessEngine(adapter, { enabled: true, autoMemoryEnabled: true });
+      const queryMock = jest.fn((config: AuxQueryConfig) => new Promise<string>((_, reject) => {
+        config.abortController?.signal.addEventListener('abort', () => reject(new Error('Cancelled')));
+      }));
+      const service = new DreamService({
+        adapter,
+        memoryStore,
+        consciousness,
+        createRunner: () => ({ query: queryMock, reset: jest.fn() }) as unknown as AuxQueryRunner,
+        config: { queryTimeoutMs: 25 },
+      });
+
+      const result = await service.runDream(true);
+
+      expect(result).toMatchObject({ ran: false, reason: 'failed' });
+      expect(result.error).toContain('Cancelled');
+      expect(await adapter.exists(DREAM_STATE_FILE)).toBe(false);
+    });
+
+    it('keeps a log pending when its content changes during consolidation', async () => {
+      const adapter = createMockAdapter({ ...dayLog(TODAY, 'User: morning') });
+      const memoryStore = new MemoryStore(adapter);
+      const consciousness = new ConsciousnessEngine(adapter, { enabled: true, autoMemoryEnabled: true });
+      let queryStarted!: () => void;
+      const queryMock = jest.fn(() => new Promise<string>((resolve) => {
+        queryStarted = () => resolve(JSON.stringify({
+          newFacts: [{ category: 'User Preferences', content: 'Likes tea' }],
+        }));
+      }));
+      const service = new DreamService({
+        adapter,
+        memoryStore,
+        consciousness,
+        createRunner: () => ({ query: queryMock, reset: jest.fn() }) as unknown as AuxQueryRunner,
+      });
+
+      const dream = service.runDream(true);
+      await waitFor(() => queryStarted !== undefined);
+      // A conversation appends to the log while the model call is in flight.
+      await adapter.append(`${SHORT_TERM_DIR}/${TODAY}.md`, '\nUser: evening');
+      queryStarted();
+
+      const result = await dream;
+
+      expect(result).toMatchObject({ ran: true, newFacts: 1 });
+      const state = JSON.parse(await adapter.read(DREAM_STATE_FILE)) as {
+        processedLogs: string[];
+        processedFingerprints: Record<string, string>;
+      };
+      expect(state.processedLogs).not.toContain(`${TODAY}.md`);
+      expect(state.processedFingerprints[`${TODAY}.md`]).toBeUndefined();
+    });
+
     it('skips unchanged logs recorded with fingerprints', async () => {
       const { service } = createHarness({
         files: {
@@ -406,7 +487,7 @@ describe('DreamService', () => {
     it('considers legacy short-term logs', async () => {
       const { adapter, service } = createHarness({
         files: {
-          ['.claudian/awareness/memory/2026-08-06.md']: 'User: legacy content',
+          [`.claudian/awareness/memory/${TODAY}.md`]: 'User: legacy content',
         },
       });
 
@@ -416,7 +497,7 @@ describe('DreamService', () => {
       const state = JSON.parse(await adapter.read(DREAM_STATE_FILE)) as {
         processedLogs: string[];
       };
-      expect(state.processedLogs).toContain('2026-08-06.md');
+      expect(state.processedLogs).toContain(`${TODAY}.md`);
     });
   });
 
@@ -448,6 +529,21 @@ describe('DreamService', () => {
           [DREAM_STATE_FILE]: JSON.stringify({
             lastDreamAt: Date.now() - 2 * 60 * 60 * 1000,
             processedLogs: Array.from({ length: 5 }, (_, i) => `2026-07-${String(i + 1).padStart(2, '0')}.md`),
+          }),
+        },
+        intervalMs: 60 * 60 * 1000,
+      });
+
+      expect(await service.isDreamDue()).toBe(true);
+    });
+
+    it('returns true with few processed logs once the interval elapses', async () => {
+      const { service } = createHarness({
+        files: {
+          ...dayLog(TODAY, 'User: hi'),
+          [DREAM_STATE_FILE]: JSON.stringify({
+            lastDreamAt: Date.now() - 2 * 60 * 60 * 1000,
+            processedLogs: ['2026-08-01.md'],
           }),
         },
         intervalMs: 60 * 60 * 1000,

@@ -1,4 +1,4 @@
-import path from 'node:path';
+
 
 import type { App, Plugin } from 'obsidian';
 import { Notice, Platform, PluginSettingTab, Setting } from 'obsidian';
@@ -12,16 +12,15 @@ import { ProviderSettingsCoordinator } from '../../core/providers/ProviderSettin
 import { ProviderWorkspaceRegistry } from '../../core/providers/ProviderWorkspaceRegistry';
 import type { ProviderId } from '../../core/providers/types';
 import type { ChatViewPlacement } from '../../core/types/settings';
-import { getAvailableLocales, getLocaleDisplayName, localeText, setLocale, t } from '../../i18n/i18n';
+import { getAvailableLocales, getLocaleDisplayName, setLocale, t } from '../../i18n/i18n';
 import type { Locale, TranslationKey } from '../../i18n/types';
 import { createProviderIconSvg } from '../../shared/icons';
-import { FileViewerModal } from '../../shared/modals/FileViewerModal';
-import { AgentSkillSettings } from '../../shared/settings/AgentSkillSettings';
 import { renderEnvironmentSettingsSection } from '../../shared/settings/EnvironmentSettingsSection';
 import { formatContextLimit, parseContextLimit, parseEnvironmentVariables } from '../../utils/env';
 import type { FeatureHost } from '../FeatureHost';
 import { AgentSkillManagementCoordinator } from './AgentSkillManagementCoordinator';
 import { buildNavMappingText, parseNavMappings } from './keyboardNavigation';
+import { WorkspaceResourcesSettings } from './WorkspaceResourcesSettings';
 
 type SettingsTabId = 'general' | 'providers' | 'workspace' | 'about';
 type ObsidianHotkey = { modifiers: string[]; key: string };
@@ -747,286 +746,14 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
   }
 
   private renderWorkspaceTab(container: HTMLElement): void {
-    // --- Agent Skills ---
-    const agentSkillsCard = this.createCard(container);
-    new AgentSkillSettings(agentSkillsCard, this.agentSkillCoordinator, this.app);
-
-    // --- Memory ---
-    const memoryCard = this.createCard(container, t('settings.memory.heading'));
-
-    new Setting(memoryCard)
-      .setName(t('settings.memory.enabled.name'))
-      .setDesc(t('settings.memory.enabled.desc'))
-      .addToggle((toggle) => {
-        toggle
-          .setValue(this.plugin.settings.memoryEnabled ?? true)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              settings.memoryEnabled = value;
-            });
-            this.display();
-          });
-      });
-
-    if (this.plugin.settings.memoryEnabled ?? true) {
-      new Setting(memoryCard)
-        .setName(t('settings.memory.filePath.name'))
-        .setDesc(t('settings.memory.filePath.desc'))
-        .addText((text) => {
-          text
-            .setPlaceholder('.claudian-plus/memory.md')
-            .setValue(this.plugin.settings.memoryFilePath)
-            .onChange(async (value) => {
-              await this.plugin.mutateSettings((settings) => {
-                settings.memoryFilePath = value.trim() || '.claudian-plus/memory.md';
-              });
-            });
-          text.inputEl.addEventListener('blur', () => {
-            void this.restartServiceForPromptChange();
-          });
-        });
-
-      new Setting(memoryCard)
-        .setName(t('settings.memory.maxChars.name'))
-        .setDesc(t('settings.memory.maxChars.desc'))
-        .addSlider((slider) => {
-          slider
-            .setLimits(500, 5000, 100)
-            .setValue(this.plugin.settings.memoryMaxInjectionChars ?? 1500)
-            .setDynamicTooltip()
-            .onChange(async (value) => {
-              await this.plugin.mutateSettings((settings) => {
-                settings.memoryMaxInjectionChars = value;
-              });
-            });
-        });
-
-      // Memory management buttons
-      const memoryButtonSetting = new Setting(memoryCard)
-        .setName(t('settings.memory.manage.name'))
-        .setDesc(t('settings.memory.manage.desc'));
-
-      memoryButtonSetting.addButton((button) => {
-        button
-          .setButtonText(t('settings.memory.viewBtn'))
-          .setCta()
-          .onClick(async () => {
-            const vaultPath = (this.app.vault.adapter as { basePath?: string }).basePath || '';
-            const memoryPath = this.plugin.settings.memoryFilePath || '.claudian-plus/memory.md';
-            const absolutePath = path.isAbsolute(memoryPath)
-              ? memoryPath
-              : path.join(vaultPath, memoryPath);
-
-            new FileViewerModal(this.app, '记忆与沉淀文件', [
-              { label: '长期记忆 (memory.md)', path: absolutePath },
-            ]).open();
-          });
-      });
-
-      memoryButtonSetting.addButton((button) => {
-        button
-          .setButtonText(t('settings.memory.clearBtn'))
-          .setWarning()
-          .onClick(async () => {
-            const memoryStore = this.plugin.getMemoryStore();
-            const entries = await memoryStore.load();
-            if (entries.length === 0) {
-              new Notice(t('settings.memory.alreadyEmpty'));
-              return;
-            }
-            await memoryStore.save([]);
-            new Notice(t('settings.memory.cleared'));
-            void this.restartServiceForPromptChange();
-          });
-      });
-
-      // Memory file status line: shows where memories live and where backups go.
-      const memoryStatusSetting = new Setting(memoryCard)
-        .setName(localeText('记忆文件状态', 'Memory file status'))
-        .setDesc(localeText('读取中…', 'Loading…'));
-      void (async () => {
-        try {
-          const store = this.plugin.getMemoryStore();
-          const entries = await store.load();
-          memoryStatusSetting.setDesc(localeText(
-            `路径：${store.filePath}，共 ${entries.length} 条。每次写入前自动备份到 .claudian-plus/backups/（保留 20 份）。`,
-            `Path: ${store.filePath}, ${entries.length} entrie(s). A backup is kept in .claudian-plus/backups/ before every write (20 retained).`,
-          ));
-        } catch {
-          memoryStatusSetting.setDesc(localeText('读取失败', 'Failed to load memory status'));
-        }
-      })();
-    }
-
-    // --- Consciousness ---
-    const consciousnessCard = this.createCard(container, t('settings.consciousness.heading'));
-
-    new Setting(consciousnessCard)
-      .setName(t('settings.consciousness.enabled.name'))
-      .setDesc(t('settings.consciousness.enabled.desc'))
-      .addToggle((toggle) => {
-        toggle
-          .setValue(this.plugin.settings.consciousnessEnabled ?? false)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              settings.consciousnessEnabled = value;
-            });
-            const engine = this.plugin.getConsciousnessEngine();
-            engine.updateConfig({
-              enabled: value,
-              autoMemoryEnabled: this.plugin.settings.consciousnessAutoMemory,
-            });
-            if (value) {
-              await engine.initialize();
-            }
-            this.display();
-          });
-      });
-
-    if (this.plugin.settings.consciousnessEnabled ?? false) {
-      new Setting(consciousnessCard)
-        .setName(t('settings.consciousness.autoMemory.name'))
-        .setDesc(t('settings.consciousness.autoMemory.desc'))
-        .addToggle((toggle) => {
-        toggle
-          .setValue(this.plugin.settings.consciousnessAutoMemory ?? false)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              settings.consciousnessAutoMemory = value;
-            });
-            this.plugin.getConsciousnessEngine().updateConfig({ autoMemoryEnabled: value });
-          });
-        });
-
-      // Dream memory consolidation (idle distillation of short-term logs).
-      if (this.plugin.settings.consciousnessAutoMemory ?? false) {
-        const dreamHeading = consciousnessCard.createDiv({
-          cls: 'claudian-plus-settings-subheading',
-          text: t('settings.dream.heading'),
-        });
-        dreamHeading.createDiv({
-          cls: 'claudian-plus-settings-feature-guide-copy',
-          text: t('settings.dream.desc'),
-        });
-
-        const hours = Math.max(1, Math.round((this.plugin.settings.dreamIntervalMs ?? 24 * 60 * 60 * 1000) / (60 * 60 * 1000)));
-        new Setting(consciousnessCard)
-          .setName(t('settings.dream.interval.name'))
-          .setDesc(t('settings.dream.interval.desc'))
-          .addText((text) => text
-            .setValue(String(hours))
-            .onChange(async (value) => {
-              const parsed = Math.max(1, Number.parseInt(value, 10) || 24);
-              await this.plugin.mutateSettings((settings) => {
-                settings.dreamIntervalMs = parsed * 60 * 60 * 1000;
-              });
-            }));
-
-        new Setting(consciousnessCard)
-          .setName(t('settings.dream.maxLogDays.name'))
-          .setDesc(t('settings.dream.maxLogDays.desc'))
-          .addText((text) => text
-            .setValue(String(this.plugin.settings.dreamMaxLogDays ?? 7))
-            .onChange(async (value) => {
-              const parsed = Math.max(1, Number.parseInt(value, 10) || 7);
-              await this.plugin.mutateSettings((settings) => {
-                settings.dreamMaxLogDays = parsed;
-              });
-            }));
-
-        new Setting(consciousnessCard)
-          .setName(t('settings.dream.inputCap.name'))
-          .setDesc(t('settings.dream.inputCap.desc'))
-          .addText((text) => text
-            .setValue(String(this.plugin.settings.dreamInputCharCap ?? 8000))
-            .onChange(async (value) => {
-              const parsed = Math.max(1000, Number.parseInt(value, 10) || 8000);
-              await this.plugin.mutateSettings((settings) => {
-                settings.dreamInputCharCap = parsed;
-              });
-            }));
-
-        new Setting(consciousnessCard)
-          .setName(t('settings.dream.maxNewFacts.name'))
-          .setDesc(t('settings.dream.maxNewFacts.desc'))
-          .addText((text) => text
-            .setValue(String(this.plugin.settings.dreamMaxNewFacts ?? 10))
-            .onChange(async (value) => {
-              const parsed = Math.max(1, Number.parseInt(value, 10) || 10);
-              await this.plugin.mutateSettings((settings) => {
-                settings.dreamMaxNewFacts = parsed;
-              });
-            }));
-
-        new Setting(consciousnessCard)
-          .setName(t('settings.dream.runNow'))
-          .setDesc(t('settings.dream.runNowDesc'))
-          .addButton((button) => {
-            button
-              .setButtonText(t('settings.dream.runNow'))
-              .setCta()
-              .onClick(async () => {
-                const result = await this.plugin.getDreamService().runDream(true);
-                if (result.ran) {
-                  new Notice(`Dream memory consolidated: ${result.newFacts} fact(s), ${result.profileUpdates} profile update(s).`);
-                } else if (result.reason === 'no-new-logs') {
-                  new Notice('No new short-term memories to consolidate.');
-                } else if (result.reason === 'already-running') {
-                  new Notice('A memory consolidation is already running.');
-                } else if (result.reason === 'failed') {
-                  new Notice(`Memory consolidation failed: ${result.error ?? 'unknown error'}`);
-                }
-              });
-          });
-      }
-
-      // Consciousness management buttons
-      const consciousnessButtonSetting = new Setting(consciousnessCard)
-        .setName(t('settings.consciousness.viewBtn'))
-        .setDesc('.claudian-plus/awareness/');
-
-      consciousnessButtonSetting.addButton((button) => {
-        button
-          .setButtonText(t('settings.consciousness.viewBtn'))
-          .setCta()
-          .onClick(async () => {
-            const engine = this.plugin.getConsciousnessEngine();
-            await engine.initialize();
-
-            const vaultPath = (this.app.vault.adapter as { basePath?: string }).basePath || '';
-        const soulPath = path.join(vaultPath, '.claudian-plus', 'awareness', 'SOUL.md');
-        const userPath = path.join(vaultPath, '.claudian-plus', 'awareness', 'USER.md');
-        const activityPath = path.join(vaultPath, '.claudian-plus', 'awareness', 'activity.json');
-
-            new FileViewerModal(this.app, '意识网络文件 (Awareness Network)', [
-              { label: '用户画像 (USER.md)', path: userPath },
-              { label: '协作风格 (SOUL.md)', path: soulPath },
-              { label: '活动记录 (activity.json)', path: activityPath },
-            ]).open();
-          });
-      });
-
-      consciousnessButtonSetting.addButton((button) => {
-        button
-          .setButtonText(t('settings.consciousness.clearBtn'))
-          .setWarning()
-          .onClick(async () => {
-            const engine = this.plugin.getConsciousnessEngine();
-            // Clear long-term memory through its own mutation queue first.
-            // The consciousness reset then leaves that file alone, so a
-            // delayed auto-memory write cannot be deleted after this reset.
-            await this.plugin.getMemoryStore().save([]);
-            await engine.clearAll(this.plugin.settings.memoryFilePath, {
-              clearMemoryFile: false,
-            });
-            // Vault knowledge is part of the injected awareness context too.
-            // Clear both its persisted index and the in-memory cache so reset
-            // takes effect immediately, without waiting for a plugin reload.
-            await this.plugin.getVaultKnowledgeEngine().clearIndex();
-            new Notice('Consciousness data reset');
-          });
-      });
-    }
+    // --- Workspace Resources (Skills / Subagents / MCP / Commands / Memory / Consciousness) ---
+    const resourcesCard = this.createCard(container);
+    new WorkspaceResourcesSettings(resourcesCard, {
+      app: this.app,
+      plugin: this.plugin,
+      coordinator: this.agentSkillCoordinator,
+      onSettingsChange: () => this.restartServiceForPromptChange(),
+    });
 
     // --- Vault knowledge ---
     const vaultCard = this.createCard(

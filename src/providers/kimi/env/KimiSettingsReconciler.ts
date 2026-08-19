@@ -1,11 +1,5 @@
 import { sameStringList } from '../../../core/providers/compareCollections';
-import { getRuntimeEnvironmentText } from '../../../core/providers/providerEnvironment';
-import {
-  computeEnvironmentHash,
-  invalidateSessionsForProvider,
-} from '../../../core/providers/settingsReconciler';
-import type { ProviderSettingsReconciler } from '../../../core/providers/types';
-import type { Conversation } from '../../../core/types';
+import { createProviderSettingsReconciler } from '../../../core/providers/settingsReconciler';
 import { clearKimiDiscoveryState } from '../discoveryState';
 import {
   decodeKimiModelId,
@@ -25,39 +19,12 @@ const KIMI_ENV_HASH_KEYS = [
   'XDG_DATA_HOME',
 ] as const;
 
-function invalidateKimiConversationSessions(conversations: Conversation[]): Conversation[] {
-  return invalidateSessionsForProvider(
-    conversations,
-    'kimi',
-    (conversation) => typeof conversation.sessionId === 'string' && conversation.sessionId.length > 0,
-  );
-}
-
-export const kimiSettingsReconciler: ProviderSettingsReconciler = {
-  handleEnvironmentChange(settings: Record<string, unknown>): boolean {
-    return clearKimiDiscoveryState(settings);
-  },
-
-  invalidateConversationSessions: invalidateKimiConversationSessions,
-
-  reconcileModelWithEnvironment(
-    settings: Record<string, unknown>,
-    conversations: Conversation[],
-  ): { changed: boolean; invalidatedConversations: Conversation[] } {
-    const envText = getRuntimeEnvironmentText(settings, 'kimi');
-    const currentHash = computeEnvironmentHash(envText, KIMI_ENV_HASH_KEYS);
-    const savedHash = getKimiProviderSettings(settings).environmentHash;
-
-    if (currentHash === savedHash) {
-      return { changed: false, invalidatedConversations: [] };
-    }
-
-    const invalidatedConversations = invalidateKimiConversationSessions(conversations);
-
-    updateKimiProviderSettings(settings, { environmentHash: currentHash });
-    return { changed: true, invalidatedConversations };
-  },
-
+export const kimiSettingsReconciler = createProviderSettingsReconciler({
+  providerId: 'kimi',
+  envHashKeys: KIMI_ENV_HASH_KEYS,
+  clearDiscoveryState: clearKimiDiscoveryState,
+  getSettings: getKimiProviderSettings,
+  updateSettings: updateKimiProviderSettings,
   normalizeModelVariantSettings(settings: Record<string, unknown>): boolean {
     const hadLegacyDiscoveryFields = hasLegacyKimiDiscoveryFields(settings);
     if (hadLegacyDiscoveryFields) {
@@ -124,4 +91,4 @@ export const kimiSettingsReconciler: ProviderSettingsReconciler = {
 
     return changed;
   },
-};
+});

@@ -6,6 +6,8 @@ export interface AgentSkillDocument {
   directoryPath: string;
   filePath: string;
   revision: string;
+  /** 'vault' for skills in the vault root; 'home' for skills in the user home (~/.agents/skills/). */
+  scope?: 'vault' | 'home';
 }
 
 export interface AgentSkillInput {

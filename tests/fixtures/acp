@@ -1,0 +1,93 @@
+import * as readline from 'node:readline';
+
+const pendingPrompts = new Map();
+let permissionSequence = 0;
+
+function write(message) {
+  process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', ...message })}\n`);
+}
+
+function respond(id, result) {
+  write({ id, result });
+}
+
+const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
+
+for await (const line of rl) {
+  let message;
+  try {
+    message = JSON.parse(line);
+  } catch {
+    continue;
+  }
+
+  const pendingPrompt = pendingPrompts.get(String(message.id));
+  if (pendingPrompt) {
+    pendingPrompts.delete(String(message.id));
+    const optionId = message.result?.outcome?.optionId;
+    const approved = typeof optionId === 'string' && optionId.startsWith('allow');
+
+    write({
+      method: 'session/update',
+      params: {
+        sessionId: pendingPrompt.sessionId,
+        update: {
+          content: {
+            text: approved ? 'fixture:approved' : 'fixture:denied',
+            type: 'text',
+          },
+          messageId: `fixture-assistant-${permissionSequence}`,
+          sessionUpdate: 'agent_message_chunk',
+        },
+      },
+    });
+    respond(pendingPrompt.promptId, { stopReason: approved ? 'end_turn' : 'cancelled' });
+    continue;
+  }
+
+  if (!message.method) {
+    continue;
+  }
+
+  switch (message.method) {
+    case 'initialize':
+      respond(message.id, {
+        agentInfo: { name: 'Kimi permission fixture', title: 'Kimi permission fixture', version: '1.0.0' },
+        protocolVersion: 1,
+      });
+      break;
+    case 'session/new':
+      respond(message.id, { sessionId: 'fixture-session' });
+      break;
+    case 'session/prompt': {
+      const permissionId = `fixture-permission-${permissionSequence}`;
+      permissionSequence += 1;
+      pendingPrompts.set(permissionId, {
+        promptId: message.id,
+        sessionId: message.params?.sessionId ?? 'fixture-session',
+      });
+      write({
+        id: permissionId,
+        method: 'session/request_permission',
+        params: {
+          options: [
+            { kind: 'allow_once', name: 'Allow once', optionId: 'allow-now' },
+            { kind: 'allow_always', name: 'Always allow', optionId: 'allow-always' },
+            { kind: 'reject_once', name: 'Deny', optionId: 'deny-now' },
+          ],
+          sessionId: message.params?.sessionId ?? 'fixture-session',
+          toolCall: {
+            kind: 'execute',
+            rawInput: { command: 'echo permission-fixture' },
+            title: 'Run permission fixture',
+            toolCallId: `fixture-tool-${permissionSequence}`,
+          },
+        },
+      });
+      break;
+    }
+    default:
+      respond(message.id, {});
+      break;
+  }
+}
