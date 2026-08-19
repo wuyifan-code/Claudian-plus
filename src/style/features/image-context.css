@@ -62,7 +62,7 @@
 
 .claudian-plus-message-image:hover {
   transform: scale(1.03);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--claudian-plus-shadow-md);
 }
 
 .claudian-plus-message-image img {

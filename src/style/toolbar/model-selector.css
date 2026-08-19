@@ -39,7 +39,7 @@
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
   border-radius: 4px;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--claudian-plus-shadow-sm);
   z-index: 1000;
   width: max-content;
   padding: 4px;
