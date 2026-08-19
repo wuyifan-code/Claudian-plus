@@ -68,14 +68,14 @@
 
 .claudian-plus-message-user {
   position: relative;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--claudian-plus-surface-secondary);
   align-self: flex-end;
   border-end-end-radius: 4px;
 }
 
 /* Text selection in user messages - visible highlight */
 .claudian-plus-message-user ::selection {
-  background: rgba(255, 255, 255, 0.35);
+  background: color-mix(in srgb, var(--claudian-plus-text-on-accent) 35%, transparent);
   color: inherit;
 }
 
@@ -96,7 +96,7 @@
 }
 
 .claudian-plus-interrupted {
-  color: #d45d5d;
+  color: var(--claudian-plus-error);
 }
 
 .claudian-plus-interrupted-hint {

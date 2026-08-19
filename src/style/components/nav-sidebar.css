@@ -156,7 +156,7 @@ button.claudian-plus-nav-outline-marker:focus-visible::before {
   border-radius: 18px;
   color: var(--text-normal);
   background: color-mix(in srgb, var(--background-primary) 94%, var(--text-normal) 6%);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--claudian-plus-shadow-lg);
   opacity: 0;
   pointer-events: none;
   transform: translate3d(var(--cp-preview-shift), -50%, 0) scale(0.97);
