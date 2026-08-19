@@ -39,7 +39,7 @@
   color: var(--text-normal);
   background: var(--background-primary);
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--claudian-plus-shadow-sm);
 }
 
 /* Toolbar row: search input + create button */
@@ -56,7 +56,7 @@
 .claudian-plus-wr-create {
   white-space: nowrap;
   background: var(--interactive-accent);
-  color: var(--text-on-accent, #ffffff);
+  color: var(--claudian-plus-text-on-accent);
   border: none;
   border-radius: 8px;
   padding: 6px 16px;
@@ -84,8 +84,8 @@
 
 /* Status badges (variant colors) */
 .claudian-plus-wr-status--available {
-  background: rgba(46, 160, 67, 0.12);
-  color: #2ea043;
+  background: rgba(var(--claudian-plus-success-rgb), 0.12);
+  color: var(--claudian-plus-success);
 }
 
 .claudian-plus-wr-status--readonly {
@@ -94,13 +94,13 @@
 }
 
 .claudian-plus-wr-status--connected {
-  background: rgba(56, 132, 244, 0.12);
-  color: #3884f4;
+  background: rgba(var(--claudian-plus-compact-rgb), 0.12);
+  color: var(--claudian-plus-compact);
 }
 
 .claudian-plus-wr-status--disabled {
-  background: rgba(218, 75, 75, 0.12);
-  color: #da4b4b;
+  background: rgba(var(--claudian-plus-error-rgb), 0.12);
+  color: var(--claudian-plus-error);
 }
 
 .claudian-plus-wr-item-source {

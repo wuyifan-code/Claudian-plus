@@ -29,6 +29,7 @@
   --claudian-plus-warning: var(--text-warning, #f59e0b);
   --claudian-plus-warning-rgb: 245, 158, 11;
   --claudian-plus-compact: var(--color-blue, #3b82f6);
+  --claudian-plus-compact-rgb: 59, 130, 246;
 
   /* Design System Radii */
   --claudian-plus-radius-xs: 4px;
@@ -5451,10 +5452,10 @@ code .claudian-plus-file-link:hover {
 }
 
 .claudian-plus-settings-tab--active {
-  color: var(--text-on-accent, #ffffff) !important;
+  color: var(--claudian-plus-text-on-accent) !important;
   background: var(--interactive-accent) !important;
   font-weight: 650;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--claudian-plus-shadow-sm);
 }
 
 .claudian-plus-settings-tab-content {
@@ -5494,7 +5495,7 @@ code .claudian-plus-file-link:hover {
   border-radius: 16px;
   padding: 20px 24px;
   margin-bottom: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  box-shadow: var(--claudian-plus-shadow-sm);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -5569,10 +5570,10 @@ code .claudian-plus-file-link:hover {
 }
 
 .claudian-plus-provider-pill--active {
-  background: #0084ff !important;
-  color: #ffffff !important;
-  border-color: #0084ff !important;
-  box-shadow: 0 4px 14px rgba(0, 132, 255, 0.35);
+  background: var(--claudian-plus-accent) !important;
+  color: var(--claudian-plus-text-on-accent) !important;
+  border-color: var(--claudian-plus-accent) !important;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--interactive-accent) 35%, transparent);
 }
 
 .claudian-plus-provider-pill-icon {
@@ -5591,10 +5592,6 @@ code .claudian-plus-file-link:hover {
   color: inherit;
 }
 
-.claudian-plus-provider-pill--active .claudian-plus-provider-pill-icon svg {
-  fill: #ffffff;
-  color: #ffffff;
-}
 
 .claudian-plus-provider-pill-name {
   line-height: 1.2;
@@ -5620,7 +5617,7 @@ code .claudian-plus-file-link:hover {
   font-size: 12px;
   font-weight: 600;
   background: var(--interactive-accent);
-  color: var(--text-on-accent, #ffffff);
+  color: var(--claudian-plus-text-on-accent);
   margin-bottom: 16px;
 }
 
@@ -5721,7 +5718,7 @@ code .claudian-plus-file-link:hover {
 .claudian-plus-settings input[type="text"]:focus,
 .claudian-plus-settings textarea:focus {
   border-color: var(--interactive-accent);
-  box-shadow: 0 0 0 2px var(--background-modifier-border-focus, rgba(0, 132, 255, 0.2));
+  box-shadow: 0 0 0 2px var(--claudian-plus-border-focus);
   outline: none;
 }
 
@@ -5794,7 +5791,7 @@ code .claudian-plus-file-link:hover {
 
 .claudian-plus-settings-action-btn:hover {
   background: var(--interactive-accent);
-  color: var(--text-on-accent, #ffffff);
+  color: var(--claudian-plus-text-on-accent);
   border-color: var(--interactive-accent);
 }
 
@@ -5804,9 +5801,9 @@ code .claudian-plus-file-link:hover {
 }
 
 .claudian-plus-settings-delete-btn:hover {
-  background: var(--claudian-plus-error, #ef4444);
-  color: #ffffff;
-  border-color: var(--claudian-plus-error, #ef4444);
+  background: var(--claudian-plus-error);
+  color: var(--claudian-plus-text-on-accent);
+  border-color: var(--claudian-plus-error);
 }
 
 .claudian-plus-setting-validation {
@@ -5821,14 +5818,14 @@ code .claudian-plus-file-link:hover {
 
 .claudian-plus-setting-validation-error {
   color: var(--text-error);
-  border-color: rgba(239, 68, 68, 0.3);
-  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(var(--claudian-plus-error-rgb), 0.3);
+  background: rgba(var(--claudian-plus-error-rgb), 0.08);
 }
 
 .claudian-plus-setting-validation-warning {
   color: var(--text-warning);
-  border-color: rgba(245, 158, 11, 0.3);
-  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(var(--claudian-plus-warning-rgb), 0.3);
+  background: rgba(var(--claudian-plus-warning-rgb), 0.08);
 }
 
 .claudian-plus-settings-cli-path-input {
@@ -5886,7 +5883,7 @@ code .claudian-plus-file-link:hover {
   border: 1px solid var(--background-modifier-border);
   border-bottom-width: 2px;
   border-radius: 6px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--claudian-plus-shadow-sm);
 }
 
 /* Media folder input width */
@@ -5932,7 +5929,7 @@ code .claudian-plus-file-link:hover {
 
 .claudian-plus-sp-header-actions button:hover {
   background: var(--interactive-accent);
-  color: var(--text-on-accent, #ffffff);
+  color: var(--claudian-plus-text-on-accent);
   border-color: var(--interactive-accent);
 }
 
@@ -6042,7 +6039,7 @@ code .claudian-plus-file-link:hover {
 .claudian-plus-sp-content-area:focus {
   outline: none;
   border-color: var(--interactive-accent);
-  box-shadow: 0 0 0 2px var(--background-modifier-border-focus, rgba(0, 132, 255, 0.2));
+  box-shadow: 0 0 0 2px var(--claudian-plus-border-focus);
 }
 
 .claudian-plus-sp-modal-buttons {
@@ -6948,7 +6945,7 @@ code .claudian-plus-file-link:hover {
   color: var(--text-normal);
   background: var(--background-primary);
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--claudian-plus-shadow-sm);
 }
 
 /* Toolbar row: search input + create button */
@@ -6965,7 +6962,7 @@ code .claudian-plus-file-link:hover {
 .claudian-plus-wr-create {
   white-space: nowrap;
   background: var(--interactive-accent);
-  color: var(--text-on-accent, #ffffff);
+  color: var(--claudian-plus-text-on-accent);
   border: none;
   border-radius: 8px;
   padding: 6px 16px;
@@ -6993,8 +6990,8 @@ code .claudian-plus-file-link:hover {
 
 /* Status badges (variant colors) */
 .claudian-plus-wr-status--available {
-  background: rgba(46, 160, 67, 0.12);
-  color: #2ea043;
+  background: rgba(var(--claudian-plus-success-rgb), 0.12);
+  color: var(--claudian-plus-success);
 }
 
 .claudian-plus-wr-status--readonly {
@@ -7003,13 +7000,13 @@ code .claudian-plus-file-link:hover {
 }
 
 .claudian-plus-wr-status--connected {
-  background: rgba(56, 132, 244, 0.12);
-  color: #3884f4;
+  background: rgba(var(--claudian-plus-compact-rgb), 0.12);
+  color: var(--claudian-plus-compact);
 }
 
 .claudian-plus-wr-status--disabled {
-  background: rgba(218, 75, 75, 0.12);
-  color: #da4b4b;
+  background: rgba(var(--claudian-plus-error-rgb), 0.12);
+  color: var(--claudian-plus-error);
 }
 
 .claudian-plus-wr-item-source {

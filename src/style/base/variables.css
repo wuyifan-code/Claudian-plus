@@ -22,6 +22,7 @@
   --claudian-plus-warning: var(--text-warning, #f59e0b);
   --claudian-plus-warning-rgb: 245, 158, 11;
   --claudian-plus-compact: var(--color-blue, #3b82f6);
+  --claudian-plus-compact-rgb: 59, 130, 246;
 
   /* Design System Radii */
   --claudian-plus-radius-xs: 4px;
