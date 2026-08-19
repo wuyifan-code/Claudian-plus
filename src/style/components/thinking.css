@@ -89,7 +89,7 @@
 
 .claudian-plus-thinking-content .claudian-plus-code-wrapper pre {
   padding: 8px 10px;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
 }
 
 .claudian-plus-thinking-content code {

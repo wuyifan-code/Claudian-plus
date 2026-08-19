@@ -268,7 +268,7 @@
   gap: 8px;
   padding: 6px 10px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   margin-bottom: 8px;
 }
 
@@ -293,7 +293,7 @@
   color: var(--text-muted);
   padding: 3px 6px;
   background: var(--background-primary-alt);
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   margin-bottom: 6px;
   word-break: break-all;
 }
@@ -307,7 +307,7 @@
 .claudian-plus-ask-approval-desc {
   padding: 8px 10px;
   background: var(--background-primary-alt);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   font-family: var(--font-monospace);
   font-size: 12px;
   color: var(--text-normal);
@@ -317,7 +317,7 @@
 .claudian-plus-canvas-write-preview {
   margin: 8px 0;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   overflow: hidden;
   background: var(--background-primary-alt);
 }

@@ -8,7 +8,7 @@
   margin: 12px 0;
   padding: 12px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
 }
 
 .claudian-plus-mcp-type-fields .setting-item {
@@ -40,7 +40,7 @@
   font-family: var(--font-monospace);
   font-size: 12px;
   padding: 8px;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   border: 1px solid var(--background-modifier-border);
   background: var(--background-primary);
 }
@@ -99,7 +99,7 @@
   gap: 10px;
   padding: 12px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   margin-bottom: 12px;
 }
 
@@ -129,7 +129,7 @@
   padding: 10px 12px;
   background: rgba(var(--color-red-rgb), 0.1);
   border: 1px solid var(--text-error);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   color: var(--text-error);
   font-size: 12px;
   margin-bottom: 12px;
@@ -157,7 +157,7 @@
 .claudian-plus-mcp-test-tool {
   padding: 10px 12px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
 }
 
 .claudian-plus-mcp-test-tool-header {
@@ -230,7 +230,7 @@
   color: var(--text-muted);
   font-size: 13px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   margin-bottom: 16px;
 }
 

@@ -8,7 +8,7 @@
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   cursor: pointer;
   color: var(--claudian-plus-brand);
   font-size: 12px;
@@ -38,7 +38,7 @@
   gap: 2px;
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   box-shadow: var(--claudian-plus-shadow-sm);
   z-index: 1000;
   width: max-content;

@@ -285,7 +285,7 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
   height: 24px;
   box-sizing: border-box;
   padding: 0;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   border: 2px solid var(--background-modifier-border);
   font-size: 12px;
   font-weight: 500;
@@ -381,7 +381,7 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   box-shadow: var(--claudian-plus-shadow-lg);
   z-index: 1000;
   max-height: 400px;
@@ -409,7 +409,7 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
   margin-left: 8px;
   padding: 4px 7px;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   background: var(--background-primary);
   color: var(--text-normal);
   font-size: var(--font-ui-smaller);
@@ -564,7 +564,7 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
   border: none;
   cursor: pointer;
   padding: 4px;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   color: var(--text-muted);
   transition: background 0.15s ease, color 0.15s ease;
 }
@@ -593,7 +593,7 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
   font-size: 13px;
   font-weight: 500;
   border: 1px solid var(--interactive-accent);
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   background: var(--background-primary);
   color: var(--text-normal);
 }
@@ -618,7 +618,7 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
   margin: 8px;
   padding: 8px 12px;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -696,7 +696,7 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
 
 .claudian-plus-message {
   padding: 10px 14px;
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   max-width: 95%;
   word-wrap: break-word;
 }
@@ -1294,7 +1294,7 @@ button.claudian-plus-nav-outline-marker:focus-visible::before {
 .claudian-plus-message-content pre {
   background: var(--code-background);
   padding: 8px 12px;
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   overflow-x: auto;
   margin: 0;
 }
@@ -1475,7 +1475,7 @@ body.theme-light .claudian-plus-message-content pre {
 
 .claudian-plus-thinking-content .claudian-plus-code-wrapper pre {
   padding: 8px 10px;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
 }
 
 .claudian-plus-thinking-content code {
@@ -1797,7 +1797,7 @@ body.theme-light .claudian-plus-message-content pre {
   gap: 8px;
   padding: 4px 0;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   transition: background 0.15s ease;
   overflow: hidden;
 }
@@ -1939,7 +1939,7 @@ body.theme-light .claudian-plus-message-content pre {
   justify-content: center;
   width: 22px;
   height: 22px;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   color: var(--text-muted);
 }
 
@@ -2259,7 +2259,7 @@ body.theme-light .claudian-plus-message-content pre {
   flex-direction: column;
   min-height: 140px;
   border: 1px solid var(--claudian-plus-input-wrapper-border-color);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   background: var(--background-primary);
   box-shadow: var(--claudian-plus-input-wrapper-box-shadow);
 }
@@ -2306,7 +2306,7 @@ body.theme-light .claudian-plus-message-content pre {
   height: 24px;
   padding: 0;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   background: transparent;
   cursor: pointer;
   color: var(--text-faint);
@@ -2336,7 +2336,7 @@ body.theme-light .claudian-plus-message-content pre {
   resize: none;
   padding: 8px 10px 10px 10px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   background: transparent;
   color: var(--text-normal);
   font-family: inherit;
@@ -2410,7 +2410,7 @@ body.theme-light .claudian-plus-message-content pre {
 .claudian-plus-live-preview-inline-code,
 .claudian-plus-live-preview-reference {
   padding: 1px 4px;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   background: var(--code-background);
   color: var(--code-normal);
   font-family: var(--font-monospace);
@@ -2523,7 +2523,7 @@ body.theme-light .claudian-plus-message-content pre {
   height: 22px;
   padding: 0;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -2588,7 +2588,7 @@ body.theme-light .claudian-plus-message-content pre {
   overflow: hidden;
   box-sizing: border-box;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 12px;
+  border-radius: var(--claudian-plus-radius-lg);
   background: var(--background-primary);
   color: var(--text-normal);
   font-size: 12px;
@@ -2705,7 +2705,7 @@ body.theme-light .claudian-plus-message-content pre {
   height: 24px;
   padding: 0 8px;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 12px;
+  border-radius: var(--claudian-plus-radius-lg);
   background: var(--background-primary);
   color: var(--text-muted);
   font-family: inherit;
@@ -2749,7 +2749,7 @@ body.theme-light .claudian-plus-message-content pre {
   color: var(--text-normal);
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   white-space: nowrap;
   opacity: 0;
   visibility: hidden;
@@ -2816,7 +2816,7 @@ body.theme-light .claudian-plus-message-content pre {
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   cursor: pointer;
   color: var(--claudian-plus-brand);
   font-size: 12px;
@@ -2846,7 +2846,7 @@ body.theme-light .claudian-plus-message-content pre {
   gap: 2px;
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   box-shadow: var(--claudian-plus-shadow-sm);
   z-index: 1000;
   width: max-content;
@@ -2958,7 +2958,7 @@ body.theme-light .claudian-plus-message-content pre {
   position: relative;
   display: flex;
   align-items: center;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
 }
 
 /* Current selection (visible when collapsed) */
@@ -2984,7 +2984,7 @@ body.theme-light .claudian-plus-message-content pre {
   gap: 2px;
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   padding: 4px;
   opacity: 0;
   visibility: hidden;
@@ -3096,7 +3096,7 @@ body.theme-light .claudian-plus-message-content pre {
   justify-content: center;
   width: 22px;
   height: 22px;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   color: var(--text-muted);
   background: transparent;
   cursor: pointer;
@@ -3193,7 +3193,7 @@ body.theme-light .claudian-plus-message-content pre {
   max-width: 320px;
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   box-shadow: var(--claudian-plus-shadow-md);
   opacity: 0;
   visibility: hidden;
@@ -3255,7 +3255,7 @@ body.theme-light .claudian-plus-message-content pre {
   justify-content: center;
   width: 20px;
   height: 20px;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   cursor: pointer;
   color: var(--text-muted);
   opacity: 0.4;
@@ -3287,7 +3287,7 @@ body.theme-light .claudian-plus-message-content pre {
   justify-content: center;
   width: 20px;
   height: 20px;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   cursor: pointer;
   color: var(--text-muted);
   opacity: 0.6;
@@ -3375,7 +3375,7 @@ body.theme-light .claudian-plus-message-content pre {
   max-width: 280px;
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   box-shadow: var(--claudian-plus-shadow-md);
   opacity: 0;
   visibility: hidden;
@@ -3502,7 +3502,7 @@ body.theme-light .claudian-plus-message-content pre {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   box-shadow: var(--claudian-plus-shadow-md);
   z-index: 1000;
   max-height: 250px;
@@ -3719,7 +3719,7 @@ code .claudian-plus-file-link:hover {
   bottom: 0;
   background: rgba(var(--claudian-plus-brand-rgb), 0.08);
   border: 2px dashed var(--claudian-plus-brand);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   display: none;
   align-items: center;
   justify-content: center;
@@ -3764,7 +3764,7 @@ code .claudian-plus-file-link:hover {
 .claudian-plus-message-image {
   width: 120px;
   height: 120px;
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -3859,7 +3859,7 @@ code .claudian-plus-file-link:hover {
   max-width: 90vw;
   max-height: 90vh;
   object-fit: contain;
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   box-shadow: var(--claudian-plus-shadow-lg);
 }
 
@@ -4104,7 +4104,7 @@ code .claudian-plus-file-link:hover {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   box-shadow: var(--claudian-plus-shadow-md);
   z-index: 1000;
   max-height: 300px;
@@ -4200,7 +4200,7 @@ code .claudian-plus-file-link:hover {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   box-shadow: var(--claudian-plus-shadow-md);
   z-index: 1000;
   max-height: 400px;
@@ -4582,7 +4582,7 @@ code .claudian-plus-file-link:hover {
   gap: 8px;
   padding: 6px 10px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   margin-bottom: 8px;
 }
 
@@ -4607,7 +4607,7 @@ code .claudian-plus-file-link:hover {
   color: var(--text-muted);
   padding: 3px 6px;
   background: var(--background-primary-alt);
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   margin-bottom: 6px;
   word-break: break-all;
 }
@@ -4621,7 +4621,7 @@ code .claudian-plus-file-link:hover {
 .claudian-plus-ask-approval-desc {
   padding: 8px 10px;
   background: var(--background-primary-alt);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   font-family: var(--font-monospace);
   font-size: 12px;
   color: var(--text-normal);
@@ -4631,7 +4631,7 @@ code .claudian-plus-file-link:hover {
 .claudian-plus-canvas-write-preview {
   margin: 8px 0;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   overflow: hidden;
   background: var(--background-primary-alt);
 }
@@ -4699,7 +4699,7 @@ code .claudian-plus-file-link:hover {
   margin: 6px 10px 8px;
   padding: 8px 10px;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   background: var(--background-primary);
   font-size: 12px;
   line-height: 1.5;
@@ -4806,7 +4806,7 @@ code .claudian-plus-file-link:hover {
 .claudian-plus-instruction-original {
   padding: 10px 12px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   font-size: 13px;
   color: var(--text-muted);
   font-style: italic;
@@ -4817,7 +4817,7 @@ code .claudian-plus-file-link:hover {
   padding: 12px;
   background: var(--background-primary-alt);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   font-size: 14px;
   color: var(--text-normal);
   line-height: 1.5;
@@ -4828,7 +4828,7 @@ code .claudian-plus-file-link:hover {
   padding: 12px;
   background: var(--background-primary-alt);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   font-size: 14px;
   color: var(--text-normal);
   line-height: 1.5;
@@ -4845,7 +4845,7 @@ code .claudian-plus-file-link:hover {
   font-size: 14px;
   line-height: 1.5;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   background: var(--background-primary);
   color: var(--text-normal);
   resize: vertical;
@@ -4863,7 +4863,7 @@ code .claudian-plus-file-link:hover {
   font-size: 14px;
   line-height: 1.5;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   background: var(--background-primary);
   color: var(--text-normal);
   resize: vertical;
@@ -4886,7 +4886,7 @@ code .claudian-plus-file-link:hover {
   padding: 8px 16px;
   font-size: 13px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   cursor: pointer;
   font-weight: 500;
 }
@@ -4968,7 +4968,7 @@ code .claudian-plus-file-link:hover {
 
 .claudian-plus-file-viewer-tab-btn {
   padding: 4px 12px;
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   background: transparent;
   color: var(--text-muted);
   border: none;
@@ -4996,7 +4996,7 @@ code .claudian-plus-file-link:hover {
   margin-bottom: 12px;
   padding: 6px 10px;
   background: var(--background-secondary);
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
 }
 
 .claudian-plus-file-viewer-textarea {
@@ -5005,7 +5005,7 @@ code .claudian-plus-file-link:hover {
   font-size: 13px;
   line-height: 1.5;
   padding: 10px;
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   background: var(--background-primary);
   color: var(--text-normal);
   border: 1px solid var(--background-modifier-border);
@@ -5027,7 +5027,7 @@ code .claudian-plus-file-link:hover {
   margin: 12px 0;
   padding: 12px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
 }
 
 .claudian-plus-mcp-type-fields .setting-item {
@@ -5059,7 +5059,7 @@ code .claudian-plus-file-link:hover {
   font-family: var(--font-monospace);
   font-size: 12px;
   padding: 8px;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   border: 1px solid var(--background-modifier-border);
   background: var(--background-primary);
 }
@@ -5118,7 +5118,7 @@ code .claudian-plus-file-link:hover {
   gap: 10px;
   padding: 12px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   margin-bottom: 12px;
 }
 
@@ -5148,7 +5148,7 @@ code .claudian-plus-file-link:hover {
   padding: 10px 12px;
   background: rgba(var(--color-red-rgb), 0.1);
   border: 1px solid var(--text-error);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   color: var(--text-error);
   font-size: 12px;
   margin-bottom: 12px;
@@ -5176,7 +5176,7 @@ code .claudian-plus-file-link:hover {
 .claudian-plus-mcp-test-tool {
   padding: 10px 12px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
 }
 
 .claudian-plus-mcp-test-tool-header {
@@ -5249,7 +5249,7 @@ code .claudian-plus-file-link:hover {
   color: var(--text-muted);
   font-size: 13px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   margin-bottom: 16px;
 }
 
@@ -5275,7 +5275,7 @@ code .claudian-plus-file-link:hover {
 
 .claudian-plus-fork-target-option {
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   cursor: pointer;
   color: var(--text-normal);
   font-size: 14px;
@@ -5339,7 +5339,7 @@ code .claudian-plus-file-link:hover {
 
 .claudian-plus-canvas-neighbors-item {
   border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   padding: 9px 10px;
   background: var(--background-secondary);
 }
@@ -5422,7 +5422,7 @@ code .claudian-plus-file-link:hover {
   padding: 5px;
   background: var(--background-secondary-alt, var(--background-secondary));
   border: 1px solid var(--background-modifier-border);
-  border-radius: 12px;
+  border-radius: var(--claudian-plus-radius-lg);
   margin-bottom: 24px;
   overflow-x: auto;
 }
@@ -5430,7 +5430,7 @@ code .claudian-plus-file-link:hover {
 .claudian-plus-settings-tab {
   padding: 8px 20px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   background: transparent;
   color: var(--text-muted);
   font-size: var(--font-ui-small);
@@ -5492,7 +5492,7 @@ code .claudian-plus-file-link:hover {
 .claudian-plus-settings-card {
   background: var(--background-primary-alt, var(--background-secondary));
   border: 1px solid var(--background-modifier-border);
-  border-radius: 16px;
+  border-radius: var(--claudian-plus-radius-xl);
   padding: 20px 24px;
   margin-bottom: 24px;
   box-shadow: var(--claudian-plus-shadow-sm);
@@ -5613,7 +5613,7 @@ code .claudian-plus-file-link:hover {
 .claudian-plus-about-version {
   display: inline-block;
   padding: 2px 10px;
-  border-radius: 12px;
+  border-radius: var(--claudian-plus-radius-lg);
   font-size: 12px;
   font-weight: 600;
   background: var(--interactive-accent);
@@ -5783,7 +5783,7 @@ code .claudian-plus-file-link:hover {
   padding: 0;
   border: 1px solid var(--background-modifier-border);
   background: var(--background-secondary);
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   cursor: pointer;
   color: var(--text-muted);
   transition: all 0.15s ease;
@@ -5811,7 +5811,7 @@ code .claudian-plus-file-link:hover {
   margin-top: 6px;
   margin-bottom: 8px;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
 }
@@ -5882,7 +5882,7 @@ code .claudian-plus-file-link:hover {
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
   border-bottom-width: 2px;
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   box-shadow: var(--claudian-plus-shadow-sm);
 }
 
@@ -5914,7 +5914,7 @@ code .claudian-plus-file-link:hover {
 
 .claudian-plus-sp-header-actions button {
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
   color: var(--text-normal);
@@ -6093,7 +6093,7 @@ code .claudian-plus-file-link:hover {
   justify-content: space-between;
   padding: 12px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   transition: background-color 0.2s;
 }
 
@@ -6123,7 +6123,7 @@ code .claudian-plus-file-link:hover {
   padding: 4px 8px;
   font-size: var(--font-ui-small);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   background: var(--background-primary);
   color: var(--text-normal);
 }
@@ -6138,7 +6138,7 @@ code .claudian-plus-file-link:hover {
   padding: 4px 8px;
   font-size: var(--font-ui-small);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   background: var(--background-primary);
   color: var(--text-normal);
 }
@@ -6184,7 +6184,7 @@ code .claudian-plus-file-link:hover {
   background: var(--interactive-accent);
   color: var(--text-on-accent);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   cursor: pointer;
   transition: opacity 0.2s;
 }
@@ -6198,7 +6198,7 @@ code .claudian-plus-file-link:hover {
   text-align: center;
   color: var(--text-muted);
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   margin-top: 8px;
 }
 
@@ -6215,7 +6215,7 @@ code .claudian-plus-file-link:hover {
   justify-content: space-between;
   padding: 12px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   transition: background-color 0.2s;
 }
 
@@ -6252,7 +6252,7 @@ code .claudian-plus-file-link:hover {
   background: var(--interactive-accent);
   color: var(--text-on-accent);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   cursor: pointer;
 }
 
@@ -6266,7 +6266,7 @@ code .claudian-plus-file-link:hover {
   background: var(--background-modifier-border);
   color: var(--text-normal);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   cursor: pointer;
 }
 
@@ -6280,7 +6280,7 @@ code .claudian-plus-file-link:hover {
   background: var(--background-modifier-error);
   color: var(--text-on-accent);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   cursor: pointer;
 }
 
@@ -6335,13 +6335,13 @@ code .claudian-plus-file-link:hover {
   margin: 8px 0;
   padding: 6px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
 }
 
 .claudian-plus-env-preview {
   background: var(--background-primary);
   padding: 6px;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   font-family: var(--font-monospace);
   font-size: 11px;
   line-height: 1.3;
@@ -6365,7 +6365,7 @@ code .claudian-plus-file-link:hover {
   padding: 6px 16px;
   font-size: 13px;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   cursor: pointer;
 }
 
@@ -6436,7 +6436,7 @@ code .claudian-plus-file-link:hover {
   font-size: 10px;
   padding: 2px 6px;
   background: var(--background-modifier-border);
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   color: var(--text-muted);
   text-transform: uppercase;
 }
@@ -6479,7 +6479,7 @@ code .claudian-plus-file-link:hover {
 
 .claudian-plus-add-mcp-btn {
   padding: 4px 12px;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   background: var(--interactive-accent);
   color: var(--text-on-accent);
   font-size: 12px;
@@ -6500,7 +6500,7 @@ code .claudian-plus-file-link:hover {
   min-width: 180px;
   background-color: var(--modal-background, var(--background-primary));
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   box-shadow: var(--claudian-plus-shadow-md);
   z-index: 100;
   overflow: hidden;
@@ -6541,7 +6541,7 @@ code .claudian-plus-file-link:hover {
   color: var(--text-muted);
   font-size: 13px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
 }
 
 .claudian-plus-mcp-list {
@@ -6556,7 +6556,7 @@ code .claudian-plus-file-link:hover {
   gap: 10px;
   padding: 10px 12px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   transition: background 0.15s ease;
 }
 
@@ -6604,7 +6604,7 @@ code .claudian-plus-file-link:hover {
   font-size: 10px;
   padding: 2px 6px;
   background: var(--background-modifier-border);
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   color: var(--text-muted);
   text-transform: uppercase;
 }
@@ -6614,7 +6614,7 @@ code .claudian-plus-file-link:hover {
   padding: 2px 6px;
   background: var(--interactive-accent);
   color: var(--text-on-accent);
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   font-weight: 600;
 }
 
@@ -6642,7 +6642,7 @@ code .claudian-plus-file-link:hover {
   padding: 0;
   border: none;
   background: transparent;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   cursor: pointer;
   color: var(--text-muted);
   transition: background 0.15s ease, color 0.15s ease;
@@ -6695,7 +6695,7 @@ code .claudian-plus-file-link:hover {
   color: var(--text-muted);
   font-size: 13px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
 }
 
 .claudian-plus-plugin-list {
@@ -6718,7 +6718,7 @@ code .claudian-plus-file-link:hover {
   gap: 10px;
   padding: 10px 12px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   transition: background 0.15s ease;
 }
 
@@ -6774,7 +6774,7 @@ code .claudian-plus-file-link:hover {
   font-size: 10px;
   padding: 2px 6px;
   background: var(--background-modifier-border);
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   color: var(--text-muted);
 }
 
@@ -6783,7 +6783,7 @@ code .claudian-plus-file-link:hover {
   padding: 2px 6px;
   background: var(--text-error);
   color: var(--text-on-accent);
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   text-transform: uppercase;
 }
 
@@ -6815,7 +6815,7 @@ code .claudian-plus-file-link:hover {
   padding: 0;
   border: none;
   background: transparent;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   cursor: pointer;
   color: var(--text-muted);
   transition: background 0.15s ease, color 0.15s ease;
@@ -6872,7 +6872,7 @@ code .claudian-plus-file-link:hover {
   margin-top: 12px;
   padding: 12px;
   border: 1px solid var(--background-modifier-error);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   background: var(--background-modifier-error-hover);
 }
 
@@ -6964,7 +6964,7 @@ code .claudian-plus-file-link:hover {
   background: var(--interactive-accent);
   color: var(--claudian-plus-text-on-accent);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   padding: 6px 16px;
   font-size: var(--font-ui-small);
   font-weight: 600;
@@ -7036,7 +7036,7 @@ code .claudian-plus-file-link:hover {
   gap: 12px;
   padding: 10px 12px;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   background: var(--background-secondary);
 }
 
@@ -7081,7 +7081,7 @@ code .claudian-plus-file-link:hover {
 .claudian-plus-settings-empty-state {
   padding: 12px;
   border: 1px dashed var(--background-modifier-border);
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   color: var(--text-faint);
   font-size: var(--font-ui-small);
   text-align: center;
@@ -7126,7 +7126,7 @@ code .claudian-plus-file-link:hover {
   gap: 8px;
   padding: 10px 12px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
 }
 
 .claudian-plus-provider-model-picker-selected-header {
@@ -7149,7 +7149,7 @@ code .claudian-plus-file-link:hover {
   color: var(--text-muted);
   background: transparent;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   cursor: pointer;
 }
 
@@ -7164,7 +7164,7 @@ code .claudian-plus-file-link:hover {
   color: var(--text-muted);
   background: transparent;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   cursor: pointer;
 }
 
@@ -7191,7 +7191,7 @@ code .claudian-plus-file-link:hover {
   padding: 8px 10px;
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
 }
 
 .claudian-plus-provider-model-picker-selected-row--unavailable {
@@ -7258,7 +7258,7 @@ code .claudian-plus-file-link:hover {
   width: 180px;
   padding: 4px 8px;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   background: var(--background-primary);
   color: var(--text-normal);
   font-size: var(--font-ui-small);
@@ -7278,7 +7278,7 @@ code .claudian-plus-file-link:hover {
   padding: 0;
   border: none;
   background: transparent;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   color: var(--text-muted);
   cursor: pointer;
   line-height: 1;
@@ -7296,7 +7296,7 @@ code .claudian-plus-file-link:hover {
   gap: 8px;
   padding: 10px 12px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
 }
 
 .claudian-plus-provider-model-picker-catalog-summary {
@@ -7350,7 +7350,7 @@ code .claudian-plus-file-link:hover {
   min-width: 180px;
   padding: 6px 10px;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   background: var(--background-primary);
   color: var(--text-normal);
   font-size: var(--font-ui-small);
@@ -7364,7 +7364,7 @@ code .claudian-plus-file-link:hover {
 .claudian-plus-provider-model-picker-provider {
   padding: 6px 10px;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   background: var(--background-primary);
   color: var(--text-normal);
   font-size: var(--font-ui-small);
@@ -7375,7 +7375,7 @@ code .claudian-plus-file-link:hover {
   flex-direction: column;
   margin-top: 8px;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   background: var(--background-primary);
   max-height: 360px;
   overflow-y: auto;
@@ -7481,7 +7481,7 @@ code .claudian-plus-file-link:hover {
 .claudian-plus-thinking-current:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
 }
 
 /* outline + offset only */
@@ -7518,7 +7518,7 @@ code .claudian-plus-file-link:hover {
 .claudian-plus-history-item-content:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: -2px;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
 }
 
 

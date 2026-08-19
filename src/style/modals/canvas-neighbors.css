@@ -25,7 +25,7 @@
 
 .claudian-plus-canvas-neighbors-item {
   border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   padding: 9px 10px;
   background: var(--background-secondary);
 }

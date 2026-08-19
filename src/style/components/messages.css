@@ -61,7 +61,7 @@
 
 .claudian-plus-message {
   padding: 10px 14px;
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   max-width: 95%;
   word-wrap: break-word;
 }

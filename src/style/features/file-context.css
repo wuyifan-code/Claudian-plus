@@ -10,7 +10,7 @@
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   box-shadow: var(--claudian-plus-shadow-md);
   z-index: 1000;
   max-height: 250px;

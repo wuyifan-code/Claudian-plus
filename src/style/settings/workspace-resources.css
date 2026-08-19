@@ -58,7 +58,7 @@
   background: var(--interactive-accent);
   color: var(--claudian-plus-text-on-accent);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   padding: 6px 16px;
   font-size: var(--font-ui-small);
   font-weight: 600;
