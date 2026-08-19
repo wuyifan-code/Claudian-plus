@@ -181,11 +181,11 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
 @keyframes mcp-glow {
   0%,
   100% {
-    filter: drop-shadow(0 0 2px rgba(124, 58, 237, 0.4));
+    filter: drop-shadow(0 0 2px rgba(var(--claudian-plus-brand-pi-rgb), 0.4));
   }
 
   50% {
-    filter: drop-shadow(0 0 8px rgba(124, 58, 237, 0.9));
+    filter: drop-shadow(0 0 8px rgba(var(--claudian-plus-brand-pi-rgb), 0.9));
   }
 }
 
@@ -2847,7 +2847,7 @@ body.theme-light .claudian-plus-message-content pre {
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
   border-radius: 4px;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--claudian-plus-shadow-sm);
   z-index: 1000;
   width: max-content;
   padding: 4px;
@@ -3039,7 +3039,7 @@ body.theme-light .claudian-plus-message-content pre {
 }
 
 .claudian-plus-permission-label.plan-active {
-  color: rgb(92, 148, 140);
+  color: var(--claudian-plus-success);
   font-weight: 600;
 }
 
@@ -3194,7 +3194,7 @@ body.theme-light .claudian-plus-message-content pre {
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--claudian-plus-shadow-md);
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.15s ease, visibility 0.15s ease;
@@ -3376,7 +3376,7 @@ body.theme-light .claudian-plus-message-content pre {
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--claudian-plus-shadow-md);
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.15s ease, visibility 0.15s ease;
@@ -3503,7 +3503,7 @@ body.theme-light .claudian-plus-message-content pre {
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--background-modifier-border);
   border-radius: 6px;
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--claudian-plus-shadow-md);
   z-index: 1000;
   max-height: 250px;
   overflow-y: auto;
@@ -3774,7 +3774,7 @@ code .claudian-plus-file-link:hover {
 
 .claudian-plus-message-image:hover {
   transform: scale(1.03);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--claudian-plus-shadow-md);
 }
 
 .claudian-plus-message-image img {
@@ -3840,7 +3840,7 @@ code .claudian-plus-file-link:hover {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
+  background: var(--background-modifier-cover);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3860,7 +3860,7 @@ code .claudian-plus-file-link:hover {
   max-height: 90vh;
   object-fit: contain;
   border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--claudian-plus-shadow-lg);
 }
 
 .claudian-plus-image-modal-close {
@@ -3877,7 +3877,7 @@ code .claudian-plus-file-link:hover {
   cursor: pointer;
   font-size: 20px;
   color: var(--text-muted);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--claudian-plus-shadow-md);
   transition: background 0.15s ease, color 0.15s ease;
 }
 
@@ -4053,7 +4053,7 @@ code .claudian-plus-file-link:hover {
 }
 
 .claudian-plus-diff-delete {
-  background: rgba(255, 80, 80, 0.25);
+  background: rgba(var(--claudian-plus-error-rgb), 0.25);
   color: var(--text-normal);
 }
 
@@ -4062,7 +4062,7 @@ code .claudian-plus-file-link:hover {
 }
 
 .claudian-plus-diff-insert {
-  background: rgba(80, 200, 80, 0.25);
+  background: rgba(var(--claudian-plus-success-rgb), 0.25);
   color: var(--text-normal);
 }
 
@@ -4105,7 +4105,7 @@ code .claudian-plus-file-link:hover {
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--background-modifier-border);
   border-radius: 6px;
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--claudian-plus-shadow-md);
   z-index: 1000;
   max-height: 300px;
   overflow-y: auto;
@@ -4201,7 +4201,7 @@ code .claudian-plus-file-link:hover {
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--background-modifier-border);
   border-radius: 6px;
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--claudian-plus-shadow-md);
   z-index: 1000;
   max-height: 400px;
   overflow: hidden;
@@ -4777,8 +4777,8 @@ code .claudian-plus-file-link:hover {
 /* ── Plan mode input border ──────────────────────── */
 
 .claudian-plus-input-wrapper.claudian-plus-input-plan-mode {
-  --claudian-plus-input-wrapper-border-color: rgb(92, 148, 140);
-  --claudian-plus-input-wrapper-box-shadow: 0 0 0 1px rgb(92, 148, 140);
+  --claudian-plus-input-wrapper-border-color: var(--claudian-plus-success);
+  --claudian-plus-input-wrapper-box-shadow: 0 0 0 1px var(--claudian-plus-success);
 }
 
 
@@ -6501,7 +6501,7 @@ code .claudian-plus-file-link:hover {
   background-color: var(--modal-background, var(--background-primary));
   border: 1px solid var(--background-modifier-border);
   border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--claudian-plus-shadow-md);
   z-index: 100;
   overflow: hidden;
 }
