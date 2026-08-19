@@ -3,6 +3,7 @@
 
 /* Base */
 @import "./base/variables.css";
+@import "./base/tokens.css";
 @import "./base/container.css";
 @import "./base/animations.css";
 
@@ -59,6 +60,7 @@
 @import "./settings/plugin-settings.css";
 @import "./settings/agent-settings.css";
 @import "./settings/agent-skills.css";
+@import "./settings/workspace-resources.css";
 @import "./settings/claude-services.css";
 @import "./settings/provider-model-picker.css";
 

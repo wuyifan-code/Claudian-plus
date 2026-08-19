@@ -1,0 +1,28 @@
+/* Semantic tokens mapped to Obsidian theme variables.
+   Modules must reference these instead of hard-coded values, so community
+   themes re-skin the plugin automatically. Scoped like variables.css. */
+.claudian-plus-container {
+  /* Surfaces */
+  --claudian-plus-surface-primary: var(--background-primary);
+  --claudian-plus-surface-secondary: var(--background-secondary);
+  --claudian-plus-surface-alt: var(--background-secondary-alt);
+  --claudian-plus-surface-hover: var(--background-modifier-hover);
+
+  /* Text */
+  --claudian-plus-text-normal: var(--text-normal);
+  --claudian-plus-text-muted: var(--text-muted);
+  --claudian-plus-text-faint: var(--text-faint);
+  --claudian-plus-text-accent: var(--text-accent);
+  --claudian-plus-text-on-accent: var(--text-on-accent);
+
+  /* Borders */
+  --claudian-plus-border: var(--background-modifier-border);
+  --claudian-plus-border-hover: var(--background-modifier-border-hover);
+  --claudian-plus-border-focus: var(--background-modifier-border-focus);
+
+  /* Interactive */
+  --claudian-plus-accent: var(--interactive-accent);
+  --claudian-plus-accent-hover: var(--interactive-accent-hover);
+  --claudian-plus-interactive-normal: var(--interactive-normal);
+  --claudian-plus-interactive-hover: var(--interactive-hover);
+}
