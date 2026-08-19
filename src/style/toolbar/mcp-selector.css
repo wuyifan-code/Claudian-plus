@@ -64,7 +64,7 @@
   max-width: 280px;
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   box-shadow: var(--claudian-plus-shadow-md);
   opacity: 0;
   visibility: hidden;

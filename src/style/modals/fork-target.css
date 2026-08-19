@@ -10,7 +10,7 @@
 
 .claudian-plus-fork-target-option {
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   cursor: pointer;
   color: var(--text-normal);
   font-size: 14px;

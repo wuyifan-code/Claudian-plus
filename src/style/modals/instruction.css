@@ -19,7 +19,7 @@
 .claudian-plus-instruction-original {
   padding: 10px 12px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   font-size: 13px;
   color: var(--text-muted);
   font-style: italic;
@@ -30,7 +30,7 @@
   padding: 12px;
   background: var(--background-primary-alt);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   font-size: 14px;
   color: var(--text-normal);
   line-height: 1.5;
@@ -41,7 +41,7 @@
   padding: 12px;
   background: var(--background-primary-alt);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   font-size: 14px;
   color: var(--text-normal);
   line-height: 1.5;
@@ -58,7 +58,7 @@
   font-size: 14px;
   line-height: 1.5;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   background: var(--background-primary);
   color: var(--text-normal);
   resize: vertical;
@@ -76,7 +76,7 @@
   font-size: 14px;
   line-height: 1.5;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   background: var(--background-primary);
   color: var(--text-normal);
   resize: vertical;
@@ -99,7 +99,7 @@
   padding: 8px 16px;
   font-size: 13px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   cursor: pointer;
   font-weight: 500;
 }

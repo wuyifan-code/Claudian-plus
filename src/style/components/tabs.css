@@ -37,7 +37,7 @@
   height: 24px;
   box-sizing: border-box;
   padding: 0;
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
   border: 2px solid var(--background-modifier-border);
   font-size: 12px;
   font-weight: 500;

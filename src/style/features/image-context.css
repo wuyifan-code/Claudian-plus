@@ -7,7 +7,7 @@
   bottom: 0;
   background: rgba(var(--claudian-plus-brand-rgb), 0.08);
   border: 2px dashed var(--claudian-plus-brand);
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   display: none;
   align-items: center;
   justify-content: center;
@@ -52,7 +52,7 @@
 .claudian-plus-message-image {
   width: 120px;
   height: 120px;
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease;

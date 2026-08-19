@@ -24,7 +24,7 @@
   max-width: 90vw;
   max-height: 90vh;
   object-fit: contain;
-  border-radius: 8px;
+  border-radius: var(--claudian-plus-radius-md);
   box-shadow: var(--claudian-plus-shadow-lg);
 }
 

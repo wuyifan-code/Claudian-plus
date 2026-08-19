@@ -9,7 +9,7 @@
 .claudian-plus-message-content pre {
   background: var(--code-background);
   padding: 8px 12px;
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   overflow-x: auto;
   margin: 0;
 }

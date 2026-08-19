@@ -15,7 +15,7 @@
 
 .claudian-plus-file-viewer-tab-btn {
   padding: 4px 12px;
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   background: transparent;
   color: var(--text-muted);
   border: none;
@@ -43,7 +43,7 @@
   margin-bottom: 12px;
   padding: 6px 10px;
   background: var(--background-secondary);
-  border-radius: 4px;
+  border-radius: var(--claudian-plus-radius-xs);
 }
 
 .claudian-plus-file-viewer-textarea {
@@ -52,7 +52,7 @@
   font-size: 13px;
   line-height: 1.5;
   padding: 10px;
-  border-radius: 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   background: var(--background-primary);
   color: var(--text-normal);
   border: 1px solid var(--background-modifier-border);
