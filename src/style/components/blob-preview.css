@@ -1,0 +1,7 @@
+.claudian-plus-blob-preview {
+  background: var(--claudian-plus-surface-primary);
+  border: 1px solid var(--claudian-plus-border);
+  border-radius: var(--claudian-plus-radius-lg);
+  box-shadow: var(--claudian-plus-shadow-md);
+  color: var(--claudian-plus-text-normal);
+}
