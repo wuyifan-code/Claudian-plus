@@ -1,5 +1,6 @@
 import { BlobController } from './BlobController';
 import { lerpPoly } from './BlobEyeMorph';
+import { calcSquash, mapToSmallCircle } from './BlobFollow';
 import { getOverlayForState } from './BlobOverlays';
 import { BlobRenderer } from './BlobRenderer';
 import { createSpring, stepSpring } from './BlobSpring';
@@ -49,7 +50,10 @@ export interface BlobEngine {
   getState(): BlobState;
 }
 
-export function createBlobEngine(container: HTMLElement, opts?: { size?: 'small' | 'large'; initialState?: BlobState }): BlobEngine {
+export function createBlobEngine(
+  container: HTMLElement,
+  opts?: { size?: 'small' | 'large'; initialState?: BlobState; followPointer?: boolean },
+): BlobEngine {
   const machine = new BlobStateMachine(opts?.initialState ?? 'idle');
   const renderer = new BlobRenderer();
   renderer.mount(container);
@@ -76,6 +80,47 @@ export function createBlobEngine(container: HTMLElement, opts?: { size?: 'small'
   let isBlinking = false;
   let blinkEnd = 0;
   let blinkProgress = 0;
+
+  const followPointer = opts?.followPointer ?? false;
+  let pointerX = 0;
+  let pointerY = 0;
+  let hasPointer = false;
+  let pointerHandler: ((e: PointerEvent) => void) | null = null;
+  let leaveHandler: (() => void) | null = null;
+  if (followPointer && typeof window !== 'undefined') {
+    pointerHandler = (e: PointerEvent) => {
+      // Follow only when pointer is above the input (full-width area)
+      // Find input wrapper to determine threshold; fallback to window center
+      // eslint-disable-next-line obsidianmd/prefer-active-doc
+      const inputEl = document.querySelector('.claudian-plus-input-wrapper');
+      const inputTop = inputEl?.getBoundingClientRect().top ?? window.innerHeight * 0.7;
+      if (e.clientY > inputTop) {
+        hasPointer = false;
+        pointerX = 0;
+        pointerY = 0;
+        return;
+      }
+      const rect = container.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) return;
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = e.clientX - cx;
+      const dy = e.clientY - cy;
+      const mapped = mapToSmallCircle(dx * 0.06, dy * 0.06, 6);
+      pointerX = mapped.x;
+      pointerY = mapped.y;
+      hasPointer = true;
+    };
+    leaveHandler = () => {
+      hasPointer = false;
+      pointerX = 0;
+      pointerY = 0;
+    };
+    window.addEventListener('pointermove', pointerHandler, { passive: true });
+    window.addEventListener('pointerleave', leaveHandler);
+    // eslint-disable-next-line obsidianmd/prefer-active-doc
+    document.addEventListener('pointerleave', leaveHandler);
+  }
 
   const controller = new BlobController(container, (dt) => {
     const now = performance.now();
@@ -160,6 +205,13 @@ export function createBlobEngine(container: HTMLElement, opts?: { size?: 'small'
       tySpring.t = 0;
       rotSpring.t = 0;
     }
+    // Follow pointer overrides (welcome large only, above input, 6px clamp)
+    if (followPointer && hasPointer) {
+      txSpring.t = pointerX;
+      tySpring.t = pointerY;
+      const dist = Math.hypot(pointerX, pointerY);
+      squashSpring.t = 1 + calcSquash(dist);
+    }
     stepSpring(scaleSpring, 5, 0.9, dtSec);
     stepSpring(squashSpring, 10, 0.8, dtSec);
     stepSpring(txSpring, 3.5, 1, dtSec);
@@ -174,6 +226,15 @@ export function createBlobEngine(container: HTMLElement, opts?: { size?: 'small'
     let left = lerpPoly(cur[0] as [number, number][], tgt[0] as [number, number][], t);
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     let right = lerpPoly(cur[1] as [number, number][], tgt[1] as [number, number][], t);
+    // Follow pointer gaze: eyes look toward mouse
+    if (followPointer && hasPointer) {
+      const gazeScale = 0.4;
+      const gx = pointerX * gazeScale;
+      const gy = pointerY * gazeScale * 0.5;
+      const applyGaze = (pts: [number, number][]): [number, number][] => pts.map(([x, y]) => [x + gx, y + gy]);
+      left = applyGaze(left);
+      right = applyGaze(right);
+    }
     // Apply blink: squash y
     if (blinkProgress > 0) {
       const squashY = 1 - blinkProgress * 0.92;
@@ -255,6 +316,14 @@ export function createBlobEngine(container: HTMLElement, opts?: { size?: 'small'
       else container.classList.remove('claudian-plus-blob--small');
     },
     destroy() {
+      if (pointerHandler) {
+        window.removeEventListener('pointermove', pointerHandler);
+        if (leaveHandler) {
+          window.removeEventListener('pointerleave', leaveHandler);
+          // eslint-disable-next-line obsidianmd/prefer-active-doc
+          document.removeEventListener('pointerleave', leaveHandler);
+        }
+      }
       controller.destroy();
       renderer.unmount();
     },
