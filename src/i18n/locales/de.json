@@ -362,6 +362,10 @@
       "lite": "Leicht",
       "off": "Aus"
     },
+    "blobFollow": {
+      "name": "Maus folgen",
+      "desc": "Der große Willkommens-Blob folgt der Maus über dem Eingabefeld über die gesamte Breite, begrenzt auf einen 6-px-Kreis mit leichtem Squash."
+    },
     "chatViewPlacement": {
       "name": "Claudian Plus öffnen in",
       "desc": "Wählen Sie, wo das Chat-Panel beim Erstellen geöffnet wird",

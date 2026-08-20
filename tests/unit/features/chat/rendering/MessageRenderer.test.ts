@@ -39,6 +39,19 @@ jest.mock('@/utils/fileLink', () => ({
   registerFileLinkHandler: jest.fn(),
 }));
 
+// The blob welcome view mounts SVG DOM and a rAF loop, which the node test
+// environment does not provide. Mock it like the other DOM-heavy renderers.
+const mockBlobWelcomeMount = jest.fn();
+const mockBlobWelcomeUnmount = jest.fn();
+const mockBlobWelcomePlayOnboarding = jest.fn();
+jest.mock('@/features/chat/ui/BlobWelcomeView', () => ({
+  BlobWelcomeView: jest.fn().mockImplementation(() => ({
+    mount: mockBlobWelcomeMount,
+    unmount: mockBlobWelcomeUnmount,
+    playOnboarding: mockBlobWelcomePlayOnboarding,
+  })),
+}));
+
 function createMockComponent() {
   return {
     registerDomEvent: jest.fn(),
@@ -139,15 +152,18 @@ describe('MessageRenderer', () => {
     expect(loadSpy).toHaveBeenCalledWith('full');
   });
 
-  it('routes welcome animation to the lightweight canvas cube in lite mode', () => {
+  it('routes welcome animation to the blob welcome view in lite mode', () => {
     const { renderer } = createRenderer(undefined, 'claude', { welcomeAnimationMode: 'lite' });
     const loadSpy = jest
       .spyOn(renderer as any, 'loadWelcomeAnimation')
       .mockResolvedValue({});
 
-    renderer.renderMessages([], () => 'Welcome!');
+    const welcomeEl = renderer.renderMessages([], () => 'Welcome!');
 
-    expect(loadSpy).toHaveBeenCalledWith('lite');
+    // lite = Full Bot: the blob welcome view mounts instead of the canvas cube
+    expect(loadSpy).not.toHaveBeenCalled();
+    expect(mockBlobWelcomeMount).toHaveBeenCalledTimes(1);
+    expect(welcomeEl.hasClass('claudian-plus-welcome')).toBe(true);
   });
 
   it('skips welcome animation entirely in off mode', () => {
