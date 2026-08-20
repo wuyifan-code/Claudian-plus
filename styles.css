@@ -1435,6 +1435,15 @@ body.theme-light .claudian-plus-message-content pre {
   transition: color 120ms ease;
 }
 
+.claudian-plus-thinking-blob {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .claudian-plus-thinking-header:hover,
 .claudian-plus-thinking-header:focus-visible {
   color: var(--text-muted);
