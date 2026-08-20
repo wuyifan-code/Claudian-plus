@@ -112,6 +112,14 @@ console.log(await engine.measureIdleCpu(2000)); // < 1
 
 This milestone does **not** integrate into the welcome page (M3). Preview is dev-only.
 
+## M3 Usage (Welcome + Indicators)
+
+- **Welcome** (`src/features/chat/ui/BlobWelcomeView.ts`): large 120px blob `idle`, greeting, 3 recents via `WelcomeService.getRecentConversations`, quick actions; onboarding 1200ms `onboardMood` cycle from `curious` once via `blob.onboardingSeen` flag.
+- **Composer** (`src/features/chat/ui/ComposerBlobIndicator.ts`): 20px small, `listening` on focus, `thinking`/`writing` on stream, hidden on `idle`.
+- **Tabs** (`src/features/chat/tabs/TabBlobIndicator.ts`): per-tab 20px small, isolated `Map<tabId, BlobEngine>`, `idle` hidden.
+- **Wiring** (`src/features/chat/services/BlobStateWiring.ts`): `mapStreamStatusToBlobState` pure, no provider logic.
+- **Gate** `blobEnabled` (`src/core/types/settings.ts`, `defaultSettings.ts`) defaults `true`, toggle under Appearance.
+
 ## Verification
 
 ```bash
