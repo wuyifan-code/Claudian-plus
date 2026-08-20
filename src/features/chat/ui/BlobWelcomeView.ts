@@ -8,8 +8,6 @@ export interface BlobWelcomeViewDeps {
   welcomeService: WelcomeService;
   getRecentConversations: () => ConversationLike[];
   onOpenConversation: (id: string) => void;
-  onNewSession: () => void;
-  onOpenSettings: () => void;
   vaultName?: string;
 }
 
@@ -49,10 +47,12 @@ export class BlobWelcomeView {
       for (const c of recents) {
         const row = recentsEl.createDiv({ cls: 'claudian-plus-welcome__recent-row' });
         row.addEventListener('click', () => this.deps.onOpenConversation(c.id));
-        const iconEl = row.createDiv({ cls: 'claudian-plus-welcome__recent-icon' });
         if (c.providerId) {
           const icon = ProviderRegistry.getChatUIConfig(c.providerId).getProviderIcon?.();
-          if (icon) createProviderIconSvg(icon, { parent: iconEl, width: 14, height: 14 });
+          if (icon) {
+            const iconEl = row.createDiv({ cls: 'claudian-plus-welcome__recent-icon' });
+            createProviderIconSvg(icon, { parent: iconEl, width: 14, height: 14 });
+          }
         }
         const textEl = row.createDiv({ cls: 'claudian-plus-welcome__recent-text' });
         textEl.createDiv({ cls: 'claudian-plus-welcome__recent-title', text: c.title || 'Untitled' });
@@ -60,14 +60,7 @@ export class BlobWelcomeView {
       }
     }
 
-    // Quick actions
-    const actions = container.createDiv({ cls: 'claudian-plus-welcome__actions' });
-    const newBtn = actions.createEl('button', { cls: 'claudian-plus-welcome__action', text: 'New session' });
-    newBtn.addEventListener('click', () => this.deps.onNewSession());
-    const settingsBtn = actions.createEl('button', { cls: 'claudian-plus-welcome__action', text: 'Open settings' });
-    settingsBtn.addEventListener('click', () => this.deps.onOpenSettings());
-    const onboardingBtn = actions.createEl('button', { cls: 'claudian-plus-welcome__action', text: 'Show onboarding again' });
-    onboardingBtn.addEventListener('click', () => this.playOnboarding());
+
   }
 
   playOnboarding(): void {
