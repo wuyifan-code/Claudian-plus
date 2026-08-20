@@ -17,14 +17,14 @@ const STATE_EYE: Record<BlobState, number> = {
 };
 
 // Eye playlist per state (from grok_bot-icon-study replica/src/tables.js EYE_PLAYLIST)
-// Expanded to show full 25-eye variety; welcome idle cycles through all onboarding eyes for liveliness
+// Expanded to show full 25-eye variety; welcome idle cycles through all eyes for liveliness
 const EYE_PLAYLIST: Record<BlobState, number[]> = {
-  idle: [0, 8, 2, 11, 17, 19, 15, 3, 21, 10, 1, 24, 13, 7, 16, 14],
-  listening: [10, 1, 19, 3, 15, 0, 8],
-  thinking: [8, 16, 14, 17, 5, 3, 21, 9, 15, 12, 18],
-  writing: [15, 9, 8, 16, 10, 1, 19],
-  error: [7, 16, 3, 21, 14, 5],
-  celebrate: [2, 8, 17, 11, 19, 15, 3, 21],
+  idle: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24],
+  listening: [10, 1, 19, 3, 15, 0, 8, 2, 11],
+  thinking: [8, 16, 14, 17, 5, 3, 21, 9, 15, 12, 18, 0, 2, 11],
+  writing: [15, 9, 8, 16, 10, 1, 19, 3, 21],
+  error: [7, 16, 3, 21, 14, 5, 2, 8],
+  celebrate: [2, 8, 17, 11, 19, 15, 3, 21, 0, 24, 13],
 };
 
 const EYE_HOLD_MS: Record<BlobState, [number, number]> = {
