@@ -19,13 +19,12 @@
 }
 
 .claudian-plus-blob__body {
-  fill: var(--claudian-plus-surface-primary);
-  stroke: var(--claudian-plus-border);
-  stroke-width: 1;
+  fill: var(--claudian-plus-text-normal);
+  stroke: none;
 }
 
 .claudian-plus-blob__eye {
-  fill: var(--claudian-plus-text-normal);
+  fill: var(--claudian-plus-surface-primary);
   stroke: none;
 }
 

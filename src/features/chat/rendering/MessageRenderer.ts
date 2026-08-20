@@ -220,7 +220,7 @@ export class MessageRenderer {
   }
 
   private isBlobEnabled(): boolean {
-    return this.plugin.settings?.blobEnabled !== false;
+    return true;
   }
 
   private getUserMessageTextToShow(msg: ChatMessage): string {
@@ -404,23 +404,6 @@ export class MessageRenderer {
             void (this.plugin as unknown as { switchConversation?: (id: string) => Promise<unknown> })
               .switchConversation?.(id)
               .catch(() => new Notice('Failed to open conversation'));
-          },
-          onNewSession: () => {
-            // Delegate to ConversationController's createNew via plugin if available
-            // Fallback: just show notice; ClaudianPlusView will handle new tab via UI
-            new Notice('New session');
-          },
-          onOpenSettings: () => {
-            // Open settings tab - best effort
-            try {
-              const appWithSetting = this.app as unknown as {
-                setting?: { open?: () => void; openTabById?: (id: string) => void };
-              };
-              appWithSetting.setting?.open?.();
-              appWithSetting.setting?.openTabById?.('claudian-plus');
-            } catch {
-              new Notice('Open settings');
-            }
           },
           vaultName,
         });

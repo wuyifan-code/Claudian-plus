@@ -160,9 +160,6 @@ export interface ClaudianPlusSettings {
    */
   welcomeAnimationMode?: 'full' | 'lite' | 'off';
 
-  /** Enable blob mascot (welcome + indicators). Defaults to true. */
-  blobEnabled?: boolean;
-
   // Provider command visibility
   hiddenProviderCommands: HiddenProviderCommands;
 
