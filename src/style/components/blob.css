@@ -1,0 +1,36 @@
+.claudian-plus-blob {
+  width: 120px;
+  height: 120px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.claudian-plus-blob--small {
+  width: 20px;
+  height: 20px;
+}
+
+.claudian-plus-blob__svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.claudian-plus-blob__body {
+  fill: var(--claudian-plus-surface-primary);
+  stroke: var(--claudian-plus-border);
+  stroke-width: 1;
+}
+
+.claudian-plus-blob__eye {
+  fill: var(--claudian-plus-text-normal);
+  stroke: none;
+}
+
+.claudian-plus-blob__overlay {
+  fill: none;
+  stroke: var(--claudian-plus-accent);
+  opacity: 0;
+}
