@@ -356,7 +356,7 @@ export class MessageRenderer {
     if (messages.length === 0) {
       if (this.isBlobEnabled()) {
         const newWelcomeEl = this.messagesEl.createDiv({ cls: 'claudian-plus-welcome' });
-        // Use WelcomeService with localStorage-backed flag (fallback to in-memory)
+        // Use WelcomeService with localStorage-backed flag for one-time onboarding
         const storage: { get: (k: string) => string | null; set: (k: string, v: string) => void } = {
           get: (k) => {
             try {
@@ -374,22 +374,6 @@ export class MessageRenderer {
           },
         };
         const welcomeService = new WelcomeService(storage);
-        const recentConvs = welcomeService.getRecentConversations(
-          ((this.plugin.getConversationList?.() ?? []) as unknown as Array<{
-            id: string;
-            title: string;
-            lastResponseAt?: number;
-            createdAt: number;
-            providerId?: string;
-            preview?: string;
-          }>).map((c) => ({
-            id: c.id,
-            title: c.title,
-            updatedAt: c.lastResponseAt ?? c.createdAt,
-            providerId: c.providerId,
-            preview: c.preview,
-          })),
-        );
         const vaultName = (() => {
           try {
             return (this.app.vault as unknown as { getName?: () => string }).getName?.() ?? 'vault';
@@ -397,16 +381,7 @@ export class MessageRenderer {
             return 'vault';
           }
         })();
-        const view = new BlobWelcomeView({
-          welcomeService,
-          getRecentConversations: () => recentConvs,
-          onOpenConversation: (id) => {
-            void (this.plugin as unknown as { switchConversation?: (id: string) => Promise<unknown> })
-              .switchConversation?.(id)
-              .catch(() => new Notice('Failed to open conversation'));
-          },
-          vaultName,
-        });
+        const view = new BlobWelcomeView({ vaultName });
         view.mount(newWelcomeEl);
         this.activeBlobWelcome = view;
         if (welcomeService.shouldShowOnboarding()) {

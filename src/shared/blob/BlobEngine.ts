@@ -17,22 +17,23 @@ const STATE_EYE: Record<BlobState, number> = {
 };
 
 // Eye playlist per state (from grok_bot-icon-study replica/src/tables.js EYE_PLAYLIST)
+// Expanded to show full 25-eye variety; welcome idle cycles through all onboarding eyes for liveliness
 const EYE_PLAYLIST: Record<BlobState, number[]> = {
-  idle: [0, 8],
-  listening: [10, 1, 19],
-  thinking: [8, 16, 14, 17, 5],
-  writing: [15, 9],
-  error: [7, 16],
-  celebrate: [2, 8, 17],
+  idle: [0, 8, 2, 11, 17, 19, 15, 3, 21, 10, 1, 24, 13, 7, 16, 14],
+  listening: [10, 1, 19, 3, 15, 0, 8],
+  thinking: [8, 16, 14, 17, 5, 3, 21, 9, 15, 12, 18],
+  writing: [15, 9, 8, 16, 10, 1, 19],
+  error: [7, 16, 3, 21, 14, 5],
+  celebrate: [2, 8, 17, 11, 19, 15, 3, 21],
 };
 
 const EYE_HOLD_MS: Record<BlobState, [number, number]> = {
-  idle: [2200, 3800],
-  listening: [2800, 5000],
-  thinking: [2000, 3600],
-  writing: [2500, 4200],
-  error: [1800, 3200],
-  celebrate: [1400, 2600],
+  idle: [1200, 2200],
+  listening: [1400, 2800],
+  thinking: [900, 1800],
+  writing: [1000, 2000],
+  error: [1000, 2000],
+  celebrate: [800, 1600],
 };
 
 function rand(a: number, b: number): number {
