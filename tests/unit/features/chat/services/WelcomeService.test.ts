@@ -1,4 +1,4 @@
-import { WelcomeService, ONBOARDING_MS, onboardingMood } from '@/features/chat/services/WelcomeService';
+import { ONBOARDING_MS, onboardingMood,WelcomeService } from '@/features/chat/services/WelcomeService';
 
 describe('WelcomeService', () => {
   it('returns empty when no conversations', () => {
