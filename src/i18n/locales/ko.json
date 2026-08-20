@@ -362,6 +362,10 @@
       "lite": "경량",
       "off": "끄기"
     },
+    "blobFollow": {
+      "name": "마우스 따라가기",
+      "desc": "환영 화면의 큰 Blob이 입력창 위 전체 너비에서 마우스를 따라갑니다. 6px 원 안으로 제한되며 미세한 스쿼시가 적용됩니다."
+    },
     "chatViewPlacement": {
       "name": "Claudian Plus 열 위치",
       "desc": "채팅 패널이 생성될 때 열릴 위치를 선택합니다",

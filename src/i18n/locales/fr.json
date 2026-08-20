@@ -362,6 +362,10 @@
       "lite": "Légère",
       "off": "Désactivée"
     },
+    "blobFollow": {
+      "name": "Suivre la souris",
+      "desc": "Le grand blob d'accueil suit la souris au-dessus du champ de saisie sur toute la largeur, limité à un cercle de 6 px avec une légère déformation."
+    },
     "chatViewPlacement": {
       "name": "Ouvrir Claudian Plus dans",
       "desc": "Choisissez où le panneau de chat s'ouvre lors de sa création",

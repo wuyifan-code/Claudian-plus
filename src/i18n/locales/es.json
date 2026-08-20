@@ -362,6 +362,10 @@
       "lite": "Ligera",
       "off": "Desactivada"
     },
+    "blobFollow": {
+      "name": "Seguir el ratón",
+      "desc": "El blob grande de bienvenida sigue el ratón por encima del campo de entrada en todo el ancho, limitado a un círculo de 6 px con una leve deformación."
+    },
     "chatViewPlacement": {
       "name": "Abrir Claudian Plus en",
       "desc": "Elige dónde se abre el panel de chat cuando se crea",

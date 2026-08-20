@@ -362,6 +362,10 @@
       "lite": "Leve",
       "off": "Desligado"
     },
+    "blobFollow": {
+      "name": "Seguir o mouse",
+      "desc": "O blob grande de boas-vindas segue o mouse acima do campo de entrada em toda a largura, limitado a um círculo de 6 px com leve squash."
+    },
     "chatViewPlacement": {
       "name": "Abrir Claudian Plus em",
       "desc": "Escolha onde o painel de chat abre quando é criado",
