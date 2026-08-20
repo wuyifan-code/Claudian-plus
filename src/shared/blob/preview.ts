@@ -32,8 +32,9 @@ export function mountBlobPreview(): () => void {
   label.textContent = 'Blob Preview (6 states cycle)';
 
   const blobHost = createDiv();
-  // Use large size for preview
-  const engine = createBlobEngine(blobHost, { size: 'large', initialState: 'idle' });
+  // Use large size for preview, followPointer toggle
+  let followEnabled = true;
+  let engine = createBlobEngine(blobHost, { size: 'large', initialState: 'idle', followPointer: followEnabled });
 
   const controls = createDiv();
   controls.style.cssText = 'display:flex;gap:4px;flex-wrap:wrap;justify-content:center';
@@ -45,6 +46,18 @@ export function mountBlobPreview(): () => void {
     controls.appendChild(btn);
   }
 
+  const followBtn = createEl('button');
+  followBtn.textContent = 'Follow: ON';
+  followBtn.style.cssText = 'padding:2px 8px;font-size:11px;border:1px solid var(--claudian-plus-border);border-radius:4px;background:var(--claudian-plus-surface-secondary);color:var(--claudian-plus-text-normal);cursor:pointer';
+  followBtn.onclick = () => {
+    followEnabled = !followEnabled;
+    followBtn.textContent = `Follow: ${followEnabled ? 'ON' : 'OFF'}`;
+    // Recreate engine with new flag
+    engine.destroy();
+    blobHost.empty();
+    engine = createBlobEngine(blobHost, { size: 'large', initialState: 'idle', followPointer: followEnabled });
+  };
+
   const closeBtn = createEl('button');
   closeBtn.textContent = '× Close';
   closeBtn.style.cssText = 'padding:2px 8px;font-size:11px;border:none;background:var(--claudian-plus-surface-hover);color:var(--claudian-plus-text-normal);cursor:pointer;border-radius:4px';
@@ -53,6 +66,7 @@ export function mountBlobPreview(): () => void {
   host.appendChild(label);
   host.appendChild(blobHost);
   host.appendChild(controls);
+  host.appendChild(followBtn);
   host.appendChild(closeBtn);
   document.body.appendChild(host);
 
