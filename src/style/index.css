@@ -24,6 +24,7 @@
 @import "./components/context-footer.css";
 @import "./components/blob.css";
 @import "./components/blob-preview.css";
+@import "./components/blob-welcome.css";
 
 /* Toolbar */
 @import "./toolbar/model-selector.css";

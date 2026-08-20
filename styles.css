@@ -2857,6 +2857,108 @@ body.theme-light .claudian-plus-message-content pre {
 
 
 /* ============================================
+   components/blob-welcome.css
+   ============================================ */
+.claudian-plus-welcome.claudian-plus-blob-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+  color: var(--claudian-plus-text-normal);
+}
+
+.claudian-plus-welcome__blob {
+  width: 120px;
+  height: 120px;
+}
+
+.claudian-plus-welcome__greeting {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--claudian-plus-text-normal);
+}
+
+.claudian-plus-welcome__recents {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.claudian-plus-welcome__recent-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--claudian-plus-border);
+  border-radius: var(--claudian-plus-radius-md);
+  background: var(--claudian-plus-surface-secondary);
+  cursor: pointer;
+}
+
+.claudian-plus-welcome__recent-row:hover {
+  background: var(--claudian-plus-surface-hover);
+}
+
+.claudian-plus-welcome__recent-icon {
+  flex-shrink: 0;
+  color: var(--claudian-plus-text-muted);
+}
+
+.claudian-plus-welcome__recent-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.claudian-plus-welcome__recent-title {
+  font-size: 13px;
+  color: var(--claudian-plus-text-normal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.claudian-plus-welcome__recent-preview {
+  font-size: 11px;
+  color: var(--claudian-plus-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.claudian-plus-welcome__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.claudian-plus-welcome__action {
+  padding: 6px 12px;
+  border: 1px solid var(--claudian-plus-border);
+  border-radius: var(--claudian-plus-radius-sm);
+  background: var(--claudian-plus-surface-secondary);
+  color: var(--claudian-plus-text-normal);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.claudian-plus-welcome__action:hover {
+  background: var(--claudian-plus-surface-hover);
+  border-color: var(--claudian-plus-border-hover);
+}
+
+.claudian-plus-welcome__empty {
+  text-align: center;
+  color: var(--claudian-plus-text-muted);
+  font-size: 12px;
+  padding: 12px;
+}
+
+
+/* ============================================
    toolbar/model-selector.css
    ============================================ */
 /* Model selector */
