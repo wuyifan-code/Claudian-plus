@@ -41,6 +41,20 @@ function rand(a: number, b: number): number {
   return a + Math.random() * (b - a);
 }
 
+function eyeForAngle(angle: number): number {
+  // 8-sector mapping of 25 eyes to directions, chosen for distinct expressions
+  // angle in radians, 0 = right, PI/2 = down, PI = left, -PI/2 = up (screen coords y down)
+  const deg = ((angle * 180) / Math.PI + 360) % 360;
+  if (deg >= 337.5 || deg < 22.5) return 10; // right
+  if (deg >= 22.5 && deg < 67.5) return 15; // down-right
+  if (deg >= 67.5 && deg < 112.5) return 3; // down
+  if (deg >= 112.5 && deg < 157.5) return 7; // down-left
+  if (deg >= 157.5 && deg < 202.5) return 1; // left
+  if (deg >= 202.5 && deg < 247.5) return 13; // up-left (sleepy)
+  if (deg >= 247.5 && deg < 292.5) return 8; // up
+  return 2; // up-right (happy)
+}
+
 export interface BlobEngine {
   setEvent(event: BlobEvent): void;
   setState(state: BlobState): void;
@@ -141,6 +155,23 @@ export function createBlobEngine(
       }
       const hold = EYE_HOLD_MS[state] ?? [2200, 3800];
       eyeUntil = now + rand(hold[0], hold[1]);
+    }
+
+    // Follow pointer expression: eyes follow mouse direction (overrides playlist)
+    if (followPointer && hasPointer) {
+      const dist = Math.hypot(pointerX, pointerY);
+      if (dist > 0.8) {
+        const angle = Math.atan2(pointerY, pointerX);
+        const nextEye = eyeForAngle(angle);
+        if (nextEye !== targetEyeIdx) {
+          currentEyeIdx = targetEyeIdx;
+          targetEyeIdx = nextEye;
+          eyeSpring.x = 0;
+          eyeSpring.v = 0;
+          eyeSpring.t = 1;
+          eyeUntil = now + rand(...(EYE_HOLD_MS[state] ?? [1200, 2200]));
+        }
+      }
     }
 
     // Blink
