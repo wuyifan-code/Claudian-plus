@@ -160,6 +160,9 @@ export interface ClaudianPlusSettings {
    */
   welcomeAnimationMode?: 'full' | 'lite' | 'off';
 
+  /** Enable mouse follow for the welcome blob (above input, full-width). Defaults to true. */
+  blobFollowPointer?: boolean;
+
   // Provider command visibility
   hiddenProviderCommands: HiddenProviderCommands;
 

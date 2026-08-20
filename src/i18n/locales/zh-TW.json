@@ -362,6 +362,10 @@
       "lite": "全量 Bot",
       "off": "關閉"
     },
+    "blobFollow": {
+      "name": "跟隨鼠標",
+      "desc": "歡迎頁大球在輸入框以上全螢幕跟隨鼠標，限制在 6px 小圓內並伴隨輕微拉伸"
+    },
     "chatViewPlacement": {
       "name": "Claudian Plus 開啟位置",
       "desc": "選擇新建聊天面板時的開啟位置",
