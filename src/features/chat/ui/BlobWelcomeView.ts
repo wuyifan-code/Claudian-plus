@@ -1,13 +1,6 @@
-import { ProviderRegistry } from '@/core/providers/ProviderRegistry';
-import type { ConversationLike } from '@/features/chat/services/WelcomeService';
-import type { WelcomeService } from '@/features/chat/services/WelcomeService';
 import { createBlobEngine } from '@/shared/blob/BlobEngine';
-import { createProviderIconSvg } from '@/shared/icons';
 
 export interface BlobWelcomeViewDeps {
-  welcomeService: WelcomeService;
-  getRecentConversations: () => ConversationLike[];
-  onOpenConversation: (id: string) => void;
   vaultName?: string;
 }
 
@@ -34,31 +27,6 @@ export class BlobWelcomeView {
     const vault = this.deps.vaultName ?? 'vault';
     const greeting = container.createDiv({ cls: 'claudian-plus-welcome__greeting' });
     greeting.setText(`Good ${part}, ${vault}`);
-
-    // Recents
-    const recents = this.deps.getRecentConversations();
-    const service = this.deps.welcomeService;
-    // Use service for slicing (already done) but ensure we use it
-    void service;
-    const recentsEl = container.createDiv({ cls: 'claudian-plus-welcome__recents' });
-    if (recents.length === 0) {
-      recentsEl.createDiv({ cls: 'claudian-plus-welcome__empty', text: 'No recent conversations yet' });
-    } else {
-      for (const c of recents) {
-        const row = recentsEl.createDiv({ cls: 'claudian-plus-welcome__recent-row' });
-        row.addEventListener('click', () => this.deps.onOpenConversation(c.id));
-        if (c.providerId) {
-          const icon = ProviderRegistry.getChatUIConfig(c.providerId).getProviderIcon?.();
-          if (icon) {
-            const iconEl = row.createDiv({ cls: 'claudian-plus-welcome__recent-icon' });
-            createProviderIconSvg(icon, { parent: iconEl, width: 14, height: 14 });
-          }
-        }
-        const textEl = row.createDiv({ cls: 'claudian-plus-welcome__recent-text' });
-        textEl.createDiv({ cls: 'claudian-plus-welcome__recent-title', text: c.title || 'Untitled' });
-        if (c.preview) textEl.createDiv({ cls: 'claudian-plus-welcome__recent-preview', text: c.preview });
-      }
-    }
 
 
   }
