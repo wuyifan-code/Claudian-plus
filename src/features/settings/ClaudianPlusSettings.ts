@@ -544,6 +544,22 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
           });
       });
 
+    new Setting(displayCard)
+      .setName(t('settings.blobFollow.name'))
+      .setDesc(t('settings.blobFollow.desc'))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.blobFollowPointer ?? true)
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.blobFollowPointer = value;
+            });
+            for (const view of this.plugin.getAllViews()) {
+              view.refreshWelcomeAnimation?.();
+            }
+          }),
+      );
+
     // --- Conversations ---
     const convCard = this.createCard(container, t('settings.conversations'));
 

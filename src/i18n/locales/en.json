@@ -362,6 +362,10 @@
       "lite": "Full Bot",
       "off": "Off"
     },
+    "blobFollow": {
+      "name": "Follow mouse",
+      "desc": "Welcome large blob follows mouse above the input across the full width, clamped to a 6px circle with subtle squash"
+    },
     "chatViewPlacement": {
       "name": "Open Claudian Plus in",
       "desc": "Choose where the chat panel opens when it is created",
