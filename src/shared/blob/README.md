@@ -112,13 +112,19 @@ console.log(await engine.measureIdleCpu(2000)); // < 1
 
 This milestone does **not** integrate into the welcome page (M3). Preview is dev-only.
 
+## Follow Pointer (Welcome only)
+
+`createBlobEngine(container, {followPointer:true})` enables mouse follow for the welcome large blob only (small indicators remain static). `window.pointermove` (passive) maps via `BlobFollow.mapToSmallCircle` (6px clamp, `calcSquash`) and `gaze` offset; follow is gated to the area **above the input** (`e.clientY <= inputTop`, full-width), otherwise returns to center. `squash` scales with distance, `tx/ty` springs follow. Controlled by `settings.blobFollowPointer` (default `true`, `Appearance → Follow mouse` toggle); `MessageRenderer` passes it to `BlobWelcomeView` and `refreshWelcomeAnimation` recreates the welcome. Small blobs ignore the flag.
+
+Preview (`preview.ts`) has a `Follow: ON/OFF` button to toggle live.
+
 ## M3 Usage (Welcome + Indicators)
 
-- **Welcome** (`src/features/chat/ui/BlobWelcomeView.ts`): large 120px blob `idle`, greeting, 3 recents via `WelcomeService.getRecentConversations`, quick actions; onboarding 1200ms `onboardMood` cycle from `curious` once via `blob.onboardingSeen` flag.
-- **Composer** (`src/features/chat/ui/ComposerBlobIndicator.ts`): 20px small, `listening` on focus, `thinking`/`writing` on stream, hidden on `idle`.
-- **Tabs** (`src/features/chat/tabs/TabBlobIndicator.ts`): per-tab 20px small, isolated `Map<tabId, BlobEngine>`, `idle` hidden.
+- **Welcome** (`src/features/chat/ui/BlobWelcomeView.ts`): large 120px blob `idle` (25-eye playlist, 1.2-2.2s) + greeting only (recents/quick actions removed per feedback); onboarding 1200ms `onboardMood` cycle from `curious` once via `blob.onboardingSeen` flag, now with `followPointer` when enabled.
+- **Composer** (`src/features/chat/ui/ComposerBlobIndicator.ts`): 20px small, `listening` on focus, `thinking`/`writing` on stream, hidden on `idle` (no follow).
+- **Tabs** (`src/features/chat/tabs/TabBlobIndicator.ts`): per-tab 20px small, isolated `Map<tabId, BlobEngine>`, `idle` hidden (no follow).
 - **Wiring** (`src/features/chat/services/BlobStateWiring.ts`): `mapStreamStatusToBlobState` pure, no provider logic.
-- **Gate** `blobEnabled` (`src/core/types/settings.ts`, `defaultSettings.ts`) defaults `true`, toggle under Appearance.
+- **Gate** `blobFollowPointer` (`src/core/types/settings.ts`, `defaultSettings.ts`) defaults `true`, toggle under Appearance.
 
 ## Verification
 
