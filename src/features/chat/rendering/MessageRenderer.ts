@@ -219,10 +219,6 @@ export class MessageRenderer {
     return this.plugin.settings?.expandFileEditsByDefault === true;
   }
 
-  private isBlobEnabled(): boolean {
-    return true;
-  }
-
   private getUserMessageTextToShow(msg: ChatMessage): string {
     return msg.displayContent ?? extractUserDisplayContent(msg.content) ?? msg.content;
   }
@@ -354,9 +350,10 @@ export class MessageRenderer {
     this.liveMessageEls.clear();
 
     if (messages.length === 0) {
-      if (this.isBlobEnabled()) {
+      const welcomeMode = this.getWelcomeAnimationMode();
+      if (welcomeMode === 'lite') {
+        // Full Bot (blob) - uses BlobWelcomeView
         const newWelcomeEl = this.messagesEl.createDiv({ cls: 'claudian-plus-welcome' });
-        // Use WelcomeService with localStorage-backed flag for one-time onboarding
         const storage: { get: (k: string) => string | null; set: (k: string, v: string) => void } = {
           get: (k) => {
             try {
@@ -391,7 +388,6 @@ export class MessageRenderer {
         return newWelcomeEl;
       }
       const newWelcomeEl = this.messagesEl.createDiv({ cls: 'claudian-plus-welcome' });
-      const welcomeMode = this.getWelcomeAnimationMode();
       if (welcomeMode !== 'off') {
         // Keep the animation modules out of the initial chat-renderer module
         // graph. The welcome animation is optional and should not delay normal
