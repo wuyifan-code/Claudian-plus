@@ -2,6 +2,7 @@ import { createBlobEngine } from '@/shared/blob/BlobEngine';
 
 export interface BlobWelcomeViewDeps {
   vaultName?: string;
+  followPointer?: boolean;
 }
 
 export class BlobWelcomeView {
@@ -17,9 +18,13 @@ export class BlobWelcomeView {
     container.addClass('claudian-plus-welcome');
     container.addClass('claudian-plus-blob-welcome');
 
-    // Blob
+    // Blob - followPointer only for welcome large, gated by settings
     this.blobHost = container.createDiv({ cls: 'claudian-plus-welcome__blob' });
-    this.engine = createBlobEngine(this.blobHost, { size: 'large', initialState: 'idle' });
+    this.engine = createBlobEngine(this.blobHost, {
+      size: 'large',
+      initialState: 'idle',
+      followPointer: this.deps.followPointer ?? true,
+    });
 
     // Greeting
     const hour = new Date().getHours();

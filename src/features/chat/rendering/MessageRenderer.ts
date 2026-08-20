@@ -378,7 +378,8 @@ export class MessageRenderer {
             return 'vault';
           }
         })();
-        const view = new BlobWelcomeView({ vaultName });
+        const followPointer = (this.plugin.settings as unknown as { blobFollowPointer?: boolean }).blobFollowPointer ?? true;
+        const view = new BlobWelcomeView({ vaultName, followPointer });
         view.mount(newWelcomeEl);
         this.activeBlobWelcome = view;
         if (welcomeService.shouldShowOnboarding()) {
