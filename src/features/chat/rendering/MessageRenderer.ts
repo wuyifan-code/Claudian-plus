@@ -25,6 +25,8 @@ import {
 } from '../../../utils/markdownMath';
 import type { FeatureHost } from '../../FeatureHost';
 import { findRewindContext } from '../rewind';
+import { WelcomeService } from '../services/WelcomeService';
+import { BlobWelcomeView } from '../ui/BlobWelcomeView';
 import type { WelcomeAnimation, WelcomeAnimationMode } from '../ui/welcomeAnimation';
 import { formatConversationDirectoryTitle } from '../utils/conversationDirectoryTitle';
 import { resolveSubagentLifecycleAdapter } from './subagentLifecycleResolution';
@@ -187,6 +189,8 @@ export class MessageRenderer {
   private destroyWelcomeCube(): void {
     this.activeCubeWelcome?.destroy();
     this.activeCubeWelcome = null;
+    this.activeBlobWelcome?.unmount();
+    this.activeBlobWelcome = null;
   }
 
   private getWelcomeAnimationMode(): WelcomeAnimationMode {
@@ -213,6 +217,10 @@ export class MessageRenderer {
 
   private shouldExpandFileEditsByDefault(): boolean {
     return this.plugin.settings?.expandFileEditsByDefault === true;
+  }
+
+  private isBlobEnabled(): boolean {
+    return this.plugin.settings?.blobEnabled !== false;
   }
 
   private getUserMessageTextToShow(msg: ChatMessage): string {
@@ -326,6 +334,7 @@ export class MessageRenderer {
   // ============================================
 
   private activeCubeWelcome: WelcomeAnimation | null = null;
+  private activeBlobWelcome: BlobWelcomeView | null = null;
   private welcomeRenderToken = 0;
 
   /**
@@ -345,6 +354,84 @@ export class MessageRenderer {
     this.liveMessageEls.clear();
 
     if (messages.length === 0) {
+      if (this.isBlobEnabled()) {
+        const newWelcomeEl = this.messagesEl.createDiv({ cls: 'claudian-plus-welcome' });
+        // Use WelcomeService with localStorage-backed flag (fallback to in-memory)
+        const storage: { get: (k: string) => string | null; set: (k: string, v: string) => void } = {
+          get: (k) => {
+            try {
+              return window.localStorage.getItem(k);
+            } catch {
+              return null;
+            }
+          },
+          set: (k, v) => {
+            try {
+              window.localStorage.setItem(k, v);
+            } catch {
+              // ignore
+            }
+          },
+        };
+        const welcomeService = new WelcomeService(storage);
+        const recentConvs = welcomeService.getRecentConversations(
+          ((this.plugin.getConversationList?.() ?? []) as unknown as Array<{
+            id: string;
+            title: string;
+            lastResponseAt?: number;
+            createdAt: number;
+            providerId?: string;
+            preview?: string;
+          }>).map((c) => ({
+            id: c.id,
+            title: c.title,
+            updatedAt: c.lastResponseAt ?? c.createdAt,
+            providerId: c.providerId,
+            preview: c.preview,
+          })),
+        );
+        const vaultName = (() => {
+          try {
+            return (this.app.vault as unknown as { getName?: () => string }).getName?.() ?? 'vault';
+          } catch {
+            return 'vault';
+          }
+        })();
+        const view = new BlobWelcomeView({
+          welcomeService,
+          getRecentConversations: () => recentConvs,
+          onOpenConversation: (id) => {
+            void (this.plugin as unknown as { switchConversation?: (id: string) => Promise<unknown> })
+              .switchConversation?.(id)
+              .catch(() => new Notice('Failed to open conversation'));
+          },
+          onNewSession: () => {
+            // Delegate to ConversationController's createNew via plugin if available
+            // Fallback: just show notice; ClaudianPlusView will handle new tab via UI
+            new Notice('New session');
+          },
+          onOpenSettings: () => {
+            // Open settings tab - best effort
+            try {
+              const appWithSetting = this.app as unknown as {
+                setting?: { open?: () => void; openTabById?: (id: string) => void };
+              };
+              appWithSetting.setting?.open?.();
+              appWithSetting.setting?.openTabById?.('claudian-plus');
+            } catch {
+              new Notice('Open settings');
+            }
+          },
+          vaultName,
+        });
+        view.mount(newWelcomeEl);
+        this.activeBlobWelcome = view;
+        if (welcomeService.shouldShowOnboarding()) {
+          view.playOnboarding();
+          welcomeService.markOnboardingSeen();
+        }
+        return newWelcomeEl;
+      }
       const newWelcomeEl = this.messagesEl.createDiv({ cls: 'claudian-plus-welcome' });
       const welcomeMode = this.getWelcomeAnimationMode();
       if (welcomeMode !== 'off') {
