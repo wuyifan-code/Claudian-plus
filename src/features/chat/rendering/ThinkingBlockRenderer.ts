@@ -1,3 +1,5 @@
+import { createBlobEngine } from '@/shared/blob/BlobEngine';
+
 import { collapseElement, setupCollapsible } from './collapsible';
 
 export type RenderContentFn = (el: HTMLElement, markdown: string) => Promise<void>;
@@ -11,6 +13,8 @@ export interface ThinkingBlockState {
   timerInterval: number | null;
   timerWindow: Window | null;
   isExpanded: boolean;
+  blobEngine?: ReturnType<typeof createBlobEngine> | null;
+  blobHost?: HTMLElement | null;
 }
 
 export function createThinkingBlock(
@@ -25,6 +29,10 @@ export function createThinkingBlock(
   header.setAttribute('role', 'button');
   header.setAttribute('aria-expanded', 'false');
   header.setAttribute('aria-label', 'Execution details - click to expand');
+
+  // Blob animation (small, thinking state)
+  const blobHost = header.createDiv({ cls: 'claudian-plus-thinking-blob' });
+  const blobEngine = createBlobEngine(blobHost, { size: 'small', initialState: 'thinking' });
 
   // Label with timer
   const labelEl = header.createSpan({ cls: 'claudian-plus-thinking-label' });
@@ -51,6 +59,8 @@ export function createThinkingBlock(
     timerInterval,
     timerWindow,
     isExpanded: false,
+    blobEngine,
+    blobHost,
   };
 
   // Setup collapsible behavior (handles click, keyboard, ARIA, CSS)
@@ -76,6 +86,12 @@ export function finalizeThinkingBlock(state: ThinkingBlockState): number {
   }
   state.timerWindow = null;
 
+  // Update blob to celebrate then idle
+  state.blobEngine?.setState('celebrate');
+  window.setTimeout(() => {
+    state.blobEngine?.setState('idle');
+  }, 1200);
+
   // Calculate final duration
   const durationSeconds = Math.floor((Date.now() - state.startTime) / 1000);
 
@@ -97,6 +113,12 @@ export function cleanupThinkingBlock(state: ThinkingBlockState | null) {
     state.timerInterval = null;
   }
   if (state) state.timerWindow = null;
+  state?.blobEngine?.destroy();
+  if (state?.blobHost) {
+    state.blobHost.remove();
+    state.blobHost = null;
+  }
+  if (state) state.blobEngine = null;
 }
 
 export function renderStoredThinkingBlock(
@@ -113,6 +135,12 @@ export function renderStoredThinkingBlock(
   header.setAttribute('role', 'button');
   header.setAttribute('aria-expanded', 'false');
   header.setAttribute('aria-label', 'Execution details - click to expand');
+
+  // Static blob for stored block (idle)
+  const blobHost = header.createDiv({ cls: 'claudian-plus-thinking-blob' });
+  const blobEngine = createBlobEngine(blobHost, { size: 'small', initialState: 'idle' });
+  // Keep idle, no need to animate further; will be cleaned up with wrapper
+  void blobEngine;
 
   // Label with duration
   const labelEl = header.createSpan({ cls: 'claudian-plus-thinking-label' });
