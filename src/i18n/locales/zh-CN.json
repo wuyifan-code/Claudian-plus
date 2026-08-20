@@ -357,9 +357,9 @@
     },
     "welcomeAnimation": {
       "name": "欢迎页动画",
-      "desc": "选择空聊天标签页显示的动画。完整版使用 Three.js 星座立方体；轻量版使用无依赖的 2D Canvas 动画；关闭则仅显示问候语。",
-      "full": "完整版",
-      "lite": "轻量版",
+      "desc": "选择空聊天标签页显示的动画。全量星辰魔方使用 Three.js 星座立方体；全量 Bot 使用 Blob 角色；关闭则仅显示问候语。",
+      "full": "全量星辰魔方",
+      "lite": "全量 Bot",
       "off": "关闭"
     },
     "chatViewPlacement": {

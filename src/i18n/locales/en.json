@@ -357,9 +357,9 @@
     },
     "welcomeAnimation": {
       "name": "Welcome animation",
-      "desc": "Choose the animation shown on the empty chat tab. Full uses the Three.js constellation cube; Lightweight uses a dependency-free 2D canvas animation; Off shows only the greeting.",
-      "full": "Full",
-      "lite": "Lightweight",
+      "desc": "Choose the animation shown on the empty chat tab. Full Star Cube uses Three.js; Full Bot uses the Blob character; Off shows only the greeting.",
+      "full": "Full Star Cube",
+      "lite": "Full Bot",
       "off": "Off"
     },
     "chatViewPlacement": {
