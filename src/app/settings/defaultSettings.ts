@@ -74,6 +74,8 @@ export const DEFAULT_CLAUDIAN_PLUS_SETTINGS: ClaudianPlusSettings = {
 
   hiddenProviderCommands: getDefaultHiddenProviderCommands(),
 
+  blobEnabled: true,
+
   // Memory system
   memoryEnabled: true,
   memoryFilePath: DEFAULT_MEMORY_FILE_PATH,
