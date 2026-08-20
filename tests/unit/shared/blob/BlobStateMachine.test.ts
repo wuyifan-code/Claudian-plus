@@ -1,5 +1,5 @@
-import { BlobStateMachine, BLOB_TRANSITIONS } from '@/shared/blob/BlobStateMachine';
-import type { BlobState, BlobEvent } from '@/shared/blob/types';
+import { BLOB_TRANSITIONS,BlobStateMachine } from '@/shared/blob/BlobStateMachine';
+import type { BlobEvent,BlobState } from '@/shared/blob/types';
 
 describe('BlobStateMachine', () => {
   it('idle -> listening on inputFocus', () => {

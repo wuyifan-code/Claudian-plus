@@ -1,4 +1,4 @@
-import type { BlobState, BlobEvent } from './types';
+import type { BlobEvent,BlobState } from './types';
 
 export const BLOB_TRANSITIONS: Record<BlobState, Partial<Record<BlobEvent, BlobState>>> = {
   idle: {

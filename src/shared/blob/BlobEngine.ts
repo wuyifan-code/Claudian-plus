@@ -1,10 +1,10 @@
-import { BlobStateMachine } from './BlobStateMachine';
-import { createSpring, stepSpring } from './BlobSpring';
-import { EYES } from './geometry';
+import { BlobController } from './BlobController';
 import { lerpPoly } from './BlobEyeMorph';
 import { getOverlayForState } from './BlobOverlays';
 import { BlobRenderer } from './BlobRenderer';
-import { BlobController } from './BlobController';
+import { createSpring, stepSpring } from './BlobSpring';
+import { BlobStateMachine } from './BlobStateMachine';
+import { EYES } from './geometry';
 import type { BlobEvent, BlobState } from './types';
 
 const STATE_EYE: Record<BlobState, number> = {
@@ -37,7 +37,7 @@ export function createBlobEngine(container: HTMLElement, opts?: { size?: 'small'
   eyeSpring.t = 1;
   eyeSpring.x = 1;
 
-  let scaleSpring = createSpring(5, 0.9, 1, 1);
+  const scaleSpring = createSpring(5, 0.9, 1, 1);
   scaleSpring.t = 1;
 
   const controller = new BlobController(container, (dt) => {
@@ -59,20 +59,23 @@ export function createBlobEngine(container: HTMLElement, opts?: { size?: 'small'
     const cur = EYES[currentEyeIdx];
     const tgt = EYES[targetEyeIdx];
     // lerp both eyes
-    const left = lerpPoly(cur[0] as [number, number][], tgt[0] as [number, number][], t);
-    const right = lerpPoly(cur[1] as [number, number][], tgt[1] as [number, number][], t);
+    const left = lerpPoly(cur[0], tgt[0], t);
+    const right = lerpPoly(cur[1], tgt[1], t);
     renderer.renderEyes(left, right);
 
     // Apply scale/rotation via renderer container transform
     // Use scaleSpring for subtle breathing
-    const svg = (container.querySelector('.claudian-plus-blob__svg') as HTMLElement | null);
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+    const svg = container.querySelector('.claudian-plus-blob__svg') as HTMLElement | null;
     if (svg) {
       const rot = state === 'celebrate' ? Math.sin(performance.now() * 0.005) * 8 : 0;
       svg.style.transform = `scale(${scaleSpring.x.toFixed(3)}) rotate(${rot.toFixed(1)}deg)`;
+      // eslint-disable-next-line obsidianmd/no-static-styles-assignment
       svg.style.transformOrigin = '50% 50%';
     }
 
     // Overlay handling via class or opacity
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     const overlay = container.querySelector('.claudian-plus-blob__overlay') as HTMLElement | null;
     if (overlay) {
       const kind = getOverlayForState(state);
@@ -85,7 +88,7 @@ export function createBlobEngine(container: HTMLElement, opts?: { size?: 'small'
 
   // Initial render
   const initEyes = EYES[currentEyeIdx];
-  renderer.renderEyes(initEyes[0] as [number, number][], initEyes[1] as [number, number][]);
+  renderer.renderEyes(initEyes[0], initEyes[1]);
 
   return {
     setEvent(event: BlobEvent) {
@@ -102,8 +105,7 @@ export function createBlobEngine(container: HTMLElement, opts?: { size?: 'small'
     },
     setState(state: BlobState) {
       const prev = machine.state;
-      // Force state via dispatch loop or direct? Use internal
-      // @ts-ignore access private for testing
+      // Force state via internal assignment for preview control
       (machine as unknown as { _state: BlobState })._state = state;
       if (state !== prev) {
         currentEyeIdx = targetEyeIdx;
