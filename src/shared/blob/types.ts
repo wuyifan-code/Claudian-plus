@@ -13,7 +13,7 @@ export interface EyeShape {
   lid: number;
 }
 
-export type OverlayKind = 'none' | 'sparkle' | 'bang' | 'halo';
+export type OverlayKind = 'none' | 'dots' | 'pencil' | 'bang' | 'sparkle' | 'halo';
 
 export interface BlobStateConfig {
   eye: EyeShape;
