@@ -1,4 +1,4 @@
-import { createSpring, stepSpring, isSettled, springSteps, DT } from '@/shared/blob/BlobSpring';
+import { createSpring, DT,isSettled, springSteps, stepSpring } from '@/shared/blob/BlobSpring';
 
 describe('BlobSpring', () => {
   it('creates spring with initial value', () => {

@@ -1,4 +1,4 @@
-import { BLOB_PATH, EYES, VIEWBOX } from './geometry';
+import { BLOB_PATH, VIEWBOX } from './geometry';
 import type { BlobFrame } from './types';
 
 function polyToPath(points: [number, number][]): string {

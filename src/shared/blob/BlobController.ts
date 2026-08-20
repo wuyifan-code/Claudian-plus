@@ -27,9 +27,12 @@ export class BlobController {
 
     // Visibility handling
     this.visibilityHandler = () => {
+      // eslint-disable-next-line obsidianmd/prefer-active-doc
       this.pausedByVisibility = document.hidden;
     };
+    // eslint-disable-next-line obsidianmd/prefer-active-doc
     document.addEventListener('visibilitychange', this.visibilityHandler);
+    // eslint-disable-next-line obsidianmd/prefer-active-doc
     this.pausedByVisibility = document.hidden;
 
     // Intersection handling
@@ -60,6 +63,7 @@ export class BlobController {
   destroy(): void {
     this.stop();
     if (this.visibilityHandler) {
+      // eslint-disable-next-line obsidianmd/prefer-active-doc
       document.removeEventListener('visibilitychange', this.visibilityHandler);
       this.visibilityHandler = null;
     }
@@ -72,6 +76,7 @@ export class BlobController {
 
   private schedule(): void {
     if (!this.running) return;
+    // eslint-disable-next-line obsidianmd/prefer-window-timers
     this.rafId = requestAnimationFrame((now) => this.tick(now));
   }
 

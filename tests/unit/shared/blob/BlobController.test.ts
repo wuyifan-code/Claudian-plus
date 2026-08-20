@@ -22,7 +22,6 @@ describe('BlobController', () => {
     mockObserve = jest.fn();
     mockUnobserve = jest.fn();
     mockDisconnect = jest.fn();
-    // @ts-ignore mock
     global.IntersectionObserver = jest.fn((cb: IntersectionObserverCallback) => {
       intersectionCallback = cb;
       intersectionObserverInstance = {
@@ -61,8 +60,7 @@ describe('BlobController', () => {
     jest.useRealTimers();
     jest.restoreAllMocks();
     container.remove();
-    // @ts-ignore
-    delete global.IntersectionObserver;
+    delete (global as unknown as { IntersectionObserver?: unknown }).IntersectionObserver;
   });
 
   it('starts and calls tick on rAF', () => {

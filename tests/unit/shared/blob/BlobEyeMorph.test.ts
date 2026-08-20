@@ -1,4 +1,4 @@
-import { lerpPoly, lerpEye } from '@/shared/blob/BlobEyeMorph';
+import { lerpEye,lerpPoly } from '@/shared/blob/BlobEyeMorph';
 import { getOverlayForState } from '@/shared/blob/BlobOverlays';
 import { EYES } from '@/shared/blob/geometry';
 
