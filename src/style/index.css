@@ -22,6 +22,7 @@
 @import "./components/input.css";
 @import "./components/context-tray.css";
 @import "./components/context-footer.css";
+@import "./components/blob.css";
 
 /* Toolbar */
 @import "./toolbar/model-selector.css";
