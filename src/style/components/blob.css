@@ -16,6 +16,7 @@
   height: 100%;
   display: block;
   overflow: visible;
+  transform-origin: 50% 50%;
 }
 
 .claudian-plus-blob__body {

@@ -22,7 +22,6 @@ export class BlobRenderer {
     svg.setAttribute('viewBox', `${VIEWBOX.minX} ${VIEWBOX.minY} ${VIEWBOX.width} ${VIEWBOX.height}`);
     svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
     svg.classList.add('claudian-plus-blob__svg');
-    svg.style.overflow = 'visible';
 
     const body = document.createElementNS(ns, 'path');
     body.setAttribute('d', BLOB_PATH);
@@ -57,7 +56,6 @@ export class BlobRenderer {
     // Scale/rotation applied via container transform for simplicity
     if (this.svg) {
       this.svg.style.transform = `scale(${frame.scale}) rotate(${frame.rotation}deg)`;
-      this.svg.style.transformOrigin = '50% 50%';
     }
     // Eye rendering: frame.eye.vertices is for one eye; for two eyes we use pair from EYES
     // If frame.eye contains single eye vertices, duplicate for both; otherwise expect pair handling outside

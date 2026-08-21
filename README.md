@@ -59,7 +59,7 @@ Most AI tools treat your chat history as disposable. Claudian Plus treats a conv
 ## Install from a release
 
 1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/wuyifan-code/Claudian-plus/releases/latest).
-2. Create `<vault>/.obsidian/plugins/claudian-plus/`.
+2. Create the `.obsidian/plugins/claudian-plus/` folder inside your vault.
 3. Copy the three files into that directory.
 4. In Obsidian, open **Settings → Community plugins** and enable **Claudian Plus**.
 
@@ -83,7 +83,7 @@ To copy the production build directly into a Vault, set `OBSIDIAN_VAULT` in `.en
 OBSIDIAN_VAULT=D:\\Obsidian\\My Vault
 ```
 
-Then run `npm run build` again. The build copies the three plugin files into `<vault>/.obsidian/plugins/claudian-plus/`.
+Then run `npm run build` again. The build copies the three plugin files into `.obsidian/plugins/claudian-plus/` inside that vault.
 
 ## First run
 
