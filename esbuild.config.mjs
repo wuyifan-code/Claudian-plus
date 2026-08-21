@@ -187,6 +187,7 @@ const external = [
   '@lezer/common',
   '@lezer/highlight',
   '@lezer/lr',
+  '@modelcontextprotocol/sdk/*',
   ...builtinModules,
   ...builtinModules.map(m => `node:${m}`),
 ];
