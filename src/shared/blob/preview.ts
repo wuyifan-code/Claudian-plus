@@ -9,46 +9,26 @@ let currentCleanup: (() => void) | null = null;
 export function mountBlobPreview(): () => void {
   if (currentCleanup) currentCleanup();
 
-  const host = createDiv();
-  host.className = 'claudian-plus-blob-preview';
-  host.style.cssText = [
-    'position:fixed',
-    'right:16px',
-    'bottom:16px',
-    'z-index:9999',
-    'display:flex',
-    'flex-direction:column',
-    'align-items:center',
-    'gap:8px',
-    'padding:12px',
-    'background:var(--claudian-plus-surface-primary)',
-    'border:1px solid var(--claudian-plus-border)',
-    'border-radius:var(--claudian-plus-radius-lg, 12px)',
-    'box-shadow:var(--claudian-plus-shadow-md)',
-  ].join(';');
+  const host = createDiv('claudian-plus-blob-preview');
 
-  const label = createDiv();
-  label.style.cssText = 'font-size:12px;color:var(--claudian-plus-text-muted)';
-  label.textContent = 'Blob Preview (6 states cycle)';
+  const label = createDiv('claudian-plus-blob-preview__label');
+  label.textContent = 'Blob preview (6 states cycle)';
 
   const blobHost = createDiv();
   // Use large size for preview, followPointer toggle
   let followEnabled = true;
   let engine = createBlobEngine(blobHost, { size: 'large', initialState: 'idle', followPointer: followEnabled });
 
-  const controls = createDiv();
-  controls.style.cssText = 'display:flex;gap:4px;flex-wrap:wrap;justify-content:center';
+  const controls = createDiv('claudian-plus-blob-preview__controls');
   for (const s of PREVIEW_STATES) {
-    const btn = createEl('button');
+    const btn = createEl('button', { cls: 'claudian-plus-blob-preview__btn' });
     btn.textContent = s;
-    btn.style.cssText = 'padding:2px 6px;font-size:11px;border:1px solid var(--claudian-plus-border);border-radius:4px;background:var(--claudian-plus-surface-secondary);color:var(--claudian-plus-text-normal);cursor:pointer';
     btn.onclick = () => engine.setState(s);
     controls.appendChild(btn);
   }
 
-  const followBtn = createEl('button');
+  const followBtn = createEl('button', { cls: 'claudian-plus-blob-preview__btn' });
   followBtn.textContent = 'Follow: ON';
-  followBtn.style.cssText = 'padding:2px 8px;font-size:11px;border:1px solid var(--claudian-plus-border);border-radius:4px;background:var(--claudian-plus-surface-secondary);color:var(--claudian-plus-text-normal);cursor:pointer';
   followBtn.onclick = () => {
     followEnabled = !followEnabled;
     followBtn.textContent = `Follow: ${followEnabled ? 'ON' : 'OFF'}`;
@@ -58,9 +38,8 @@ export function mountBlobPreview(): () => void {
     engine = createBlobEngine(blobHost, { size: 'large', initialState: 'idle', followPointer: followEnabled });
   };
 
-  const closeBtn = createEl('button');
-  closeBtn.textContent = '× Close';
-  closeBtn.style.cssText = 'padding:2px 8px;font-size:11px;border:none;background:var(--claudian-plus-surface-hover);color:var(--claudian-plus-text-normal);cursor:pointer;border-radius:4px';
+  const closeBtn = createEl('button', { cls: 'claudian-plus-blob-preview__btn claudian-plus-blob-preview__btn--close' });
+  closeBtn.textContent = '× close';
   closeBtn.onclick = () => cleanup();
 
   host.appendChild(label);
@@ -74,7 +53,7 @@ export function mountBlobPreview(): () => void {
   const interval = window.setInterval(() => {
     idx = (idx + 1) % PREVIEW_STATES.length;
     engine.setState(PREVIEW_STATES[idx]);
-    label.textContent = `Blob Preview: ${PREVIEW_STATES[idx]} (${idx + 1}/6)`;
+    label.textContent = `Blob preview: ${PREVIEW_STATES[idx]} (${idx + 1}/6)`;
   }, CYCLE_MS);
 
   function cleanup() {

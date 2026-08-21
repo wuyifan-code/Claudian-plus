@@ -1,3 +1,4 @@
+import { getActiveDocument } from '../../utils/obsidianCompat';
 import { BlobController } from './BlobController';
 import { lerpPoly } from './BlobEyeMorph';
 import { calcSquash, mapToSmallCircle } from './BlobFollow';
@@ -105,8 +106,7 @@ export function createBlobEngine(
     pointerHandler = (e: PointerEvent) => {
       // Follow only when pointer is above the input (full-width area)
       // Find input wrapper to determine threshold; fallback to window center
-      // eslint-disable-next-line obsidianmd/prefer-active-doc
-      const inputEl = document.querySelector('.claudian-plus-input-wrapper');
+      const inputEl = (getActiveDocument() ?? document).querySelector('.claudian-plus-input-wrapper');
       const inputTop = inputEl?.getBoundingClientRect().top ?? window.innerHeight * 0.7;
       if (e.clientY > inputTop) {
         hasPointer = false;
@@ -132,8 +132,7 @@ export function createBlobEngine(
     };
     window.addEventListener('pointermove', pointerHandler, { passive: true });
     window.addEventListener('pointerleave', leaveHandler);
-    // eslint-disable-next-line obsidianmd/prefer-active-doc
-    document.addEventListener('pointerleave', leaveHandler);
+    (getActiveDocument() ?? document).addEventListener('pointerleave', leaveHandler);
   }
 
   const controller = new BlobController(container, (dt) => {
@@ -253,10 +252,8 @@ export function createBlobEngine(
     const cur = EYES[currentEyeIdx];
     const tgt = EYES[targetEyeIdx];
     // lerp both eyes
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    let left = lerpPoly(cur[0] as [number, number][], tgt[0] as [number, number][], t);
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    let right = lerpPoly(cur[1] as [number, number][], tgt[1] as [number, number][], t);
+    let left = lerpPoly(cur[0], tgt[0], t);
+    let right = lerpPoly(cur[1], tgt[1], t);
     // Follow pointer gaze: eyes look toward mouse
     if (followPointer && hasPointer) {
       const gazeScale = 0.4;
@@ -281,9 +278,8 @@ export function createBlobEngine(
     }
     renderer.renderEyes(left, right);
 
-    // Apply transform via renderer container
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    const svg = container.querySelector('.claudian-plus-blob__svg') as HTMLElement | null;
+    // Apply transform via renderer container; transform-origin comes from the CSS class
+    const svg = container.querySelector<SVGElement>('.claudian-plus-blob__svg');
     if (svg) {
       const sx = scaleSpring.x;
       const sy = squashSpring.x;
@@ -291,13 +287,10 @@ export function createBlobEngine(
       const ty = tySpring.x;
       const rot = rotSpring.x + (state === 'celebrate' ? Math.sin(now * 0.005) * 8 : 0);
       svg.style.transform = `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px) scale(${sx.toFixed(3)}, ${sy.toFixed(3)}) rotate(${rot.toFixed(1)}deg)`;
-      // eslint-disable-next-line obsidianmd/no-static-styles-assignment
-      svg.style.transformOrigin = '50% 50%';
     }
 
     // Overlay handling via class or opacity
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    const overlay = container.querySelector('.claudian-plus-blob__overlay') as HTMLElement | null;
+    const overlay = container.querySelector<SVGElement>('.claudian-plus-blob__overlay');
     if (overlay) {
       const kind = getOverlayForState(state);
       overlay.style.display = kind === 'none' ? 'none' : '';
@@ -351,8 +344,7 @@ export function createBlobEngine(
         window.removeEventListener('pointermove', pointerHandler);
         if (leaveHandler) {
           window.removeEventListener('pointerleave', leaveHandler);
-          // eslint-disable-next-line obsidianmd/prefer-active-doc
-          document.removeEventListener('pointerleave', leaveHandler);
+          (getActiveDocument() ?? document).removeEventListener('pointerleave', leaveHandler);
         }
       }
       controller.destroy();
