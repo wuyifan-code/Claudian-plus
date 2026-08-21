@@ -1,4 +1,4 @@
-import { mapToSmallCircle, calcSquash, mapPointer } from '@/shared/blob/BlobFollow';
+import { calcSquash, mapPointer,mapToSmallCircle } from '@/shared/blob/BlobFollow';
 
 describe('BlobFollow', () => {
   it('clamps to small circle radius 6', () => {
