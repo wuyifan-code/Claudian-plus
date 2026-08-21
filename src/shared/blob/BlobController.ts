@@ -1,4 +1,10 @@
+import { getActiveDocument } from '../../utils/obsidianCompat';
+
 export type BlobTickCallback = (dtMs: number) => void;
+
+function getDoc(): Document {
+  return getActiveDocument() ?? document;
+}
 
 export class BlobController {
   private container: HTMLElement | null;
@@ -25,15 +31,13 @@ export class BlobController {
     this.running = true;
     this.lastNow = null;
 
-    // Visibility handling
+    // Visibility handling - use activeDocument for popout window compatibility
     this.visibilityHandler = () => {
-      // eslint-disable-next-line obsidianmd/prefer-active-doc
-      this.pausedByVisibility = document.hidden;
+      const doc = getActiveDocument() ?? document;
+      this.pausedByVisibility = doc.hidden;
     };
-    // eslint-disable-next-line obsidianmd/prefer-active-doc
-    document.addEventListener('visibilitychange', this.visibilityHandler);
-    // eslint-disable-next-line obsidianmd/prefer-active-doc
-    this.pausedByVisibility = document.hidden;
+    (getActiveDocument() ?? document).addEventListener('visibilitychange', this.visibilityHandler);
+    this.pausedByVisibility = (getActiveDocument() ?? document).hidden;
 
     // Intersection handling
     if (this.container && typeof IntersectionObserver !== 'undefined') {
@@ -55,7 +59,7 @@ export class BlobController {
     if (!this.running) return;
     this.running = false;
     if (this.rafId !== null) {
-      cancelAnimationFrame(this.rafId);
+      window.cancelAnimationFrame(this.rafId);
       this.rafId = null;
     }
   }
@@ -63,8 +67,7 @@ export class BlobController {
   destroy(): void {
     this.stop();
     if (this.visibilityHandler) {
-      // eslint-disable-next-line obsidianmd/prefer-active-doc
-      document.removeEventListener('visibilitychange', this.visibilityHandler);
+      getDoc().removeEventListener('visibilitychange', this.visibilityHandler);
       this.visibilityHandler = null;
     }
     if (this.observer) {
@@ -76,8 +79,7 @@ export class BlobController {
 
   private schedule(): void {
     if (!this.running) return;
-    // eslint-disable-next-line obsidianmd/prefer-window-timers
-    this.rafId = requestAnimationFrame((now) => this.tick(now));
+    this.rafId = window.requestAnimationFrame((now) => this.tick(now));
   }
 
   private tick(now: number): void {
