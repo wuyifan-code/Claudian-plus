@@ -17,21 +17,35 @@ function createSettingsBag(): Record<string, unknown> {
 }
 
 describe('resolveDshHome', () => {
+  const originalPlatform = process.platform;
+
+  afterEach(() => {
+    Object.defineProperty(process, 'platform', { value: originalPlatform });
+  });
+
   it('prefers DSH_HOME', () => {
     expect(resolveDshHome({ DSH_HOME: 'C:\\dsh-home', USERPROFILE: 'C:\\users\\x' })).toBe('C:\\dsh-home');
   });
 
   it('falls back to the home directory on win32', () => {
+    Object.defineProperty(process, 'platform', { value: 'win32' });
     expect(resolveDshHome({ USERPROFILE: 'C:\\users\\x' })).toMatch(/\.dsh$/);
+  });
+
+  it('falls back to the home directory on posix', () => {
+    Object.defineProperty(process, 'platform', { value: 'linux' });
+    expect(resolveDshHome({ HOME: '/home/x' })).toMatch(/\.dsh$/);
   });
 });
 
 describe('getDshProfilePatchPaths', () => {
   it('builds the profile patch and home patch paths', () => {
-    const paths = getDshProfilePatchPaths('C:\\dsh', 'acp');
-    expect(paths).toEqual([
-      'C:\\dsh\\profiles\\acp\\cordis.patch.yml',
-      'C:\\dsh\\cordis.patch.yml',
+    // path.join uses the host platform separator, so the fixture and the
+    // expectation must follow it to stay valid on Linux CI.
+    const dshHome = process.platform === 'win32' ? 'C:\\dsh' : '/home/x/.dsh';
+    expect(getDshProfilePatchPaths(dshHome, 'acp')).toEqual([
+      [dshHome, 'profiles', 'acp', 'cordis.patch.yml'].join(path.sep),
+      [dshHome, 'cordis.patch.yml'].join(path.sep),
     ]);
   });
 });
