@@ -76,10 +76,35 @@
       "expandOutput": "展开命令输出",
       "running": "运行中...",
       "copyFailed": "复制到剪贴板失败"
+    },
+    "readingMode": {
+      "on": "开启阅读模式",
+      "off": "关闭阅读模式"
+    },
+    "view": {
+      "chat": "对话",
+      "sessions": "会话列表"
+    },
+    "outline": {
+      "filter": {
+        "prompts": "提示词",
+        "headings": "标题",
+        "tools": "工具",
+        "thinking": "思考"
+      }
     }
   },
   "settings": {
     "title": "Claudian Plus 设置",
+    "category": {
+      "general": "通用",
+      "appearance": "外观",
+      "memory": "记忆与意识",
+      "providers": "提供商",
+      "agentsSkills": "智能体与技能",
+      "workspace": "工作区",
+      "advanced": "高级设置"
+    },
     "tabs": {
       "general": "通用",
       "claude": "Claude",

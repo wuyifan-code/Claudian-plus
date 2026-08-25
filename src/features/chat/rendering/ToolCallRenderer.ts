@@ -1132,6 +1132,31 @@ export function updateToolCallResult(
   }
 }
 
+export interface ToolCallSummaryOptions {
+  toolName: string;
+  target?: string;
+  status?: string;
+  durationMs?: number;
+}
+
+export function buildToolCallSummary(opts: ToolCallSummaryOptions): string {
+  const parts: string[] = [];
+  const nameAndTarget = opts.target ? `${opts.toolName} ${opts.target}` : opts.toolName;
+  parts.push(nameAndTarget);
+  if (opts.status) {
+    parts.push(opts.status);
+  }
+  if (typeof opts.durationMs === 'number') {
+    parts.push(`${opts.durationMs}ms`);
+  }
+  return parts.join(' · ');
+}
+
+export interface ToolCallRenderOptions {
+  initiallyExpanded?: boolean;
+  collapsedByDefault?: boolean;
+}
+
 /** For stored (non-streaming) tool calls — collapsed by default. */
 export function renderStoredToolCall(
   parentEl: HTMLElement,

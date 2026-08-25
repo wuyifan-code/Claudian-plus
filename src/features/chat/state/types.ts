@@ -108,6 +108,9 @@ export interface ChatStateData {
 
   // Saved permission mode before entering plan mode (for Shift+Tab toggle restore)
   prePlanPermissionMode: string | null;
+
+  // Reading mode state (collapsed tools and thinking)
+  readingMode: boolean;
 }
 
 /** Callbacks for ChatState changes. */
@@ -119,6 +122,7 @@ export interface ChatStateCallbacks {
   onTodosChanged?: (todos: TodoItem[] | null) => void;
   onAttentionChanged?: (needsAttention: boolean) => void;
   onAutoScrollChanged?: (enabled: boolean) => void;
+  onReadingModeChanged?: (readingMode: boolean) => void;
 }
 
 /** Options for query execution. */

@@ -1,6 +1,6 @@
 # Kimi Provider
 
-`src/providers/kimi/` adapts Kimi through Agent Client Protocol over a kimi ACP subprocess. It shares the ACP plumbing with the OpenCode and DSH providers through `src/providers/acp/`.
+`src/providers/kimi/` adapts Kimi through Agent Client Protocol over a kimi ACP subprocess. It shares the ACP plumbing with the OpenCode provider through `src/providers/acp/`.
 
 ## Ownership
 

@@ -1,0 +1,158 @@
+/* Actionable Response Toolbar & In-Situ Mutation Modal */
+
+/* Floating Selection Toolbar */
+.claudian-plus-floating-selection-toolbar {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--claudian-plus-radius-md);
+  padding: 3px 5px;
+  z-index: 100;
+  box-shadow: var(--shadow-m);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px) scale(0.96);
+  transition: opacity 0.15s cubic-bezier(0.16, 1, 0.3, 1), transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(8px);
+}
+
+.claudian-plus-floating-selection-toolbar.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.claudian-plus-floating-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  border-radius: var(--claudian-plus-radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.12s ease, background-color 0.12s ease, transform 0.08s ease;
+}
+
+.claudian-plus-floating-btn:hover {
+  color: var(--text-normal);
+  background-color: var(--background-modifier-hover);
+  transform: translateY(-1px);
+}
+
+.claudian-plus-floating-btn:active {
+  transform: translateY(0);
+}
+
+.claudian-plus-floating-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.claudian-plus-text-actions-bar {
+  position: absolute;
+  bottom: 2px;
+  inset-inline-end: 4px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--claudian-plus-radius-md);
+  padding: 2px 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  transform: translateY(2px);
+  z-index: 5;
+  box-shadow: var(--shadow-s);
+}
+
+.claudian-plus-text-block:hover .claudian-plus-text-actions-bar {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.claudian-plus-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--claudian-plus-radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.12s ease, background-color 0.12s ease;
+}
+
+.claudian-plus-action-btn:hover {
+  color: var(--text-normal);
+  background-color: var(--background-modifier-hover);
+}
+
+.claudian-plus-action-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Diff Review Modal */
+.claudian-plus-diff-review-modal {
+  display: flex;
+  flex-direction: column;
+  max-width: 850px;
+  width: 90vw;
+  max-height: 85vh;
+  padding: 20px;
+}
+
+.claudian-plus-diff-review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--background-modifier-border);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+
+.claudian-plus-diff-review-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.claudian-plus-diff-review-file-badge {
+  font-size: 11px;
+  font-family: var(--font-monospace);
+  background: var(--background-secondary-alt);
+  padding: 2px 8px;
+  border-radius: var(--claudian-plus-radius-sm);
+  color: var(--text-muted);
+}
+
+.claudian-plus-diff-review-body {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--claudian-plus-radius-md);
+  background: var(--background-primary-alt);
+  min-height: 240px;
+  max-height: 55vh;
+  margin-bottom: 16px;
+}
+
+.claudian-plus-diff-review-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--background-modifier-border);
+}

@@ -1,6 +1,7 @@
 import type { Component } from 'obsidian';
 import { Notice, Platform, TFile, TFolder } from 'obsidian';
 
+import { ActiveContextObserver } from '../../../core/context/ActiveContextObserver';
 import { getHiddenProviderCommandSet } from '../../../core/providers/commands/hiddenCommands';
 import type { ProviderCommandDropdownConfig } from '../../../core/providers/commands/ProviderCommandCatalog';
 import type { ProviderCommandEntry } from '../../../core/providers/commands/ProviderCommandEntry';
@@ -34,6 +35,7 @@ import { getVaultPath } from '../../../utils/path';
 import type { FeatureHost } from '../../FeatureHost';
 import { CanvasNeighborsModal } from '../CanvasNeighborsModal';
 import type { VaultContextReference } from '../composer/types';
+import { updateAmbientIndicator } from '../controllers/ambientIndicator';
 import { BrowserSelectionController } from '../controllers/BrowserSelectionController';
 import { CanvasSelectionController } from '../controllers/CanvasSelectionController';
 import { ConversationController } from '../controllers/ConversationController';
@@ -617,6 +619,7 @@ export function createTab(options: TabCreateOptions): TabData {
       selectionController: null,
       browserSelectionController: null,
       canvasSelectionController: null,
+      activeContextObserver: null,
       conversationController: null,
       streamController: null,
       inputController: null,
@@ -1271,6 +1274,7 @@ export function initializeTabUI(
       dom.messagesEl,
       plugin.settings.outlineSide ?? 'left',
     );
+    tab.ui.navigationSidebar.setReadingModeActive(state.getReadingMode());
   }
 
   initializeInstructionAndTodo(tab, plugin);
@@ -1282,6 +1286,7 @@ export function initializeTabUI(
       tab.ui.contextUsageMeter?.update(usage);
     },
     onTodosChanged: (todos) => tab.ui.statusPanel?.updateTodos(todos),
+    onReadingModeChanged: (active) => tab.ui.navigationSidebar?.setReadingModeActive(active),
     onAutoScrollChanged: () => tab.ui.navigationSidebar?.updateVisibility(),
   };
 
@@ -1520,6 +1525,7 @@ export function initializeTabControllers(
       ? (id) => handleForkRequest(tab, plugin, id, forkRequestCallback)
       : undefined,
     () => getTabCapabilities(tab, plugin),
+    () => tab.state.getReadingMode(),
   );
 
   // Selection controller
@@ -1536,6 +1542,15 @@ export function initializeTabControllers(
     ui.contextTray!,
     dom.inputEl,
   );
+
+  tab.controllers.activeContextObserver = new ActiveContextObserver(plugin.app);
+  if (ui.contextTray) {
+    tab.controllers.activeContextObserver.subscribe((snapshot) => {
+      if (tab.controllers.activeContextObserver && ui.contextTray) {
+        updateAmbientIndicator(ui.contextTray, tab.controllers.activeContextObserver, snapshot);
+      }
+    });
+  }
 
   tab.controllers.canvasSelectionController = new CanvasSelectionController(
     plugin.app,
@@ -1661,6 +1676,7 @@ export function initializeTabControllers(
     selectionController: tab.controllers.selectionController,
     browserSelectionController: tab.controllers.browserSelectionController,
     canvasSelectionController: tab.controllers.canvasSelectionController,
+    activeContextObserver: tab.controllers.activeContextObserver,
     conversationController: tab.controllers.conversationController,
     getInputEl: () => dom.inputEl,
     getInputContainerEl: () => dom.inputContainerEl,
@@ -1943,6 +1959,7 @@ export function activateTab(tab: TabData, plugin: FeatureHost): void {
   tab.controllers.selectionController?.start();
   tab.controllers.browserSelectionController?.start();
   tab.controllers.canvasSelectionController?.start();
+  tab.controllers.activeContextObserver?.start();
   // Refresh navigation sidebar visibility (dimensions now available after display)
   tab.ui.navigationSidebar?.updateVisibility();
 }
@@ -1957,6 +1974,7 @@ export function deactivateTab(tab: TabData): void {
   tab.controllers.selectionController?.stop();
   tab.controllers.browserSelectionController?.stop();
   tab.controllers.canvasSelectionController?.stop();
+  tab.controllers.activeContextObserver?.stop();
 }
 
 async function cancelAndAwaitActiveTurn(tab: TabData): Promise<boolean> {

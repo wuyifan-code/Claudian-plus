@@ -731,7 +731,7 @@ describe('MessageRenderer', () => {
         name: TOOL_WRITE_STDIN,
         input: { session_id: '2404', chars: 'y\n' },
       }),
-      { initiallyExpanded: false },
+      expect.objectContaining({ initiallyExpanded: false }),
     );
     expect(messagesEl.children).toHaveLength(1);
   });
@@ -764,7 +764,7 @@ describe('MessageRenderer', () => {
     expect(renderStoredToolCall).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ id: 'patch-1', name: TOOL_APPLY_PATCH }),
-      { initiallyExpanded: true },
+      expect.objectContaining({ initiallyExpanded: true }),
     );
   });
 
@@ -898,7 +898,7 @@ describe('MessageRenderer', () => {
     expect(renderStoredToolCall).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ id: 'read-1', name: 'Read' }),
-      { initiallyExpanded: false },
+      expect.objectContaining({ initiallyExpanded: false }),
     );
   });
 
@@ -1127,12 +1127,12 @@ describe('MessageRenderer', () => {
     expect(renderStoredToolCall).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ id: 'read-1', name: 'Read' }),
-      { initiallyExpanded: false },
+      expect.objectContaining({ initiallyExpanded: false }),
     );
     expect(renderStoredToolCall).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ id: 'grep-1', name: 'Grep' }),
-      { initiallyExpanded: false },
+      expect.objectContaining({ initiallyExpanded: false }),
     );
   });
 
@@ -2278,7 +2278,8 @@ describe('MessageRenderer', () => {
         expect.anything(),
         'deep thought',
         42,
-        expect.any(Function)
+        expect.any(Function),
+        expect.objectContaining({ collapsedByDefault: false })
       );
     });
 
@@ -2305,8 +2306,37 @@ describe('MessageRenderer', () => {
         expect.anything(),
         'thought without duration',
         undefined,
-        expect.any(Function)
+        expect.any(Function),
+        expect.objectContaining({ collapsedByDefault: false })
       );
     });
   });
+
+  // ============================================
+  // Actionable Response Bar & Selective Insertion
+  // ============================================
+
+  describe('Actionable Response Bar & Selective Insertion', () => {
+    it('creates actionable response bar with all four action buttons', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      const textEl = createMockEl();
+
+      renderer.addActionableResponseBar(textEl as any, 'Sample response text');
+
+      const actionsBar = textEl.children.find((c: any) => c.className?.includes('claudian-plus-text-actions-bar'));
+      expect(actionsBar).toBeTruthy();
+
+      const insertBtn = actionsBar.children.find((c: any) => c.className?.includes('claudian-plus-action-insert-btn'));
+      const replaceBtn = actionsBar.children.find((c: any) => c.className?.includes('claudian-plus-action-replace-btn'));
+      const noteBtn = actionsBar.children.find((c: any) => c.className?.includes('claudian-plus-action-note-btn'));
+      const diffBtn = actionsBar.children.find((c: any) => c.className?.includes('claudian-plus-action-diff-btn'));
+
+      expect(insertBtn).toBeTruthy();
+      expect(replaceBtn).toBeTruthy();
+      expect(noteBtn).toBeTruthy();
+      expect(diffBtn).toBeTruthy();
+    });
+  });
 });
+

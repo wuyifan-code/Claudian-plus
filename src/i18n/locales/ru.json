@@ -76,10 +76,35 @@
       "expandOutput": "Развернуть вывод команды",
       "running": "Выполняется...",
       "copyFailed": "Не удалось скопировать в буфер обмена"
+    },
+    "readingMode": {
+      "on": "Включить режим чтения",
+      "off": "Выключить режим чтения"
+    },
+    "view": {
+      "chat": "Чат",
+      "sessions": "Сессии"
+    },
+    "outline": {
+      "filter": {
+        "prompts": "Промпты",
+        "headings": "Заголовки",
+        "tools": "Инструменты",
+        "thinking": "Размышления"
+      }
     }
   },
   "settings": {
     "title": "Настройки Claudian Plus",
+    "category": {
+      "general": "Основные",
+      "appearance": "Внешний вид",
+      "memory": "Память и сознание",
+      "providers": "Провайдеры",
+      "agentsSkills": "Агенты и навыки",
+      "workspace": "Рабочая область",
+      "advanced": "Дополнительно"
+    },
     "tabs": {
       "general": "Общие",
       "claude": "Claude",

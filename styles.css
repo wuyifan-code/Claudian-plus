@@ -204,10 +204,46 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   padding: 8px 12px 12px 12px;
   border-bottom: 1px solid var(--background-modifier-border);
   margin-bottom: 4px;
+}
+
+.claudian-plus-view-switcher {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.claudian-plus-view-switcher-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: var(--claudian-plus-radius-xs);
+  cursor: pointer;
+  color: var(--text-faint);
+  background: transparent;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.claudian-plus-view-switcher-btn:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.claudian-plus-view-switcher-btn.is-active {
+  color: var(--interactive-accent);
+  background: var(--background-modifier-hover);
+}
+
+.claudian-plus-view-switcher-btn svg {
+  width: 15px;
+  height: 15px;
 }
 
 .claudian-plus-title {
@@ -240,6 +276,45 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
 
 .claudian-plus-header:hover .claudian-plus-logo {
   transform: scale(1.08) rotate(3deg);
+}
+
+.claudian-plus-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.claudian-plus-header-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: var(--claudian-plus-radius-xs);
+  cursor: pointer;
+  color: var(--text-faint);
+  background: transparent;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.claudian-plus-header-action-btn:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.claudian-plus-header-action-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.claudian-plus-sessions-view-host {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 
@@ -342,6 +417,41 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
 
 .claudian-plus-tab-badge-idle {
   border-color: var(--background-modifier-border);
+}
+
+.claudian-plus-tab-badge--dragging {
+  opacity: 0.45;
+  transform: scale(0.96);
+  cursor: grabbing;
+}
+
+.claudian-plus-tab-badge--drop-target {
+  box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+.claudian-plus-tab-overflow-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 24px;
+  padding: 0;
+  border-radius: var(--claudian-plus-radius-xs);
+  cursor: pointer;
+  color: var(--text-muted);
+  background: transparent;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.claudian-plus-tab-overflow-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.claudian-plus-tab-overflow-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 .claudian-plus-tab-content-container {
@@ -626,6 +736,204 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
 
 .claudian-plus-history-load-more:hover {
   background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+
+/* ============================================
+   components/sessions-view.css
+   ============================================ */
+/* Sessions View - File Explorer style session manager */
+.claudian-plus-sessions-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+  background: var(--background-primary);
+}
+
+.claudian-plus-sessions-search-header {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+}
+
+.claudian-plus-sessions-search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.claudian-plus-sessions-search-icon {
+  position: absolute;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  color: var(--text-faint);
+}
+
+.claudian-plus-sessions-search-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.claudian-plus-sessions-search-input {
+  width: 100%;
+  padding-left: 28px;
+  padding-right: 8px;
+  height: 28px;
+  font-size: 12px;
+  border-radius: var(--claudian-plus-radius-xs);
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  color: var(--text-normal);
+}
+
+.claudian-plus-sessions-search-input:focus {
+  border-color: var(--interactive-accent);
+}
+
+.claudian-plus-sessions-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.claudian-plus-sessions-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.claudian-plus-session-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--background-modifier-border);
+  transition: background 0.12s ease;
+  position: relative;
+}
+
+.claudian-plus-session-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.claudian-plus-session-row.is-active {
+  background: var(--background-modifier-hover);
+  border-left: 3px solid var(--interactive-accent);
+}
+
+.claudian-plus-session-icon {
+  display: flex;
+  align-items: center;
+  color: var(--text-accent);
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.claudian-plus-session-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.claudian-plus-session-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 2px;
+}
+
+.claudian-plus-session-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.claudian-plus-session-title {
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--text-normal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.claudian-plus-session-time {
+  font-size: 11px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.claudian-plus-session-preview {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.claudian-plus-session-actions {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.claudian-plus-session-row:hover .claudian-plus-session-actions {
+  display: flex;
+}
+
+.claudian-plus-session-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: var(--claudian-plus-radius-xs);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.claudian-plus-session-action-btn:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-border);
+}
+
+.claudian-plus-session-action-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.claudian-plus-session-delete-btn:hover {
+  color: var(--text-error);
+}
+
+.claudian-plus-session-rename-input {
+  width: 100%;
+  font-size: 13px;
+  padding: 2px 4px;
+  height: 22px;
+  border-radius: var(--claudian-plus-radius-xs);
+  border: 1px solid var(--interactive-accent);
+  background: var(--background-primary);
   color: var(--text-normal);
 }
 
@@ -1043,6 +1351,52 @@ body.theme-dark .claudian-plus-provider-icon-variant--dark {
   pointer-events: auto;
 }
 
+/* ── Filter chips ── */
+
+.claudian-plus-nav-outline-filters {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin-bottom: 6px;
+}
+
+.claudian-plus-nav-outline-chip {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: var(--claudian-plus-radius-xs);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-faint);
+  background: transparent;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 120ms ease, color 120ms ease, background-color 120ms ease;
+}
+
+.claudian-plus-nav-outline-chip:hover {
+  opacity: 0.85;
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.claudian-plus-nav-outline-chip.is-active {
+  opacity: 1;
+  color: var(--interactive-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+}
+
+.claudian-plus-nav-outline-chip.is-disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 /* ── Outline track (tick rail) ── */
 
 .claudian-plus-nav-outline-track {
@@ -1341,6 +1695,41 @@ body.theme-light .claudian-plus-message-content pre {
 .claudian-plus-code-wrapper .claudian-plus-code-lang-label:hover {
   color: var(--text-normal);
   background: var(--background-modifier-hover);
+}
+
+/* Code block insert at cursor button */
+.claudian-plus-code-wrapper .claudian-plus-code-insert-btn {
+  position: absolute;
+  top: 6px;
+  inset-inline-start: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: var(--background-primary);
+  border-radius: var(--claudian-plus-radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+  box-shadow: var(--shadow-s);
+}
+
+.claudian-plus-code-wrapper:hover .claudian-plus-code-insert-btn {
+  opacity: 0.7;
+}
+
+.claudian-plus-code-wrapper .claudian-plus-code-insert-btn:hover {
+  opacity: 1;
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.claudian-plus-code-wrapper .claudian-plus-code-insert-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* Hide default copy button when language label exists */
@@ -2327,6 +2716,11 @@ body.theme-light .claudian-plus-message-content pre {
   background: var(--background-modifier-hover);
 }
 
+.claudian-plus-input-nav-btn.is-active {
+  color: var(--claudian-plus-brand);
+  background: var(--background-modifier-hover);
+}
+
 .claudian-plus-input-nav-btn svg {
   width: 16px;
   height: 16px;
@@ -3001,6 +3395,210 @@ body.theme-light .claudian-plus-message-content pre {
   color: var(--claudian-plus-text-muted);
   font-size: 12px;
   padding: 12px;
+}
+
+
+/* ============================================
+   components/ambient-context.css
+   ============================================ */
+/* Ambient Context Tray Chip & Indicator */
+
+.claudian-plus-context-chip[data-kind="ambient"] {
+  background: var(--background-secondary-alt);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border-focus);
+  border-radius: var(--claudian-plus-radius-full);
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease-in-out;
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.claudian-plus-context-chip[data-kind="ambient"]:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+  color: var(--text-accent);
+}
+
+.claudian-plus-context-chip[data-kind="ambient"] svg {
+  width: 13px;
+  height: 13px;
+  color: var(--interactive-accent);
+  flex-shrink: 0;
+}
+
+.claudian-plus-context-chip[data-kind="ambient"] .claudian-plus-context-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+/* ============================================
+   components/actionable-response.css
+   ============================================ */
+/* Actionable Response Toolbar & In-Situ Mutation Modal */
+
+/* Floating Selection Toolbar */
+.claudian-plus-floating-selection-toolbar {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--claudian-plus-radius-md);
+  padding: 3px 5px;
+  z-index: 100;
+  box-shadow: var(--shadow-m);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px) scale(0.96);
+  transition: opacity 0.15s cubic-bezier(0.16, 1, 0.3, 1), transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(8px);
+}
+
+.claudian-plus-floating-selection-toolbar.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.claudian-plus-floating-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  border-radius: var(--claudian-plus-radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.12s ease, background-color 0.12s ease, transform 0.08s ease;
+}
+
+.claudian-plus-floating-btn:hover {
+  color: var(--text-normal);
+  background-color: var(--background-modifier-hover);
+  transform: translateY(-1px);
+}
+
+.claudian-plus-floating-btn:active {
+  transform: translateY(0);
+}
+
+.claudian-plus-floating-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.claudian-plus-text-actions-bar {
+  position: absolute;
+  bottom: 2px;
+  inset-inline-end: 4px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--claudian-plus-radius-md);
+  padding: 2px 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  transform: translateY(2px);
+  z-index: 5;
+  box-shadow: var(--shadow-s);
+}
+
+.claudian-plus-text-block:hover .claudian-plus-text-actions-bar {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.claudian-plus-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--claudian-plus-radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.12s ease, background-color 0.12s ease;
+}
+
+.claudian-plus-action-btn:hover {
+  color: var(--text-normal);
+  background-color: var(--background-modifier-hover);
+}
+
+.claudian-plus-action-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Diff Review Modal */
+.claudian-plus-diff-review-modal {
+  display: flex;
+  flex-direction: column;
+  max-width: 850px;
+  width: 90vw;
+  max-height: 85vh;
+  padding: 20px;
+}
+
+.claudian-plus-diff-review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--background-modifier-border);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+
+.claudian-plus-diff-review-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.claudian-plus-diff-review-file-badge {
+  font-size: 11px;
+  font-family: var(--font-monospace);
+  background: var(--background-secondary-alt);
+  padding: 2px 8px;
+  border-radius: var(--claudian-plus-radius-sm);
+  color: var(--text-muted);
+}
+
+.claudian-plus-diff-review-body {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--claudian-plus-radius-md);
+  background: var(--background-primary-alt);
+  min-height: 240px;
+  max-height: 55vh;
+  margin-bottom: 16px;
+}
+
+.claudian-plus-diff-review-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--background-modifier-border);
 }
 
 
@@ -5613,81 +6211,204 @@ code .claudian-plus-file-link:hover {
 
 
 /* ============================================
-   settings/base.css
+   settings/tree-shell.css
    ============================================ */
-/* ── Settings tab navigation (Segmented Pill Design) ── */
+/* Settings Horizontal Category Nav Bar & Search */
 
-.claudian-plus-settings-tabs {
+.claudian-plus-settings {
   display: flex;
-  gap: 6px;
-  padding: 5px;
-  background: var(--background-secondary-alt, var(--background-secondary));
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.claudian-plus-settings-shell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 14px;
+  flex: 1 1 auto;
+}
+
+.claudian-plus-settings-sidebar {
+  width: 100%;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-right: none;
+  border-bottom: 1px solid var(--background-modifier-border);
+  padding-bottom: 12px;
+}
+
+.claudian-plus-settings-search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.claudian-plus-settings-search-icon {
+  position: absolute;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  color: var(--text-faint);
+}
+
+.claudian-plus-settings-search-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+.claudian-plus-settings-search-input {
+  width: 100%;
+  padding-left: 28px;
+  padding-right: 8px;
+  height: 28px;
+  font-size: var(--font-ui-small, 12px);
+  border-radius: var(--claudian-plus-radius-sm, 6px);
   border: 1px solid var(--background-modifier-border);
-  border-radius: var(--claudian-plus-radius-lg);
-  margin-bottom: 24px;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+}
+
+.claudian-plus-settings-search-input:focus {
+  border-color: var(--interactive-accent);
+}
+
+.claudian-plus-settings-tree {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
   overflow-x: auto;
 }
 
-.claudian-plus-settings-tab {
-  padding: 8px 20px;
-  border: none;
-  border-radius: var(--claudian-plus-radius-md);
-  background: transparent;
-  color: var(--text-muted);
-  font-size: var(--font-ui-small);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  white-space: nowrap;
-  user-select: none;
+.claudian-plus-settings-subnav {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--background-modifier-border);
 }
 
-.claudian-plus-settings-tab:hover {
+.claudian-plus-settings-tree-item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  font-size: var(--font-ui-small, 12px);
+  border-radius: var(--claudian-plus-radius-sm, 6px);
+  cursor: pointer;
+  color: var(--text-muted);
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  transition: all 0.15s ease;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.claudian-plus-settings-tree-item:hover {
+  background: var(--background-modifier-hover);
   color: var(--text-normal);
+  border-color: var(--background-modifier-border-hover);
+}
+
+.claudian-plus-settings-tree-item.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+  font-weight: 550;
+}
+
+.claudian-plus-settings-tree-item svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
+
+.claudian-plus-settings-tree-item.is-active svg {
+  color: var(--text-on-accent);
+}
+
+.claudian-plus-settings-tree-child {
+  font-size: 11.5px;
+  padding: 4px 10px;
+  background: var(--background-primary);
+}
+
+.claudian-plus-settings-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--claudian-plus-radius-sm, 6px);
+  background: var(--background-secondary);
+  padding: 4px;
+}
+
+.claudian-plus-settings-search-result-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: var(--claudian-plus-radius-xs);
+  cursor: pointer;
+  background: transparent;
+  transition: background 0.12s ease;
+}
+
+.claudian-plus-settings-search-result-item:hover {
   background: var(--background-modifier-hover);
 }
 
-.claudian-plus-settings-tab:focus-visible {
-  outline: 2px solid var(--interactive-accent);
-  outline-offset: 2px;
+.claudian-plus-settings-search-result-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-normal);
 }
 
-.claudian-plus-settings-tab--active {
-  color: var(--claudian-plus-text-on-accent) !important;
-  background: var(--interactive-accent) !important;
-  font-weight: 650;
-  box-shadow: var(--claudian-plus-shadow-sm);
+.claudian-plus-settings-search-result-crumb {
+  font-size: 10px;
+  color: var(--text-faint);
 }
 
-.claudian-plus-settings-tab-content {
-  display: none;
+.claudian-plus-settings-content-pane {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 0;
 }
 
-.claudian-plus-settings-tab-content--active {
-  display: block;
-  padding-bottom: 32px;
-  animation: claudian-plus-fade-in 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes claudian-plus-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
+@keyframes claudian-plus-flash-highlight {
+  0% {
+    background-color: var(--background-modifier-hover);
+    box-shadow: 0 0 0 2px var(--interactive-accent);
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  100% {
+    background-color: transparent;
+    box-shadow: none;
   }
 }
 
-/* Codex placeholder */
-.claudian-plus-settings-codex-placeholder {
-  padding: 40px 20px;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: var(--font-ui-small);
+.claudian-plus-settings-highlight-flash {
+  animation: claudian-plus-flash-highlight 1.6s ease forwards;
 }
 
+
+/* ============================================
+   settings/base.css
+   ============================================ */
 /* ── Card Containers & Section Cards ── */
 
 .claudian-plus-settings-card {

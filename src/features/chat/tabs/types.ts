@@ -1,5 +1,6 @@
 import type { Component, WorkspaceLeaf } from 'obsidian';
 
+import type { ActiveContextObserver } from '../../../core/context/ActiveContextObserver';
 import type { InstructionRefineService, ProviderId, TitleGenerationService } from '../../../core/providers/types';
 import type { ChatRuntime } from '../../../core/runtime/ChatRuntime';
 import type { SlashCommandDropdown } from '../../../shared/components/SlashCommandDropdown';
@@ -81,6 +82,12 @@ export interface TabManagerInterface {
 
   /** Gets all tabs. */
   getAllTabs(): TabData[];
+
+  /** Reorders a tab to a target index. */
+  moveTab(tabId: TabId, toIndex: number): void;
+
+  /** Gets all tabs in their current order. */
+  getOrderedTabs(): TabData[];
 }
 
 /** Tab identifier type. */
@@ -99,6 +106,7 @@ export interface TabControllers {
   selectionController: SelectionController | null;
   browserSelectionController: BrowserSelectionController | null;
   canvasSelectionController: CanvasSelectionController | null;
+  activeContextObserver: ActiveContextObserver | null;
   conversationController: ConversationController | null;
   streamController: StreamController | null;
   inputController: InputController | null;

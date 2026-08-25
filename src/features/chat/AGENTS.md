@@ -50,4 +50,6 @@ Tabs stay cold until the first send. Keep runtime warmup explicit and provider-o
   - Codex uses `collaborationMode` plus post-stream metadata.
   - OpenCode maps managed modes to shared permission modes.
 - Bang-bash mode bypasses provider runtimes and executes a local shell command directly. It is available only when the enabled provider exposes it in `ProviderChatUIConfig`.
+- Reading mode is per-conversation and persisted in `Conversation.readingMode`. In reading mode, tools and thinking blocks default to collapsed 1-line summaries while preserving decision points (diffs, plan approvals, user questions).
+- Outline extraction lives in `src/features/chat/ui/outlineExtraction.ts`. It extracts four node kinds (prompts, headings, tool calls, thinking blocks) in document order. The outline sidebar (`NavigationSidebar.ts`) provides kind filter chips (Q, H, Tool, Think) and automatically restricts to prompts + headings when reading mode is enabled.
 - Forking is provider-owned under the hood. Use runtime and provider history contracts instead of reconstructing provider session IDs in feature code.

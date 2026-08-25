@@ -151,6 +151,8 @@ export interface ClaudianPlusSettings {
   deferMathRenderingDuringStreaming: boolean;
   expandFileEditsByDefault: boolean;
   chatViewPlacement: ChatViewPlacement;
+  chatHomeView?: 'chat' | 'sessions';
+  settingsLastCategory?: string;
 
   /**
    * Welcome animation mode. `full` renders the Three.js constellation cube,

@@ -593,16 +593,15 @@ describe('NavigationSidebar', () => {
       return msg;
     }
 
-    it('renders only user prompt markers, excluding assistant headings', () => {
+    it('renders prompt markers in document order', () => {
       messagesEl.scrollHeight = 2000;
       messagesEl.clientHeight = 500;
       addMessage('user', 0, 'Build a semantic search index');
       const assistant = addMessage('assistant', 180);
       const content = assistant.createDiv({ cls: 'claudian-plus-message-content' });
       const textBlock = content.createDiv({ cls: 'claudian-plus-text-block' });
-      const heading = new MockElement('h2');
-      heading.textContent = 'Index architecture';
-      textBlock.appendChild(heading);
+      textBlock.createDiv({ text: 'Index architecture response' });
+      addMessage('user', 360, 'What about query caching?');
 
       sidebar = new NavigationSidebar(
         parentEl as unknown as HTMLElement,
@@ -613,9 +612,11 @@ describe('NavigationSidebar', () => {
       const markers = parentEl.querySelectorAll('.claudian-plus-nav-outline-marker');
       expect(track).not.toBeNull();
       expect(track?.getAttribute('aria-label')).toBe('Conversation outline');
-      expect(markers).toHaveLength(1);
+      expect(markers).toHaveLength(2);
       expect(markers[0].getAttribute('data-outline-kind')).toBe('prompt');
       expect(markers[0].getAttribute('data-outline-level')).toBe('2');
+      expect(markers[1].getAttribute('data-outline-kind')).toBe('prompt');
+      expect(markers[1].getAttribute('data-outline-level')).toBe('2');
     });
 
     it('varies tick levels by prompt title length (Wave TOC look)', () => {
@@ -655,15 +656,13 @@ describe('NavigationSidebar', () => {
       expect(tops).toEqual([undefined, undefined, undefined]);
     });
 
-    it('does not create outline entries for assistant messages', () => {
+    it('does not create outline entries for plain assistant text without headings or tools', () => {
       messagesEl.scrollHeight = 2000;
       messagesEl.clientHeight = 500;
       const assistant = addMessage('assistant', 180);
       const content = assistant.createDiv({ cls: 'claudian-plus-message-content' });
       const textBlock = content.createDiv({ cls: 'claudian-plus-text-block' });
-      const heading = new MockElement('h2');
-      heading.textContent = 'Index architecture';
-      textBlock.appendChild(heading);
+      textBlock.textContent = 'Just plain response text without any headings';
 
       sidebar = new NavigationSidebar(
         parentEl as unknown as HTMLElement,
@@ -923,11 +922,11 @@ describe('NavigationSidebar', () => {
       expect(secondActive).toBeGreaterThan(firstActive);
     });
 
-    it('does not add markers when streamed assistant headings appear', () => {
+    it('adds markers when new user messages appear', () => {
       messagesEl.scrollHeight = 2000;
       messagesEl.clientHeight = 500;
       addMessage('user', 0, 'First task');
-      const assistant = addMessage('assistant', 180);
+      addMessage('assistant', 180);
 
       sidebar = new NavigationSidebar(
         parentEl as unknown as HTMLElement,
@@ -935,22 +934,18 @@ describe('NavigationSidebar', () => {
       );
       expect(parentEl.querySelectorAll('.claudian-plus-nav-outline-marker')).toHaveLength(1);
 
-      const content = assistant.createDiv({ cls: 'claudian-plus-message-content' });
-      const textBlock = content.createDiv({ cls: 'claudian-plus-text-block' });
-      const heading = new MockElement('h2');
-      heading.textContent = 'Streamed heading';
-      textBlock.appendChild(heading);
+      const nextMsg = addMessage('user', 360, 'Second task');
       mutationCallback?.([
         {
           type: 'childList',
-          target: assistant,
-          addedNodes: [heading],
+          target: messagesEl,
+          addedNodes: [nextMsg],
           removedNodes: [],
         } as unknown as MutationRecord,
       ], {} as MutationObserver);
       jest.advanceTimersByTime(80);
 
-      expect(parentEl.querySelectorAll('.claudian-plus-nav-outline-marker')).toHaveLength(1);
+      expect(parentEl.querySelectorAll('.claudian-plus-nav-outline-marker')).toHaveLength(2);
     });
 
     it('keeps marker focus when a new user message extends the outline', () => {

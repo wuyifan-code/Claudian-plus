@@ -76,10 +76,35 @@
       "expandOutput": "Expandir a saída do comando",
       "running": "Executando...",
       "copyFailed": "Falha ao copiar para a área de transferência"
+    },
+    "readingMode": {
+      "on": "Ativar modo de leitura",
+      "off": "Desactivar modo de leitura"
+    },
+    "view": {
+      "chat": "Chat",
+      "sessions": "Sessões"
+    },
+    "outline": {
+      "filter": {
+        "prompts": "Prompts",
+        "headings": "Cabeçalhos",
+        "tools": "Ferramentas",
+        "thinking": "Pensamento"
+      }
     }
   },
   "settings": {
-    "title": "Configurações do Claudian Plus",
+    "title": "Definições do Claudian Plus",
+    "category": {
+      "general": "Geral",
+      "appearance": "Aparência",
+      "memory": "Memória e consciência",
+      "providers": "Provedores",
+      "agentsSkills": "Agentes e habilidades",
+      "workspace": "Espaço de trabalho",
+      "advanced": "Avançado"
+    },
     "tabs": {
       "general": "Geral",
       "claude": "Claude",

@@ -3,22 +3,16 @@ import {
   scheduleAnimationFrame,
   type ScheduledAnimationFrame,
 } from '../../../utils/animationFrame';
-import { formatConversationDirectoryTitle } from '../utils/conversationDirectoryTitle';
+import {
+  type ConversationOutlineEntry,
+  type ConversationOutlineKind,
+  type ConversationOutlineLevel,
+  extractOutlineEntries,
+  filterEntriesByKinds,
+} from './outlineExtraction';
 
-type ConversationOutlineKind = 'prompt' | 'heading';
-type ConversationOutlineLevel = 1 | 2 | 3;
+export type { ConversationOutlineEntry, ConversationOutlineKind, ConversationOutlineLevel };
 
-interface ConversationOutlineEntry {
-  targetEl: HTMLElement;
-  messageEl: HTMLElement;
-  title: string;
-  excerpt: string;
-  badge: string;
-  kind: ConversationOutlineKind;
-  level: ConversationOutlineLevel;
-}
-
-const OUTLINE_EXCERPT_LENGTH = 140;
 const OUTLINE_REFRESH_DELAY_MS = 80;
 // Wave TOC peaks at 51px: the hovered H1 grows from 27px to 51px and the
 // gaussian ripple sweeps the neighboring ticks. The transcript gutter is
@@ -27,24 +21,14 @@ const WAVE_PEAK_WIDTH = 51;
 const WAVE_SIGMA = 1.55;
 let nextOutlinePreviewId = 0;
 
-function normalizeOutlineText(text: string): string {
-  return text.replace(/\s+/g, ' ').trim();
-}
-
-function truncateOutlineText(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return `${text.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
-}
-
 /**
  * Floating conversation outline rail.
- * Renders a track of horizontal tick markers sized to the transcript height.
+ * Renders filter chips and a track of horizontal tick markers sized to the transcript height.
  */
 export class NavigationSidebar {
   private container: HTMLElement;
   private outlineTrack: HTMLElement;
   private outlineEntries: ConversationOutlineEntry[] = [];
-  private outlineEntriesByMessage = new Map<HTMLElement, ConversationOutlineEntry[]>();
   private outlineMarkers: HTMLElement[] = [];
   private activeOutlineIndex: number | null = null;
   private hoverIndex = -1;
@@ -59,8 +43,6 @@ export class NavigationSidebar {
   private pendingVisibilityFrame: ScheduledAnimationFrame | null = null;
   private pendingOutlineReposition = false;
   private pendingOutlineRefresh: { id: number; ownerWindow: Window } | null = null;
-  private pendingOutlineMessages = new Set<HTMLElement>();
-  private pendingFullOutlineRefresh = false;
   private isVisible: boolean | null = null;
   private destroyed = false;
   private side: 'left' | 'right';
@@ -70,6 +52,7 @@ export class NavigationSidebar {
   private waveAmplitude = 0;
   private waveTarget = 0;
   private waveActive = false;
+  private isReadingModeActive = false;
 
   constructor(
     private parentEl: HTMLElement,
@@ -81,20 +64,12 @@ export class NavigationSidebar {
     this.container.setAttribute('aria-label', 'Conversation outline sidebar');
     this.applySide();
     this.container.tabIndex = -1;
-    // tabIndex=-1 lets the container receive focus from container-level
-    // shortcuts without participating in the regular tab order.
 
     // Outline track holds horizontal tick markers sized to the transcript height.
     this.outlineTrack = this.container.createDiv({ cls: 'claudian-plus-nav-outline-track' });
     this.outlineTrack.setAttribute('role', 'navigation');
     this.outlineTrack.setAttribute('aria-label', 'Conversation outline');
 
-    // Persistent hover bubble (Wave TOC model): one card is created per
-    // sidebar and shown/hidden via is-visible, so it follows the pointer
-    // across ticks with a single smooth CSS transition instead of being
-    // recreated (and flickering) on every hover change. It lives in the
-    // document body so its position:fixed stays viewport-anchored regardless
-    // of transforms, containment, or overflow on chat containers.
     const bubbleHost = this.messagesEl.ownerDocument.body ?? this.parentEl;
     this.outlinePreview = bubbleHost.createDiv({ cls: 'claudian-plus-nav-outline-preview' });
     this.outlinePreview.setAttribute('id', `claudian-plus-outline-preview-${++nextOutlinePreviewId}`);
@@ -109,6 +84,16 @@ export class NavigationSidebar {
     this.applyVisibility();
   }
 
+  setReadingModeActive(active: boolean): void {
+    if (this.isReadingModeActive === active) return;
+    this.isReadingModeActive = active;
+    this.refreshOutline();
+  }
+
+  getEffectiveEnabledKinds(): Set<ConversationOutlineKind> {
+    return new Set<ConversationOutlineKind>(['prompt']);
+  }
+
   setSide(side: 'left' | 'right'): void {
     if (this.side === side) return;
     this.side = side;
@@ -121,7 +106,6 @@ export class NavigationSidebar {
   }
 
   private setupEventListeners(): void {
-    // Scroll handling to toggle visibility
     this.scrollHandler = () => this.updateVisibility();
     this.messagesEl.addEventListener('scroll', this.scrollHandler, { passive: true });
 
@@ -136,10 +120,6 @@ export class NavigationSidebar {
       }
     });
 
-    // Wave TOC rail interaction: hovering anywhere in the tick strip selects
-    // the nearest marker, so the wave, the is-hovering tint, and the preview
-    // bubble follow the pointer even between the thin ticks. Clicking the
-    // strip jumps to the hovered entry.
     this.outlineTrack.addEventListener('mousemove', (event: MouseEvent) => {
       this.hoverOutlineAt(event.clientY);
     });
@@ -149,53 +129,36 @@ export class NavigationSidebar {
       const entry = this.outlineEntries[this.hoverIndex];
       if (entry) {
         this.scrollToElement(this.resolveEntryTarget(entry));
-        this.deactivateOutlineEntry();
+        this.hideOutlinePreview();
       }
     });
     this.outlineTrack.addEventListener('mouseleave', () => {
-      this.deactivateOutlineEntry();
       this.releaseWaveFocus();
+      this.deactivateOutlineEntry();
     });
 
     if (typeof MutationObserver !== 'undefined') {
       this.mutationObserver = new MutationObserver((mutations) => {
-        if (this.destroyed) return;
-        this.updateVisibility();
-        const outlineMutations = mutations.filter(mutation => this.mutationAffectsOutline(mutation));
-        if (outlineMutations.length > 0) {
-          this.scheduleOutlineRefresh(outlineMutations);
-        }
+        this.scheduleOutlineRefresh(mutations);
       });
       this.mutationObserver.observe(this.messagesEl, {
         childList: true,
         subtree: true,
-        attributes: true,
-        attributeFilter: ['data-toc-title'],
         characterData: true,
+        attributes: true,
+        attributeFilter: ['data-toc-title', 'class'],
       });
     }
 
-    // A pane can change height or width without mutating the transcript. In
-    // that case scrollability, text wrapping, and marker positions all change
-    // together, so a scroll-only update leaves a stale rail behind.
     if (typeof ResizeObserver !== 'undefined') {
       this.resizeObserver = new ResizeObserver(() => {
-        if (this.destroyed) return;
         this.scheduleLayoutUpdate(true);
       });
       this.resizeObserver.observe(this.messagesEl);
-      if (this.parentEl !== this.messagesEl) {
-        this.resizeObserver.observe(this.parentEl);
-      }
     }
   }
 
-  /**
-   * Updates visibility of the sidebar based on scroll state.
-   * Visible if content overflows.
-   */
   updateVisibility(): void {
-    if (this.destroyed) return;
     this.scheduleLayoutUpdate();
   }
 
@@ -226,249 +189,27 @@ export class NavigationSidebar {
     this.parentEl.classList.toggle('claudian-plus-has-nav-sidebar', shouldShow);
   }
 
-  private scheduleOutlineRefresh(mutations: MutationRecord[]): void {
+  private scheduleOutlineRefresh(_mutations: MutationRecord[]): void {
     if (this.destroyed) return;
-    this.queueOutlineMutations(mutations);
     if (this.pendingOutlineRefresh !== null) return;
     const ownerWindow = this.messagesEl.ownerDocument.defaultView;
     if (!ownerWindow) {
-      const dirtyMessages = this.pendingFullOutlineRefresh
-        ? null
-        : new Set(this.pendingOutlineMessages);
-      this.pendingFullOutlineRefresh = false;
-      this.pendingOutlineMessages.clear();
-      this.refreshOutline(dirtyMessages);
+      this.refreshOutline();
       return;
     }
     const id = ownerWindow.setTimeout(() => {
       this.pendingOutlineRefresh = null;
       if (this.destroyed) return;
-      const dirtyMessages = this.pendingFullOutlineRefresh
-        ? null
-        : new Set(this.pendingOutlineMessages);
-      this.pendingFullOutlineRefresh = false;
-      this.pendingOutlineMessages.clear();
-      this.refreshOutline(dirtyMessages);
+      this.refreshOutline();
     }, OUTLINE_REFRESH_DELAY_MS);
     this.pendingOutlineRefresh = { id, ownerWindow };
   }
 
-  private collectMessageOutlineEntries(messageEl: HTMLElement): ConversationOutlineEntry[] {
-    const entries: ConversationOutlineEntry[] = [];
-    if (!this.isUserMessageElement(messageEl)) return entries;
-    const title = this.getDirectoryTitle(messageEl);
-    if (!title) return entries;
-    entries.push({
-      targetEl: messageEl,
-      messageEl,
-      title,
-      excerpt: this.getAssistantResponseExcerpt(messageEl),
-      badge: 'Q',
-      kind: 'prompt',
-      level: this.getOutlineLevelForTitle(title),
-    });
-    return entries;
-  }
-
-  /**
-   * Wave TOC varies tick length by heading depth. A chat transcript has no
-   * heading hierarchy, so prompts are bucketed by title length into the same
-   * three bar widths (27/20/15px) for the same organic, non-uniform look.
-   */
-  private getOutlineLevelForTitle(title: string): ConversationOutlineLevel {
-    if (title.length < 16) return 3;
-    if (title.length <= 32) return 2;
-    return 1;
-  }
-
-  private collectOutlineEntries(
-    dirtyMessages: Set<HTMLElement> | null = null,
-  ): ConversationOutlineEntry[] {
-    const messageEls = Array.from(this.messagesEl.querySelectorAll<HTMLElement>(
-      '.claudian-plus-message-user, [data-role="user"]',
-    ));
-    const currentMessages = new Set(messageEls);
-    for (const cachedMessage of this.outlineEntriesByMessage.keys()) {
-      if (!currentMessages.has(cachedMessage)) this.outlineEntriesByMessage.delete(cachedMessage);
-    }
-
-    const entries: ConversationOutlineEntry[] = [];
-    for (const messageEl of messageEls) {
-      if (
-        dirtyMessages === null
-        || dirtyMessages.has(messageEl)
-        || !this.outlineEntriesByMessage.has(messageEl)
-      ) {
-        this.outlineEntriesByMessage.set(
-          messageEl,
-          this.collectMessageOutlineEntries(messageEl),
-        );
-      }
-      entries.push(...(this.outlineEntriesByMessage.get(messageEl) ?? []));
-    }
-    return entries;
-  }
-
-  private hasSameOutlineStructure(entries: ConversationOutlineEntry[]): boolean {
-    return entries.length === this.outlineEntries.length
-      && entries.every((entry, index) => {
-        const current = this.outlineEntries[index];
-        return entry.kind === current.kind
-          && entry.level === current.level
-          && entry.badge === current.badge
-          && entry.title === current.title;
-      });
-  }
-
-  private getDirectoryTitle(el: HTMLElement): string {
-    const explicitTitle = (el.getAttribute('data-toc-title') ?? '').trim();
-    if (explicitTitle) return explicitTitle;
-
-    const contentEl = el.querySelector<HTMLElement>('.claudian-plus-message-content');
-    return formatConversationDirectoryTitle(contentEl?.textContent ?? el.textContent ?? '');
-  }
-
-  private getAssistantResponseExcerpt(userMsgEl: HTMLElement): string {
-    let sibling = userMsgEl.nextElementSibling as HTMLElement | null;
-    while (sibling) {
-      // Consecutive user messages occur when a turn is queued, retried, or
-      // steered. Do not borrow the next turn's response as this prompt's
-      // directory preview.
-      if (this.isUserMessageElement(sibling)) {
-        return '';
-      }
-      const isAssistant = sibling.classList?.contains?.('claudian-plus-message-assistant')
-        || sibling.getAttribute?.('data-role') === 'assistant';
-      if (isAssistant) {
-        const textBlocks = sibling.querySelectorAll<HTMLElement>('.claudian-plus-text-block');
-        if (textBlocks.length > 0) {
-          const parts: string[] = [];
-          for (const block of textBlocks) {
-            const text = normalizeOutlineText(block.textContent ?? '');
-            if (text) parts.push(text);
-          }
-          return truncateOutlineText(parts.join(' '), OUTLINE_EXCERPT_LENGTH);
-        }
-        return '';
-      }
-      sibling = sibling.nextElementSibling as HTMLElement | null;
-    }
-    return '';
-  }
-
-  private resolveEntryTarget(entry: ConversationOutlineEntry): HTMLElement {
-    if (this.messagesEl.contains(entry.targetEl)) return entry.targetEl;
-    return this.messagesEl.contains(entry.messageEl) ? entry.messageEl : this.messagesEl;
-  }
-
-  private isUserMessageElement(el: HTMLElement): boolean {
-    return el.classList.contains('claudian-plus-message-user')
-      || el.getAttribute('data-role') === 'user';
-  }
-
-  private isAssistantMessageElement(el: HTMLElement): boolean {
-    return el.classList.contains('claudian-plus-message-assistant')
-      || el.getAttribute('data-role') === 'assistant';
-  }
-
-  private isOutlineMessageElement(node: Node | null): node is HTMLElement {
-    if (!node) return false;
-    const candidate = node as {
-      classList?: { contains?: (className: string) => boolean };
-      getAttribute?: (name: string) => string | null;
-    };
-    return candidate.classList?.contains?.('claudian-plus-message-user') === true
-      || candidate.getAttribute?.('data-role') === 'user';
-  }
-
-  private nodeContainsOutlineMessage(node: Node): boolean {
-    if (this.isOutlineMessageElement(node)) return true;
-    const candidate = node as { querySelector?: (selector: string) => Element | null };
-    return typeof candidate.querySelector === 'function'
-      && candidate.querySelector(
-        '.claudian-plus-message-user, [data-role="user"]',
-      ) !== null;
-  }
-
-  private findContainingOutlineMessage(node: Node | null): HTMLElement | null {
-    let current = node;
-    while (current && current !== this.messagesEl) {
-      if (this.isOutlineMessageElement(current)) return current;
-      current = current.parentNode;
-    }
-    return null;
-  }
-
-  /** Finds the user prompt whose directory preview is affected by a DOM change. */
-  private findAssociatedOutlineMessage(node: Node | null): HTMLElement | null {
-    const directMessage = this.findContainingOutlineMessage(node);
-    if (directMessage) return directMessage;
-
-    let current = node as HTMLElement | null;
-    while (current && current !== this.messagesEl) {
-      if (this.isAssistantMessageElement(current)) {
-        let sibling = current.previousElementSibling as HTMLElement | null;
-        while (sibling) {
-          if (this.isUserMessageElement(sibling)) return sibling;
-          sibling = sibling.previousElementSibling as HTMLElement | null;
-        }
-        return null;
-      }
-      current = current.parentElement;
-    }
-    return null;
-  }
-
-  private queueOutlineMutations(mutations: MutationRecord[]): void {
-    for (const mutation of mutations) {
-      if (this.pendingFullOutlineRefresh) return;
-      if (mutation.type === 'childList') {
-        const changedNodes = [
-          ...Array.from(mutation.addedNodes),
-          ...Array.from(mutation.removedNodes),
-        ];
-        if (changedNodes.some(node => this.nodeContainsOutlineMessage(node))) {
-          this.pendingFullOutlineRefresh = true;
-          this.pendingOutlineMessages.clear();
-          continue;
-        }
-
-        const associatedMessage = this.findAssociatedOutlineMessage(mutation.target)
-          ?? changedNodes
-            .map(node => this.findAssociatedOutlineMessage(node))
-            .find((message): message is HTMLElement => message !== null);
-        if (associatedMessage) {
-          this.pendingOutlineMessages.add(associatedMessage);
-          continue;
-        }
-      }
-
-      const messageEl = this.findAssociatedOutlineMessage(mutation.target);
-      if (messageEl) {
-        this.pendingOutlineMessages.add(messageEl);
-      } else {
-        this.pendingFullOutlineRefresh = true;
-        this.pendingOutlineMessages.clear();
-      }
-    }
-  }
-
-  private mutationAffectsOutline(mutation: MutationRecord): boolean {
-    if (mutation.type === 'attributes') {
-      return mutation.attributeName === 'data-toc-title'
-        && this.findAssociatedOutlineMessage(mutation.target) !== null;
-    }
-    if (mutation.type === 'characterData') return this.findAssociatedOutlineMessage(mutation.target) !== null;
-    if (mutation.type !== 'childList') return false;
-    if (this.findAssociatedOutlineMessage(mutation.target)) return true;
-    return [...Array.from(mutation.addedNodes), ...Array.from(mutation.removedNodes)].some(node => (
-      this.findAssociatedOutlineMessage(node) !== null
-    ));
-  }
-
-  private refreshOutline(dirtyMessages: Set<HTMLElement> | null = null): void {
+  private refreshOutline(): void {
     if (this.destroyed) return;
-    const nextEntries = this.collectOutlineEntries(dirtyMessages);
+    const allEntries = extractOutlineEntries(this.messagesEl);
+    const nextEntries = filterEntriesByKinds(allEntries, this.getEffectiveEnabledKinds());
+
     if (this.hasSameOutlineStructure(nextEntries)) {
       const previewMarkerIndex = this.outlinePreviewTrigger
         ? this.outlineMarkers.indexOf(this.outlinePreviewTrigger)
@@ -520,8 +261,6 @@ export class NavigationSidebar {
       };
       marker.addEventListener('click', selectEntry);
       marker.addEventListener('mouseenter', () => this.activateOutlineEntry(index));
-      // Wave TOC keeps the bubble visible while the pointer moves across the
-      // ticks; only leaving the rail hides it (track mouseleave below).
       marker.addEventListener('focus', () => this.activateOutlineEntry(index));
       marker.addEventListener('blur', () => {
         if (this.hoverIndex === index) this.deactivateOutlineEntry();
@@ -556,8 +295,6 @@ export class NavigationSidebar {
       });
     });
 
-    // Wave TOC sizing: shrink the tick gap as the entry count grows so the
-    // rail always fills (but never overflows) the track.
     const ownerWindow = this.messagesEl.ownerDocument.defaultView;
     ownerWindow?.requestAnimationFrame(() => {
       if (this.destroyed || !this.outlineTrack) return;
@@ -576,10 +313,18 @@ export class NavigationSidebar {
       ];
       nextFocusTarget?.focus({ preventScroll: true });
     }
-    // MutationObserver schedules visibility before its debounced outline scan.
-    // Re-evaluate after the scan so a newly restored or removed conversation
-    // cannot leave a stale rail (or a stale message gutter) behind.
     this.applyVisibility();
+  }
+
+  private hasSameOutlineStructure(entries: ConversationOutlineEntry[]): boolean {
+    return entries.length === this.outlineEntries.length
+      && entries.every((entry, index) => {
+        const current = this.outlineEntries[index];
+        return entry.kind === current.kind
+          && entry.level === current.level
+          && entry.badge === current.badge
+          && entry.title === current.title;
+      });
   }
 
   private applyActiveOutline(): void {
@@ -621,16 +366,13 @@ export class NavigationSidebar {
   }
 
   private positionOutlineMarker(_marker: HTMLElement, _index: number): void {
-    // Markers are laid out by the track's flex gap, so no per-marker position
-    // is required. This method stays as an extension point for future per
-    // entry styling (e.g. heading levels, badges).
+    // Markers laid out by track's flex gap
   }
 
   private repositionOutlineMarkers(): void {
     this.outlineMarkers.forEach((marker, index) => this.positionOutlineMarker(marker, index));
   }
 
-  /** Selects the nearest marker to a pointer Y within the tick strip. */
   private hoverOutlineAt(clientY: number): void {
     if (this.destroyed || this.outlineMarkers.length === 0) return;
     let index = 0;
@@ -646,10 +388,6 @@ export class NavigationSidebar {
     this.activateOutlineEntry(index);
   }
 
-  /**
-   * Highlights a marker as the wave peak: deepens the tick, dims the
-   * previously active tick back to the resting tint, and shows its bubble.
-   */
   private activateOutlineEntry(index: number): void {
     const marker = this.outlineMarkers[index];
     const entry = this.outlineEntries[index];
@@ -701,9 +439,6 @@ export class NavigationSidebar {
     const markerRect = marker.getBoundingClientRect?.();
     if (!markerRect) return;
 
-    // Both sidebar and preview are position:fixed — use viewport coords. The
-    // bubble is vertically centered on the marker via translateY(-50%) in
-    // CSS, so the marker center is clamped by half the bubble height.
     const markerCenter = markerRect.top + markerRect.height / 2;
     const previewHeight = preview.offsetHeight || 120;
     const previewWidth = preview.offsetWidth || 240;
@@ -718,9 +453,6 @@ export class NavigationSidebar {
       : viewportHeight / 2;
     preview.style.setProperty('--claudian-plus-outline-preview-top', `${top}px`);
 
-    // Bubble opens toward the chat content: right of the rail by default, or
-    // left of the rail when the rail sits on the right side. Flip to the
-    // other side when it would overflow the viewport.
     const isRightSide = this.container.classList.contains('claudian-plus-nav-outline-right');
     let left = isRightSide
       ? markerRect.left - gap - previewWidth
@@ -738,16 +470,9 @@ export class NavigationSidebar {
   private hideOutlinePreview(): void {
     this.outlinePreviewTrigger?.removeAttribute('aria-describedby');
     this.outlinePreviewTrigger = null;
-    // The persistent bubble stays in the DOM; removing is-visible plays the
-    // CSS fade/scale transition out (Wave TOC behavior).
     this.outlinePreview?.removeClass('is-visible');
   }
 
-  /**
-   * Spring-physics wave (ported from Wave TOC): the wave peak chases the
-   * hovered tick, and each marker's bar width follows a gaussian of its
-   * distance from the peak, so the ripple sweeps across the rail.
-   */
   private setWaveTarget(index: number): void {
     if (this.waveAmplitude < 0.01) {
       this.wavePosition = index;
@@ -814,8 +539,6 @@ export class NavigationSidebar {
   }
 
   collapse(): void {
-    // Collapse hides transient surfaces immediately; the persistent bubble is
-    // left in place (hidden) and removed with the sidebar on destroy().
     this.hoverIndex = -1;
     this.container.removeClass('is-hovering');
     this.hideOutlinePreview();
@@ -833,8 +556,6 @@ export class NavigationSidebar {
       this.pendingOutlineRefresh.ownerWindow.clearTimeout(this.pendingOutlineRefresh.id);
       this.pendingOutlineRefresh = null;
     }
-    this.pendingOutlineMessages.clear();
-    this.outlineEntriesByMessage.clear();
     if (this.waveFrame !== null) {
       this.messagesEl.ownerDocument.defaultView?.cancelAnimationFrame(this.waveFrame);
       this.waveFrame = null;
@@ -848,8 +569,6 @@ export class NavigationSidebar {
     this.parentEl.classList.remove('claudian-plus-has-nav-sidebar');
     this.parentEl.classList.remove('claudian-plus-nav-outline-right');
     this.container.remove();
-    // The persistent bubble lives in parentEl (fixed positioning), so it is
-    // removed separately from the sidebar container.
     this.outlinePreview?.remove();
     this.outlinePreview = null;
     this.outlinePreviewTitleEl = null;
@@ -869,6 +588,11 @@ export class NavigationSidebar {
     return ownerWindow?.matchMedia?.('(prefers-reduced-motion: reduce)').matches
       ? 'auto'
       : 'smooth';
+  }
+
+  private resolveEntryTarget(entry: ConversationOutlineEntry): HTMLElement {
+    if (this.messagesEl.contains(entry.targetEl)) return entry.targetEl;
+    return this.messagesEl.contains(entry.messageEl) ? entry.messageEl : this.messagesEl;
   }
 
   private getElementTop(el: HTMLElement, containerRect: DOMRect | null = null): number {

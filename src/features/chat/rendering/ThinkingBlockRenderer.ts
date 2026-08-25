@@ -121,11 +121,32 @@ export function cleanupThinkingBlock(state: ThinkingBlockState | null) {
   if (state) state.blobEngine = null;
 }
 
+export interface ThinkingSummaryOptions {
+  durationMs?: number;
+  durationSeconds?: number;
+}
+
+export function buildThinkingSummary(opts: ThinkingSummaryOptions): string {
+  if (typeof opts.durationMs === 'number') {
+    const s = (opts.durationMs / 1000).toFixed(opts.durationMs % 1000 === 0 ? 0 : 1);
+    return `Thought · ${s}s`;
+  }
+  if (typeof opts.durationSeconds === 'number') {
+    return `Thought · ${opts.durationSeconds}s`;
+  }
+  return 'Thought';
+}
+
+export interface StoredThinkingOptions {
+  collapsedByDefault?: boolean;
+}
+
 export function renderStoredThinkingBlock(
   parentEl: HTMLElement,
   content: string,
   durationSeconds: number | undefined,
-  renderContent: RenderContentFn
+  renderContent: RenderContentFn,
+  options: StoredThinkingOptions = {}
 ): HTMLElement {
   const wrapperEl = parentEl.createDiv({ cls: 'claudian-plus-thinking-block' });
 
@@ -157,7 +178,9 @@ export function renderStoredThinkingBlock(
 
   // Setup collapsible behavior (handles click, keyboard, ARIA, CSS)
   const state = { isExpanded: false };
-  setupCollapsible(wrapperEl, header, contentEl, state);
+  setupCollapsible(wrapperEl, header, contentEl, state, {
+    initiallyExpanded: options.collapsedByDefault ? false : false,
+  });
 
   return wrapperEl;
 }

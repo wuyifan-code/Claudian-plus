@@ -16,6 +16,8 @@ import type { TabData, TabId, TabManagerViewHost } from './chat/tabs/types';
 
 export interface FeatureTabManagerHost {
   getAllTabs(): TabData[];
+  getOrderedTabs(): TabData[];
+  moveTab(tabId: TabId, toIndex: number): void;
   getTab(tabId: TabId): TabData | null;
   switchToTab(tabId: TabId): Promise<void>;
   broadcastToAllTabs(action: (runtime: ChatRuntime) => Promise<void>): Promise<void>;

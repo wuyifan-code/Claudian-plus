@@ -11,6 +11,7 @@ import { ProviderRegistry } from '../../core/providers/ProviderRegistry';
 import { ProviderSettingsCoordinator } from '../../core/providers/ProviderSettingsCoordinator';
 import { type AppTabManagerState, DEFAULT_CHAT_PROVIDER_ID, type ProviderId } from '../../core/providers/types';
 import { VIEW_TYPE_CLAUDIAN_PLUS } from '../../core/types';
+import { t } from '../../i18n/i18n';
 import { createProviderIconSvg } from '../../shared/icons';
 import {
   cancelScheduledAnimationFrame,
@@ -31,6 +32,7 @@ import {
 import { TabBar } from './tabs/TabBar';
 import { TabManager } from './tabs/TabManager';
 import type { TabData, TabId } from './tabs/types';
+import { SessionsView } from './ui/SessionsView';
 import { recalculateUsageForModel } from './utils/usageInfo';
 
 type LoadableView = {
@@ -57,6 +59,14 @@ export class ClaudianPlusView extends ItemView {
   private viewContainerEl: HTMLElement | null = null;
   private logoEl: HTMLElement | null = null;
   private newTabButtonEl: HTMLElement | null = null;
+  private readingModeBtn: HTMLElement | null = null;
+
+  // View switcher & Sessions view
+  private currentHomeView: 'chat' | 'sessions' = 'chat';
+  private sessionsView: SessionsView | null = null;
+  private sessionsViewContainerEl: HTMLElement | null = null;
+  private chatViewBtn: HTMLElement | null = null;
+  private sessionsViewBtn: HTMLElement | null = null;
 
   // Header elements
   private historyDropdown: HTMLElement | null = null;
@@ -233,6 +243,11 @@ export class ClaudianPlusView extends ItemView {
     this.tabContentEl = this.viewContainerEl.createDiv({ cls: 'claudian-plus-tab-content-container' });
     this.buildInputFooter();
 
+    const initialView = this.plugin.settings.chatHomeView ?? 'chat';
+    if (initialView === 'sessions') {
+      this.switchHomeView('sessions');
+    }
+
     this.tabManager = new TabManager(
       this.plugin,
       this.tabContentEl,
@@ -244,12 +259,14 @@ export class ClaudianPlusView extends ItemView {
           this.updateInputLocation();
           this.persistTabState();
           this.syncProviderBrandColor();
+          this.syncReadingModeButton();
         },
         onActiveTabChanged: () => {
           this.updateTabBar();
           this.updateHistoryDropdown();
           this.updateInputLocation();
           this.syncProviderBrandColor();
+          this.syncReadingModeButton();
         },
         onTabSwitched: () => {
           this.updateTabBar();
@@ -257,6 +274,7 @@ export class ClaudianPlusView extends ItemView {
           this.updateInputLocation();
           this.persistTabState();
           this.syncProviderBrandColor();
+          this.syncReadingModeButton();
         },
         onTabClosed: () => {
           this.updateTabBar();
@@ -337,6 +355,9 @@ export class ClaudianPlusView extends ItemView {
 
         this.tabBar?.destroy();
         this.tabBar = null;
+        this.sessionsView?.destroy();
+        this.sessionsView = null;
+        this.sessionsViewContainerEl = null;
         this.scope = null;
       }
     }
@@ -347,12 +368,131 @@ export class ClaudianPlusView extends ItemView {
   // ============================================
 
   private buildHeader(header: HTMLElement): void {
-    const titleEl = header.createDiv({ cls: 'claudian-plus-title' });
+    const switcherEl = header.createDiv({ cls: 'claudian-plus-view-switcher' });
 
+    this.chatViewBtn = switcherEl.createDiv({
+      cls: 'claudian-plus-view-switcher-btn' + (this.currentHomeView === 'chat' ? ' is-active' : ''),
+      attr: { 'aria-label': t('chat.view.chat'), role: 'button', tabindex: '0' },
+    });
+    setIcon(this.chatViewBtn, 'message-square');
+    this.chatViewBtn.addEventListener('click', () => this.switchHomeView('chat'));
+
+    this.sessionsViewBtn = switcherEl.createDiv({
+      cls: 'claudian-plus-view-switcher-btn' + (this.currentHomeView === 'sessions' ? ' is-active' : ''),
+      attr: { 'aria-label': t('chat.view.sessions'), role: 'button', tabindex: '0' },
+    });
+    setIcon(this.sessionsViewBtn, 'list');
+    this.sessionsViewBtn.addEventListener('click', () => this.switchHomeView('sessions'));
+
+    const titleEl = header.createDiv({ cls: 'claudian-plus-title' });
     this.logoEl = titleEl.createSpan({ cls: 'claudian-plus-logo' });
     this.syncHeaderLogo(DEFAULT_CHAT_PROVIDER_ID);
-
     titleEl.createEl('h4', { text: 'Claudian Plus', cls: 'claudian-plus-title-text' });
+
+    const headerActionsEl = header.createDiv({ cls: 'claudian-plus-header-actions' });
+    const newSessionBtn = headerActionsEl.createDiv({
+      cls: 'claudian-plus-header-action-btn claudian-plus-header-new-btn',
+      attr: { 'aria-label': 'New conversation', role: 'button', tabindex: '0' },
+    });
+    setIcon(newSessionBtn, 'plus');
+    newSessionBtn.addEventListener('click', () => {
+      void (async () => {
+        await this.whenReady();
+        if (this.currentHomeView !== 'chat') {
+          this.switchHomeView('chat');
+        }
+        await this.tabManager?.createNewConversation();
+        this.updateHistoryDropdown();
+      })().catch(() => new Notice('Failed to create conversation'));
+    });
+  }
+
+  setHomeView(view: 'chat' | 'sessions'): void {
+    this.switchHomeView(view);
+  }
+
+  public switchHomeView(view: 'chat' | 'sessions'): void {
+    this.currentHomeView = view;
+    void this.plugin.mutateSettings((settings) => {
+      settings.chatHomeView = view;
+    });
+
+    this.chatViewBtn?.toggleClass('is-active', view === 'chat');
+    this.sessionsViewBtn?.toggleClass('is-active', view === 'sessions');
+
+    if (view === 'sessions') {
+      this.tabContentEl?.addClass('claudian-plus-hidden');
+      this.inputFooterEl?.addClass('claudian-plus-hidden');
+
+      if (!this.sessionsViewContainerEl && this.viewContainerEl) {
+        this.sessionsViewContainerEl = this.viewContainerEl.createDiv({ cls: 'claudian-plus-sessions-view-host' });
+        this.sessionsView = new SessionsView(this.sessionsViewContainerEl, {
+          plugin: this.plugin,
+          getConversationList: () => {
+            const conversations = this.plugin.getConversationList();
+            return conversations.map((c) => ({
+              id: c.id,
+              title: c.title,
+              createdAt: c.createdAt,
+              updatedAt: c.updatedAt,
+              lastResponseAt: c.lastResponseAt,
+              providerId: c.providerId,
+              preview: c.searchText?.slice(0, 100) || '',
+              searchText: c.searchText,
+            }));
+          },
+          onOpenConversation: (id, newTab) => {
+            void (async () => {
+              this.switchHomeView('chat');
+              await this.whenReady();
+              await this.tabManager?.openConversation(id, { preferNewTab: newTab });
+            })();
+          },
+          onDeleteConversation: async (id) => {
+            await this.plugin.deleteConversation(id);
+            this.updateHistoryDropdown();
+          },
+          onRenameConversation: async (id, newTitle) => {
+            await this.plugin.renameConversation(id, newTitle);
+            this.updateHistoryDropdown();
+          },
+          getActiveConversationId: () => this.tabManager?.getActiveTab()?.conversationId ?? null,
+        });
+      } else {
+        this.sessionsViewContainerEl?.removeClass('claudian-plus-hidden');
+        this.sessionsView?.renderList();
+      }
+    } else {
+      this.sessionsViewContainerEl?.addClass('claudian-plus-hidden');
+      this.tabContentEl?.removeClass('claudian-plus-hidden');
+      this.inputFooterEl?.removeClass('claudian-plus-hidden');
+    }
+  }
+
+  toggleReadingMode(): void {
+    const activeTab = this.tabManager?.getActiveTab();
+    if (!activeTab) return;
+    const nextMode = !activeTab.state.getReadingMode();
+    activeTab.state.setReadingMode(nextMode);
+    this.syncReadingModeButton();
+    activeTab.controllers.conversationController?.save();
+    const controller = activeTab.controllers.conversationController;
+    activeTab.renderer?.renderMessages(activeTab.state.messages, () =>
+      controller ? (controller.getGreeting() ?? '') : ''
+    );
+  }
+
+  private initReadingModeToggle(navActionsEl: HTMLElement): void {
+    this.readingModeBtn = navActionsEl.createDiv({
+      cls: 'claudian-plus-input-nav-btn claudian-plus-reading-mode-toggle',
+    });
+    setIcon(this.readingModeBtn, 'book-open');
+    this.readingModeBtn.setAttribute('role', 'button');
+    this.readingModeBtn.setAttribute('aria-pressed', 'false');
+    this.readingModeBtn.setAttribute('aria-label', t('chat.readingMode.on'));
+    this.readingModeBtn.addEventListener('click', () => {
+      this.toggleReadingMode();
+    });
   }
 
   /**
@@ -370,6 +510,11 @@ export class ClaudianPlusView extends ItemView {
       },
       onNewTab: () => {
         void this.createNewTab().catch(() => new Notice('Failed to create tab'));
+      },
+      onTabReorder: (tabId, toIndex) => {
+        this.tabManager?.moveTab(tabId, toIndex);
+        this.updateTabBar();
+        this.persistTabState();
       },
       onTitleExpansionChanged: () => this.persistTabState(),
     });
@@ -392,6 +537,26 @@ export class ClaudianPlusView extends ItemView {
         await this.tabManager?.createNewConversation();
         this.updateHistoryDropdown();
       })().catch(() => new Notice('Failed to create conversation'));
+    });
+
+    this.readingModeBtn = navActionsEl.createDiv({
+      cls: 'claudian-plus-input-nav-btn claudian-plus-reading-mode-toggle',
+    });
+    setIcon(this.readingModeBtn, 'book-open');
+    this.readingModeBtn.setAttribute('role', 'button');
+    this.readingModeBtn.setAttribute('aria-pressed', 'false');
+    this.readingModeBtn.setAttribute('aria-label', t('chat.readingMode.on'));
+    this.readingModeBtn.addEventListener('click', () => {
+      const activeTab = this.tabManager?.getActiveTab();
+      if (!activeTab) return;
+      const nextMode = !activeTab.state.getReadingMode();
+      activeTab.state.setReadingMode(nextMode);
+      this.syncReadingModeButton();
+      activeTab.controllers.conversationController?.save();
+      const controller = activeTab.controllers.conversationController;
+      activeTab.renderer?.renderMessages(activeTab.state.messages, () =>
+        controller ? (controller.getGreeting() ?? '') : ''
+      );
     });
 
     // History dropdown
@@ -559,6 +724,18 @@ export class ClaudianPlusView extends ItemView {
     const providerId = activeTab ? getTabProviderId(activeTab, this.plugin) : DEFAULT_CHAT_PROVIDER_ID;
     this.viewContainerEl.dataset.provider = providerId;
     this.syncHeaderLogo(providerId);
+  }
+
+  private syncReadingModeButton(): void {
+    if (!this.readingModeBtn) return;
+    const activeTab = this.tabManager?.getActiveTab();
+    const isReading = activeTab?.state.getReadingMode() ?? false;
+    this.readingModeBtn.setAttribute('aria-pressed', String(isReading));
+    this.readingModeBtn.toggleClass('is-active', isReading);
+    this.readingModeBtn.setAttribute(
+      'aria-label',
+      isReading ? t('chat.readingMode.off') : t('chat.readingMode.on')
+    );
   }
 
   /** Rebuilds the header logo SVG to match the given provider. */

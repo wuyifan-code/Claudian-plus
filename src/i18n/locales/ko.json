@@ -76,10 +76,35 @@
       "expandOutput": "명령 출력 펼치기",
       "running": "실행 중...",
       "copyFailed": "클립보드에 복사하지 못했습니다"
+    },
+    "readingMode": {
+      "on": "읽기 모드 켜기",
+      "off": "읽기 모드 끄기"
+    },
+    "view": {
+      "chat": "대화",
+      "sessions": "세션 목록"
+    },
+    "outline": {
+      "filter": {
+        "prompts": "프롬프트",
+        "headings": "제목",
+        "tools": "도구",
+        "thinking": "생각"
+      }
     }
   },
   "settings": {
     "title": "Claudian Plus 설정",
+    "category": {
+      "general": "일반",
+      "appearance": "모양",
+      "memory": "기억 및 의식",
+      "providers": "제공자",
+      "agentsSkills": "에이전트 및 스킬",
+      "workspace": "작업 공간",
+      "advanced": "고급"
+    },
     "tabs": {
       "general": "일반",
       "claude": "Claude",
