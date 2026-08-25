@@ -247,6 +247,7 @@ export class ConversationController {
     state.prePlanPermissionMode = null;
     state.autoScrollEnabled = plugin.settings.enableAutoScroll ?? true;
     state.hasPendingConversationSave = false;
+    state.setReadingMode(false);
 
     // Reset agent service session (no session ID for entry point).
     // Pass persistent paths to prevent stale external contexts.
@@ -478,6 +479,7 @@ export class ConversationController {
       externalContextPaths: externalContextPaths.length > 0 ? externalContextPaths : undefined,
       usage: state.usage ?? undefined,
       enabledMcpServers: enabledMcpServers.length > 0 ? enabledMcpServers : undefined,
+      readingMode: state.getReadingMode(),
     };
 
     if (updateLastResponse) {
@@ -511,6 +513,7 @@ export class ConversationController {
     state.usage = conversation.usage ?? null;
     state.autoScrollEnabled = plugin.settings.enableAutoScroll ?? true;
     state.hasPendingConversationSave = false;
+    state.setReadingMode(conversation.readingMode ?? false);
 
     // Clear status panels (auto-hide: panels reappear when agent creates new todos)
     state.currentTodos = null;

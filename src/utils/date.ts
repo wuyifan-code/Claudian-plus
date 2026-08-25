@@ -22,8 +22,9 @@ export function formatDurationMmSs(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) {
     return '0s';
   }
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
+  const totalSecs = Math.round(seconds);
+  const mins = Math.floor(totalSecs / 60);
+  const secs = totalSecs % 60;
   if (mins === 0) {
     return `${secs}s`;
   }

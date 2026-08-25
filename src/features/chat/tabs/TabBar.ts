@@ -1,3 +1,5 @@
+import { Menu, setIcon } from 'obsidian';
+
 import { scheduleAnimationFrame } from '../../../utils/animationFrame';
 import type { TabBarItem, TabId } from './types';
 
@@ -15,18 +17,32 @@ export interface TabBarCallbacks {
   /** Called when the new tab button is clicked. */
   onNewTab: () => void;
 
+  /** Called when a tab is moved to a new index via drag and drop. */
+  onTabReorder?: (tabId: TabId, toIndex: number) => void;
+
   /** Called when badge title expansion state changes. */
   onTitleExpansionChanged?: (expandedTitleTabIds: TabId[]) => void;
 }
 
+interface DragState {
+  sourceTabId: TabId;
+  badgeEl: HTMLElement;
+  startX: number;
+  startY: number;
+  isDragging: boolean;
+  targetIndex: number;
+}
+
 /**
- * TabBar renders minimal numbered badge navigation.
+ * TabBar renders minimal numbered badge navigation with drag reorder,
+ * middle-click close, and overflow dropdown.
  */
 export class TabBar {
   private containerEl: HTMLElement;
   private callbacks: TabBarCallbacks;
   private expandedTitleTabIds = new Set<TabId>();
   private lastKnownScrollLeft = 0;
+  private currentItems: TabBarItem[] = [];
   private readonly handleScroll = (): void => {
     this.captureScrollPosition();
   };
@@ -48,6 +64,7 @@ export class TabBar {
    * @param items Tab items to render.
    */
   update(items: TabBarItem[]): void {
+    this.currentItems = items;
     this.captureStableScrollPosition();
     this.pruneExpandedTitleState(items);
 
@@ -59,6 +76,7 @@ export class TabBar {
       this.renderBadge(item);
     }
 
+    this.renderOverflowButtonIfNeeded(items);
     this.restoreScrollPosition();
   }
 
@@ -96,11 +114,23 @@ export class TabBar {
     badgeEl.setAttribute('aria-label', item.title);
     badgeEl.setAttribute('data-provider', item.providerId);
     badgeEl.setAttribute('data-title-expanded', isTitleExpanded ? 'true' : 'false');
+    badgeEl.setAttribute('data-tab-id', item.id);
 
     // Click handler to switch tab
-    badgeEl.addEventListener('click', () => {
-      this.captureScrollPosition();
-      this.callbacks.onTabClick(item.id);
+    badgeEl.addEventListener('click', (e?: MouseEvent) => {
+      if (!e || e.button === 0 || e.button === undefined) {
+        this.captureScrollPosition();
+        this.callbacks.onTabClick(item.id);
+      }
+    });
+
+    // Middle-click to close (if allowed)
+    badgeEl.addEventListener('auxclick', (e: MouseEvent) => {
+      if (e.button === 1 && item.canClose) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.callbacks.onTabClose(item.id);
+      }
     });
 
     badgeEl.addEventListener('dblclick', (e) => {
@@ -116,6 +146,112 @@ export class TabBar {
         this.callbacks.onTabClose(item.id);
       });
     }
+
+    // Pointer events for drag-to-reorder
+    let dragState: DragState | null = null;
+
+    badgeEl.addEventListener('pointerdown', (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      dragState = {
+        sourceTabId: item.id,
+        badgeEl,
+        startX: e.clientX,
+        startY: e.clientY,
+        isDragging: false,
+        targetIndex: item.index - 1,
+      };
+      if (typeof badgeEl.setPointerCapture === 'function') {
+        try {
+          badgeEl.setPointerCapture(e.pointerId);
+        } catch {
+          // Ignore if pointer capture fails in test environment
+        }
+      }
+    });
+
+    badgeEl.addEventListener('pointermove', (e: PointerEvent) => {
+      if (!dragState) return;
+      if (!dragState.isDragging) {
+        const dist = Math.hypot(e.clientX - dragState.startX, e.clientY - dragState.startY);
+        if (dist > 6) {
+          dragState.isDragging = true;
+          badgeEl.addClass('claudian-plus-tab-badge--dragging');
+        }
+      }
+
+      if (dragState.isDragging) {
+        const allBadges = Array.from(
+          this.containerEl.querySelectorAll('.claudian-plus-tab-badge')
+        );
+        let targetIndex = allBadges.indexOf(badgeEl);
+
+        for (let i = 0; i < allBadges.length; i++) {
+          const b = allBadges[i];
+          b.removeClass('claudian-plus-tab-badge--drop-target');
+          const rect = b.getBoundingClientRect?.() ?? { left: i * 28, right: (i + 1) * 28, width: 24 };
+          const rightEdge = rect.right || (rect.left + (rect.width || 24));
+          if (e.clientX >= rect.left && e.clientX <= rightEdge) {
+            targetIndex = i;
+            b.addClass('claudian-plus-tab-badge--drop-target');
+          }
+        }
+        dragState.targetIndex = targetIndex;
+      }
+    });
+
+    badgeEl.addEventListener('pointerup', (e: PointerEvent) => {
+      if (!dragState) return;
+      const wasDragging = dragState.isDragging;
+      const targetIndex = dragState.targetIndex;
+      const sourceId = dragState.sourceTabId;
+
+      badgeEl.removeClass('claudian-plus-tab-badge--dragging');
+      const allBadges = this.containerEl.querySelectorAll('.claudian-plus-tab-badge');
+      allBadges.forEach(b => b.removeClass('claudian-plus-tab-badge--drop-target'));
+
+      if (typeof badgeEl.releasePointerCapture === 'function') {
+        try {
+          badgeEl.releasePointerCapture(e.pointerId);
+        } catch {
+          // Ignore in test environment
+        }
+      }
+
+      dragState = null;
+
+      if (wasDragging) {
+        this.callbacks.onTabReorder?.(sourceId, targetIndex);
+      }
+    });
+  }
+
+  private renderOverflowButtonIfNeeded(items: TabBarItem[]): void {
+    const isOverflowing = this.containerEl.scrollWidth > this.containerEl.clientWidth || items.length > 5;
+    if (!isOverflowing || items.length <= 1) return;
+
+    const overflowBtn = this.containerEl.createDiv({
+      cls: 'claudian-plus-tab-overflow-btn',
+    });
+    overflowBtn.setAttribute('role', 'button');
+    overflowBtn.setAttribute('tabindex', '0');
+    overflowBtn.setAttribute('aria-label', 'All tabs');
+    setIcon(overflowBtn, 'chevron-down');
+
+    overflowBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const menu = new Menu();
+      for (const item of items) {
+        menu.addItem((menuItem) => {
+          menuItem
+            .setTitle(`#${item.index} ${item.title}`)
+            .setChecked(item.isActive)
+            .onClick(() => {
+              this.callbacks.onTabClick(item.id);
+            });
+        });
+      }
+      menu.showAtMouseEvent(e);
+    });
   }
 
   /** Destroys the tab bar. */
@@ -125,6 +261,7 @@ export class TabBar {
     this.containerEl.removeEventListener('scroll', this.handleScroll);
     this.expandedTitleTabIds.clear();
     this.lastKnownScrollLeft = 0;
+    this.currentItems = [];
   }
 
   captureScrollPosition(): void {

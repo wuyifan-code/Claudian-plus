@@ -5,6 +5,7 @@ import {
   detectBuiltInCommand,
   isBuiltInCommandSupported,
 } from '../../../core/commands/builtInCommands';
+import type { ActiveContextObserver } from '../../../core/context/ActiveContextObserver';
 import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import {
   DEFAULT_CHAT_PROVIDER_ID,
@@ -87,6 +88,7 @@ export interface InputControllerDeps {
   selectionController: SelectionController;
   browserSelectionController?: BrowserSelectionController;
   canvasSelectionController: CanvasSelectionController;
+  activeContextObserver?: ActiveContextObserver | null;
   conversationController: ConversationController;
   getInputEl: () => HTMLTextAreaElement;
   getWelcomeEl: () => HTMLElement | null;
@@ -1020,6 +1022,7 @@ export class InputController {
         editorSelection: editorContext,
         browserSelection: browserContext,
         canvasSelection: canvasContext,
+        ambientContext: this.deps.activeContextObserver?.getSnapshot() ?? undefined,
         externalContextPaths: externalContextPaths && externalContextPaths.length > 0
           ? externalContextPaths
           : undefined,

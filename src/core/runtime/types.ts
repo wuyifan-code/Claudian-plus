@@ -1,6 +1,8 @@
 import type { BrowserSelectionContext } from '../../utils/browser';
 import type { CanvasSelectionContext } from '../../utils/canvas';
 import type { EditorSelectionContext } from '../../utils/editor';
+import type { AmbientContextSnapshot } from '../context/types';
+import type { ProviderCapabilities } from '../providers/types';
 import type { AgentSkillContext } from '../skills/AgentSkillContext';
 import type {
   ApprovalDecision,
@@ -50,6 +52,7 @@ export interface ChatTurnRequest {
   editorSelection?: EditorSelectionContext | null;
   browserSelection?: BrowserSelectionContext | null;
   canvasSelection?: CanvasSelectionContext | null;
+  ambientContext?: AmbientContextSnapshot | null;
   externalContextPaths?: string[];
   enabledMcpServers?: Set<string>;
   agentSkillContext?: AgentSkillContext;
@@ -62,6 +65,31 @@ export interface PreparedChatTurn {
   isCompact: boolean;
   mcpMentions: Set<string>;
   agentSkillContext?: AgentSkillContext | null | undefined;
+}
+
+export interface BaseExecutionTurn {
+  userPrompt: string;
+  ambientContext?: AmbientContextSnapshot | null;
+  sessionId: string;
+  model: string;
+  systemPromptAdditions?: string[];
+}
+
+export interface TurnExecutionResult {
+  completed: boolean;
+  error?: string;
+}
+
+export interface ILLMProviderEngine {
+  readonly id: string;
+  readonly capabilities: ProviderCapabilities;
+
+  initialize(env?: unknown): Promise<void>;
+  streamTurn(
+    turn: BaseExecutionTurn,
+    onChunk: (chunk: StreamChunk) => void,
+    signal?: AbortSignal,
+  ): Promise<TurnExecutionResult>;
 }
 
 export interface ChatRuntimeQueryOptions {

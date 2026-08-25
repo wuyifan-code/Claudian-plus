@@ -1,3 +1,4 @@
+import { formatAmbientContextXml } from '../../core/context/ambientFormatter';
 import type { ChatTurnRequest } from '../../core/runtime/types';
 import type { ChatMessage, ImageAttachment } from '../../core/types';
 import { appendBrowserContext } from '../../utils/browser';
@@ -40,6 +41,13 @@ export function buildAcpPromptText(
 
   if (request.canvasSelection) {
     prompt = appendCanvasContext(prompt, request.canvasSelection);
+  }
+
+  if (request.ambientContext) {
+    const ambientXml = formatAmbientContextXml(request.ambientContext);
+    if (ambientXml) {
+      prompt = `${prompt}\n\n${ambientXml}`;
+    }
   }
 
   if (conversationHistory.length > 0) {

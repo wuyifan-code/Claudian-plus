@@ -2,7 +2,7 @@
 
 ## Project
 
-Claudian Plus is an Obsidian plugin that embeds provider-backed coding agents in a sidebar and inline-edit flow. Codex is the default provider. Claude, OpenCode, Pi, Kimi, and DSH are optional providers that plug into the same conversation model through `Conversation.providerId` and opaque provider-owned `providerState`. The `src/providers/acp/` directory is a shared protocol layer for the ACP-based providers (OpenCode, Kimi, DSH).
+Claudian Plus is an Obsidian plugin that embeds provider-backed coding agents in a sidebar and inline-edit flow. Codex is the default provider. Claude, OpenCode, Pi, and Kimi are optional providers that plug into the same conversation model through `Conversation.providerId` and opaque provider-owned `providerState`. The `src/providers/acp/` directory is a shared protocol layer for the ACP-based providers (OpenCode, Kimi).
 
 Do not assume provider parity. Check each provider's `capabilities.ts`, `registration.ts`, and UI config before wiring shared behavior.
 
@@ -13,10 +13,10 @@ Do not assume provider parity. Check each provider's `capabilities.ts`, `registr
 - Before editing a scoped area, read its nearest scoped guide:
   - `src/core/AGENTS.md`
   - `src/features/chat/AGENTS.md`
+  - `src/features/settings/AGENTS.md`
   - `src/providers/acp/AGENTS.md`
   - `src/providers/claude/AGENTS.md`
   - `src/providers/codex/AGENTS.md`
-  - `src/providers/dsh/AGENTS.md`
   - `src/providers/kimi/AGENTS.md`
   - `src/providers/opencode/AGENTS.md`
   - `src/providers/pi/AGENTS.md`

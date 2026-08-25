@@ -241,17 +241,27 @@ export function createMockEl(tag = 'div'): any {
     hasClass: (cls: string) => classes.has(cls),
     getClasses: () => Array.from(classes),
 
-    createDiv(opts?: { cls?: string; text?: string }) {
+    createDiv(opts?: { cls?: string; text?: string; attr?: Record<string, string> }) {
       const child = createMockEl('div');
       if (opts?.cls) child.addClass(opts.cls);
       if (opts?.text) child.textContent = opts.text;
+      if (opts?.attr) {
+        for (const [name, value] of Object.entries(opts.attr)) {
+          child.setAttribute(name, value);
+        }
+      }
       children.push(child);
       return child;
     },
-    createSpan(opts?: { cls?: string; text?: string }) {
+    createSpan(opts?: { cls?: string; text?: string; attr?: Record<string, string> }) {
       const child = createMockEl('span');
       if (opts?.cls) child.addClass(opts.cls);
       if (opts?.text) child.textContent = opts.text;
+      if (opts?.attr) {
+        for (const [name, value] of Object.entries(opts.attr)) {
+          child.setAttribute(name, value);
+        }
+      }
       children.push(child);
       return child;
     },
@@ -357,10 +367,25 @@ export function createMockEl(tag = 'div'): any {
     },
 
     querySelector(selector: string) {
-      const cls = selector.replace('.', '');
+      const matches = (el: any): boolean => {
+        if (!el) return false;
+        if (selector.startsWith('[') && selector.endsWith(']')) {
+          const inner = selector.slice(1, -1);
+          const eqIdx = inner.indexOf('=');
+          if (eqIdx !== -1) {
+            const attrName = inner.slice(0, eqIdx);
+            const attrVal = inner.slice(eqIdx + 1).replace(/^["']|["']$/g, '');
+            return el.getAttribute?.(attrName) === attrVal;
+          }
+          return el.getAttribute?.(inner) !== null && el.getAttribute?.(inner) !== undefined;
+        }
+        const cls = selector.replace(/^\./, '');
+        return (el.hasClass?.(cls) ?? false) || (el.tagName?.toLowerCase() === selector.toLowerCase());
+      };
+
       const find = (el: any): MockElement | null => {
-        if (el.hasClass?.(cls)) return el;
         for (const child of el.children || []) {
+          if (matches(child)) return child;
           const found = find(child);
           if (found) return found;
         }
@@ -369,13 +394,30 @@ export function createMockEl(tag = 'div'): any {
       return find(element);
     },
     querySelectorAll(selector: string) {
-      const cls = selector.replace('.', '');
+      const matches = (el: any): boolean => {
+        if (!el) return false;
+        if (selector.startsWith('[') && selector.endsWith(']')) {
+          const inner = selector.slice(1, -1);
+          const eqIdx = inner.indexOf('=');
+          if (eqIdx !== -1) {
+            const attrName = inner.slice(0, eqIdx);
+            const attrVal = inner.slice(eqIdx + 1).replace(/^["']|["']$/g, '');
+            return el.getAttribute?.(attrName) === attrVal;
+          }
+          return el.getAttribute?.(inner) !== null && el.getAttribute?.(inner) !== undefined;
+        }
+        const cls = selector.replace(/^\./, '');
+        return (el.hasClass?.(cls) ?? false) || (el.tagName?.toLowerCase() === selector.toLowerCase());
+      };
+
       const results: MockElement[] = [];
       const collect = (el: any) => {
-        if (el.hasClass?.(cls)) results.push(el);
-        for (const child of el.children || []) collect(child);
+        for (const child of el.children || []) {
+          if (matches(child)) results.push(child);
+          collect(child);
+        }
       };
-      for (const child of children) collect(child);
+      collect(element);
       return results;
     },
 

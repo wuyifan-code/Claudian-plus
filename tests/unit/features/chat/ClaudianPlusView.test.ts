@@ -557,4 +557,69 @@ describe('ClaudianPlusView Escape handling', () => {
     expect(sendMessage).not.toHaveBeenCalled();
     expect(result).toBeUndefined();
   });
+
+  it('switches between chat and sessions views through setHomeView', () => {
+    const view = Object.create(ClaudianPlusView.prototype) as any;
+    view.currentHomeView = 'chat';
+    view.plugin = {
+      saveSettings: jest.fn(async () => {}),
+      mutateSettings: jest.fn(async (cb) => cb(view.plugin.settings)),
+      settings: { chatHomeView: 'chat' },
+    };
+    view.containerEl = createMockEl();
+    view.chatHomeContainerEl = createMockEl();
+    view.sessionsViewContainerEl = createMockEl();
+    view.chatViewBtn = createMockEl();
+    view.sessionsViewBtn = createMockEl();
+    view.sessionsView = { renderList: jest.fn(), refresh: jest.fn() };
+
+    view.setHomeView('sessions');
+
+    expect(view.currentHomeView).toBe('sessions');
+    expect(view.tabContentEl?.hasClass('claudian-plus-hidden')).toBe(undefined);
+    expect(view.sessionsViewBtn.hasClass('is-active')).toBe(true);
+
+    view.setHomeView('chat');
+    expect(view.currentHomeView).toBe('chat');
+    expect(view.chatViewBtn.hasClass('is-active')).toBe(true);
+  });
+
+  it('toggles reading mode on active tab when toggle button clicked', () => {
+    const view = Object.create(ClaudianPlusView.prototype) as any;
+    let readingMode = false;
+    const mockTab = {
+      state: {
+        getReadingMode: () => readingMode,
+        setReadingMode: (v: boolean) => { readingMode = v; },
+        messages: [],
+      },
+      controllers: {
+        conversationController: { save: jest.fn(), getGreeting: jest.fn() },
+      },
+      renderer: {
+        renderMessages: jest.fn(),
+      },
+    };
+    view.tabManager = {
+      getActiveTab: () => mockTab,
+    };
+    view.readingModeBtn = createMockEl();
+    view.syncReadingModeButton = function () {
+      const active = mockTab.state.getReadingMode();
+      this.readingModeBtn?.toggleClass('is-active', active);
+      this.readingModeBtn?.setAttribute('aria-pressed', active ? 'true' : 'false');
+    };
+
+    view.toggleReadingMode();
+
+    expect(readingMode).toBe(true);
+    expect(view.readingModeBtn.hasClass('is-active')).toBe(true);
+    expect(view.readingModeBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(mockTab.renderer.renderMessages).toHaveBeenCalled();
+
+    view.toggleReadingMode();
+    expect(readingMode).toBe(false);
+    expect(view.readingModeBtn.hasClass('is-active')).toBe(false);
+    expect(view.readingModeBtn.getAttribute('aria-pressed')).toBe('false');
+  });
 });

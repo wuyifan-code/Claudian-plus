@@ -41,6 +41,7 @@ function createInitialState(): ChatStateData {
     pendingNewSessionPlan: null,
     planFilePath: null,
     prePlanPermissionMode: null,
+    readingMode: false,
   };
 }
 
@@ -362,6 +363,22 @@ export class ChatState {
   }
 
   // ============================================
+  // Reading Mode State
+  // ============================================
+
+  getReadingMode(): boolean {
+    return this.state.readingMode;
+  }
+
+  setReadingMode(value: boolean): void {
+    const changed = this.state.readingMode !== value;
+    this.state.readingMode = value;
+    if (changed) {
+      this._callbacks.onReadingModeChanged?.(value);
+    }
+  }
+
+  // ============================================
   // Reset Methods
   // ============================================
 
@@ -421,6 +438,7 @@ export class ChatState {
     this.usage = null;
     this.currentTodos = null;
     this.autoScrollEnabled = true;
+    this.state.readingMode = false;
   }
 
   getPersistedMessages(): ChatMessage[] {

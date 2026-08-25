@@ -1,6 +1,6 @@
 # ACP Shared Layer
 
-`src/providers/acp/` is the shared Agent Client Protocol layer consumed by the OpenCode, Kimi, and DSH providers. It is provider-neutral protocol plumbing, not a provider itself.
+`src/providers/acp/` is the shared Agent Client Protocol layer consumed by the OpenCode and Kimi providers. It is provider-neutral protocol plumbing, not a provider itself.
 
 ## Ownership
 

@@ -245,7 +245,7 @@ function getNonEmptyStringValue(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null;
 }
 
-function buildReplacementDiffLines(pairs: ReplacementPair[]): DiffLine[] {
+export function buildReplacementDiffLines(pairs: ReplacementPair[]): DiffLine[] {
   const diffLines: DiffLine[] = [];
   let oldLineNum = 1;
   let newLineNum = 1;
@@ -257,6 +257,54 @@ function buildReplacementDiffLines(pairs: ReplacementPair[]): DiffLine[] {
     for (const line of pair.newText.split('\n')) {
       diffLines.push({ type: 'insert', text: line, newLineNum: newLineNum++ });
     }
+  }
+
+  return diffLines;
+}
+
+export function computeUnifiedLineDiff(oldText: string, newText: string): DiffLine[] {
+  const oldLines = oldText ? oldText.split('\n') : [];
+  const newLines = newText ? newText.split('\n') : [];
+  const m = oldLines.length;
+  const n = newLines.length;
+
+  if (m * n > 500000) {
+    return buildReplacementDiffLines([{ oldText, newText }]);
+  }
+
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0));
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (oldLines[i - 1] === newLines[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+  }
+
+  const diffLines: DiffLine[] = [];
+  let i = m;
+  let j = n;
+  const stack: DiffLine[] = [];
+
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && oldLines[i - 1] === newLines[j - 1]) {
+      stack.push({ type: 'equal', text: oldLines[i - 1], oldLineNum: i, newLineNum: j });
+      i--;
+      j--;
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      stack.push({ type: 'insert', text: newLines[j - 1], newLineNum: j });
+      j--;
+    } else if (i > 0 && (j === 0 || dp[i][j - 1] < dp[i - 1][j])) {
+      stack.push({ type: 'delete', text: oldLines[i - 1], oldLineNum: i });
+      i--;
+    }
+  }
+
+  while (stack.length > 0) {
+    diffLines.push(stack.pop()!);
   }
 
   return diffLines;

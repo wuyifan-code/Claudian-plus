@@ -1,3 +1,4 @@
+import { formatAmbientContextXml } from '../../../core/context/ambientFormatter';
 import { isCompactCommand } from '../../../core/runtime/compactCommand';
 import type { ChatTurnRequest, PreparedChatTurn } from '../../../core/runtime/types';
 
@@ -39,6 +40,13 @@ export function encodeCodexTurn(request: ChatTurnRequest): PreparedChatTurn {
       sections.push(
         `\n[Canvas selection from ${request.canvasSelection.canvasPath}:\n${nodeList}\n]`,
       );
+    }
+  }
+
+  if (request.ambientContext) {
+    const ambientXml = formatAmbientContextXml(request.ambientContext);
+    if (ambientXml) {
+      sections.push(`\n\n${ambientXml}`);
     }
   }
 

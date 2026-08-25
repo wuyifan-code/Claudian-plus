@@ -71,6 +71,8 @@ export const DEFAULT_CLAUDIAN_PLUS_SETTINGS: ClaudianPlusSettings = {
   deferMathRenderingDuringStreaming: true,
   expandFileEditsByDefault: false,
   chatViewPlacement: 'right-sidebar',
+  chatHomeView: 'chat',
+  settingsLastCategory: 'general',
 
   hiddenProviderCommands: getDefaultHiddenProviderCommands(),
 

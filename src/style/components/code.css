@@ -58,6 +58,41 @@ body.theme-light .claudian-plus-message-content pre {
   background: var(--background-modifier-hover);
 }
 
+/* Code block insert at cursor button */
+.claudian-plus-code-wrapper .claudian-plus-code-insert-btn {
+  position: absolute;
+  top: 6px;
+  inset-inline-start: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: var(--background-primary);
+  border-radius: var(--claudian-plus-radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+  box-shadow: var(--shadow-s);
+}
+
+.claudian-plus-code-wrapper:hover .claudian-plus-code-insert-btn {
+  opacity: 0.7;
+}
+
+.claudian-plus-code-wrapper .claudian-plus-code-insert-btn:hover {
+  opacity: 1;
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.claudian-plus-code-wrapper .claudian-plus-code-insert-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
 /* Hide default copy button when language label exists */
 .claudian-plus-code-wrapper.has-language .copy-code-button {
   display: none;

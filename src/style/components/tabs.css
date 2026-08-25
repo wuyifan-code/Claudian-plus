@@ -96,6 +96,41 @@
   border-color: var(--background-modifier-border);
 }
 
+.claudian-plus-tab-badge--dragging {
+  opacity: 0.45;
+  transform: scale(0.96);
+  cursor: grabbing;
+}
+
+.claudian-plus-tab-badge--drop-target {
+  box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+.claudian-plus-tab-overflow-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 24px;
+  padding: 0;
+  border-radius: var(--claudian-plus-radius-xs);
+  cursor: pointer;
+  color: var(--text-muted);
+  background: transparent;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.claudian-plus-tab-overflow-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.claudian-plus-tab-overflow-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
 .claudian-plus-tab-content-container {
   display: flex;
   flex-direction: column;

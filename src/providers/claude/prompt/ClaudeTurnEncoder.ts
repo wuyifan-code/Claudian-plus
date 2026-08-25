@@ -1,3 +1,4 @@
+import { formatAmbientContextXml } from '../../../core/context/ambientFormatter';
 import type { McpServerManager } from '../../../core/mcp/McpServerManager';
 import { isCompactCommand } from '../../../core/runtime/compactCommand';
 import type { ChatTurnRequest, PreparedChatTurn } from '../../../core/runtime/types';
@@ -32,7 +33,14 @@ export function encodeClaudeTurn(
   }
 
   const mcpMentions = mcpManager.extractMentions(persistedContent);
-  const prompt = mcpManager.transformMentions(persistedContent);
+  let prompt = mcpManager.transformMentions(persistedContent);
+
+  if (!isCompact && request.ambientContext) {
+    const ambientXml = formatAmbientContextXml(request.ambientContext);
+    if (ambientXml) {
+      prompt = prompt ? `${prompt}\n\n${ambientXml}` : ambientXml;
+    }
+  }
 
   return {
     request,

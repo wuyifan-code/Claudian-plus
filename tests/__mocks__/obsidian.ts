@@ -1,4 +1,5 @@
 // Mock for Obsidian API
+import { createMockEl } from '../helpers/mockElement';
 
 export class Plugin {
   app: any;
@@ -130,11 +131,64 @@ export class MarkdownView {
 }
 
 export class Setting {
-  constructor(containerEl: any) {}
+  settingEl: any = createMockEl('div');
+  controlEl: any = createMockEl('div');
+  infoEl: any = createMockEl('div');
+  nameEl: any = createMockEl('div');
+  descEl: any = createMockEl('div');
+
+  constructor(containerEl?: any) {
+    if (containerEl?.appendChild) {
+      containerEl.appendChild(this.settingEl);
+      this.settingEl.appendChild(this.infoEl);
+      this.settingEl.appendChild(this.controlEl);
+      this.infoEl.appendChild(this.nameEl);
+      this.infoEl.appendChild(this.descEl);
+    }
+  }
   setName = jest.fn().mockReturnThis();
   setDesc = jest.fn().mockReturnThis();
-  addToggle = jest.fn().mockReturnThis();
-  addTextArea = jest.fn().mockReturnThis();
+  setHeading = jest.fn().mockReturnThis();
+  setClass = jest.fn().mockReturnThis();
+  addToggle = jest.fn((cb?: (toggle: any) => void) => {
+    if (cb) cb({ setValue: jest.fn().mockReturnThis(), onChange: jest.fn().mockReturnThis(), toggleEl: {} });
+    return this;
+  });
+  addTextArea = jest.fn((cb?: (textArea: any) => void) => {
+    if (cb) cb(new TextAreaComponent());
+    return this;
+  });
+  addText = jest.fn((cb?: (text: any) => void) => {
+    if (cb) cb({
+      setPlaceholder: jest.fn().mockReturnThis(),
+      setValue: jest.fn().mockReturnThis(),
+      onChange: jest.fn().mockReturnThis(),
+      inputEl: {
+        focus: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        addClass: jest.fn(),
+        removeClass: jest.fn(),
+      },
+    });
+    return this;
+  });
+  addDropdown = jest.fn((cb?: (dropdown: any) => void) => {
+    if (cb) cb({ addOption: jest.fn().mockReturnThis(), addOptions: jest.fn().mockReturnThis(), setValue: jest.fn().mockReturnThis(), onChange: jest.fn().mockReturnThis() });
+    return this;
+  });
+  addButton = jest.fn((cb?: (btn: any) => void) => {
+    if (cb) cb({ setButtonText: jest.fn().mockReturnThis(), setIcon: jest.fn().mockReturnThis(), setTooltip: jest.fn().mockReturnThis(), onClick: jest.fn().mockReturnThis(), setCta: jest.fn().mockReturnThis(), setWarning: jest.fn().mockReturnThis() });
+    return this;
+  });
+  addExtraButton = jest.fn((cb?: (btn: any) => void) => {
+    if (cb) cb({ setIcon: jest.fn().mockReturnThis(), setTooltip: jest.fn().mockReturnThis(), onClick: jest.fn().mockReturnThis() });
+    return this;
+  });
+  addSlider = jest.fn((cb?: (slider: any) => void) => {
+    if (cb) cb({ setLimits: jest.fn().mockReturnThis(), setValue: jest.fn().mockReturnThis(), setDynamicTooltip: jest.fn().mockReturnThis(), onChange: jest.fn().mockReturnThis() });
+    return this;
+  });
 }
 
 export class TextAreaComponent {
@@ -154,6 +208,15 @@ export class TextAreaComponent {
 
   setValue(value: string): this {
     this._value = value;
+    return this;
+  }
+
+  setPlaceholder(placeholder: string): this {
+    if (this.inputEl) this.inputEl.placeholder = placeholder;
+    return this;
+  }
+
+  onChange(cb: (value: string) => void): this {
     return this;
   }
 

@@ -11,6 +11,7 @@
 @import "./components/header.css";
 @import "./components/tabs.css";
 @import "./components/history.css";
+@import "./components/sessions-view.css";
 @import "./components/messages.css";
 @import "./components/welcome-cube.css";
 @import "./components/nav-sidebar.css";
@@ -25,6 +26,8 @@
 @import "./components/blob.css";
 @import "./components/blob-preview.css";
 @import "./components/blob-welcome.css";
+@import "./components/ambient-context.css";
+@import "./components/actionable-response.css";
 
 /* Toolbar */
 @import "./toolbar/model-selector.css";
@@ -56,6 +59,7 @@
 @import "./modals/canvas-neighbors.css";
 
 /* Settings */
+@import "./settings/tree-shell.css";
 @import "./settings/base.css";
 @import "./settings/env-snippets.css";
 @import "./settings/slash-settings.css";

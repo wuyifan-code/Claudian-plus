@@ -541,6 +541,34 @@ export class TabManager implements TabManagerInterface {
     return Array.from(this.tabs.values());
   }
 
+  /** Gets all tabs in current order. */
+  getOrderedTabs(): TabData[] {
+    return Array.from(this.tabs.values());
+  }
+
+  /**
+   * Reorders a tab to the specified index.
+   * Clamps the target index between 0 and tabs.size - 1.
+   * No-ops if the tab ID is not found or is already at target index.
+   */
+  moveTab(tabId: TabId, toIndex: number): void {
+    if (!this.tabs.has(tabId) || this.tabs.size <= 1) return;
+    const entries = Array.from(this.tabs.entries());
+    const currentIndex = entries.findIndex(([id]) => id === tabId);
+    if (currentIndex === -1) return;
+
+    const clampedIndex = Math.max(0, Math.min(entries.length - 1, toIndex));
+    if (currentIndex === clampedIndex) return;
+
+    const [targetEntry] = entries.splice(currentIndex, 1);
+    entries.splice(clampedIndex, 0, targetEntry);
+
+    this.tabs.clear();
+    for (const [id, tab] of entries) {
+      this.tabs.set(id, tab);
+    }
+  }
+
   /** Gets the number of tabs. */
   getTabCount(): number {
     return this.tabs.size;

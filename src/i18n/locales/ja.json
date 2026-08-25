@@ -76,10 +76,35 @@
       "expandOutput": "コマンド出力を展開",
       "running": "実行中...",
       "copyFailed": "クリップボードへのコピーに失敗しました"
+    },
+    "readingMode": {
+      "on": "閲覧モードをオンにする",
+      "off": "閲覧モードをオフにする"
+    },
+    "view": {
+      "chat": "チャット",
+      "sessions": "セッション一覧"
+    },
+    "outline": {
+      "filter": {
+        "prompts": "プロンプト",
+        "headings": "見出し",
+        "tools": "ツール",
+        "thinking": "思考"
+      }
     }
   },
   "settings": {
     "title": "Claudian Plus 設定",
+    "category": {
+      "general": "一般",
+      "appearance": "外観",
+      "memory": "記憶と意識",
+      "providers": "プロバイダー",
+      "agentsSkills": "エージェントとスキル",
+      "workspace": "ワークスペース",
+      "advanced": "高度な設定"
+    },
     "tabs": {
       "general": "一般",
       "claude": "Claude",

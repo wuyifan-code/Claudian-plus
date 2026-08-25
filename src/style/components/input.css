@@ -82,6 +82,11 @@
   background: var(--background-modifier-hover);
 }
 
+.claudian-plus-input-nav-btn.is-active {
+  color: var(--claudian-plus-brand);
+  background: var(--background-modifier-hover);
+}
+
 .claudian-plus-input-nav-btn svg {
   width: 16px;
   height: 16px;

@@ -1,7 +1,6 @@
-
-
 import type { App, Plugin } from 'obsidian';
-import { Notice, Platform, PluginSettingTab, Setting } from 'obsidian';
+import { Notice, Platform, PluginSettingTab, setIcon, Setting } from 'obsidian';
+import * as path from 'path';
 
 import {
   getHiddenProviderCommands,
@@ -14,15 +13,16 @@ import type { ProviderId } from '../../core/providers/types';
 import type { ChatViewPlacement } from '../../core/types/settings';
 import { getAvailableLocales, getLocaleDisplayName, setLocale, t } from '../../i18n/i18n';
 import type { Locale, TranslationKey } from '../../i18n/types';
-import { createProviderIconSvg } from '../../shared/icons';
+import { FileViewerModal } from '../../shared/modals/FileViewerModal';
 import { renderEnvironmentSettingsSection } from '../../shared/settings/EnvironmentSettingsSection';
 import { formatContextLimit, parseContextLimit, parseEnvironmentVariables } from '../../utils/env';
 import type { FeatureHost } from '../FeatureHost';
 import { AgentSkillManagementCoordinator } from './AgentSkillManagementCoordinator';
 import { buildNavMappingText, parseNavMappings } from './keyboardNavigation';
+import { searchSettings, type SettingsSearchEntry } from './settingsSearch';
+import { buildSettingsTree, resolveSelectedCategory, type SettingsCategoryNode } from './settingsTree';
 import { WorkspaceResourcesSettings } from './WorkspaceResourcesSettings';
 
-type SettingsTabId = 'general' | 'providers' | 'workspace' | 'about';
 type ObsidianHotkey = { modifiers: string[]; key: string };
 type ObsidianHotkeyManager = {
   customKeys?: Record<string, ObsidianHotkey[] | undefined>;
@@ -116,11 +116,20 @@ function addHotkeySettingRow(
 
 export class ClaudianPlusSettingTab extends PluginSettingTab {
   plugin: FeatureHost & Plugin;
-  private activeTab: SettingsTabId = 'general';
-  private selectedProviderId: ProviderId = 'claude';
+  private selectedCategory = 'general';
+  private selectedProviderId: ProviderId = 'codex';
   private refreshTitleModelOptions: (() => void) | null = null;
   private displayGeneration = 0;
   private readonly agentSkillCoordinator: AgentSkillManagementCoordinator;
+
+  // Search & Navigation state
+  private searchEntries: SettingsSearchEntry[] = [];
+  private searchInputEl: HTMLInputElement | null = null;
+  private treeContainerEl: HTMLElement | null = null;
+  private treeSubnavContainerEl: HTMLElement | null = null;
+  private searchResultsContainerEl: HTMLElement | null = null;
+  private contentPaneEl: HTMLElement | null = null;
+  private treeItemEls = new Map<string, HTMLElement>();
 
   constructor(app: App, plugin: FeatureHost & Plugin) {
     super(app, plugin);
@@ -131,11 +140,6 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
     );
   }
 
-  /**
-   * Declarative settings definitions for Obsidian 1.13.0+ settings search.
-   * Claudian Plus still builds its settings imperatively in display(); this empty
-   * array satisfies the contract so the tab is registered in search.
-   */
   getSettingDefinitions(): unknown[] {
     return [];
   }
@@ -147,115 +151,223 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
     containerEl.empty();
     containerEl.addClass('claudian-plus-settings');
     this.refreshTitleModelOptions = null;
+    this.searchEntries = [];
+    this.treeItemEls.clear();
 
     setLocale(this.plugin.settings.locale as Locale);
 
-    const mainTabs: { id: SettingsTabId; label: string }[] = [
-      { id: 'general', label: featureCopy(this.plugin.settings.locale, '通用', 'General') },
-      { id: 'providers', label: featureCopy(this.plugin.settings.locale, '提供商', 'Providers') },
-      { id: 'workspace', label: featureCopy(this.plugin.settings.locale, '工作区', 'Workspace') },
-      { id: 'about', label: featureCopy(this.plugin.settings.locale, '关于', 'About') },
-    ];
+    const settingsSnapshot = this.plugin.settings as unknown as Record<string, unknown>;
+    const enabledProviderIds = ProviderRegistry.getEnabledProviderIds(settingsSnapshot);
+    const tree = buildSettingsTree({
+      enabledProviderIds,
+      getProviderDisplayName: (id) => ProviderRegistry.getProviderDisplayName(id),
+      locale: this.plugin.settings.locale,
+    });
 
-    const tabIds = mainTabs.map((t) => t.id);
-    if (!tabIds.includes(this.activeTab)) {
-      this.activeTab = 'general';
+    const savedCategory = this.plugin.settings.settingsLastCategory;
+    this.selectedCategory = resolveSelectedCategory(savedCategory, tree);
+
+    const shell = containerEl.createDiv({ cls: 'claudian-plus-settings-shell' });
+
+    // --- Header Area: Search + Horizontal Category Nav Bar ---
+    const sidebar = shell.createDiv({ cls: 'claudian-plus-settings-sidebar' });
+
+    // Search header
+    const searchWrapper = sidebar.createDiv({ cls: 'claudian-plus-settings-search-wrapper' });
+    const searchIcon = searchWrapper.createSpan({ cls: 'claudian-plus-settings-search-icon' });
+    setIcon(searchIcon, 'search');
+
+    this.searchInputEl = searchWrapper.createEl('input', {
+      type: 'text',
+      cls: 'claudian-plus-settings-search-input',
+      placeholder: 'Search settings...',
+    });
+
+    // Horizontal category bar container
+    this.treeContainerEl = sidebar.createDiv({ cls: 'claudian-plus-settings-tree' });
+    this.treeSubnavContainerEl = sidebar.createDiv({
+      cls: 'claudian-plus-settings-subnav' + (this.selectedCategory.startsWith('providers') ? '' : ' claudian-plus-hidden'),
+    });
+    this.searchResultsContainerEl = sidebar.createDiv({
+      cls: 'claudian-plus-settings-search-results claudian-plus-hidden',
+    });
+
+    // Search input handler
+    this.searchInputEl.addEventListener('input', () => {
+      this.handleSearchInput();
+    });
+    this.searchInputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (this.searchInputEl) {
+          this.searchInputEl.value = '';
+          this.handleSearchInput();
+        }
+      }
+    });
+
+    // Render tree nodes
+    for (const node of tree) {
+      this.renderTreeNode(this.treeContainerEl, node);
     }
 
-    const tabBar = containerEl.createDiv({ cls: 'claudian-plus-settings-tabs' });
-    const tabButtons = new Map<SettingsTabId, HTMLButtonElement>();
-    const tabContents = new Map<SettingsTabId, HTMLDivElement>();
+    // --- Full-Width Content Pane ---
+    this.contentPaneEl = shell.createDiv({ cls: 'claudian-plus-settings-content-pane' });
 
-    const renderProviderTab = async (providerId: ProviderId, targetEl: HTMLElement): Promise<void> => {
-      targetEl.empty();
-      targetEl.createDiv({
-        cls: 'claudian-plus-settings-provider-loading',
-        text: featureCopy(
-          this.plugin.settings.locale,
-          `正在加载 ${ProviderRegistry.getProviderDisplayName(providerId)} 设置…`,
-          `Loading ${ProviderRegistry.getProviderDisplayName(providerId)} settings…`,
-        ),
+    this.renderSelectedCategory(displayGeneration);
+  }
+
+  private renderTreeNode(container: HTMLElement, node: SettingsCategoryNode, isChild = false): void {
+    const targetContainer = isChild && this.treeSubnavContainerEl ? this.treeSubnavContainerEl : container;
+    const isNodeActive = node.id === this.selectedCategory || (this.selectedCategory.startsWith('providers') && node.id === 'providers');
+
+    const itemEl = targetContainer.createDiv({
+      cls: [
+        'claudian-plus-settings-tree-item',
+        isChild ? 'claudian-plus-settings-tree-child' : '',
+        isNodeActive ? 'is-active' : '',
+      ].filter(Boolean).join(' '),
+      attr: { 'data-category-id': node.id },
+    });
+
+    if (node.icon) {
+      const iconEl = itemEl.createSpan();
+      setIcon(iconEl, node.icon);
+    }
+
+    itemEl.createSpan({ text: node.label });
+
+    itemEl.addEventListener('click', () => {
+      this.selectCategory(node.id);
+    });
+
+    this.treeItemEls.set(node.id, itemEl);
+
+    if (node.children) {
+      for (const child of node.children) {
+        this.renderTreeNode(container, child, true);
+      }
+    }
+  }
+
+  private selectCategory(categoryId: string): void {
+    this.selectedCategory = categoryId;
+    this.plugin.settings.settingsLastCategory = categoryId;
+    void this.plugin.mutateSettings((settings) => {
+      settings.settingsLastCategory = categoryId;
+    });
+
+    const isProviderCategory = categoryId.startsWith('providers');
+    this.treeSubnavContainerEl?.toggleClass('claudian-plus-hidden', !isProviderCategory);
+
+    for (const [id, el] of this.treeItemEls.entries()) {
+      const isActive = id === categoryId || (isProviderCategory && id === 'providers');
+      el.toggleClass('is-active', isActive);
+    }
+
+    this.renderSelectedCategory(this.displayGeneration);
+  }
+
+  private handleSearchInput(): void {
+    const query = this.searchInputEl?.value.trim() ?? '';
+    if (!query) {
+      this.treeContainerEl?.removeClass('claudian-plus-hidden');
+      if (this.selectedCategory.startsWith('providers')) {
+        this.treeSubnavContainerEl?.removeClass('claudian-plus-hidden');
+      } else {
+        this.treeSubnavContainerEl?.addClass('claudian-plus-hidden');
+      }
+      this.searchResultsContainerEl?.addClass('claudian-plus-hidden');
+      return;
+    }
+
+    this.treeContainerEl?.addClass('claudian-plus-hidden');
+    this.treeSubnavContainerEl?.addClass('claudian-plus-hidden');
+    this.searchResultsContainerEl?.removeClass('claudian-plus-hidden');
+    this.searchResultsContainerEl?.empty();
+
+    const results = searchSettings(query, this.searchEntries);
+
+    if (results.length === 0) {
+      this.searchResultsContainerEl?.createDiv({
+        cls: 'claudian-plus-settings-search-result-crumb claudian-plus-settings-search-empty',
+        text: 'No matching settings',
+      });
+      return;
+    }
+
+    for (const res of results) {
+      const row = this.searchResultsContainerEl?.createDiv({
+        cls: 'claudian-plus-settings-search-result-item',
+      });
+      if (!row) continue;
+
+      row.createSpan({
+        cls: 'claudian-plus-settings-search-result-name',
+        text: res.entry.name,
       });
 
-      try {
-        await ProviderWorkspaceRegistry.ensureInitialized(
-          this.plugin.providerHost,
-          providerId,
-          'settings-tab',
-        );
-        await ProviderWorkspaceRegistry.prepareSettings(providerId);
-        if (displayGeneration !== this.displayGeneration) {
-          return;
-        }
-
-        targetEl.empty();
-        const renderer = ProviderWorkspaceRegistry.getSettingsTabRenderer(providerId);
-        if (!renderer) {
-          targetEl.createDiv({
-            text: featureCopy(this.plugin.settings.locale, '提供商设置不可用。', 'Provider settings are unavailable.'),
-          });
-          return;
-        }
-        renderer.render(targetEl, {
-          plugin: this.plugin.providerHost,
-          renderHiddenProviderCommandSetting: (
-            target,
-            targetProviderId,
-            copy,
-          ) => this.renderHiddenProviderCommandSetting(target, targetProviderId, copy),
-          refreshModelSelectors: () => {
-            for (const view of this.plugin.getAllViews()) {
-              view.refreshModelSelector();
-            }
-          },
-          refreshTitleGenerationModelOptions: () => this.refreshTitleModelOptions?.(),
-          renderCustomContextLimits: (target, targetProviderId) => (
-            this.renderCustomContextLimits(target, targetProviderId)
-          ),
-        });
-      } catch (error) {
-        if (displayGeneration !== this.displayGeneration) {
-          return;
-        }
-        targetEl.empty();
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        targetEl.createDiv({
-          cls: 'claudian-plus-setting-validation claudian-plus-setting-validation-error',
-          text: featureCopy(
-            this.plugin.settings.locale,
-            `无法加载提供商设置：${message}`,
-            `Could not load provider settings: ${message}`,
-          ),
+      if (res.entry.categoryLabel) {
+        row.createSpan({
+          cls: 'claudian-plus-settings-search-result-crumb',
+          text: res.entry.categoryLabel,
         });
       }
-    };
 
-    for (const tabItem of mainTabs) {
-      const button = tabBar.createEl('button', {
-        cls: `claudian-plus-settings-tab${tabItem.id === this.activeTab ? ' claudian-plus-settings-tab--active' : ''}`,
-        text: tabItem.label,
-      });
-      button.addEventListener('click', () => {
-        this.activeTab = tabItem.id;
-        for (const id of tabIds) {
-          tabButtons.get(id)?.toggleClass('claudian-plus-settings-tab--active', id === tabItem.id);
-          tabContents.get(id)?.toggleClass('claudian-plus-settings-tab-content--active', id === tabItem.id);
+      row.addEventListener('click', () => {
+        this.selectCategory(res.entry.categoryId);
+        if (res.entry.targetEl) {
+          window.setTimeout(() => {
+            res.entry.targetEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            res.entry.targetEl?.addClass('claudian-plus-settings-highlight-flash');
+            window.setTimeout(() => {
+              res.entry.targetEl?.removeClass('claudian-plus-settings-highlight-flash');
+            }, 1600);
+          }, 50);
         }
       });
-      tabButtons.set(tabItem.id, button);
+    }
+  }
+
+  private registerSearchEntry(entry: SettingsSearchEntry): void {
+    this.searchEntries.push(entry);
+  }
+
+  private renderSelectedCategory(displayGeneration: number): void {
+    if (!this.contentPaneEl) return;
+    this.contentPaneEl.empty();
+
+    if (this.selectedCategory.startsWith('providers:')) {
+      const providerId = this.selectedCategory.slice('providers:'.length);
+      this.renderProviderSubpage(this.contentPaneEl, providerId, displayGeneration);
+      return;
     }
 
-    for (const id of tabIds) {
-      const content = containerEl.createDiv({
-        cls: `claudian-plus-settings-tab-content${id === this.activeTab ? ' claudian-plus-settings-tab-content--active' : ''}`,
-      });
-      tabContents.set(id, content);
+    switch (this.selectedCategory) {
+      case 'general':
+        this.renderGeneralCategory(this.contentPaneEl);
+        break;
+      case 'appearance':
+        this.renderAppearanceCategory(this.contentPaneEl);
+        break;
+      case 'memory':
+        this.renderMemoryCategory(this.contentPaneEl);
+        break;
+      case 'providers':
+        this.renderProvidersOverviewCategory(this.contentPaneEl);
+        break;
+      case 'agents-skills':
+        this.renderAgentsSkillsCategory(this.contentPaneEl);
+        break;
+      case 'workspace':
+        this.renderWorkspaceCategory(this.contentPaneEl);
+        break;
+      case 'advanced':
+        this.renderAdvancedCategory(this.contentPaneEl);
+        break;
+      default:
+        this.renderGeneralCategory(this.contentPaneEl);
+        break;
     }
-
-    this.renderGeneralTab(tabContents.get('general')!);
-    this.renderProvidersTab(tabContents.get('providers')!, (id, target) => renderProviderTab(id, target));
-    this.renderWorkspaceTab(tabContents.get('workspace')!);
-    this.renderAboutTab(tabContents.get('about')!);
   }
 
   private createCard(container: HTMLElement, title?: string): HTMLElement {
@@ -266,96 +378,12 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
     return card;
   }
 
-  private renderProvidersTab(
-    container: HTMLElement,
-    renderProviderTabFn: (id: ProviderId, target: HTMLElement) => Promise<void>,
-  ): void {
-    // 1. Default Provider Selection Card
-    const defaultProviderCard = this.createCard(container);
-    new Setting(defaultProviderCard)
-      .setName('默认提供商')
-      .setDesc('选择全局创建新聊天面板时的默认 AI 提供商')
-      .addDropdown((dropdown) => {
-        dropdown.addOption('auto', '跟随所选模型');
-        for (const providerId of ProviderRegistry.getRegisteredProviderIds()) {
-          dropdown.addOption(providerId, ProviderRegistry.getProviderDisplayName(providerId));
-        }
-        dropdown.setValue(this.plugin.settings.settingsProvider || 'auto');
-        dropdown.onChange(async (val) => {
-          await this.plugin.mutateSettings((settings) => {
-            settings.settingsProvider = val;
-          });
-        });
-      });
+  // --- Category: General ---
+  private renderGeneralCategory(container: HTMLElement): void {
+    const card = this.createCard(container, t('settings.category.general') || 'General');
 
-    // 2. Provider Pill Bar Selector (Horizontal capsule buttons with SVG icons)
-    const registeredIds = ProviderRegistry.getRegisteredProviderIds();
-    const allProviders = registeredIds.map((id) => ({
-      id,
-      name: ProviderRegistry.getProviderDisplayName(id),
-    }));
-
-    if (!this.selectedProviderId || !registeredIds.includes(this.selectedProviderId)) {
-      this.selectedProviderId = registeredIds[0] || 'claude';
-    }
-
-    const selectorCard = this.createCard(container);
-    const pillBar = selectorCard.createDiv({ cls: 'claudian-plus-provider-pill-bar' });
-    const pillElements = new Map<ProviderId, HTMLElement>();
-
-    // 3. Selected Provider Settings Detail Card
-    const initialProviderName = ProviderRegistry.getProviderDisplayName(this.selectedProviderId);
-    const providerDetailCard = this.createCard(container, `${initialProviderName} 设置`);
-    const detailCardHeader = providerDetailCard.querySelector('.claudian-plus-settings-card-header') as HTMLElement;
-    const providerContentArea = providerDetailCard.createDiv({ cls: 'claudian-plus-provider-settings-content' });
-
-    const updateDetailArea = (id: ProviderId) => {
-      const pName = ProviderRegistry.getProviderDisplayName(id);
-      if (detailCardHeader) {
-        detailCardHeader.setText(`${pName} 设置`);
-      }
-      providerContentArea.empty();
-      void renderProviderTabFn(id, providerContentArea);
-    };
-
-    for (const p of allProviders) {
-      const isSelected = p.id === this.selectedProviderId;
-
-      const pill = pillBar.createDiv({
-        cls: `claudian-plus-provider-pill${isSelected ? ' claudian-plus-provider-pill--active' : ''}`,
-      });
-      pillElements.set(p.id, pill);
-
-      // Render Provider SVG Icon
-      const iconEl = pill.createDiv({ cls: 'claudian-plus-provider-pill-icon' });
-      const iconSvg = ProviderRegistry.getChatUIConfig(p.id).getProviderIcon?.();
-      if (iconSvg) {
-        createProviderIconSvg(iconSvg, { parent: iconEl });
-      }
-
-      // Provider Name
-      pill.createSpan({ cls: 'claudian-plus-provider-pill-name', text: p.name });
-
-      // Click to select provider pill
-      pill.addEventListener('click', () => {
-        if (this.selectedProviderId === p.id) return;
-        this.selectedProviderId = p.id;
-        for (const [id, el] of pillElements.entries()) {
-          el.toggleClass('claudian-plus-provider-pill--active', id === p.id);
-        }
-        updateDetailArea(p.id);
-      });
-    }
-
-    // Initial render of active provider detail settings
-    updateDetailArea(this.selectedProviderId);
-  }
-
-  private renderGeneralTab(container: HTMLElement): void {
-    // --- Language & Display ---
-    const displayCard = this.createCard(container, t('settings.display'));
-
-    new Setting(displayCard)
+    // Language
+    const langSetting = new Setting(card)
       .setName(t('settings.language.name'))
       .setDesc(t('settings.language.desc'))
       .addDropdown((dropdown) => {
@@ -377,12 +405,168 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
             this.display();
           });
       });
+    this.registerSearchEntry({
+      categoryId: 'general',
+      categoryLabel: 'General',
+      settingKey: 'language',
+      name: t('settings.language.name'),
+      desc: t('settings.language.desc'),
+      targetEl: langSetting.settingEl,
+    });
 
-    const maxTabsSetting = new Setting(displayCard)
+    // User Name
+    const nameSetting = new Setting(card)
+      .setName(t('settings.userName.name'))
+      .setDesc(t('settings.userName.desc'))
+      .addText((text) => {
+        text
+          .setPlaceholder(t('settings.userName.name'))
+          .setValue(this.plugin.settings.userName)
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.userName = value;
+            });
+          });
+        text.inputEl.addEventListener('blur', () => {
+          void this.restartServiceForPromptChange();
+        });
+      });
+    this.registerSearchEntry({
+      categoryId: 'general',
+      categoryLabel: 'General',
+      settingKey: 'user-name',
+      name: t('settings.userName.name'),
+      desc: t('settings.userName.desc'),
+      targetEl: nameSetting.settingEl,
+    });
+
+    // Default Chat Provider
+    const providerSetting = new Setting(card)
+      .setName(t('settings.defaultChatProvider.name'))
+      .setDesc(t('settings.defaultChatProvider.desc'))
+      .addDropdown((dropdown) => {
+        dropdown.addOption('', t('settings.defaultChatProvider.followModel'));
+        const settingsSnapshot = this.plugin.settings as unknown as Record<string, unknown>;
+        for (const providerId of ProviderRegistry.getEnabledProviderIds(settingsSnapshot)) {
+          dropdown.addOption(providerId, ProviderRegistry.getProviderDisplayName(providerId));
+        }
+        dropdown
+          .setValue(this.plugin.settings.defaultChatProviderId || '')
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.defaultChatProviderId = value;
+            });
+            for (const view of this.plugin.getAllViews()) {
+              view.refreshModelSelector();
+            }
+          });
+      });
+    this.registerSearchEntry({
+      categoryId: 'general',
+      categoryLabel: 'General',
+      settingKey: 'default-chat-provider',
+      name: t('settings.defaultChatProvider.name'),
+      desc: t('settings.defaultChatProvider.desc'),
+      targetEl: providerSetting.settingEl,
+    });
+
+    // System Prompt
+    const promptSetting = new Setting(card)
+      .setName(t('settings.systemPrompt.name'))
+      .setDesc(t('settings.systemPrompt.desc'))
+      .addTextArea((text) => {
+        text
+          .setPlaceholder(t('settings.systemPrompt.name'))
+          .setValue(this.plugin.settings.systemPrompt)
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.systemPrompt = value;
+            });
+          });
+        text.inputEl.rows = 5;
+        text.inputEl.cols = 45;
+        text.inputEl.addEventListener('blur', () => {
+          void this.restartServiceForPromptChange();
+        });
+      });
+    this.registerSearchEntry({
+      categoryId: 'general',
+      categoryLabel: 'General',
+      settingKey: 'system-prompt',
+      name: t('settings.systemPrompt.name'),
+      desc: t('settings.systemPrompt.desc'),
+      targetEl: promptSetting.settingEl,
+    });
+
+    // Auto Title Generation
+    const titleCard = this.createCard(container, t('settings.conversations'));
+    const autoTitleSetting = new Setting(titleCard)
+      .setName(t('settings.autoTitle.name'))
+      .setDesc(t('settings.autoTitle.desc'))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.enableAutoTitleGeneration)
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.enableAutoTitleGeneration = value;
+            });
+            this.display();
+          })
+      );
+    this.registerSearchEntry({
+      categoryId: 'general',
+      categoryLabel: 'General',
+      settingKey: 'auto-title',
+      name: t('settings.autoTitle.name'),
+      desc: t('settings.autoTitle.desc'),
+      targetEl: autoTitleSetting.settingEl,
+    });
+
+    if (this.plugin.settings.enableAutoTitleGeneration) {
+      const titleModelSetting = new Setting(titleCard)
+        .setName(t('settings.titleModel.name'))
+        .setDesc(t('settings.titleModel.desc'))
+        .addDropdown((dropdown) => {
+          const refreshOptions = (): void => {
+            dropdown.selectEl.replaceChildren();
+            dropdown.addOption('', t('settings.titleModel.auto'));
+
+            const settingsBag = this.plugin.settings as unknown as Record<string, unknown>;
+            for (const model of ProviderRegistry.getTitleGenerationModelOptions(settingsBag)) {
+              dropdown.addOption(model.value, model.label);
+            }
+            dropdown.setValue(this.plugin.settings.titleGenerationModel || '');
+          };
+
+          this.refreshTitleModelOptions = refreshOptions;
+          refreshOptions();
+          dropdown.onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              ProviderSettingsCoordinator.applyTitleGenerationModelSelection(settings, value);
+            });
+          });
+        });
+      this.registerSearchEntry({
+        categoryId: 'general',
+        categoryLabel: 'General',
+        settingKey: 'title-model',
+        name: t('settings.titleModel.name'),
+        desc: t('settings.titleModel.desc'),
+        targetEl: titleModelSetting.settingEl,
+      });
+    }
+  }
+
+  // --- Category: Appearance ---
+  private renderAppearanceCategory(container: HTMLElement): void {
+    const card = this.createCard(container, t('settings.category.appearance') || 'Appearance');
+
+    // Max Tabs
+    const maxTabsSetting = new Setting(card)
       .setName(t('settings.maxTabs.name'))
       .setDesc(t('settings.maxTabs.desc'));
 
-    const maxTabsWarningEl = displayCard.createDiv({
+    const maxTabsWarningEl = card.createDiv({
       cls: 'claudian-plus-max-tabs-warning claudian-plus-setting-validation claudian-plus-setting-validation-warning claudian-plus-hidden',
     });
     maxTabsWarningEl.setText(t('settings.maxTabs.warning'));
@@ -412,7 +596,17 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
     sliderScale.createSpan({ text: '3' });
     sliderScale.createSpan({ text: '10' });
 
-    new Setting(displayCard)
+    this.registerSearchEntry({
+      categoryId: 'appearance',
+      categoryLabel: 'Appearance',
+      settingKey: 'max-tabs',
+      name: t('settings.maxTabs.name'),
+      desc: t('settings.maxTabs.desc'),
+      targetEl: maxTabsSetting.settingEl,
+    });
+
+    // Chat View Placement
+    const placementSetting = new Setting(card)
       .setName(t('settings.chatViewPlacement.name'))
       .setDesc(t('settings.chatViewPlacement.desc'))
       .addDropdown((dropdown) => {
@@ -427,55 +621,17 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
             });
           });
       });
+    this.registerSearchEntry({
+      categoryId: 'appearance',
+      categoryLabel: 'Appearance',
+      settingKey: 'chat-view-placement',
+      name: t('settings.chatViewPlacement.name'),
+      desc: t('settings.chatViewPlacement.desc'),
+      targetEl: placementSetting.settingEl,
+    });
 
-    new Setting(displayCard)
-      .setName(t('settings.defaultChatProvider.name'))
-      .setDesc(t('settings.defaultChatProvider.desc'))
-      .addDropdown((dropdown) => {
-        dropdown.addOption('', t('settings.defaultChatProvider.followModel'));
-        const settingsSnapshot = this.plugin.settings as unknown as Record<string, unknown>;
-        for (const providerId of ProviderRegistry.getEnabledProviderIds(settingsSnapshot)) {
-          dropdown.addOption(providerId, ProviderRegistry.getProviderDisplayName(providerId));
-        }
-        dropdown
-          .setValue(this.plugin.settings.defaultChatProviderId || '')
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              settings.defaultChatProviderId = value;
-            });
-            for (const view of this.plugin.getAllViews()) {
-              view.refreshModelSelector();
-            }
-          });
-      });
-
-    new Setting(displayCard)
-      .setName(t('settings.livePreviewComposer.name'))
-      .setDesc(t('settings.livePreviewComposer.desc'))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.enableLivePreviewComposer ?? true)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              settings.enableLivePreviewComposer = value;
-            });
-          })
-      );
-
-    new Setting(displayCard)
-      .setName(t('settings.enableAutoScroll.name'))
-      .setDesc(t('settings.enableAutoScroll.desc'))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.enableAutoScroll ?? true)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              settings.enableAutoScroll = value;
-            });
-          })
-      );
-
-    new Setting(displayCard)
+    // Outline Side
+    const outlineSetting = new Setting(card)
       .setName(featureCopy(this.plugin.settings.locale, '悬浮大纲位置', 'Outline side'))
       .setDesc(featureCopy(
         this.plugin.settings.locale,
@@ -491,40 +647,22 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
             await this.plugin.mutateSettings((settings) => {
               settings.outlineSide = value as 'left' | 'right';
             });
-            // Refresh open views so the outline side takes effect immediately.
             for (const view of this.plugin.getAllViews()) {
               view.refreshOutlineSide?.();
             }
           });
       });
+    this.registerSearchEntry({
+      categoryId: 'appearance',
+      categoryLabel: 'Appearance',
+      settingKey: 'outline-side',
+      name: 'Outline side',
+      desc: 'Floating outline rail location',
+      targetEl: outlineSetting.settingEl,
+    });
 
-    new Setting(displayCard)
-      .setName(t('settings.deferMathRenderingDuringStreaming.name'))
-      .setDesc(t('settings.deferMathRenderingDuringStreaming.desc'))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.deferMathRenderingDuringStreaming ?? true)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              settings.deferMathRenderingDuringStreaming = value;
-            });
-          })
-      );
-
-    new Setting(displayCard)
-      .setName(t('settings.expandFileEditsByDefault.name'))
-      .setDesc(t('settings.expandFileEditsByDefault.desc'))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.expandFileEditsByDefault ?? false)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              settings.expandFileEditsByDefault = value;
-            });
-          })
-      );
-
-    new Setting(displayCard)
+    // Welcome Animation
+    const animSetting = new Setting(card)
       .setName(t('settings.welcomeAnimation.name'))
       .setDesc(t('settings.welcomeAnimation.desc'))
       .addDropdown((dropdown) => {
@@ -537,14 +675,22 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
             await this.plugin.mutateSettings((settings) => {
               settings.welcomeAnimationMode = value as 'full' | 'lite' | 'off';
             });
-            // Refresh open views so the welcome animation switches immediately.
             for (const view of this.plugin.getAllViews()) {
               view.refreshWelcomeAnimation?.();
             }
           });
       });
+    this.registerSearchEntry({
+      categoryId: 'appearance',
+      categoryLabel: 'Appearance',
+      settingKey: 'welcome-animation',
+      name: t('settings.welcomeAnimation.name'),
+      desc: t('settings.welcomeAnimation.desc'),
+      targetEl: animSetting.settingEl,
+    });
 
-    new Setting(displayCard)
+    // Blob Follow Pointer
+    const blobSetting = new Setting(card)
       .setName(t('settings.blobFollow.name'))
       .setDesc(t('settings.blobFollow.desc'))
       .addToggle((toggle) =>
@@ -557,92 +703,605 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
             for (const view of this.plugin.getAllViews()) {
               view.refreshWelcomeAnimation?.();
             }
-          }),
+          })
       );
+    this.registerSearchEntry({
+      categoryId: 'appearance',
+      categoryLabel: 'Appearance',
+      settingKey: 'blob-follow',
+      name: t('settings.blobFollow.name'),
+      desc: t('settings.blobFollow.desc'),
+      targetEl: blobSetting.settingEl,
+    });
 
-    // --- Conversations ---
-    const convCard = this.createCard(container, t('settings.conversations'));
-
-    new Setting(convCard)
-      .setName(t('settings.autoTitle.name'))
-      .setDesc(t('settings.autoTitle.desc'))
+    // Auto Scroll & Markdown options
+    const autoScrollSetting = new Setting(card)
+      .setName(t('settings.enableAutoScroll.name'))
+      .setDesc(t('settings.enableAutoScroll.desc'))
       .addToggle((toggle) =>
         toggle
-          .setValue(this.plugin.settings.enableAutoTitleGeneration)
+          .setValue(this.plugin.settings.enableAutoScroll ?? true)
           .onChange(async (value) => {
             await this.plugin.mutateSettings((settings) => {
-              settings.enableAutoTitleGeneration = value;
+              settings.enableAutoScroll = value;
+            });
+          })
+      );
+    this.registerSearchEntry({
+      categoryId: 'appearance',
+      categoryLabel: 'Appearance',
+      settingKey: 'auto-scroll',
+      name: t('settings.enableAutoScroll.name'),
+      desc: t('settings.enableAutoScroll.desc'),
+      targetEl: autoScrollSetting.settingEl,
+    });
+
+    const mathSetting = new Setting(card)
+      .setName(t('settings.deferMathRenderingDuringStreaming.name'))
+      .setDesc(t('settings.deferMathRenderingDuringStreaming.desc'))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.deferMathRenderingDuringStreaming ?? true)
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.deferMathRenderingDuringStreaming = value;
+            });
+          })
+      );
+    this.registerSearchEntry({
+      categoryId: 'appearance',
+      categoryLabel: 'Appearance',
+      settingKey: 'defer-math',
+      name: t('settings.deferMathRenderingDuringStreaming.name'),
+      desc: t('settings.deferMathRenderingDuringStreaming.desc'),
+      targetEl: mathSetting.settingEl,
+    });
+
+    const editSetting = new Setting(card)
+      .setName(t('settings.expandFileEditsByDefault.name'))
+      .setDesc(t('settings.expandFileEditsByDefault.desc'))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.expandFileEditsByDefault ?? false)
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.expandFileEditsByDefault = value;
+            });
+          })
+      );
+    this.registerSearchEntry({
+      categoryId: 'appearance',
+      categoryLabel: 'Appearance',
+      settingKey: 'expand-edits',
+      name: t('settings.expandFileEditsByDefault.name'),
+      desc: t('settings.expandFileEditsByDefault.desc'),
+      targetEl: editSetting.settingEl,
+    });
+  }
+
+  // --- Category: Memory & Consciousness ---
+  private renderMemoryCategory(container: HTMLElement): void {
+    const locale = this.plugin.settings.locale;
+
+    // --- 1. Memory Card ---
+    const memoryCard = this.createCard(container, t('settings.memory.heading'));
+
+    const memSetting = new Setting(memoryCard)
+      .setName(t('settings.memory.enabled.name'))
+      .setDesc(t('settings.memory.enabled.desc'))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.memoryEnabled)
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.memoryEnabled = value;
             });
             this.display();
           })
       );
+    this.registerSearchEntry({
+      categoryId: 'memory',
+      categoryLabel: 'Memory & Consciousness',
+      settingKey: 'memory-enabled',
+      name: t('settings.memory.enabled.name'),
+      desc: t('settings.memory.enabled.desc'),
+      targetEl: memSetting.settingEl,
+    });
 
-    if (this.plugin.settings.enableAutoTitleGeneration) {
-      new Setting(convCard)
-        .setName(t('settings.titleModel.name'))
-        .setDesc(t('settings.titleModel.desc'))
-        .addDropdown((dropdown) => {
-          const refreshOptions = (): void => {
-            dropdown.selectEl.replaceChildren();
-            dropdown.addOption('', t('settings.titleModel.auto'));
+    if (this.plugin.settings.memoryEnabled) {
+      const pathSetting = new Setting(memoryCard)
+        .setName(t('settings.memory.filePath.name'))
+        .setDesc(t('settings.memory.filePath.desc'))
+        .addText((text) =>
+          text
+            .setValue(this.plugin.settings.memoryFilePath || '.claudian-plus/memory.md')
+            .onChange(async (value) => {
+              await this.plugin.mutateSettings((settings) => {
+                settings.memoryFilePath = value.trim();
+              });
+            })
+        );
+      this.registerSearchEntry({
+        categoryId: 'memory',
+        categoryLabel: 'Memory & Consciousness',
+        settingKey: 'memory-path',
+        name: t('settings.memory.filePath.name'),
+        desc: t('settings.memory.filePath.desc'),
+        targetEl: pathSetting.settingEl,
+      });
 
-            const settingsBag = this.plugin.settings as unknown as Record<string, unknown>;
-            for (const model of ProviderRegistry.getTitleGenerationModelOptions(settingsBag)) {
-              dropdown.addOption(model.value, model.label);
-            }
-            dropdown.setValue(this.plugin.settings.titleGenerationModel || '');
-          };
-
-          this.refreshTitleModelOptions = refreshOptions;
-          refreshOptions();
-          dropdown.onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              ProviderSettingsCoordinator.applyTitleGenerationModelSelection(settings, value);
+      const maxCharsSetting = new Setting(memoryCard)
+        .setName(t('settings.memory.maxChars.name'))
+        .setDesc(t('settings.memory.maxChars.desc'))
+        .addSlider((slider) => {
+          slider
+            .setLimits(500, 5000, 100)
+            .setValue(this.plugin.settings.memoryMaxInjectionChars ?? 1500)
+            .setDynamicTooltip()
+            .onChange(async (value) => {
+              await this.plugin.mutateSettings((settings) => {
+                settings.memoryMaxInjectionChars = value;
+              });
             });
-          });
         });
+      this.registerSearchEntry({
+        categoryId: 'memory',
+        categoryLabel: 'Memory & Consciousness',
+        settingKey: 'memory-max-chars',
+        name: t('settings.memory.maxChars.name'),
+        desc: t('settings.memory.maxChars.desc'),
+        targetEl: maxCharsSetting.settingEl,
+      });
+
+      const memoryButtonSetting = new Setting(memoryCard)
+        .setName(t('settings.memory.manage.name'))
+        .setDesc(t('settings.memory.manage.desc'));
+
+      memoryButtonSetting.addButton((button) => {
+        button
+          .setButtonText(t('settings.memory.viewBtn'))
+          .setCta()
+          .onClick(async () => {
+            const vaultPath = (this.app.vault.adapter as { basePath?: string }).basePath || '';
+            const memoryPath = this.plugin.settings.memoryFilePath || '.claudian-plus/memory.md';
+            const absolutePath = path.isAbsolute(memoryPath)
+              ? memoryPath
+              : path.join(vaultPath, memoryPath);
+
+            new FileViewerModal(this.app, featureCopy(locale, '长期记忆文件', 'Memory files'), [
+              { label: featureCopy(locale, '长期记忆 (memory.md)', 'Long-term memory (memory.md)'), path: absolutePath },
+            ]).open();
+          });
+      });
+
+      memoryButtonSetting.addButton((button) => {
+        button
+          .setButtonText(t('settings.memory.clearBtn'))
+          .setWarning()
+          .onClick(async () => {
+            const memoryStore = this.plugin.getMemoryStore();
+            const entries = await memoryStore.load();
+            if (entries.length === 0) {
+              new Notice(t('settings.memory.alreadyEmpty'));
+              return;
+            }
+            await memoryStore.save([]);
+            new Notice(t('settings.memory.cleared'));
+            this.display();
+          });
+      });
+
+      const memoryStatusSetting = new Setting(memoryCard)
+        .setName(featureCopy(locale, '记忆文件状态', 'Memory file status'))
+        .setDesc(featureCopy(locale, '读取中…', 'Loading…'));
+      void (async () => {
+        try {
+          const store = this.plugin.getMemoryStore();
+          const entries = await store.load();
+          memoryStatusSetting.setDesc(featureCopy(
+            locale,
+            `路径：${store.filePath}，共 ${entries.length} 条记忆。每次写入前自动备份到 .claudian-plus/backups/（保留 20 份）。`,
+            `Path: ${store.filePath}, ${entries.length} entrie(s). A backup is kept in .claudian-plus/backups/ before every write (20 retained).`,
+          ));
+        } catch {
+          memoryStatusSetting.setDesc(featureCopy(locale, '读取失败', 'Failed to load memory status'));
+        }
+      })();
     }
 
-    // --- Content ---
-    const contentCard = this.createCard(container, t('settings.content'));
+    // --- 2. Consciousness & Awareness Network Card ---
+    const consciousnessCard = this.createCard(
+      container,
+      t('settings.consciousness.heading') || 'Consciousness'
+    );
 
-    new Setting(contentCard)
-      .setName(t('settings.userName.name'))
-      .setDesc(t('settings.userName.desc'))
-      .addText((text) => {
-        text
-          .setPlaceholder(t('settings.userName.name'))
-          .setValue(this.plugin.settings.userName)
+    const consciousnessSetting = new Setting(consciousnessCard)
+      .setName(t('settings.consciousness.enabled.name'))
+      .setDesc(t('settings.consciousness.enabled.desc'))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.consciousnessEnabled ?? false)
           .onChange(async (value) => {
             await this.plugin.mutateSettings((settings) => {
-              settings.userName = value;
+              settings.consciousnessEnabled = value;
             });
-          });
-        text.inputEl.addEventListener('blur', () => {
-          void this.restartServiceForPromptChange();
-        });
+            const engine = this.plugin.getConsciousnessEngine();
+            engine.updateConfig({
+              enabled: value,
+              autoMemoryEnabled: this.plugin.settings.consciousnessAutoMemory,
+            });
+            if (value) {
+              await engine.initialize();
+            }
+            this.display();
+          })
+      );
+    this.registerSearchEntry({
+      categoryId: 'memory',
+      categoryLabel: 'Memory & Consciousness',
+      settingKey: 'consciousness-enabled',
+      name: t('settings.consciousness.enabled.name'),
+      desc: t('settings.consciousness.enabled.desc'),
+      targetEl: consciousnessSetting.settingEl,
+    });
+
+    if (this.plugin.settings.consciousnessEnabled ?? false) {
+      const autoMemSetting = new Setting(consciousnessCard)
+        .setName(t('settings.consciousness.autoMemory.name'))
+        .setDesc(t('settings.consciousness.autoMemory.desc'))
+        .addToggle((toggle) =>
+          toggle
+            .setValue(this.plugin.settings.consciousnessAutoMemory ?? false)
+            .onChange(async (value) => {
+              await this.plugin.mutateSettings((settings) => {
+                settings.consciousnessAutoMemory = value;
+              });
+              this.plugin.getConsciousnessEngine().updateConfig({ autoMemoryEnabled: value });
+              this.display();
+            })
+        );
+      this.registerSearchEntry({
+        categoryId: 'memory',
+        categoryLabel: 'Memory & Consciousness',
+        settingKey: 'consciousness-auto-memory',
+        name: t('settings.consciousness.autoMemory.name'),
+        desc: t('settings.consciousness.autoMemory.desc'),
+        targetEl: autoMemSetting.settingEl,
       });
 
-    new Setting(contentCard)
-      .setName(t('settings.systemPrompt.name'))
-      .setDesc(t('settings.systemPrompt.desc'))
-      .addTextArea((text) => {
-        text
-          .setPlaceholder(t('settings.systemPrompt.name'))
-          .setValue(this.plugin.settings.systemPrompt)
-          .onChange(async (value) => {
-            await this.plugin.mutateSettings((settings) => {
-              settings.systemPrompt = value;
-            });
+      if (this.plugin.settings.consciousnessAutoMemory ?? false) {
+        const dreamHeading = consciousnessCard.createDiv({
+          cls: 'claudian-plus-settings-subheading',
+          text: t('settings.dream.heading'),
+        });
+        dreamHeading.createDiv({
+          cls: 'claudian-plus-settings-feature-guide-copy',
+          text: t('settings.dream.desc'),
+        });
+
+        const hours = Math.max(1, Math.round((this.plugin.settings.dreamIntervalMs ?? 24 * 60 * 60 * 1000) / (60 * 60 * 1000)));
+        new Setting(consciousnessCard)
+          .setName(t('settings.dream.interval.name'))
+          .setDesc(t('settings.dream.interval.desc'))
+          .addText((text) =>
+            text
+              .setValue(String(hours))
+              .onChange(async (value) => {
+                const parsed = Math.max(1, Number.parseInt(value, 10) || 24);
+                await this.plugin.mutateSettings((settings) => {
+                  settings.dreamIntervalMs = parsed * 60 * 60 * 1000;
+                });
+              })
+          );
+
+        new Setting(consciousnessCard)
+          .setName(t('settings.dream.maxLogDays.name'))
+          .setDesc(t('settings.dream.maxLogDays.desc'))
+          .addText((text) =>
+            text
+              .setValue(String(this.plugin.settings.dreamMaxLogDays ?? 7))
+              .onChange(async (value) => {
+                const parsed = Math.max(1, Number.parseInt(value, 10) || 7);
+                await this.plugin.mutateSettings((settings) => {
+                  settings.dreamMaxLogDays = parsed;
+                });
+              })
+          );
+
+        new Setting(consciousnessCard)
+          .setName(t('settings.dream.inputCap.name'))
+          .setDesc(t('settings.dream.inputCap.desc'))
+          .addText((text) =>
+            text
+              .setValue(String(this.plugin.settings.dreamInputCharCap ?? 8000))
+              .onChange(async (value) => {
+                const parsed = Math.max(1000, Number.parseInt(value, 10) || 8000);
+                await this.plugin.mutateSettings((settings) => {
+                  settings.dreamInputCharCap = parsed;
+                });
+              })
+          );
+
+        new Setting(consciousnessCard)
+          .setName(t('settings.dream.maxNewFacts.name'))
+          .setDesc(t('settings.dream.maxNewFacts.desc'))
+          .addText((text) =>
+            text
+              .setValue(String(this.plugin.settings.dreamMaxNewFacts ?? 10))
+              .onChange(async (value) => {
+                const parsed = Math.max(1, Number.parseInt(value, 10) || 10);
+                await this.plugin.mutateSettings((settings) => {
+                  settings.dreamMaxNewFacts = parsed;
+                });
+              })
+          );
+
+        new Setting(consciousnessCard)
+          .setName(t('settings.dream.runNow'))
+          .setDesc(t('settings.dream.runNowDesc'))
+          .addButton((button) => {
+            button
+              .setButtonText(t('settings.dream.runNow'))
+              .setCta()
+              .onClick(async () => {
+                const result = await this.plugin.getDreamService().runDream(true);
+                if (result.ran) {
+                  new Notice(`Dream memory consolidated: ${result.newFacts} fact(s), ${result.profileUpdates} profile update(s).`);
+                } else if (result.reason === 'no-new-logs') {
+                  new Notice('No new short-term memories to consolidate.');
+                } else if (result.reason === 'already-running') {
+                  new Notice('A memory consolidation is already running.');
+                } else if (result.reason === 'failed') {
+                  new Notice(`Memory consolidation failed: ${result.error ?? 'unknown error'}`);
+                }
+              });
           });
-        text.inputEl.rows = 6;
-        text.inputEl.cols = 50;
-        text.inputEl.addEventListener('blur', () => {
-          void this.restartServiceForPromptChange();
+      }
+
+      // View Consciousness Files button
+      const consciousnessButtonSetting = new Setting(consciousnessCard)
+        .setName(t('settings.consciousness.viewBtn'))
+        .setDesc('.claudian-plus/awareness/');
+
+      consciousnessButtonSetting.addButton((button) => {
+        button
+          .setButtonText(t('settings.consciousness.viewBtn'))
+          .setCta()
+          .onClick(async () => {
+            const engine = this.plugin.getConsciousnessEngine();
+            await engine.initialize();
+
+            const vaultPath = (this.app.vault.adapter as { basePath?: string }).basePath || '';
+            const soulPath = path.join(vaultPath, '.claudian-plus', 'awareness', 'SOUL.md');
+            const userPath = path.join(vaultPath, '.claudian-plus', 'awareness', 'USER.md');
+            const activityPath = path.join(vaultPath, '.claudian-plus', 'awareness', 'activity.json');
+
+            new FileViewerModal(this.app, featureCopy(locale, '意识网络文件 (Awareness Network)', 'Awareness Network files'), [
+              { label: featureCopy(locale, '用户画像 (USER.md)', 'User profile (USER.md)'), path: userPath },
+              { label: featureCopy(locale, '协作风格 (SOUL.md)', 'Collaboration style (SOUL.md)'), path: soulPath },
+              { label: featureCopy(locale, '活动记录 (activity.json)', 'Activity log (activity.json)'), path: activityPath },
+            ]).open();
+          });
+      });
+    }
+
+    // --- 3. Vault Knowledge Card ---
+    const vaultCard = this.createCard(
+      container,
+      featureCopy(locale, 'Vault 知识索引', 'Vault Knowledge Index')
+    );
+    const vaultKnowledgeEnabled =
+      this.plugin.settings.vaultKnowledgeEnabled ?? this.plugin.settings.consciousnessEnabled;
+
+    const vaultSetting = new Setting(vaultCard)
+      .setName(featureCopy(locale, '启用 Vault 知识索引', 'Enable vault knowledge index'))
+      .setDesc(
+        featureCopy(
+          locale,
+          '扫描笔记的标题、标签、目录和摘要，生成知识概览并注入对话。',
+          'Index note titles, tags, folders, and excerpts for a compact knowledge summary.'
+        )
+      )
+      .addToggle((toggle) =>
+        toggle.setValue(vaultKnowledgeEnabled).onChange(async (value) => {
+          await this.plugin.mutateSettings((settings) => {
+            settings.vaultKnowledgeEnabled = value;
+          });
+          this.plugin.getVaultKnowledgeEngine().updateConfig({ enabled: value });
+          this.display();
+        })
+      );
+    this.registerSearchEntry({
+      categoryId: 'memory',
+      categoryLabel: 'Memory & Consciousness',
+      settingKey: 'vault-knowledge',
+      name: 'Vault Knowledge Index',
+      desc: 'Index note titles, tags, and summaries',
+      targetEl: vaultSetting.settingEl,
+    });
+
+    const scanAction = new Setting(vaultCard)
+      .setName(featureCopy(locale, '立即执行', 'Run now'))
+      .setDesc(
+        featureCopy(
+          locale,
+          '第一次使用前，可以手动建立知识索引。',
+          'Build the index immediately.'
+        )
+      );
+    scanAction.addButton((button) => {
+      button
+        .setButtonText(featureCopy(locale, '扫描 Vault', 'Scan vault'))
+        .onClick(async () => {
+          if (!(this.plugin.settings.vaultKnowledgeEnabled ?? this.plugin.settings.consciousnessEnabled)) {
+            new Notice(
+              featureCopy(
+                locale,
+                '请先开启 Vault 知识索引。',
+                'Enable the vault knowledge index first.'
+              )
+            );
+            return;
+          }
+          new Notice(featureCopy(locale, '正在扫描 Vault…', 'Scanning vault…'));
+          try {
+            const index = await this.plugin.getVaultKnowledgeEngine().scanVault();
+            new Notice(
+              featureCopy(
+                locale,
+                `已索引 ${index.noteCount} 篇笔记。`,
+                `Indexed ${index.noteCount} notes.`
+              )
+            );
+          } catch (error) {
+            new Notice(
+              `${featureCopy(locale, '扫描失败', 'Scan failed')}: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            );
+          }
+        });
+    });
+  }
+
+  // --- Category: Providers Overview ---
+  private renderProvidersOverviewCategory(container: HTMLElement): void {
+    const card = this.createCard(container, t('settings.category.providers') || 'Providers');
+
+    const defaultProviderSetting = new Setting(card)
+      .setName(featureCopy(this.plugin.settings.locale, '默认提供商', 'Default Provider'))
+      .setDesc(
+        featureCopy(
+          this.plugin.settings.locale,
+          '选择全局创建新聊天面板时的默认 AI 提供商',
+          'Choose the default AI provider for new conversations'
+        )
+      )
+      .addDropdown((dropdown) => {
+        dropdown.addOption('auto', featureCopy(this.plugin.settings.locale, '跟随所选模型', 'Follow selected model'));
+        for (const providerId of ProviderRegistry.getRegisteredProviderIds()) {
+          dropdown.addOption(providerId, ProviderRegistry.getProviderDisplayName(providerId));
+        }
+        dropdown.setValue(this.plugin.settings.settingsProvider || 'auto');
+        dropdown.onChange(async (val) => {
+          await this.plugin.mutateSettings((settings) => {
+            settings.settingsProvider = val;
+          });
         });
       });
+    this.registerSearchEntry({
+      categoryId: 'providers',
+      categoryLabel: 'Providers',
+      settingKey: 'settings-provider',
+      name: 'Default Provider',
+      desc: 'Default AI provider for new conversations',
+      targetEl: defaultProviderSetting.settingEl,
+    });
 
-    new Setting(contentCard)
+    // Registered providers list with jump buttons
+    const listCard = this.createCard(container, featureCopy(this.plugin.settings.locale, '已配置的提供商', 'Configured Providers'));
+    for (const providerId of ProviderRegistry.getRegisteredProviderIds()) {
+      const row = new Setting(listCard)
+        .setName(ProviderRegistry.getProviderDisplayName(providerId))
+        .setDesc(`Configure ${ProviderRegistry.getProviderDisplayName(providerId)} settings`);
+      row.addButton((btn) => {
+        btn.setButtonText('Configure').onClick(() => {
+          this.selectCategory(`providers:${providerId}`);
+        });
+      });
+    }
+  }
+
+  // --- Category: Provider Subpage ---
+  private renderProviderSubpage(container: HTMLElement, providerId: ProviderId, displayGeneration: number): void {
+    const providerName = ProviderRegistry.getProviderDisplayName(providerId);
+    const card = this.createCard(container, `${providerName} Settings`);
+    const contentArea = card.createDiv({ cls: 'claudian-plus-provider-settings-content' });
+
+    void this.renderProviderTabContent(providerId, contentArea, displayGeneration);
+  }
+
+  private async renderProviderTabContent(
+    providerId: ProviderId,
+    targetEl: HTMLElement,
+    displayGeneration: number
+  ): Promise<void> {
+    targetEl.empty();
+    targetEl.createDiv({
+      cls: 'claudian-plus-settings-provider-loading',
+      text: featureCopy(
+        this.plugin.settings.locale,
+        `正在加载 ${ProviderRegistry.getProviderDisplayName(providerId)} 设置…`,
+        `Loading ${ProviderRegistry.getProviderDisplayName(providerId)} settings…`
+      ),
+    });
+
+    try {
+      await ProviderWorkspaceRegistry.ensureInitialized(
+        this.plugin.providerHost,
+        providerId,
+        'settings-tab'
+      );
+      await ProviderWorkspaceRegistry.prepareSettings(providerId);
+      if (displayGeneration !== this.displayGeneration) return;
+
+      targetEl.empty();
+      const renderer = ProviderWorkspaceRegistry.getSettingsTabRenderer(providerId);
+      if (!renderer) {
+        targetEl.createDiv({
+          text: featureCopy(
+            this.plugin.settings.locale,
+            '提供商设置不可用。',
+            'Provider settings are unavailable.'
+          ),
+        });
+        return;
+      }
+      renderer.render(targetEl, {
+        plugin: this.plugin.providerHost,
+        renderHiddenProviderCommandSetting: (target, targetProviderId, copy) =>
+          this.renderHiddenProviderCommandSetting(target, targetProviderId, copy),
+        refreshModelSelectors: () => {
+          for (const view of this.plugin.getAllViews()) {
+            view.refreshModelSelector();
+          }
+        },
+        refreshTitleGenerationModelOptions: () => this.refreshTitleModelOptions?.(),
+        renderCustomContextLimits: (target, targetProviderId) =>
+          this.renderCustomContextLimits(target, targetProviderId),
+      });
+    } catch (error) {
+      if (displayGeneration !== this.displayGeneration) return;
+      targetEl.empty();
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      targetEl.createDiv({
+        cls: 'claudian-plus-setting-validation claudian-plus-setting-validation-error',
+        text: featureCopy(
+          this.plugin.settings.locale,
+          `无法加载提供商设置：${message}`,
+          `Could not load provider settings: ${message}`
+        ),
+      });
+    }
+  }
+
+  // --- Category: Agents & Skills ---
+  private renderAgentsSkillsCategory(container: HTMLElement): void {
+    const card = this.createCard(container);
+    new WorkspaceResourcesSettings(card, {
+      app: this.app,
+      plugin: this.plugin,
+      coordinator: this.agentSkillCoordinator,
+      onSettingsChange: () => this.restartServiceForPromptChange(),
+    });
+  }
+
+  // --- Category: Workspace ---
+  private renderWorkspaceCategory(container: HTMLElement): void {
+    const card = this.createCard(container, t('settings.category.workspace') || 'Workspace');
+
+    // Excluded tags
+    const tagsSetting = new Setting(card)
       .setName(t('settings.excludedTags.name'))
       .setDesc(t('settings.excludedTags.desc'))
       .addTextArea((text) => {
@@ -660,8 +1319,17 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
         text.inputEl.rows = 4;
         text.inputEl.cols = 30;
       });
+    this.registerSearchEntry({
+      categoryId: 'workspace',
+      categoryLabel: 'Workspace',
+      settingKey: 'excluded-tags',
+      name: t('settings.excludedTags.name'),
+      desc: t('settings.excludedTags.desc'),
+      targetEl: tagsSetting.settingEl,
+    });
 
-    new Setting(contentCard)
+    // Media folder
+    const mediaSetting = new Setting(card)
       .setName(t('settings.mediaFolder.name'))
       .setDesc(t('settings.mediaFolder.desc'))
       .addText((text) => {
@@ -678,11 +1346,42 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
           void this.restartServiceForPromptChange();
         });
       });
+    this.registerSearchEntry({
+      categoryId: 'workspace',
+      categoryLabel: 'Workspace',
+      settingKey: 'media-folder',
+      name: t('settings.mediaFolder.name'),
+      desc: t('settings.mediaFolder.desc'),
+      targetEl: mediaSetting.settingEl,
+    });
 
-    // --- Input ---
+    // Shared Environment Section
+    const envCard = this.createCard(container);
+    renderEnvironmentSettingsSection({
+      container: envCard,
+      plugin: this.plugin.providerHost,
+      scope: 'shared',
+      heading: t('settings.environment'),
+      name: featureCopy(this.plugin.settings.locale, '共享环境变量', 'Shared environment'),
+      desc: featureCopy(
+        this.plugin.settings.locale,
+        '供所有提供商共享的运行时变量。可用于 PATH、代理、证书和临时目录配置。',
+        'Provider-neutral runtime variables shared across all providers. Use this for PATH, proxy, cert, and temp variables.'
+      ),
+      placeholder: featureCopy(
+        this.plugin.settings.locale,
+        'PATH=C:\\Tools;C:\\Program Files\\NodeJS\nHTTPS_PROXY=http://127.0.0.1:7890\nSSL_CERT_FILE=C:\\certs\\ca.pem',
+        'PATH=/opt/homebrew/bin:/usr/local/bin\nHTTPS_PROXY=http://proxy.example.com:8080\nSSL_CERT_FILE=/path/to/cert.pem'
+      ),
+      renderCustomContextLimits: (target) => this.renderCustomContextLimits(target),
+    });
+  }
+
+  // --- Category: Advanced ---
+  private renderAdvancedCategory(container: HTMLElement): void {
     const inputCard = this.createCard(container, t('settings.input'));
 
-    new Setting(inputCard)
+    const cmdEnterSetting = new Setting(inputCard)
       .setName(t('settings.requireCommandOrControlEnterToSend.name'))
       .setDesc(t('settings.requireCommandOrControlEnterToSend.desc'))
       .addToggle((toggle) => {
@@ -694,8 +1393,16 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
             });
           });
       });
+    this.registerSearchEntry({
+      categoryId: 'advanced',
+      categoryLabel: 'Advanced',
+      settingKey: 'require-cmd-enter',
+      name: t('settings.requireCommandOrControlEnterToSend.name'),
+      desc: t('settings.requireCommandOrControlEnterToSend.desc'),
+      targetEl: cmdEnterSetting.settingEl,
+    });
 
-    new Setting(inputCard)
+    const navSetting = new Setting(inputCard)
       .setName(t('settings.navMappings.name'))
       .setDesc(t('settings.navMappings.desc'))
       .addTextArea((text) => {
@@ -749,121 +1456,27 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
           void commitValue(true);
         });
       });
+    this.registerSearchEntry({
+      categoryId: 'advanced',
+      categoryLabel: 'Advanced',
+      settingKey: 'nav-mappings',
+      name: t('settings.navMappings.name'),
+      desc: t('settings.navMappings.desc'),
+      targetEl: navSetting.settingEl,
+    });
 
-    // --- Hotkeys ---
+    // Hotkeys
     const hotkeyCard = this.createCard(container, t('settings.hotkeys'));
-
     const hotkeyGrid = hotkeyCard.createDiv({ cls: 'claudian-plus-hotkey-grid' });
     const commandPrefix = `${this.plugin.manifest.id}:`;
     addHotkeySettingRow(hotkeyGrid, this.app, `${commandPrefix}open-view`, 'settings.openChatHotkey');
     addHotkeySettingRow(hotkeyGrid, this.app, `${commandPrefix}new-session`, 'settings.newSessionHotkey');
     addHotkeySettingRow(hotkeyGrid, this.app, `${commandPrefix}new-tab`, 'settings.newTabHotkey');
     addHotkeySettingRow(hotkeyGrid, this.app, `${commandPrefix}close-current-tab`, 'settings.closeTabHotkey');
-  }
 
-  private renderWorkspaceTab(container: HTMLElement): void {
-    // --- Workspace Resources (Skills / Subagents / MCP / Commands / Memory / Consciousness) ---
-    const resourcesCard = this.createCard(container);
-    new WorkspaceResourcesSettings(resourcesCard, {
-      app: this.app,
-      plugin: this.plugin,
-      coordinator: this.agentSkillCoordinator,
-      onSettingsChange: () => this.restartServiceForPromptChange(),
-    });
-
-    // --- Vault knowledge ---
-    const vaultCard = this.createCard(
-      container,
-      featureCopy(this.plugin.settings.locale, 'Vault 知识', 'Vault knowledge'),
-    );
-    const guide = vaultCard.createDiv({ cls: 'claudian-plus-settings-feature-guide' });
-    guide.createDiv({
-      cls: 'claudian-plus-settings-feature-guide-title',
-      text: featureCopy(this.plugin.settings.locale, '不知道从哪里开始？', 'Not sure where to start?'),
-    });
-    guide.createDiv({
-      cls: 'claudian-plus-settings-feature-guide-copy',
-      text: featureCopy(
-        this.plugin.settings.locale,
-        '开启 Vault 知识索引后，笔记的标题、标签和摘要会生成知识概览注入对话。记忆和意识功能只会读取本地 .claudian-plus 文件。',
-        'Enable the vault knowledge index and note titles, tags, and excerpts are injected into chats as a compact knowledge summary. Memory and awareness data stay in .claudian-plus.',
-      ),
-    });
-
-    const vaultKnowledgeEnabled = this.plugin.settings.vaultKnowledgeEnabled
-      ?? this.plugin.settings.consciousnessEnabled;
-    new Setting(vaultCard)
-      .setName(featureCopy(this.plugin.settings.locale, '启用 Vault 知识索引', 'Enable vault knowledge index'))
-      .setDesc(featureCopy(
-        this.plugin.settings.locale,
-        '扫描笔记的标题、标签、目录和摘要，生成知识概览并注入对话。不会上传到远程服务。',
-        'Index note titles, tags, folders, and excerpts for a compact knowledge summary. Nothing is uploaded by this feature.',
-      ))
-      .addToggle((toggle) => toggle
-        .setValue(vaultKnowledgeEnabled)
-        .onChange(async (value) => {
-          await this.plugin.mutateSettings((settings) => {
-            settings.vaultKnowledgeEnabled = value;
-          });
-          this.plugin.getVaultKnowledgeEngine().updateConfig({ enabled: value });
-          this.display();
-        }));
-
-    const vaultActions = new Setting(vaultCard)
-      .setName(featureCopy(this.plugin.settings.locale, '立即执行', 'Run now'))
-      .setDesc(featureCopy(
-        this.plugin.settings.locale,
-        '第一次使用前，可以手动建立知识索引。之后也可以从命令面板执行。',
-        'Build the index immediately. The action is also available from the command palette.',
-      ));
-    vaultActions.addButton((button) => {
-      button
-        .setButtonText(featureCopy(this.plugin.settings.locale, '扫描 Vault', 'Scan vault'))
-        .onClick(async () => {
-          if (!(this.plugin.settings.vaultKnowledgeEnabled ?? this.plugin.settings.consciousnessEnabled)) {
-            new Notice(featureCopy(this.plugin.settings.locale, '请先开启 Vault 知识索引。', 'Enable the vault knowledge index first.'));
-            return;
-          }
-          new Notice(featureCopy(this.plugin.settings.locale, '正在扫描 Vault…', 'Scanning vault…'));
-          try {
-            const index = await this.plugin.getVaultKnowledgeEngine().scanVault();
-            new Notice(featureCopy(
-              this.plugin.settings.locale,
-              `已索引 ${index.noteCount} 篇笔记。`,
-              `Indexed ${index.noteCount} notes.`,
-            ));
-          } catch (error) {
-            new Notice(`${featureCopy(this.plugin.settings.locale, '扫描失败', 'Scan failed')}: ${error instanceof Error ? error.message : String(error)}`);
-          }
-        });
-    });
-
-    // --- Environment ---
-    const envCard = this.createCard(container);
-    renderEnvironmentSettingsSection({
-      container: envCard,
-      plugin: this.plugin.providerHost,
-      scope: 'shared',
-      heading: t('settings.environment'),
-      name: featureCopy(this.plugin.settings.locale, '共享环境变量', 'Shared environment'),
-      desc: featureCopy(
-        this.plugin.settings.locale,
-        '供所有提供商共享的运行时变量。可用于 PATH、代理、证书和临时目录配置。',
-        'Provider-neutral runtime variables shared across all providers. Use this for PATH, proxy, cert, and temp variables.',
-      ),
-      placeholder: featureCopy(
-        this.plugin.settings.locale,
-        'PATH=C:\\Tools;C:\\Program Files\\NodeJS\nHTTPS_PROXY=http://127.0.0.1:7890\nSSL_CERT_FILE=C:\\certs\\ca.pem',
-        'PATH=/opt/homebrew/bin:/usr/local/bin\nHTTPS_PROXY=http://proxy.example.com:8080\nSSL_CERT_FILE=/path/to/cert.pem',
-      ),
-      renderCustomContextLimits: (target) => this.renderCustomContextLimits(target),
-    });
-  }
-
-  private renderAboutTab(container: HTMLElement): void {
+    // About Card
     const aboutCard = this.createCard(container);
     aboutCard.addClass('claudian-plus-about-card');
-
     aboutCard.createDiv({ cls: 'claudian-plus-about-title', text: 'Claudian Plus' });
     aboutCard.createDiv({ cls: 'claudian-plus-about-version', text: `v${this.plugin.manifest.version}` });
     aboutCard.createDiv({
@@ -881,7 +1494,7 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
   private renderHiddenProviderCommandSetting(
     container: HTMLElement,
     providerId: ProviderId,
-    copy: { name: string; desc: string; placeholder: string },
+    copy: { name: string; desc: string; placeholder: string }
   ): void {
     new Setting(container)
       .setName(copy.name)
@@ -908,13 +1521,11 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
     container.empty();
 
     const uniqueModelIds = new Set<string>();
-    const providerIds = providerId
-      ? [providerId]
-      : ProviderRegistry.getRegisteredProviderIds();
+    const providerIds = providerId ? [providerId] : ProviderRegistry.getRegisteredProviderIds();
 
     for (const targetProviderId of providerIds) {
       const envVars = parseEnvironmentVariables(
-        this.plugin.getActiveEnvironmentVariables(targetProviderId),
+        this.plugin.getActiveEnvironmentVariables(targetProviderId)
       );
       for (const modelId of ProviderRegistry.getChatUIConfig(targetProviderId).getCustomModelIds(envVars)) {
         uniqueModelIds.add(modelId);
@@ -962,7 +1573,9 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
       });
       inputEl.setAttribute('aria-label', `Context window for ${modelId}`);
 
-      const validationEl = inputWrapper.createDiv({ cls: 'claudian-plus-context-limit-validation claudian-plus-hidden' });
+      const validationEl = inputWrapper.createDiv({
+        cls: 'claudian-plus-context-limit-validation claudian-plus-hidden',
+      });
 
       const saveAlias = async (): Promise<void> => {
         const existing = this.plugin.settings.customModelAliases[modelId] ?? '';
@@ -1038,9 +1651,9 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
     if (!tabManager) return;
 
     try {
-      await tabManager.broadcastToAllTabs(
-        async (service) => { await service.ensureReady({ force: true }); }
-      );
+      await tabManager.broadcastToAllTabs(async (service) => {
+        await service.ensureReady({ force: true });
+      });
     } catch {
       // Changes will apply on the next conversation if the restart fails.
     }

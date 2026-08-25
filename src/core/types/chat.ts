@@ -89,6 +89,8 @@ export interface Conversation {
   enabledMcpServers?: string[];
   /** Assistant checkpoint identifier for resumeAtMessageId after rewind. */
   resumeAtMessageId?: string;
+  /** Whether reading mode (collapsed tools/thinking) is active for this conversation. */
+  readingMode?: boolean;
 }
 
 /** Lightweight conversation metadata for the history dropdown. */
@@ -134,6 +136,8 @@ export interface SessionMetadata {
   usage?: UsageInfo;
   /** Assistant checkpoint identifier for resumeAtMessageId after rewind. */
   resumeAtMessageId?: string;
+  /** Whether reading mode (collapsed tools/thinking) is active for this conversation. */
+  readingMode?: boolean;
 }
 
 /**

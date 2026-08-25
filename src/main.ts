@@ -69,6 +69,7 @@ import { QuickAgentInputModal } from './features/chat/QuickAgentInputModal';
 import { ClaudianPlusSettingTab } from './features/settings/ClaudianPlusSettings';
 import { localeText, setLocale } from './i18n/i18n';
 import type { Locale } from './i18n/types';
+import { registerBuiltInProviders } from './providers';
 import { migrateClaudeServiceSettings } from './providers/claude/services/ClaudeServiceMigration';
 import { OPENCODE_PLAN_MODE_ID, OPENCODE_SAFE_MODE_ID } from './providers/opencode/modes';
 import { revealWorkspaceLeaf } from './utils/obsidianCompat';
@@ -151,10 +152,9 @@ export default class ClaudianPlusPlugin extends Plugin {
   async onload() {
     StartupProfiler.startOnload();
     try {
-      await StartupProfiler.runAsync(
+      StartupProfiler.run(
         'provider-registration',
-        async () => {
-          const { registerBuiltInProviders } = await import('./providers');
+        () => {
           registerBuiltInProviders();
         },
       );
@@ -162,45 +162,56 @@ export default class ClaudianPlusPlugin extends Plugin {
         'settings-load',
         () => this.loadSettings({ deferNonRestoredSessionMetadata: true }),
       );
-      const registerCleanup = (this as unknown as {
-        register?: (callback: () => void) => void;
-      }).register;
-      const registerInterval = (this as unknown as {
-        registerInterval?: (intervalId: number) => void;
-      }).registerInterval;
 
-      // Dream memory consolidation runs on its own hourly check so the model
-      // call only happens when short-term logs actually accumulated.
-      const dreamInterval = window.setInterval(() => {
-        void this.checkDreamDue();
-      }, DREAM_CHECK_INTERVAL_MS);
-      if (typeof registerInterval === 'function') {
-        registerInterval.call(this, dreamInterval);
+      // Defer non-UI background maintenance tasks until Obsidian's workspace layout is ready
+      const scheduleBackgroundServices = () => {
+        if (this.isUnloading) return;
+
+        const registerCleanup = (this as unknown as {
+          register?: (callback: () => void) => void;
+        }).register;
+        const registerInterval = (this as unknown as {
+          registerInterval?: (intervalId: number) => void;
+        }).registerInterval;
+
+        // Dream memory consolidation runs on its own hourly check so the model
+        // call only happens when short-term logs actually accumulated.
+        const dreamInterval = window.setInterval(() => {
+          void this.checkDreamDue();
+        }, DREAM_CHECK_INTERVAL_MS);
+        if (typeof registerInterval === 'function') {
+          registerInterval.call(this, dreamInterval);
+        } else {
+          window.clearInterval(dreamInterval);
+        }
+
+        // Surface leftover legacy data so users know old-plugin files are
+        // archived rather than silently deleted during migration.
+        const legacyNoticeTimer = window.setTimeout(() => {
+          void this.checkLegacyDataPresence();
+        }, 3_000);
+        registerCleanup?.call(this, () => window.clearTimeout(legacyNoticeTimer));
+
+        // Obsidian closed = sleep, startup = waking up: consolidate any short-term
+        // logs that accumulated since the last launch. Delayed so providers and
+        // CLIs have time to initialize; a failed run is retried on next startup.
+        const startupDreamTimer = window.setTimeout(() => {
+          void this.runStartupDream();
+        }, 30_000);
+        registerCleanup?.call(this, () => window.clearTimeout(startupDreamTimer));
+
+        // Initialize consciousness engine if enabled
+        if (this.settings.consciousnessEnabled) {
+          void this.getConsciousnessEngine().initialize().catch(() => {
+            // Silently ignore initialization errors
+          });
+        }
+      };
+
+      if (typeof this.app.workspace?.onLayoutReady === 'function') {
+        this.app.workspace.onLayoutReady(scheduleBackgroundServices);
       } else {
-        window.clearInterval(dreamInterval);
-      }
-
-      // Surface leftover legacy data so users know old-plugin files are
-      // archived rather than silently deleted during migration.
-      const legacyNoticeTimer = window.setTimeout(() => {
-        void this.checkLegacyDataPresence();
-      }, 3_000);
-      registerCleanup?.call(this, () => window.clearTimeout(legacyNoticeTimer));
-
-      // Obsidian closed = sleep, startup = waking up: consolidate any short-term
-      // logs that accumulated since the last launch. Delayed so providers and
-      // CLIs have time to initialize; a failed run is retried on next startup.
-      const startupDreamTimer = window.setTimeout(() => {
-        void this.runStartupDream();
-      }, 30_000);
-      registerCleanup?.call(this, () => window.clearTimeout(startupDreamTimer));
-      // Provider workspace services are initialized lazily on first use.
-
-      // Initialize consciousness engine if enabled
-      if (this.settings.consciousnessEnabled) {
-        void this.getConsciousnessEngine().initialize().catch(() => {
-          // Silently ignore initialization errors
-        });
+        scheduleBackgroundServices();
       }
 
       this.registerView(
@@ -687,17 +698,21 @@ export default class ClaudianPlusPlugin extends Plugin {
       opencodeConfig.selectedMode = OPENCODE_SAFE_MODE_ID;
     }
 
+    const deferRemainingMetadata = options.deferNonRestoredSessionMetadata === true;
+    const restoredMetadataPromise = deferRemainingMetadata
+      ? this.loadRestoredSessionMetadata(tabManagerState)
+      : null;
+
     const didNormalizeProviderSelection = ProviderSettingsCoordinator.normalizeProviderSelection(
       this.settings,
     );
     const didNormalizeModelVariants = this.normalizeModelVariantSettings();
 
-    const deferRemainingMetadata = options.deferNonRestoredSessionMetadata === true;
     const initialMetadataScan = await StartupProfiler.runAsync(
       deferRemainingMetadata ? 'restored-session-metadata-load' : 'session-metadata-load',
       async () => deferRemainingMetadata
         ? {
-          metadata: await this.loadRestoredSessionMetadata(),
+          metadata: await (restoredMetadataPromise ?? this.loadRestoredSessionMetadata(tabManagerState)),
           complete: false,
           invalidMetadataCount: 0,
         }
@@ -762,9 +777,10 @@ export default class ClaudianPlusPlugin extends Plugin {
     this.pendingSessionMetadataScan = deferRemainingMetadata;
   }
 
-  private async loadRestoredSessionMetadata(): Promise<SessionMetadata[]> {
+  private async loadRestoredSessionMetadata(targetState?: AppTabManagerState | null): Promise<SessionMetadata[]> {
+    const tabState = targetState ?? this.lastKnownTabManagerState;
     const restoredConversationIds = Array.from(new Set(
-      (this.lastKnownTabManagerState?.openTabs ?? [])
+      (tabState?.openTabs ?? [])
         .map(({ conversationId }) => conversationId)
         .filter((conversationId): conversationId is string => conversationId !== null),
     ));

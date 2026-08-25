@@ -76,10 +76,35 @@
       "expandOutput": "Expand command output",
       "running": "Running...",
       "copyFailed": "Failed to copy to clipboard"
+    },
+    "readingMode": {
+      "on": "Turn on reading mode",
+      "off": "Turn off reading mode"
+    },
+    "view": {
+      "chat": "Chat",
+      "sessions": "Sessions"
+    },
+    "outline": {
+      "filter": {
+        "prompts": "Prompts",
+        "headings": "Headings",
+        "tools": "Tools",
+        "thinking": "Thinking"
+      }
     }
   },
   "settings": {
     "title": "Claudian Plus Settings",
+    "category": {
+      "general": "General",
+      "appearance": "Appearance",
+      "memory": "Memory & Consciousness",
+      "providers": "Providers",
+      "agentsSkills": "Agents & Skills",
+      "workspace": "Workspace",
+      "advanced": "Advanced"
+    },
     "tabs": {
       "general": "General",
       "claude": "Claude",

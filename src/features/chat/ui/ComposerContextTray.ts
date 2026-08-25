@@ -7,6 +7,7 @@ import {
 } from '../../../utils/animationFrame';
 
 export type ComposerContextSlot =
+  | 'ambient-context'
   | 'current-note'
   | 'vault-context'
   | 'editor-selection'
@@ -14,7 +15,7 @@ export type ComposerContextSlot =
   | 'canvas-selection'
   | 'images';
 
-export type ComposerContextItemKind = 'note' | 'file' | 'folder' | 'selection' | 'image';
+export type ComposerContextItemKind = 'ambient' | 'note' | 'file' | 'folder' | 'selection' | 'image';
 
 export interface ComposerContextItem {
   id: string;
@@ -32,6 +33,7 @@ export interface ComposerContextTrayOptions {
 }
 
 const SLOT_ORDER: readonly ComposerContextSlot[] = [
+  'ambient-context',
   'current-note',
   'vault-context',
   'editor-selection',

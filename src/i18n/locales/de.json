@@ -76,10 +76,35 @@
       "expandOutput": "Befehlsausgabe ausklappen",
       "running": "Wird ausgeführt...",
       "copyFailed": "Kopieren in die Zwischenablage fehlgeschlagen"
+    },
+    "readingMode": {
+      "on": "Lesemodus aktivieren",
+      "off": "Lesemodus deaktivieren"
+    },
+    "view": {
+      "chat": "Chat",
+      "sessions": "Sitzungen"
+    },
+    "outline": {
+      "filter": {
+        "prompts": "Prompts",
+        "headings": "Überschriften",
+        "tools": "Tools",
+        "thinking": "Gedanken"
+      }
     }
   },
   "settings": {
     "title": "Claudian Plus Einstellungen",
+    "category": {
+      "general": "Allgemein",
+      "appearance": "Erscheinungsbild",
+      "memory": "Gedächtnis & Bewusstsein",
+      "providers": "Anbieter",
+      "agentsSkills": "Agenten & Fähigkeiten",
+      "workspace": "Arbeitsbereich",
+      "advanced": "Erweitert"
+    },
     "tabs": {
       "general": "Allgemein",
       "claude": "Claude",

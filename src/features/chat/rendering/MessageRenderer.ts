@@ -12,7 +12,7 @@ import {
 } from '../../../core/tools/toolNames';
 import { extractToolResultContent } from '../../../core/tools/toolResultContent';
 import type { ChatMessage, ImageAttachment, SubagentInfo, ToolCallInfo } from '../../../core/types';
-import { t } from '../../../i18n/i18n';
+import { localeText, t } from '../../../i18n/i18n';
 import { extractUserDisplayContent } from '../../../utils/context';
 import { formatDurationMmSs } from '../../../utils/date';
 import { processFileLinks, registerFileLinkHandler } from '../../../utils/fileLink';
@@ -24,6 +24,15 @@ import {
   normalizeLatexMathDelimiters,
 } from '../../../utils/markdownMath';
 import type { FeatureHost } from '../../FeatureHost';
+import {
+  createLinkedNote,
+  getSelectedTextWithin,
+  insertAtCursor,
+  insertCodeBlockAtCursor,
+  openDiffReview,
+  replaceSelection,
+} from '../actions/ActionableOutputController';
+import { FloatingSelectionToolbar } from '../actions/FloatingSelectionToolbar';
 import { findRewindContext } from '../rewind';
 import { WelcomeService } from '../services/WelcomeService';
 import { BlobWelcomeView } from '../ui/BlobWelcomeView';
@@ -77,6 +86,9 @@ export class MessageRenderer {
   private pendingTimeouts = new Set<RendererTimeout>();
   private pendingAnimationFrames = new Set<RendererAnimationFrame>();
   private disposed = false;
+  private floatingToolbar: FloatingSelectionToolbar | null = null;
+
+  private getReadingMode?: () => boolean;
 
   constructor(
     plugin: FeatureHost,
@@ -85,6 +97,7 @@ export class MessageRenderer {
     rewindCallback?: (messageId: string, mode?: ChatRewindMode) => Promise<void>,
     forkCallback?: (messageId: string) => Promise<void>,
     getCapabilities?: () => ProviderCapabilities,
+    getReadingMode?: () => boolean,
   ) {
     this.app = plugin.app;
     this.plugin = plugin;
@@ -92,6 +105,7 @@ export class MessageRenderer {
     this.messagesEl = messagesEl;
     this.rewindCallback = rewindCallback;
     this.forkCallback = forkCallback;
+    this.getReadingMode = getReadingMode;
     this.getCapabilities = getCapabilities ?? (() => ({
       providerId: DEFAULT_CHAT_PROVIDER_ID,
       supportsPersistentRuntime: false,
@@ -109,6 +123,20 @@ export class MessageRenderer {
 
     // Register delegated click handler for file links
     registerFileLinkHandler(this.app, this.messagesEl, this.component);
+    this.initFloatingToolbar();
+  }
+
+  private initFloatingToolbar(): void {
+    if (this.floatingToolbar) {
+      this.floatingToolbar.destroy();
+      this.floatingToolbar = null;
+    }
+    if (this.messagesEl) {
+      this.floatingToolbar = new FloatingSelectionToolbar({
+        app: this.app,
+        containerEl: this.messagesEl,
+      });
+    }
   }
 
   /** Sets the messages container element. */
@@ -117,6 +145,7 @@ export class MessageRenderer {
     this.destroyWelcomeCube();
     this.closeActiveImageModal();
     this.messagesEl = el;
+    this.initFloatingToolbar();
   }
 
   /** Releases renderer-owned UI resources when its tab is closed. */
@@ -125,6 +154,8 @@ export class MessageRenderer {
     this.cancelPendingUiCallbacks();
     this.destroyWelcomeCube();
     this.closeActiveImageModal();
+    this.floatingToolbar?.destroy();
+    this.floatingToolbar = null;
     this.liveMessageEls.clear();
   }
 
@@ -475,6 +506,7 @@ export class MessageRenderer {
         }
       }
     } else if (msg.role === 'assistant') {
+      this.addAssistantContextMenu(msgEl);
       const hadLegacyInterruptIndicator = this.renderAssistantContent(msg, contentEl);
       if (msg.isInterrupt || hadLegacyInterruptIndicator) {
         this.appendInterruptIndicator(contentEl);
@@ -518,6 +550,53 @@ export class MessageRenderer {
     this.appendInterruptIndicator(contentEl);
   }
 
+  private addAssistantContextMenu(msgEl: HTMLElement): void {
+    msgEl.addEventListener('contextmenu', (e) => {
+      const selectedText = getSelectedTextWithin(msgEl);
+      if (!selectedText) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const menu = new Menu();
+      menu.addItem((item) => {
+        item
+          .setTitle(localeText('插入选区到光标处', 'Insert selection at cursor'))
+          .setIcon('corner-down-left')
+          .onClick(() => {
+            insertAtCursor(this.plugin.app, selectedText, { isSelection: true });
+          });
+      });
+      menu.addItem((item) => {
+        item
+          .setTitle(localeText('用选区替换笔记内容', 'Replace selection in note'))
+          .setIcon('file-edit')
+          .onClick(() => {
+            replaceSelection(this.plugin.app, selectedText, null, { isSelection: true });
+          });
+      });
+      menu.addItem((item) => {
+        item
+          .setTitle(localeText('将选区创建为新笔记', 'Create note from selection'))
+          .setIcon('file-plus')
+          .onClick(() => {
+            void createLinkedNote(this.plugin.app, selectedText);
+          });
+      });
+      menu.addItem((item) => {
+        item
+          .setTitle(localeText('复制选区', 'Copy selection'))
+          .setIcon('copy')
+          .onClick(() => {
+            void navigator.clipboard.writeText(selectedText).then(() => {
+              new Notice(localeText('已复制选区到剪贴板', 'Copied selection to clipboard'));
+            }).catch(() => {});
+          });
+      });
+      menu.showAtMouseEvent(e);
+    });
+  }
+
   appendInterruptIndicator(contentEl: HTMLElement): void {
     const textEl = contentEl.createDiv({ cls: 'claudian-plus-text-block' });
     textEl.createSpan({ cls: 'claudian-plus-interrupted', text: 'Interrupted' });
@@ -542,7 +621,8 @@ export class MessageRenderer {
             contentEl,
             block.content,
             block.durationSeconds,
-            (el, md) => this.renderContent(el, md)
+            (el, md) => this.renderContent(el, md),
+            { collapsedByDefault: this.isReadingModeActive() }
           );
         } else if (block.type === 'text') {
           const normalized = stripLegacyInterruptIndicator(block.content);
@@ -554,6 +634,7 @@ export class MessageRenderer {
           const textEl = contentEl.createDiv({ cls: 'claudian-plus-text-block' });
           void this.renderContent(textEl, normalized.content);
           this.addTextCopyButton(textEl, normalized.content);
+          this.addActionableResponseBar(textEl, normalized.content);
         } else if (block.type === 'tool_use') {
           const toolCall = msg.toolCalls?.find(tc => tc.id === block.toolId);
           if (toolCall) {
@@ -591,6 +672,7 @@ export class MessageRenderer {
           const textEl = contentEl.createDiv({ cls: 'claudian-plus-text-block' });
           void this.renderContent(textEl, normalized.content);
           this.addTextCopyButton(textEl, normalized.content);
+          this.addActionableResponseBar(textEl, normalized.content);
         }
       }
       if (msg.toolCalls) {
@@ -614,6 +696,10 @@ export class MessageRenderer {
     return hadLegacyInterruptIndicator;
   }
 
+  private isReadingModeActive(): boolean {
+    return this.getReadingMode?.() ?? false;
+  }
+
   /**
    * Renders a tool call with special handling for Write/Edit, Agent (subagent),
    * and Codex collab agent lifecycle tools.
@@ -621,6 +707,7 @@ export class MessageRenderer {
   private renderToolCall(contentEl: HTMLElement, toolCall: ToolCallInfo, msg?: ChatMessage): void {
     if (!this.shouldRenderToolCall(toolCall)) return;
     const subagentLifecycleAdapter = this.getSubagentLifecycleAdapter(toolCall.name);
+    const isReadingMode = this.isReadingModeActive();
 
     if (isWriteEditTool(toolCall.name)) {
       renderStoredWriteEdit(contentEl, toolCall, {
@@ -633,6 +720,7 @@ export class MessageRenderer {
     } else {
       renderStoredToolCall(contentEl, toolCall, {
         initiallyExpanded: toolCall.name === TOOL_APPLY_PATCH && this.shouldExpandFileEditsByDefault(),
+        collapsedByDefault: isReadingMode,
       });
     }
   }
@@ -894,10 +982,12 @@ export class MessageRenderer {
         wrapper.appendChild(pre);
 
         // Check for language class and add label
-        const code = pre.querySelector('code[class*="language-"]');
+        let language = '';
+        const code = pre.querySelector('code[class*="language-"]') || pre.querySelector('code');
         if (code) {
           const match = code.className.match(/language-(\w+)/);
           if (match) {
+            language = match[1];
             wrapper.classList.add('has-language');
             const label = createSpan({
               cls: 'claudian-plus-code-lang-label',
@@ -922,6 +1012,22 @@ export class MessageRenderer {
           }
         }
 
+        // Insert at cursor button for code block
+        const insertCodeBtn = createSpan({
+          cls: 'claudian-plus-code-insert-btn',
+          attr: {
+            title: localeText('插入代码到光标处', 'Insert code at cursor'),
+            'aria-label': localeText('插入代码到光标处', 'Insert code at cursor'),
+          },
+        });
+        setIcon(insertCodeBtn, 'corner-down-left');
+        wrapper.appendChild(insertCodeBtn);
+        insertCodeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const rawCode = code?.textContent ?? pre.textContent ?? '';
+          insertCodeBlockAtCursor(this.plugin.app, rawCode, language);
+        });
+
         // Move Obsidian's copy button outside pre into wrapper
         const copyBtn = pre.querySelector('.copy-code-button');
         if (copyBtn) {
@@ -942,15 +1048,86 @@ export class MessageRenderer {
   }
 
   // ============================================
-  // Copy Button
+  // Actionable Response Bar & Copy Button
   // ============================================
 
   /**
-   * Adds a copy button to a text block.
-   * Button shows clipboard icon on hover, changes to "copied!" on click.
-   * @param textEl The rendered text element
-   * @param markdown The original markdown content to copy
+   * Adds actionable response buttons (Copy, Insert at cursor, Replace selection, Create note, Diff review)
+   * to an assistant text block.
    */
+  addActionableResponseBar(textEl: HTMLElement, markdown: string): void {
+    const actionsBar = textEl.createDiv({ cls: 'claudian-plus-text-actions-bar' });
+
+    // Prevent clicking on the action bar from collapsing active selection
+    actionsBar.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+    });
+
+    // Insert at Cursor
+    const insertBtn = actionsBar.createSpan({
+      cls: 'claudian-plus-action-btn claudian-plus-action-insert-btn',
+      attr: {
+        title: localeText('插入到光标处', 'Insert at cursor'),
+        'aria-label': localeText('插入到光标处', 'Insert at cursor'),
+      },
+    });
+    setIcon(insertBtn, 'corner-down-left');
+    insertBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const selectedText = getSelectedTextWithin(textEl);
+      const targetText = selectedText || markdown;
+      insertAtCursor(this.plugin.app, targetText, { isSelection: !!selectedText });
+    });
+
+    // Replace Selection / Section
+    const replaceBtn = actionsBar.createSpan({
+      cls: 'claudian-plus-action-btn claudian-plus-action-replace-btn',
+      attr: {
+        title: localeText('替换选区或当前章节', 'Replace selection or active section'),
+        'aria-label': localeText('替换选区或当前章节', 'Replace selection or active section'),
+      },
+    });
+    setIcon(replaceBtn, 'file-edit');
+    replaceBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const selectedText = getSelectedTextWithin(textEl);
+      const targetText = selectedText || markdown;
+      replaceSelection(this.plugin.app, targetText, null, { isSelection: !!selectedText });
+    });
+
+    // Create Linked Note
+    const noteBtn = actionsBar.createSpan({
+      cls: 'claudian-plus-action-btn claudian-plus-action-note-btn',
+      attr: {
+        title: localeText('创建关联笔记', 'Create linked note'),
+        'aria-label': localeText('创建关联笔记', 'Create linked note'),
+      },
+    });
+    setIcon(noteBtn, 'file-plus');
+    noteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const selectedText = getSelectedTextWithin(textEl);
+      const targetText = selectedText || markdown;
+      void createLinkedNote(this.plugin.app, targetText);
+    });
+
+    // Diff Review
+    const diffBtn = actionsBar.createSpan({
+      cls: 'claudian-plus-action-btn claudian-plus-action-diff-btn',
+      attr: {
+        title: localeText('Diff 审查与合并', 'Diff & merge review'),
+        'aria-label': localeText('Diff 审查与合并', 'Diff & merge review'),
+      },
+    });
+    setIcon(diffBtn, 'split');
+    diffBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const selectedText = getSelectedTextWithin(textEl);
+      const targetText = selectedText || markdown;
+      openDiffReview(this.plugin.app, targetText);
+    });
+  }
+
   addTextCopyButton(textEl: HTMLElement, markdown: string): void {
     const copyBtn = textEl.createSpan({ cls: 'claudian-plus-text-copy-btn' });
     setIcon(copyBtn, 'copy');
