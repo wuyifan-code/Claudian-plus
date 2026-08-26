@@ -1,4 +1,4 @@
-import { activeDocument, type App, type Editor, MarkdownView, Notice, type TFile } from 'obsidian';
+import { type App, type Editor, MarkdownView, Notice, type TFile } from 'obsidian';
 
 import type { AmbientFocusContext } from '../../../core/context/types';
 import { localeText } from '../../../i18n/i18n';

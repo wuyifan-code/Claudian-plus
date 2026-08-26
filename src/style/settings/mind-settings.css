@@ -1,0 +1,142 @@
+/* Dreaming V3 Mind & Habit Engine Settings Styles */
+
+.claudian-plus-mind-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-4);
+  margin-bottom: var(--size-4-4);
+}
+
+.claudian-plus-mind-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--size-4-2);
+}
+
+.claudian-plus-mind-header-actions {
+  display: flex;
+  gap: var(--size-4-2);
+}
+
+.claudian-plus-mind-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2);
+  margin-top: var(--size-4-2);
+}
+
+.claudian-plus-staging-card,
+.claudian-plus-durable-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2);
+  padding: var(--size-4-3);
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  transition: border-color var(--animation-duration-fast) ease;
+}
+
+.claudian-plus-staging-card:hover,
+.claudian-plus-durable-card:hover {
+  border-color: var(--interactive-accent);
+}
+
+.claudian-plus-mind-meta-row {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  font-size: var(--font-ui-smaller);
+}
+
+.claudian-plus-mind-badge {
+  padding: 2px 6px;
+  border-radius: var(--radius-s);
+  font-weight: var(--font-medium);
+  font-size: var(--font-ui-smaller);
+  background-color: var(--background-modifier-accent);
+  color: var(--text-on-accent);
+}
+
+.badge-user_preference {
+  background-color: var(--color-purple);
+  color: var(--text-on-accent);
+}
+
+.badge-coding_habit {
+  background-color: var(--color-blue);
+  color: var(--text-on-accent);
+}
+
+.badge-project_rule {
+  background-color: var(--color-green);
+  color: var(--text-on-accent);
+}
+
+.badge-correction_rule {
+  background-color: var(--color-orange);
+  color: var(--text-on-accent);
+}
+
+.claudian-plus-mind-scope-pill {
+  padding: 2px 6px;
+  border-radius: var(--radius-s);
+  background-color: var(--background-tertiary);
+  color: var(--text-muted);
+}
+
+.claudian-plus-mind-confidence,
+.claudian-plus-mind-state-tag {
+  color: var(--text-faint);
+}
+
+.claudian-plus-mind-content-input {
+  width: 100%;
+  font-size: var(--font-ui-medium);
+  padding: var(--size-4-1) var(--size-4-2);
+  background-color: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  color: var(--text-normal);
+}
+
+.claudian-plus-mind-content-input:focus {
+  border-color: var(--interactive-accent);
+}
+
+.claudian-plus-mind-rationale {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.claudian-plus-mind-action-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--size-4-2);
+}
+
+.claudian-plus-mind-filter-row {
+  display: flex;
+  gap: var(--size-4-2);
+  margin-top: var(--size-4-2);
+}
+
+.claudian-plus-mind-search-input {
+  flex: 1;
+  padding: var(--size-4-1) var(--size-4-2);
+  background-color: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+}
+
+.claudian-plus-mind-empty-hint {
+  padding: var(--size-4-4);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  background-color: var(--background-secondary);
+  border-radius: var(--radius-m);
+  border: 1px dashed var(--background-modifier-border);
+}

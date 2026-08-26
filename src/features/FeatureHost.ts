@@ -1,8 +1,11 @@
 import type {
   ConsciousnessEngine,
   DreamService,
+  HybridMindPromptInjector,
   MemoryExtractor,
   MemoryStore,
+  MicroDreamCoordinator,
+  MindStore,
   VaultKnowledgeEngine,
 } from '../core/memory';
 import type { ProviderHost } from '../core/providers/ProviderHost';
@@ -40,8 +43,18 @@ export interface FeatureHost extends ProviderHost {
   readonly providerHost: ProviderHost;
   readonly memoryExtractor: MemoryExtractor;
 
+  /** Get the mind store for Dreaming V3 staging and durable mind entries. */
+  getMindStore(): MindStore;
+
+  /** Get the micro-dream coordinator for session synthesis. */
+  getMicroDreamCoordinator(): MicroDreamCoordinator;
+
+  /** Get the hybrid mind prompt injector for dual-layer context injection. */
+  getHybridMindPromptInjector(): HybridMindPromptInjector;
+
   /** Get the memory store for saving/loading user memories. */
   getMemoryStore(): MemoryStore;
+
 
   /** Get the consciousness engine for awareness features. */
   getConsciousnessEngine(): ConsciousnessEngine;

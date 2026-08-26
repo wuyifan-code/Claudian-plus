@@ -396,6 +396,14 @@ export class TabManager implements TabManagerInterface {
     const tabIdsBefore = Array.from(this.tabs.keys());
     const closingIndex = tabIdsBefore.indexOf(tabId);
 
+    // Trigger background micro-dream synthesis on substantive completed sessions
+    if (tab.state.messages.length > 0) {
+      void this.plugin.getMicroDreamCoordinator?.()?.evaluateSession({
+        id: tab.conversationId || tabId,
+        messages: tab.state.messages,
+      });
+    }
+
     // Destroy tab resources (async for proper cleanup)
     await destroyTab(tab);
     this.providerCommandWarmups.delete(tabId);

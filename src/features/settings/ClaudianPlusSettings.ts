@@ -19,9 +19,11 @@ import { formatContextLimit, parseContextLimit, parseEnvironmentVariables } from
 import type { FeatureHost } from '../FeatureHost';
 import { AgentSkillManagementCoordinator } from './AgentSkillManagementCoordinator';
 import { buildNavMappingText, parseNavMappings } from './keyboardNavigation';
+import { MindSettingsTab } from './MindSettingsTab';
 import { searchSettings, type SettingsSearchEntry } from './settingsSearch';
 import { buildSettingsTree, resolveSelectedCategory, type SettingsCategoryNode } from './settingsTree';
 import { WorkspaceResourcesSettings } from './WorkspaceResourcesSettings';
+
 
 type ObsidianHotkey = { modifiers: string[]; key: string };
 type ObsidianHotkeyManager = {
@@ -783,8 +785,18 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
   private renderMemoryCategory(container: HTMLElement): void {
     const locale = this.plugin.settings.locale;
 
-    // --- 1. Memory Card ---
+    // --- 0. AI Mind & Habits (Dreaming V3) ---
+    const mindTabContainer = container.createDiv({ cls: 'claudian-plus-mind-tab-wrapper' });
+    const mindTab = new MindSettingsTab({
+      containerEl: mindTabContainer,
+      mindStore: this.plugin.getMindStore(),
+      locale,
+    });
+    void mindTab.render();
+
+    // --- 1. Legacy Memory Card ---
     const memoryCard = this.createCard(container, t('settings.memory.heading'));
+
 
     const memSetting = new Setting(memoryCard)
       .setName(t('settings.memory.enabled.name'))
