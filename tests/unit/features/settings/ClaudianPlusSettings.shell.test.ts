@@ -46,6 +46,26 @@ describe('ClaudianPlusSettingTab Shell', () => {
         load: jest.fn().mockResolvedValue([]),
         save: jest.fn().mockResolvedValue(undefined),
       }),
+      getMindStore: () => ({
+        listStaging: jest.fn().mockResolvedValue([]),
+        listDurable: jest.fn().mockResolvedValue([]),
+        addStaging: jest.fn().mockResolvedValue(true),
+        addDurable: jest.fn().mockResolvedValue({ id: 'd1' }),
+        approveStaging: jest.fn().mockResolvedValue(null),
+        approveAllStaging: jest.fn().mockResolvedValue(0),
+        dismissStaging: jest.fn().mockResolvedValue(false),
+        clearStaging: jest.fn().mockResolvedValue(undefined),
+        updateDurable: jest.fn().mockResolvedValue(null),
+        deleteDurable: jest.fn().mockResolvedValue(false),
+      }),
+      getMicroDreamCoordinator: () => ({
+        evaluateSession: jest.fn().mockResolvedValue({ ran: false }),
+      }),
+      getHybridMindPromptInjector: () => ({
+        buildLayer1Profile: jest.fn().mockResolvedValue(''),
+        buildLayer2Context: jest.fn().mockResolvedValue(''),
+        injectMind: jest.fn().mockResolvedValue(''),
+      }),
       getConsciousnessEngine: () => ({
         updateConfig: jest.fn(),
         initialize: jest.fn().mockResolvedValue(undefined),

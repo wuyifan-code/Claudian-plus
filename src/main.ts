@@ -1,4 +1,9 @@
-import { StartupProfiler } from './core/performance/StartupProfiler';
+import {
+  CooperativeIdleScheduler,
+  StagedStartupCoordinator,
+  StartupPhase,
+  StartupProfiler,
+} from './core/performance';
 // Must run before any SDK imports to patch Electron/Node.js realm incompatibility
 import { patchSetMaxListenersForElectron } from './utils/electronCompat';
 patchSetMaxListenersForElectron();
@@ -20,8 +25,11 @@ import {
   DREAM_CHECK_INTERVAL_MS,
   DreamService,
   escapePromptTagCloser,
+  HybridMindPromptInjector,
   MemoryExtractor,
   MemoryStore,
+  MicroDreamCoordinator,
+  MindStore,
   VaultKnowledgeEngine,
   wrapMemoryInjection,
 } from './core/memory';
@@ -127,12 +135,18 @@ function hasSamePendingProviderSessionInvalidations(
 export default class ClaudianPlusPlugin extends Plugin {
   settings!: ClaudianPlusSettings;
   storage!: SharedAppStorage;
+  readonly idleScheduler = new CooperativeIdleScheduler();
+  readonly startupCoordinator = new StagedStartupCoordinator({ scheduler: this.idleScheduler });
   readonly providerHost = new ClaudianPlusProviderHost(this);
   readonly memoryExtractor = new MemoryExtractor();
   private _memoryStore: MemoryStore | null = null;
+  private _mindStore: MindStore | null = null;
+  private _microDreamCoordinator: MicroDreamCoordinator | null = null;
+  private _hybridMindPromptInjector: HybridMindPromptInjector | null = null;
   private _consciousnessEngine: ConsciousnessEngine | null = null;
   private _vaultKnowledgeEngine: VaultKnowledgeEngine | null = null;
   private _dreamService: DreamService | null = null;
+
   private agentSkillRepository: AgentSkillRepository | null = null;
   private agentSkillRegistry: AgentSkillRegistry | null = null;
   private settingsCoordinator!: SettingsCoordinator<ClaudianPlusSettings>;
@@ -152,67 +166,14 @@ export default class ClaudianPlusPlugin extends Plugin {
   async onload() {
     StartupProfiler.startOnload();
     try {
-      StartupProfiler.run(
-        'provider-registration',
-        () => {
-          registerBuiltInProviders();
-        },
-      );
-      await StartupProfiler.runAsync(
-        'settings-load',
-        () => this.loadSettings({ deferNonRestoredSessionMetadata: true }),
-      );
-
-      // Defer non-UI background maintenance tasks until Obsidian's workspace layout is ready
-      const scheduleBackgroundServices = () => {
-        if (this.isUnloading) return;
-
-        const registerCleanup = (this as unknown as {
-          register?: (callback: () => void) => void;
-        }).register;
-        const registerInterval = (this as unknown as {
-          registerInterval?: (intervalId: number) => void;
-        }).registerInterval;
-
-        // Dream memory consolidation runs on its own hourly check so the model
-        // call only happens when short-term logs actually accumulated.
-        const dreamInterval = window.setInterval(() => {
-          void this.checkDreamDue();
-        }, DREAM_CHECK_INTERVAL_MS);
-        if (typeof registerInterval === 'function') {
-          registerInterval.call(this, dreamInterval);
-        } else {
-          window.clearInterval(dreamInterval);
-        }
-
-        // Surface leftover legacy data so users know old-plugin files are
-        // archived rather than silently deleted during migration.
-        const legacyNoticeTimer = window.setTimeout(() => {
-          void this.checkLegacyDataPresence();
-        }, 3_000);
-        registerCleanup?.call(this, () => window.clearTimeout(legacyNoticeTimer));
-
-        // Obsidian closed = sleep, startup = waking up: consolidate any short-term
-        // logs that accumulated since the last launch. Delayed so providers and
-        // CLIs have time to initialize; a failed run is retried on next startup.
-        const startupDreamTimer = window.setTimeout(() => {
-          void this.runStartupDream();
-        }, 30_000);
-        registerCleanup?.call(this, () => window.clearTimeout(startupDreamTimer));
-
-        // Initialize consciousness engine if enabled
-        if (this.settings.consciousnessEnabled) {
-          void this.getConsciousnessEngine().initialize().catch(() => {
-            // Silently ignore initialization errors
-          });
-        }
-      };
-
-      if (typeof this.app.workspace?.onLayoutReady === 'function') {
-        this.app.workspace.onLayoutReady(scheduleBackgroundServices);
-      } else {
-        scheduleBackgroundServices();
-      }
+      // Phase 0: Register built-in providers and load initial settings
+      this.startupCoordinator.registerPhase0Task('provider-registration', () => {
+        registerBuiltInProviders();
+      });
+      this.startupCoordinator.registerPhase0Task('settings-load', () => {
+        return this.loadSettings({ deferNonRestoredSessionMetadata: true });
+      });
+      await this.startupCoordinator.advanceToPhase(StartupPhase.Phase0_ShellReady);
 
       this.registerView(
         VIEW_TYPE_CLAUDIAN_PLUS,
@@ -468,6 +429,57 @@ export default class ClaudianPlusPlugin extends Plugin {
       });
 
       this.addSettingTab(new ClaudianPlusSettingTab(this.app, this));
+
+      // Phase 1: Advance to Phase 1 (Active tab & default provider ready)
+      await this.startupCoordinator.advanceToPhase(StartupPhase.Phase1_ActiveTabReady);
+
+      // Phase 2: Register background / idle maintenance services
+      this.startupCoordinator.registerIdleTask(
+        'legacy-data-check',
+        'Check legacy data presence',
+        () => this.checkLegacyDataPresence(),
+        'idle',
+      );
+      this.startupCoordinator.registerIdleTask(
+        'startup-dream-consolidation',
+        'Startup dream consolidation',
+        () => this.runStartupDream(),
+        'idle',
+      );
+      if (this.settings.consciousnessEnabled) {
+        this.startupCoordinator.registerIdleTask(
+          'consciousness-engine-init',
+          'Consciousness engine initialization',
+          () => this.getConsciousnessEngine().initialize().catch(() => {}),
+          'normal',
+        );
+      }
+      // Defer non-UI background maintenance tasks until Obsidian's workspace layout is ready
+      const schedulePhase2 = () => {
+        if (this.isUnloading) return;
+
+        const registerInterval = (this as unknown as {
+          registerInterval?: (intervalId: number) => void;
+        }).registerInterval;
+
+        const dreamInterval = window.setInterval(() => {
+          void this.checkDreamDue();
+        }, DREAM_CHECK_INTERVAL_MS);
+        if (typeof registerInterval === 'function') {
+          registerInterval.call(this, dreamInterval);
+        } else {
+          window.clearInterval(dreamInterval);
+        }
+
+        void this.startupCoordinator.advanceToPhase(StartupPhase.Phase2_IdleBackground);
+      };
+
+      if (typeof this.app.workspace?.onLayoutReady === 'function') {
+        this.app.workspace.onLayoutReady(schedulePhase2);
+      } else {
+        schedulePhase2();
+      }
+
       this.scheduleRemainingSessionMetadataLoad();
     } finally {
       StartupProfiler.finishOnload();
@@ -476,6 +488,8 @@ export default class ClaudianPlusPlugin extends Plugin {
 
   onunload(): void {
     this.isUnloading = true;
+    this.startupCoordinator.dispose();
+    this.idleScheduler.dispose();
     if (this.sessionMetadataLoadTimer !== null) {
       window.clearTimeout(this.sessionMetadataLoadTimer);
       this.sessionMetadataLoadTimer = null;
@@ -1271,8 +1285,37 @@ export default class ClaudianPlusPlugin extends Plugin {
     }
   }
 
+  /** Get or create the MindStore instance for Dreaming V3 mind entries. */
+  getMindStore(): MindStore {
+    if (!this._mindStore) {
+      this._mindStore = new MindStore(this.storage.getAdapter());
+    }
+    return this._mindStore;
+  }
+
+  /** Get or create the MicroDreamCoordinator instance for session synthesis. */
+  getMicroDreamCoordinator(): MicroDreamCoordinator {
+    if (!this._microDreamCoordinator) {
+      this._microDreamCoordinator = new MicroDreamCoordinator({
+        mindStore: this.getMindStore(),
+        createRunner: (providerId) => ProviderRegistry.createAuxQueryRunner(this, providerId),
+        getConversationContext: () => this.getActiveChatContext(),
+      });
+    }
+    return this._microDreamCoordinator;
+  }
+
+  /** Get or create the HybridMindPromptInjector instance. */
+  getHybridMindPromptInjector(): HybridMindPromptInjector {
+    if (!this._hybridMindPromptInjector) {
+      this._hybridMindPromptInjector = new HybridMindPromptInjector(this.getMindStore());
+    }
+    return this._hybridMindPromptInjector;
+  }
+
   /** Get or create the ConsciousnessEngine instance. */
   getConsciousnessEngine(): ConsciousnessEngine {
+
     if (!this._consciousnessEngine) {
       this._consciousnessEngine = new ConsciousnessEngine(this.storage.getAdapter(), {
         enabled: this.settings.consciousnessEnabled,

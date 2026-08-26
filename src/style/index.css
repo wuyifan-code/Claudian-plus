@@ -70,6 +70,8 @@
 @import "./settings/workspace-resources.css";
 @import "./settings/claude-services.css";
 @import "./settings/provider-model-picker.css";
+@import "./settings/mind-settings.css";
+
 
 /* Accessibility */
 @import "./accessibility.css";

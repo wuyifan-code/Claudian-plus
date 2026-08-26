@@ -1,4 +1,4 @@
-import { activeDocument, type App, Notice, setIcon } from 'obsidian';
+import { type App, Notice, setIcon } from 'obsidian';
 
 import { localeText } from '../../../i18n/i18n';
 import {
