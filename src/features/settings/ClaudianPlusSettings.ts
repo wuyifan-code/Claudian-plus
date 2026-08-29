@@ -57,6 +57,22 @@ function formatHotkey(hotkey: ObsidianHotkey): string {
   return isMac ? [...mods, key].join('') : [...mods, key].join('+');
 }
 
+export function openMindSettings(app: App): void {
+  const setting = (app as AppWithHotkeyInternals).setting;
+  if (!setting) {
+    return;
+  }
+
+  setting.open();
+  setting.openTabById('claudian-plus');
+  window.setTimeout(() => {
+    const tab = setting.activeTab as unknown as { selectCategory?: (id: string) => void };
+    if (tab && typeof tab.selectCategory === 'function') {
+      tab.selectCategory('memory');
+    }
+  }, 50);
+}
+
 function openHotkeySettings(app: App): void {
   const setting = (app as AppWithHotkeyInternals).setting;
   if (!setting) {
@@ -251,7 +267,7 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
     }
   }
 
-  private selectCategory(categoryId: string): void {
+  public selectCategory(categoryId: string): void {
     this.selectedCategory = categoryId;
     this.plugin.settings.settingsLastCategory = categoryId;
     void this.plugin.mutateSettings((settings) => {

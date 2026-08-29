@@ -1,7 +1,5 @@
+import { isMemoryDuplicate } from './deduplication';
 import type { MemoryEntry, MemoryExtractionResult } from './types';
-
-/** Minimum content length for containment-based deduplication. */
-const MIN_CONTAINMENT_LENGTH = 10;
 
 /** Trigger phrases that indicate the user wants to save a memory. */
 const TRIGGER_PATTERNS: RegExp[] = [
@@ -93,7 +91,10 @@ export class MemoryExtractor {
    * Extract memory entries from a user message.
    * Returns empty array if no trigger is detected.
    */
-  extract(message: string, existingEntries: MemoryEntry[]): MemoryExtractionResult {
+  extract(
+    message: string,
+    existingEntries: Array<string | { content: string }> = [],
+  ): MemoryExtractionResult {
     const extracted = this.extractFromMessage(message);
     if (extracted.length === 0) {
       return { entries: [] };
@@ -101,7 +102,7 @@ export class MemoryExtractor {
 
     // Deduplicate against existing entries
     const unique = extracted.filter(entry =>
-      !this.isDuplicate(entry.content, existingEntries)
+      !isMemoryDuplicate(entry.content, existingEntries)
     );
 
     return { entries: unique };
@@ -136,7 +137,10 @@ export class MemoryExtractor {
    * This is the core of the "consciousness" mechanism - automatically identifying
    * important information worth remembering from natural conversation.
    */
-  extractImplicit(message: string, existingEntries: MemoryEntry[]): MemoryExtractionResult {
+  extractImplicit(
+    message: string,
+    existingEntries: Array<string | { content: string }> = [],
+  ): MemoryExtractionResult {
     const extracted = this.extractImplicitFromMessage(message);
     if (extracted.length === 0) {
       return { entries: [] };
@@ -144,7 +148,7 @@ export class MemoryExtractor {
 
     // Deduplicate against existing entries
     const unique = extracted.filter(entry =>
-      !this.isDuplicate(entry.content, existingEntries)
+      !isMemoryDuplicate(entry.content, existingEntries)
     );
 
     return { entries: unique };
@@ -208,22 +212,5 @@ export class MemoryExtractor {
       }
     }
     return 'User Preferences';
-  }
-
-  private isDuplicate(content: string, existing: MemoryEntry[]): boolean {
-    const normalizedContent = content.toLowerCase().trim();
-    return existing.some(entry => {
-      const normalizedExisting = entry.content.toLowerCase().trim();
-      // Exact match
-      if (normalizedContent === normalizedExisting) return true;
-      // Containment check only for sufficiently long strings to avoid false positives
-      if (normalizedContent.length >= MIN_CONTAINMENT_LENGTH) {
-        if (normalizedExisting.includes(normalizedContent)) return true;
-      }
-      if (normalizedExisting.length >= MIN_CONTAINMENT_LENGTH) {
-        if (normalizedContent.includes(normalizedExisting)) return true;
-      }
-      return false;
-    });
   }
 }

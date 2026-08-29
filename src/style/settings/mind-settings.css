@@ -140,3 +140,146 @@
   border-radius: var(--radius-m);
   border: 1px dashed var(--background-modifier-border);
 }
+
+/* In-Chat Mind Recall Transparency Badge & Popover */
+
+.claudian-plus-mind-recall-container {
+  position: relative;
+  margin-bottom: var(--size-4-2);
+  display: inline-block;
+}
+
+.claudian-plus-mind-recall-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-4-1);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill, 12px);
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+  user-select: none;
+  transition: all var(--animation-duration-fast) ease;
+}
+
+.claudian-plus-mind-recall-pill:hover,
+.claudian-plus-mind-recall-pill.is-active {
+  background-color: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+  color: var(--text-normal);
+}
+
+.claudian-plus-mind-recall-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 100;
+  min-width: 280px;
+  max-width: 420px;
+  background-color: var(--background-primary);
+  border: 1px solid var(--background-modifier-border-hover, var(--background-modifier-border));
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-l);
+  padding: var(--size-4-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2);
+  animation: claudian-fade-in 0.15s ease-out;
+}
+
+.claudian-plus-mind-recall-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--background-modifier-border);
+  padding-bottom: var(--size-4-1);
+}
+
+.claudian-plus-mind-recall-title {
+  font-weight: var(--font-semibold);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-normal);
+}
+
+.claudian-plus-mind-manage-btn {
+  font-size: var(--font-ui-smaller);
+  padding: 2px 6px;
+  border-radius: var(--radius-s);
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.claudian-plus-mind-manage-btn:hover {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+
+.claudian-plus-mind-recall-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.claudian-plus-mind-recall-item {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  font-size: var(--font-ui-smaller);
+  padding: var(--size-4-1) var(--size-4-2);
+  background-color: var(--background-secondary);
+  border-radius: var(--radius-s);
+  border: 1px solid var(--background-modifier-border);
+}
+
+.claudian-plus-mind-recall-item.is-stale {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+.claudian-plus-mind-rule-text {
+  flex: 1;
+  color: var(--text-normal);
+  word-break: break-word;
+}
+
+.claudian-plus-mind-rule-disable-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-s);
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: all var(--animation-duration-fast) ease;
+}
+
+.claudian-plus-mind-rule-disable-btn:hover {
+  background-color: var(--background-modifier-error-hover, var(--background-modifier-error));
+  color: var(--text-error);
+}
+
+/* Header Staging Badge */
+
+.claudian-plus-mind-staging-badge {
+  font-size: var(--font-ui-smaller);
+  padding: 2px 6px;
+  border-radius: var(--radius-pill, 10px);
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-weight: var(--font-semibold);
+  cursor: pointer;
+  animation: claudian-pulse 2s infinite ease-in-out;
+}
+
+.claudian-plus-action-pin-btn:hover,
+.claudian-plus-floating-pin-btn:hover {
+  color: var(--interactive-accent);
+}

@@ -241,6 +241,46 @@ export function combineOpencodeRawModelSelection(
     : normalizedBaseRawId;
 }
 
+const CHINA_HOSTED_PROVIDER_KEYS = new Set([
+  'deepseek',
+  'qwen',
+  'alibaba',
+  'aliyun',
+  'moonshot',
+  'kimi',
+  'glm',
+  'zhipu',
+  'chatglm',
+  'minimax',
+  'baichuan',
+  'yi',
+  '01-ai',
+  'stepfun',
+  'step',
+  'doubao',
+  'bytedance',
+  'sensenova',
+  'tencent',
+  'hunyuan',
+]);
+
+export function isOpencodeChinaHostedModel(rawId: string, label?: string): boolean {
+  const normalizedId = rawId.toLowerCase().trim();
+  const normalizedLabel = (label ?? '').toLowerCase().trim();
+  const slashIndex = normalizedId.indexOf('/');
+  const prefix = slashIndex > 0 ? normalizedId.slice(0, slashIndex) : '';
+
+  if (prefix && CHINA_HOSTED_PROVIDER_KEYS.has(prefix)) {
+    return true;
+  }
+  for (const key of CHINA_HOSTED_PROVIDER_KEYS) {
+    if (normalizedId.includes(key) || normalizedLabel.includes(key)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function splitOpencodeModelLabel(label: string): {
   modelLabel: string;
   providerLabel: string;

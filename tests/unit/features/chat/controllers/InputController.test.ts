@@ -3627,4 +3627,54 @@ describe('InputController - Message Queue', () => {
       expect(mockAgentService.query).toHaveBeenCalledTimes(1);
     });
   });
+  describe('Built-in /remember and /forget commands', () => {
+    it('handles /remember by adding a durable entry to MindStore', async () => {
+      const deps = createSendableDeps();
+      const mockMindStore = {
+        addDurable: jest.fn().mockResolvedValue({
+          id: 'rule-test',
+          content: 'Always format dates in ISO format',
+        }),
+        forgetRule: jest.fn(),
+      };
+      (deps.plugin as any).getMindStore = jest.fn().mockReturnValue(mockMindStore);
+
+      const controller = new InputController(deps);
+      const inputEl = deps.getInputEl();
+      inputEl.value = '/remember Always format dates in ISO format';
+
+      await controller.sendMessage();
+
+      expect(mockMindStore.addDurable).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: 'Always format dates in ISO format',
+          category: 'user_preference',
+          scope: 'project',
+          state: 'active',
+        }),
+      );
+      expect(mockNotice).toHaveBeenCalledWith(expect.stringContaining('Always format dates in ISO format'));
+    });
+
+    it('handles /forget by calling forgetRule on MindStore', async () => {
+      const deps = createSendableDeps();
+      const mockMindStore = {
+        addDurable: jest.fn(),
+        forgetRule: jest.fn().mockResolvedValue({
+          id: 'rule-test',
+          content: 'Always format dates in ISO format',
+        }),
+      };
+      (deps.plugin as any).getMindStore = jest.fn().mockReturnValue(mockMindStore);
+
+      const controller = new InputController(deps);
+      const inputEl = deps.getInputEl();
+      inputEl.value = '/forget ISO';
+
+      await controller.sendMessage();
+
+      expect(mockMindStore.forgetRule).toHaveBeenCalledWith('ISO');
+      expect(mockNotice).toHaveBeenCalledWith(expect.stringContaining('Forgot rule'));
+    });
+  });
 });

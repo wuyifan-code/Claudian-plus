@@ -622,4 +622,40 @@ describe('ClaudianPlusView Escape handling', () => {
     expect(view.readingModeBtn.hasClass('is-active')).toBe(false);
     expect(view.readingModeBtn.getAttribute('aria-pressed')).toBe('false');
   });
+
+  describe('Header staging badge', () => {
+    it('shows staging count badge when staging rules exist', async () => {
+      const view = Object.create(ClaudianPlusView.prototype) as any;
+      const badgeEl = createMockEl();
+      badgeEl.addClass('claudian-plus-hidden');
+      view.stagingBadgeEl = badgeEl;
+      view.plugin = {
+        getMindStore: () => ({
+          getStagingCount: jest.fn().mockResolvedValue(3),
+        }),
+      };
+
+      view.updateStagingBadge();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(badgeEl.hasClass('claudian-plus-hidden')).toBe(false);
+      expect(badgeEl.textContent).toContain('🧠 3');
+    });
+
+    it('hides staging count badge when staging count is 0', async () => {
+      const view = Object.create(ClaudianPlusView.prototype) as any;
+      const badgeEl = createMockEl();
+      view.stagingBadgeEl = badgeEl;
+      view.plugin = {
+        getMindStore: () => ({
+          getStagingCount: jest.fn().mockResolvedValue(0),
+        }),
+      };
+
+      view.updateStagingBadge();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(badgeEl.hasClass('claudian-plus-hidden')).toBe(true);
+    });
+  });
 });

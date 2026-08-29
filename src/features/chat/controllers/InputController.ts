@@ -267,15 +267,17 @@ export class InputController {
 
       // Otherwise, extract and save new memories
       const existingEntries = await memoryStore.load();
+      const durableMindRules = plugin.getMindStore ? ((await plugin.getMindStore().listDurable()) ?? []) : [];
+      const dedupeExisting = [...existingEntries, ...durableMindRules];
 
       // First try explicit extraction (trigger words like "记住...")
-      const explicitResult = plugin.memoryExtractor.extract(message, existingEntries);
+      const explicitResult = plugin.memoryExtractor.extract(message, dedupeExisting);
 
       // Then try implicit extraction (auto-detect important info) when auto-memory is enabled
       let implicitResult = { entries: [] as typeof explicitResult.entries };
       if (plugin.settings.consciousnessEnabled && plugin.settings.consciousnessAutoMemory) {
         implicitResult = plugin.memoryExtractor.extractImplicit(message, [
-          ...existingEntries,
+          ...dedupeExisting,
           ...explicitResult.entries,
         ]);
       }
@@ -1959,6 +1961,54 @@ export class InputController {
           return;
         }
         await this.deps.onForkAll();
+        break;
+      }
+      case 'remember': {
+        const ruleContent = args.trim();
+        if (!ruleContent) {
+          new Notice('Please specify a rule to remember: /remember <rule>');
+          return;
+        }
+        try {
+          const entry = await this.deps.plugin.getMindStore().addDurable({
+            category: 'user_preference',
+            scope: 'project',
+            state: 'active',
+            content: ruleContent,
+            confidence: 0.95,
+            rationale: 'Added via /remember slash command',
+            tags: [],
+          });
+          if (entry) {
+            new Notice(`🧠 Remembered: "${entry.content}"`);
+          } else {
+            new Notice(`Rule already remembered: "${ruleContent}"`);
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          new Notice(`Failed to save memory: ${msg}`);
+        }
+        break;
+      }
+      case 'forget': {
+        const keyword = args.trim();
+        if (!keyword) {
+          new Notice('Please specify a keyword or rule to forget: /forget <keyword>');
+          return;
+        }
+        try {
+          const forgotten = this.deps.plugin.getMindStore ? await this.deps.plugin.getMindStore().forgetRule(keyword) : null;
+          const removedFromMemory = this.deps.plugin.getMemoryStore ? await this.deps.plugin.getMemoryStore().remove(keyword) : 0;
+          if (forgotten || removedFromMemory > 0) {
+            const label = forgotten ? forgotten.content : keyword;
+            new Notice(`🧠 Forgot rule/memory: "${label}"`);
+          } else {
+            new Notice(`No matching rule found for "${keyword}"`);
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          new Notice(`Failed to forget rule: ${msg}`);
+        }
         break;
       }
       default: {

@@ -232,33 +232,64 @@ describe('ModelSelector', () => {
     expect(label?.textContent).toBe('Haiku');
   });
 
-  it('should render model options in reverse order', () => {
+  it('should render model options in the dropdown list', () => {
     const dropdown = parentEl.querySelector('.claudian-plus-model-dropdown');
     expect(dropdown).not.toBeNull();
-    // DEFAULT_CLAUDE_MODELS is [haiku, sonnet, opus] -> reversed is [opus, sonnet, haiku]
-    const options = dropdown?.children || [];
+    const options = parentEl.querySelectorAll('.claudian-plus-model-option');
     expect(options.length).toBe(3);
-    // Text is in child span, check first child's textContent
-    expect(options[0]?.children[0]?.textContent).toBe('Opus');
-    expect(options[1]?.children[0]?.textContent).toBe('Sonnet');
-    expect(options[2]?.children[0]?.textContent).toBe('Haiku');
+    expect(options[0]?.querySelector('.claudian-plus-model-option-label')?.textContent ?? options[0]?.textContent).toContain('Haiku');
+    expect(options[1]?.querySelector('.claudian-plus-model-option-label')?.textContent ?? options[1]?.textContent).toContain('Sonnet');
+    expect(options[2]?.querySelector('.claudian-plus-model-option-label')?.textContent ?? options[2]?.textContent).toContain('Opus');
+  });
+
+  it('should toggle dropdown open on button click and close on outside click', () => {
+    const btn = parentEl.querySelector('.claudian-plus-model-btn');
+    expect(parentEl.querySelector('.claudian-plus-model-selector')?.hasClass('is-open')).toBe(false);
+
+    btn?.dispatchEvent('click', { stopPropagation: () => {} });
+    expect(parentEl.querySelector('.claudian-plus-model-selector')?.hasClass('is-open')).toBe(true);
+
+    selector.close();
+    expect(parentEl.querySelector('.claudian-plus-model-selector')?.hasClass('is-open')).toBe(false);
   });
 
   it('should mark current model as selected', () => {
-    const dropdown = parentEl.querySelector('.claudian-plus-model-dropdown');
-    const options = dropdown?.children || [];
-    // Sonnet is current (index 1 in reversed order)
-    const sonnetOption = options.find((o: any) => o.children[0]?.textContent === 'Sonnet');
+    const options = parentEl.querySelectorAll('.claudian-plus-model-option');
+    const sonnetOption = options.find((o: any) => o.querySelector('.claudian-plus-model-option-label')?.textContent === 'Sonnet');
     expect(sonnetOption?.hasClass('selected')).toBe(true);
   });
 
   it('should call onModelChange when option clicked', async () => {
-    const dropdown = parentEl.querySelector('.claudian-plus-model-dropdown');
-    const options = dropdown?.children || [];
-    const opusOption = options.find((o: any) => o.children[0]?.textContent === 'Opus');
+    const options = parentEl.querySelectorAll('.claudian-plus-model-option');
+    const opusOption = options.find((o: any) => o.querySelector('.claudian-plus-model-option-label')?.textContent === 'Opus');
 
     await opusOption?.dispatchEvent('click', { stopPropagation: () => {} });
     expect(callbacks.onModelChange).toHaveBeenCalledWith('opus');
+  });
+
+  it('should filter models in real-time when searching', () => {
+    const manyModels = [
+      { value: 'claude-3-7-sonnet', label: 'Claude 3.7 Sonnet', group: 'Anthropic' },
+      { value: 'claude-3-5-haiku', label: 'Claude 3.5 Haiku', group: 'Anthropic' },
+      { value: 'gpt-4o', label: 'GPT-4o', group: 'OpenAI' },
+      { value: 'deepseek-r1', label: 'DeepSeek R1', group: 'DeepSeek', badges: ['🧠 Reasoning', '🇨🇳 CN-Hosted'] },
+    ];
+    const uiConfig = createMockUIConfig();
+    uiConfig.getModelOptions.mockReturnValue(manyModels);
+    callbacks.getUIConfig.mockReturnValue(uiConfig);
+
+    selector.open();
+    const searchInput = parentEl.querySelector('.claudian-plus-model-search-input');
+    expect(searchInput).not.toBeNull();
+
+    searchInput.value = 'deepseek';
+    searchInput.dispatchEvent('input');
+
+    const options = parentEl.querySelectorAll('.claudian-plus-model-option');
+    expect(options.length).toBe(1);
+    expect(options[0]?.querySelector('.claudian-plus-model-option-label')?.textContent).toBe('DeepSeek R1');
+    const badges = options[0]?.querySelectorAll('.claudian-plus-model-badge') || [];
+    expect(badges.some((b: any) => b.textContent?.includes('🇨🇳 CN-Hosted'))).toBe(true);
   });
 
   it('should always show brand color on model button', () => {
@@ -323,21 +354,16 @@ describe('ModelSelector', () => {
 
     selector.renderOptions();
 
-    const dropdown = parentEl.querySelector('.claudian-plus-model-dropdown');
-    const children = dropdown?.children || [];
-    // Reversed: [Codex group, built-in Codex model, Claude group, Sonnet, Opus]
-    const groups = children.filter((c: any) => c.hasClass('claudian-plus-model-group'));
+    const groups = parentEl.querySelectorAll('.claudian-plus-model-group');
     expect(groups.length).toBe(2);
-    expect(groups[0]?.textContent).toBe('Codex');
-    expect(groups[1]?.textContent).toBe('Claude');
+    expect(groups[0]?.textContent).toBe('Claude');
+    expect(groups[1]?.textContent).toBe('Codex');
   });
 
   it('should not render group separators when models have no group field', () => {
     selector.renderOptions();
 
-    const dropdown = parentEl.querySelector('.claudian-plus-model-dropdown');
-    const children = dropdown?.children || [];
-    const groups = children.filter((c: any) => c.hasClass('claudian-plus-model-group'));
+    const groups = parentEl.querySelectorAll('.claudian-plus-model-group');
     expect(groups.length).toBe(0);
   });
 
@@ -354,12 +380,11 @@ describe('ModelSelector', () => {
     selector.renderOptions();
     selector.updateDisplay();
 
-    const dropdown = parentEl.querySelector('.claudian-plus-model-dropdown');
-    const options = dropdown?.children || [];
-    expect(options.find((o: any) => o.children[0]?.textContent === 'Opus 1M')).toBeDefined();
-    expect(options.find((o: any) => o.children[0]?.textContent === 'Sonnet 1M')).toBeDefined();
-    expect(options.find((o: any) => o.children[0]?.textContent === 'Opus')).toBeUndefined();
-    expect(options.find((o: any) => o.children[0]?.textContent === 'Sonnet')).toBeUndefined();
+    const options = parentEl.querySelectorAll('.claudian-plus-model-option');
+    expect(options.find((o: any) => o.querySelector('.claudian-plus-model-option-label')?.textContent === 'Opus 1M')).toBeDefined();
+    expect(options.find((o: any) => o.querySelector('.claudian-plus-model-option-label')?.textContent === 'Sonnet 1M')).toBeDefined();
+    expect(options.find((o: any) => o.querySelector('.claudian-plus-model-option-label')?.textContent === 'Opus')).toBeUndefined();
+    expect(options.find((o: any) => o.querySelector('.claudian-plus-model-option-label')?.textContent === 'Sonnet')).toBeUndefined();
     expect(parentEl.querySelector('.claudian-plus-model-label')?.textContent).toBe('Opus 1M');
   });
 });

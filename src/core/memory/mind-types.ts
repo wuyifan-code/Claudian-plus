@@ -57,3 +57,20 @@ export interface StagingStoreData {
   version: number;
   entries: StagingMindEntry[];
 }
+
+/**
+ * Recalled mind entry info attached to a turn for transparency.
+ */
+export interface MindRecallInfo {
+  id: string;
+  category: MindCategory;
+  scope: MindScope;
+  content: string;
+  confidence: number;
+  tags?: string[];
+}
+
+export interface HybridMindInjectionResult {
+  injectionText: string;
+  recalledEntries: MindRecallInfo[];
+}

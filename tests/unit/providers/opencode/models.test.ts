@@ -143,13 +143,21 @@ describe('opencodeChatUIConfig', () => {
 
     expect(options).toEqual([
       {
+        badges: ['🧠 Reasoning'],
         description: 'ACP runtime',
+        group: 'OpenAI',
+        isChinaHosted: false,
         label: 'OpenAI/GPT-5',
+        rawModelId: 'openai/gpt-5',
         value: 'opencode:openai/gpt-5',
       },
       {
+        badges: ['🧠 Reasoning'],
         description: 'ACP runtime',
+        group: 'Anthropic',
+        isChinaHosted: false,
         label: 'Anthropic/Claude Sonnet 4',
+        rawModelId: 'anthropic/claude-sonnet-4',
         value: 'opencode:anthropic/claude-sonnet-4',
       },
     ]);
@@ -177,12 +185,18 @@ describe('opencodeChatUIConfig', () => {
     expect(options).toEqual([
       {
         description: 'ACP runtime',
+        group: 'OpenAI',
+        isChinaHosted: false,
         label: 'OpenAI/GPT-5',
+        rawModelId: 'openai/gpt-5',
         value: 'opencode:openai/gpt-5',
       },
       {
         description: 'ACP runtime',
+        group: 'Anthropic',
+        isChinaHosted: false,
         label: 'Sonnet',
+        rawModelId: 'anthropic/claude-sonnet-4',
         value: 'opencode:anthropic/claude-sonnet-4',
       },
     ]);
@@ -200,10 +214,37 @@ describe('opencodeChatUIConfig', () => {
     })).toEqual([
       {
         description: 'Configured model',
+        group: 'google',
+        isChinaHosted: false,
         label: 'google/gemini-2.5-pro',
+        rawModelId: 'google/gemini-2.5-pro',
         value: 'opencode:google/gemini-2.5-pro',
       },
     ]);
+  });
+
+  it('identifies China-hosted models and attaches tags and group', () => {
+    const options = opencodeChatUIConfig.getModelOptions({
+      providerConfigs: {
+        opencode: {
+          discoveredModels: [
+            { label: 'DeepSeek/DeepSeek-V3', rawId: 'deepseek/deepseek-chat' },
+            { label: 'Qwen/Qwen-2.5-72B', rawId: 'qwen/qwen-2.5-72b' },
+          ],
+          visibleModels: [
+            'deepseek/deepseek-chat',
+            'qwen/qwen-2.5-72b',
+          ],
+        },
+      },
+    });
+
+    expect(options[0]?.isChinaHosted).toBe(true);
+    expect(options[0]?.badges).toContain('🇨🇳 CN-Hosted');
+    expect(options[0]?.group).toBe('Qwen');
+    expect(options[1]?.isChinaHosted).toBe(true);
+    expect(options[1]?.badges).toContain('🇨🇳 CN-Hosted');
+    expect(options[1]?.group).toBe('DeepSeek');
   });
 
   it('falls back to the synthetic entry before models are discovered', () => {

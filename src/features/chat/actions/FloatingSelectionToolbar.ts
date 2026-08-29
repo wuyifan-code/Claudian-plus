@@ -10,11 +10,13 @@ import {
 export interface FloatingSelectionToolbarOptions {
   app: App;
   containerEl: HTMLElement;
+  onPinToMind?: (text: string) => void;
 }
 
 export class FloatingSelectionToolbar {
   private app: App;
   private containerEl: HTMLElement;
+  private onPinToMind?: (text: string) => void;
   private toolbarEl: HTMLElement | null = null;
   private activeSelectionText: string | null = null;
   private isDisposed = false;
@@ -33,6 +35,7 @@ export class FloatingSelectionToolbar {
   constructor(options: FloatingSelectionToolbarOptions) {
     this.app = options.app;
     this.containerEl = options.containerEl;
+    this.onPinToMind = options.onPinToMind;
     this.setupListeners();
   }
 
@@ -135,6 +138,24 @@ export class FloatingSelectionToolbar {
       void createLinkedNote(this.app, this.activeSelectionText);
       this.hide();
     });
+
+    // 5. Pin to Mind Habits
+    if (this.onPinToMind) {
+      const pinBtn = toolbar.createEl('button', {
+        cls: 'claudian-plus-floating-btn claudian-plus-floating-pin-btn',
+        attr: {
+          title: localeText('沉淀到心智草稿箱', 'Pin to Mind habits'),
+          'aria-label': localeText('沉淀到心智草稿箱', 'Pin to Mind habits'),
+        },
+      });
+      setIcon(pinBtn, 'pin');
+      pinBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!this.activeSelectionText) return;
+        this.onPinToMind?.(this.activeSelectionText);
+        this.hide();
+      });
+    }
 
     this.toolbarEl = toolbar;
     return toolbar;

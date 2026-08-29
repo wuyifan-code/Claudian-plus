@@ -281,3 +281,23 @@ export function openDiffReview(
   modal.open();
   return true;
 }
+
+export function openMindSettings(app: App): void {
+  const setting = (app as unknown as {
+    setting?: {
+      open: () => void;
+      openTabById: (id: string) => void;
+      activeTab?: { selectCategory?: (id: string) => void };
+    };
+  }).setting;
+
+  if (!setting) return;
+  setting.open();
+  setting.openTabById('claudian-plus');
+  window.setTimeout(() => {
+    const tab = setting.activeTab;
+    if (tab && typeof tab.selectCategory === 'function') {
+      tab.selectCategory('memory');
+    }
+  }, 50);
+}

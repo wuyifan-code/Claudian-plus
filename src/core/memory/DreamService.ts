@@ -13,10 +13,12 @@ import {
 import type { ProviderId } from '../providers/types';
 import { DEFAULT_CHAT_PROVIDER_ID } from '../providers/types';
 import type { VaultFileAdapter } from '../storage/VaultFileAdapter';
-import { type AwarenessState,LEGACY_SHORT_TERM_DIR, SHORT_TERM_DIR } from './consciousness-types';
+import { type AwarenessState, LEGACY_SHORT_TERM_DIR, SHORT_TERM_DIR } from './consciousness-types';
 import type { ConsciousnessEngine } from './ConsciousnessEngine';
+import { isMemoryDuplicate } from './deduplication';
 import { formatMemoryAppendix } from './memoryPrompt';
 import type { MemoryStore } from './MemoryStore';
+import type { MindStore } from './MindStore';
 
 /** Dream journal and state location under the vault. */
 export const DREAM_DIR = '.claudian-plus/awareness/dreams';
@@ -77,6 +79,7 @@ interface DreamRunResult {
 interface DreamServiceDependencies {
   adapter: VaultFileAdapter;
   memoryStore: MemoryStore;
+  mindStore?: MindStore;
   consciousness: ConsciousnessEngine;
   /** Provider-neutral runner factory (e.g. ProviderRegistry.createAuxQueryRunner). */
   createRunner: (providerId: ProviderId) => AuxQueryRunner;
@@ -96,10 +99,6 @@ const DEFAULT_DREAM_CONFIG: Required<DreamServiceConfig> = {
   maxInsights: DREAM_DEFAULT_MAX_INSIGHTS,
   queryTimeoutMs: DREAM_QUERY_TIMEOUT_MS,
 };
-
-function normalizeContent(content: string): string {
-  return content.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
-}
 
 function isDatedLog(basename: string): boolean {
   return /^\d{4}-\d{2}-\d{2}\.md$/.test(basename);
@@ -253,17 +252,15 @@ export class DreamService {
   ): Promise<DreamRunResult> {
     // Phase 2.5: write new facts through MemoryStore so its dedupe applies.
     const memories = await this.deps.memoryStore.load();
-    const existingContents = new Set<string>(
-      memories.map(entry => normalizeContent(entry.content)),
-    );
+    const durableMindRules = (await this.deps.mindStore?.listDurable()) ?? [];
+    const allExisting: Array<string | { content: string }> = [...memories, ...durableMindRules];
 
     let newFacts = 0;
     for (const fact of result.newFacts) {
-      const key = normalizeContent(fact.content);
-      if (existingContents.has(key)) {
+      if (isMemoryDuplicate(fact.content, allExisting)) {
         continue;
       }
-      existingContents.add(key);
+      allExisting.push(fact.content);
       await this.deps.memoryStore.add({
         category: fact.category,
         content: fact.content,
@@ -276,11 +273,10 @@ export class DreamService {
     // category, deduped against everything already written this cycle.
     let insights = 0;
     for (const insight of result.insights) {
-      const key = normalizeContent(insight.content);
-      if (existingContents.has(key)) {
+      if (isMemoryDuplicate(insight.content, allExisting)) {
         continue;
       }
-      existingContents.add(key);
+      allExisting.push(insight.content);
       await this.deps.memoryStore.add({
         category: 'Insights',
         content: insight.content,
@@ -295,11 +291,10 @@ export class DreamService {
     let profileUpdates = 0;
     if (this.deps.consciousness.privacyConfig.allowImplicitExtraction) {
       for (const update of result.profileUpdates) {
-        const key = normalizeContent(update.content);
-        if (existingContents.has(key)) {
+        if (isMemoryDuplicate(update.content, allExisting)) {
           continue;
         }
-        existingContents.add(key);
+        allExisting.push(update.content);
         await this.deps.consciousness.updateUserProfile(update.section, update.content);
         profileUpdates += 1;
       }

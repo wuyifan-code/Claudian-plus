@@ -98,6 +98,22 @@ describe('builtInCommands', () => {
       expect(detectBuiltInCommand('/FORK')).not.toBeNull();
       expect(detectBuiltInCommand('/Fork')).not.toBeNull();
     });
+
+    it('detects /remember command with argument', () => {
+      const result = detectBuiltInCommand('/remember Prefer Chinese responses');
+      expect(result).not.toBeNull();
+      expect(result?.command.name).toBe('remember');
+      expect(result?.command.action).toBe('remember');
+      expect(result?.args).toBe('Prefer Chinese responses');
+    });
+
+    it('detects /forget command with argument', () => {
+      const result = detectBuiltInCommand('/forget Chinese');
+      expect(result).not.toBeNull();
+      expect(result?.command.name).toBe('forget');
+      expect(result?.command.action).toBe('forget');
+      expect(result?.args).toBe('Chinese');
+    });
   });
 
   describe('getBuiltInCommandsForDropdown', () => {
@@ -198,16 +214,20 @@ describe('builtInCommands', () => {
       expect(names).toContain('add-dir');
       expect(names).toContain('resume');
       expect(names).toContain('fork');
+      expect(names).toContain('remember');
+      expect(names).toContain('forget');
     });
 
     it('returns universal commands alongside codex capability-supported commands', () => {
       const commands = getBuiltInCommandsForDropdown('codex');
-      expect(commands.length).toBe(4);
+      expect(commands.length).toBe(6);
       expect(commands.map(c => c.name)).toEqual([
         'clear',
         'add-dir',
         'resume',
         'fork',
+        'remember',
+        'forget',
       ]);
     });
   });
