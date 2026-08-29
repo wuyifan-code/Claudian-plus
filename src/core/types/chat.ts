@@ -1,3 +1,4 @@
+import type { MindRecallInfo } from '../memory/mind-types';
 import type { SDKToolUseResult } from './diff';
 import type { ProviderId } from './provider';
 import type { SubagentMode, ToolCallInfo } from './tools';
@@ -59,6 +60,8 @@ export interface ChatMessage {
   userMessageId?: string;
   /** Provider-native assistant message identifier used for rewind/fork checkpoints. */
   assistantMessageId?: string;
+  /** Mind and awareness rules actively recalled for this turn. */
+  mindRecall?: MindRecallInfo[];
 }
 
 /** Persisted conversation with messages and session state. */

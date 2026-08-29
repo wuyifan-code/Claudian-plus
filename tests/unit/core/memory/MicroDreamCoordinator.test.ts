@@ -1,4 +1,5 @@
 import type { AuxQueryRunner } from '@/core/auxiliary/AuxQueryRunner';
+import type { MemoryStore } from '@/core/memory/MemoryStore';
 import { MicroDreamCoordinator } from '@/core/memory/MicroDreamCoordinator';
 import { MindStore } from '@/core/memory/MindStore';
 import type { VaultFileAdapter } from '@/core/storage/VaultFileAdapter';
@@ -149,5 +150,87 @@ describe('MicroDreamCoordinator', () => {
     expect(result.ran).toBe(false);
     expect(result.reason).toBe('failed');
     expect(result.error).toContain('Network offline');
+  });
+
+  it('includes MemoryStore entries in prompt and avoids duplicate staging proposals', async () => {
+    const memoryStore = {
+      load: jest.fn().mockResolvedValue([
+        { id: 'm1', content: 'Prefers PNPM package manager', category: 'Tools' },
+      ]),
+    };
+
+    mockRunner.query.mockImplementation(async (_config, prompt) => {
+      expect(prompt).toContain('Prefers PNPM package manager');
+      return JSON.stringify({
+        rules: [
+          {
+            category: 'coding_habit',
+            scope: 'project',
+            content: 'Prefers PNPM package manager',
+            rationale: 'Mentioned in session',
+            confidence: 0.9,
+          },
+        ],
+      });
+    });
+
+    const coordinator = new MicroDreamCoordinator({
+      mindStore,
+      createRunner,
+      getMemoryStore: () => memoryStore as unknown as MemoryStore,
+      minTurns: 1,
+    });
+
+    const result = await coordinator.evaluateSession({
+      id: 'sess-pnpm',
+      messages: [
+        { role: 'user', content: 'Let us run pnpm test' },
+        { role: 'assistant', content: 'Running pnpm test...' },
+      ],
+      hasToolCalls: true,
+    });
+
+    expect(result.ran).toBe(true);
+    // Duplicate rule was rejected by cross-deduplication in MindStore
+    expect(result.newStagingCount).toBe(0);
+    const staging = await mindStore.listStaging();
+    expect(staging).toHaveLength(0);
+  });
+
+  it('invokes onNewStaging callback when new rules are synthesized', async () => {
+    const onNewStagingSpy = jest.fn();
+    mockRunner.query.mockResolvedValueOnce(
+      JSON.stringify({
+        rules: [
+          {
+            category: 'coding_habit',
+            scope: 'project',
+            content: 'Use functional components with hooks',
+            rationale: 'Observed coding style',
+            confidence: 0.9,
+          },
+        ],
+      }),
+    );
+
+    const coordinator = new MicroDreamCoordinator({
+      mindStore,
+      createRunner,
+      minTurns: 1,
+      onNewStaging: onNewStagingSpy,
+    });
+
+    const result = await coordinator.evaluateSession({
+      id: 'sess-callback',
+      messages: [
+        { role: 'user', content: 'hello' },
+        { role: 'assistant', content: 'hi' },
+      ],
+      hasToolCalls: true,
+    });
+
+    expect(result.ran).toBe(true);
+    expect(result.newStagingCount).toBe(1);
+    expect(onNewStagingSpy).toHaveBeenCalledWith(1);
   });
 });

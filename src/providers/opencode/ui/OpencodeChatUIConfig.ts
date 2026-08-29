@@ -9,11 +9,13 @@ import {
   buildOpencodeBaseModels,
   decodeOpencodeModelId,
   encodeOpencodeModelId,
+  isOpencodeChinaHostedModel,
   isOpencodeModelSelectionId,
   OPENCODE_DEFAULT_THINKING_LEVEL,
   OPENCODE_SYNTHETIC_MODEL_ID,
   resolveOpencodeBaseModelRawId,
   resolveOpencodeDefaultThinkingLevel,
+  splitOpencodeModelLabel,
 } from '../models';
 import {
   resolveOpencodeModeForPermissionMode,
@@ -43,14 +45,31 @@ export const opencodeChatUIConfig: ProviderChatUIConfig = {
       const alias = opencodeSettings.modelAliases[rawId];
       return alias ? { ...option, label: alias } : option;
     };
-    const discoveredModels = new Map(buildOpencodeBaseModels(opencodeSettings.discoveredModels).map((model) => [
-      encodeOpencodeModelId(model.rawId),
-      applyAlias(model.rawId, {
-        description: model.description ?? 'ACP runtime',
-        label: model.label,
-        value: encodeOpencodeModelId(model.rawId),
-      }),
-    ]));
+    const discoveredModels = new Map(buildOpencodeBaseModels(opencodeSettings.discoveredModels).map((model) => {
+      const { providerLabel } = splitOpencodeModelLabel(model.label || model.rawId);
+      const isChinaHosted = isOpencodeChinaHostedModel(model.rawId, model.label);
+      const hasThinking = (model.variants && model.variants.length > 0)
+        || ((opencodeSettings.thinkingOptionsByModel[model.rawId]?.length ?? 0) > 0);
+      const badges: string[] = [];
+      if (hasThinking) {
+        badges.push('🧠 Reasoning');
+      }
+      if (isChinaHosted) {
+        badges.push('🇨🇳 CN-Hosted');
+      }
+      return [
+        encodeOpencodeModelId(model.rawId),
+        applyAlias(model.rawId, {
+          description: model.description ?? (isChinaHosted ? 'China-hosted (requires OpenCode opt-in)' : 'ACP runtime'),
+          label: model.label,
+          group: providerLabel !== 'Other' ? providerLabel : undefined,
+          value: encodeOpencodeModelId(model.rawId),
+          rawModelId: model.rawId,
+          badges: badges.length > 0 ? badges : undefined,
+          isChinaHosted,
+        }),
+      ];
+    }));
     const savedProviderModel = (
       settings.savedProviderModel
       && typeof settings.savedProviderModel === 'object'
@@ -63,15 +82,25 @@ export const opencodeChatUIConfig: ProviderChatUIConfig = {
     const options: ProviderUIOption[] = [];
     for (const rawModelId of [...opencodeSettings.visibleModels].reverse()) {
       const encodedModelId = encodeOpencodeModelId(rawModelId);
+      const { providerLabel } = splitOpencodeModelLabel(rawModelId);
+      const isChinaHosted = isOpencodeChinaHostedModel(rawModelId);
+      const badges: string[] = [];
+      if (isChinaHosted) {
+        badges.push('🇨🇳 CN-Hosted');
+      }
       pushOption(
         options,
         seenValues,
         encodedModelId,
         discoveredModels.get(encodedModelId)
           ?? applyAlias(rawModelId, {
-            description: 'Configured model',
+            description: isChinaHosted ? 'China-hosted (requires OpenCode opt-in)' : 'Configured model',
             label: rawModelId,
+            group: providerLabel !== 'Other' ? providerLabel : undefined,
             value: encodedModelId,
+            rawModelId,
+            badges: badges.length > 0 ? badges : undefined,
+            isChinaHosted,
           }),
       );
     }

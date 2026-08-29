@@ -31,7 +31,6 @@ import {
   MicroDreamCoordinator,
   MindStore,
   VaultKnowledgeEngine,
-  wrapMemoryInjection,
 } from './core/memory';
 import {
   ObsidianToolBridge,
@@ -1246,39 +1245,31 @@ export default class ClaudianPlusPlugin extends Plugin {
     return cliResolver.resolveFromSettings(this.settings, context);
   }
 
-  /** Get or create the MemoryStore instance. */
   getMemoryStore(): MemoryStore {
     if (!this._memoryStore) {
       this._memoryStore = new MemoryStore(this.storage.getAdapter(), {
         filePath: this.settings.memoryFilePath,
         maxInjectionChars: this.settings.memoryMaxInjectionChars,
+        getMindStore: () => this.getMindStore(),
       });
     }
-    // The store is cached for the plugin lifetime, while these settings are
-    // editable at runtime. Always synchronize before returning it so explicit
-    // remember/forget actions never keep writing to a previously configured file.
     this._memoryStore.updateOptions({
       filePath: this.settings.memoryFilePath,
       maxInjectionChars: this.settings.memoryMaxInjectionChars,
+      getMindStore: () => this.getMindStore(),
     });
     return this._memoryStore;
   }
 
   /** Get the memory injection text for system prompt, or null if disabled/empty. */
   async getMemoryInjectionText(): Promise<string | null> {
-    if (!this.settings.memoryEnabled) {
-      return null;
-    }
-
     try {
-      const store = this.getMemoryStore();
-
-      const injectionText = await store.buildInjectionText();
-      if (!injectionText) {
-        return null;
-      }
-
-      return wrapMemoryInjection(injectionText);
+      const context = this.getActiveChatContext();
+      const mindInjector = this.getHybridMindPromptInjector();
+      const text = await mindInjector.buildPromptInjection({
+        activeFilePath: context?.activeFilePath,
+      });
+      return text || null;
     } catch {
       // Memory is an enhancement and must never prevent a provider from starting.
       return null;
@@ -1288,7 +1279,9 @@ export default class ClaudianPlusPlugin extends Plugin {
   /** Get or create the MindStore instance for Dreaming V3 mind entries. */
   getMindStore(): MindStore {
     if (!this._mindStore) {
-      this._mindStore = new MindStore(this.storage.getAdapter());
+      this._mindStore = new MindStore(this.storage.getAdapter(), {
+        getMemoryStore: () => this.getMemoryStore(),
+      });
     }
     return this._mindStore;
   }
@@ -1300,6 +1293,14 @@ export default class ClaudianPlusPlugin extends Plugin {
         mindStore: this.getMindStore(),
         createRunner: (providerId) => ProviderRegistry.createAuxQueryRunner(this, providerId),
         getConversationContext: () => this.getActiveChatContext(),
+        getMemoryStore: () => this.getMemoryStore(),
+        onNewStaging: (count) => {
+          const isZh = (this.settings.locale ?? 'en').toLowerCase().startsWith('zh');
+          const noticeText = isZh
+            ? `✨ 微梦境提炼了 ${count} 条新偏好，可在设置中审阅`
+            : `✨ Micro-dream synthesized ${count} new rule${count > 1 ? 's' : ''}, review in Settings`;
+          new Notice(noticeText);
+        },
       });
     }
     return this._microDreamCoordinator;
@@ -1308,7 +1309,11 @@ export default class ClaudianPlusPlugin extends Plugin {
   /** Get or create the HybridMindPromptInjector instance. */
   getHybridMindPromptInjector(): HybridMindPromptInjector {
     if (!this._hybridMindPromptInjector) {
-      this._hybridMindPromptInjector = new HybridMindPromptInjector(this.getMindStore());
+      this._hybridMindPromptInjector = new HybridMindPromptInjector(this.getMindStore(), {
+        getMemoryStore: () => this.getMemoryStore(),
+        isMemoryStoreEnabled: () => !!this.settings.memoryEnabled,
+        maxTotalChars: this.settings.memoryMaxInjectionChars,
+      });
     }
     return this._hybridMindPromptInjector;
   }
@@ -1343,6 +1348,7 @@ export default class ClaudianPlusPlugin extends Plugin {
       this._dreamService = new DreamService({
         adapter: this.storage.getAdapter(),
         memoryStore: this.getMemoryStore(),
+        mindStore: this.getMindStore(),
         consciousness: this.getConsciousnessEngine(),
         createRunner: (providerId) => ProviderRegistry.createAuxQueryRunner(this, providerId),
         getConversationContext: () => this.getActiveChatContext(),
@@ -1358,15 +1364,17 @@ export default class ClaudianPlusPlugin extends Plugin {
     return this._dreamService;
   }
 
-  /** Provider + model of the active chat tab, or null when the view is closed. */
-  getActiveChatContext(): { providerId: ProviderId; model: string | null } | null {
+  /** Provider + model + active note path of the active chat tab, or null when the view is closed. */
+  getActiveChatContext(): { providerId: ProviderId; model: string | null; activeFilePath?: string } | null {
     const tab = this.getView()?.getActiveTab();
+    const activeFile = this.app.workspace.getActiveFile();
     if (!tab) {
       return null;
     }
     return {
       providerId: tab.providerId,
       model: tab.service?.getAuxiliaryModel?.() ?? null,
+      activeFilePath: activeFile?.path,
     };
   }
 

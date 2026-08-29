@@ -1,3 +1,5 @@
+import type { MindStore } from './MindStore';
+
 /** A single memory entry extracted from user conversations. */
 export interface MemoryEntry {
   id: string;
@@ -17,6 +19,7 @@ export interface MemoryExtractionResult {
 export interface MemoryStoreOptions {
   filePath: string;
   maxInjectionChars: number;
+  getMindStore?: () => MindStore | null;
 }
 
 /** Default path for the memory file within the vault. */

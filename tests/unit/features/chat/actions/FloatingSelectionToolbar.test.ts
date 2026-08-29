@@ -109,5 +109,39 @@ describe('FloatingSelectionToolbar', () => {
 
     toolbar.destroy();
   });
+
+  it('triggers onPinToMind when pin button is clicked', () => {
+    const pinSpy = jest.fn();
+
+    const toolbar = new FloatingSelectionToolbar({
+      app: mockApp,
+      containerEl,
+      onPinToMind: pinSpy,
+    });
+
+    const msgEl = containerEl.createDiv({ cls: 'claudian-plus-message claudian-plus-message-assistant' });
+    const textBlock = msgEl.createDiv({ cls: 'claudian-plus-text-block' });
+    textBlock.textContent = 'Keep answers short and formatted as lists';
+
+    window.getSelection = jest.fn().mockReturnValue({
+      isCollapsed: false,
+      rangeCount: 1,
+      getRangeAt: () => ({
+        commonAncestorContainer: textBlock,
+        getBoundingClientRect: () => ({ top: 100, left: 100, width: 50, height: 20 }),
+      }),
+      toString: () => 'Keep answers short',
+    });
+
+    containerEl.dispatchEvent(new MouseEvent('mouseup'));
+
+    const pinBtn = containerEl.querySelector<HTMLButtonElement>('.claudian-plus-floating-pin-btn');
+    expect(pinBtn).toBeTruthy();
+
+    pinBtn?.click();
+    expect(pinSpy).toHaveBeenCalledWith('Keep answers short');
+
+    toolbar.destroy();
+  });
 });
 

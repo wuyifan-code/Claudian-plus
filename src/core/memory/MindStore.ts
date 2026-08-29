@@ -1,4 +1,6 @@
 import type { VaultFileAdapter } from '../storage/VaultFileAdapter';
+import { isMemoryDuplicate } from './deduplication';
+import type { MemoryStore } from './MemoryStore';
 import type {
   DurableMindEntry,
   MindScope,
@@ -17,10 +19,47 @@ function generateId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+export interface MindStoreOptions {
+  getMemoryStore?: () => MemoryStore | null;
+}
+
 export class MindStore {
   private mutationTail: Promise<void> = Promise.resolve();
+  private stagingListeners = new Set<(count: number) => void>();
+  private getMemoryStore?: () => MemoryStore | null;
 
-  constructor(private readonly adapter: VaultFileAdapter) {}
+  constructor(
+    private readonly adapter: VaultFileAdapter,
+    options?: MindStoreOptions,
+  ) {
+    this.getMemoryStore = options?.getMemoryStore;
+  }
+
+  setMemoryStoreProvider(provider: () => MemoryStore | null): void {
+    this.getMemoryStore = provider;
+  }
+
+  onStagingChanged(listener: (count: number) => void): () => void {
+    this.stagingListeners.add(listener);
+    return () => {
+      this.stagingListeners.delete(listener);
+    };
+  }
+
+  private notifyStagingChanged(count: number): void {
+    for (const listener of this.stagingListeners) {
+      try {
+        listener(count);
+      } catch {
+        // Safe dispatch
+      }
+    }
+  }
+
+  async getStagingCount(): Promise<number> {
+    const data = await this.readStagingData();
+    return data.entries.length;
+  }
 
   private async enqueueMutation<T>(op: () => Promise<T>): Promise<T> {
     const next = this.mutationTail.then(op, op);
@@ -58,23 +97,25 @@ export class MindStore {
   ): Promise<StagingMindEntry | null> {
     return this.enqueueMutation(async () => {
       const data = await this.readStagingData();
-      const normalizedContent = input.content.trim().toLowerCase();
 
       // Check if already in staging
-      const existsInStaging = data.entries.some(
-        (e) => e.content.trim().toLowerCase() === normalizedContent,
-      );
-      if (existsInStaging) {
+      if (isMemoryDuplicate(input.content, data.entries)) {
         return null;
       }
 
       // Check if already in durable store
       const durableList = await this.internalListDurable();
-      const existsInDurable = durableList.some(
-        (e) => e.content.trim().toLowerCase() === normalizedContent,
-      );
-      if (existsInDurable) {
+      if (isMemoryDuplicate(input.content, durableList)) {
         return null;
+      }
+
+      // Check if already in MemoryStore
+      const memoryStore = this.getMemoryStore?.();
+      if (memoryStore) {
+        const memoryEntries = await memoryStore.load();
+        if (isMemoryDuplicate(input.content, memoryEntries)) {
+          return null;
+        }
       }
 
       const entry: StagingMindEntry = {
@@ -221,13 +262,30 @@ export class MindStore {
   }
 
   async addDurable(
-    input: Omit<DurableMindEntry, 'id' | 'createdAt' | 'updatedAt' | 'lastUsedAt'>,
-  ): Promise<DurableMindEntry> {
+    input: Omit<DurableMindEntry, 'id' | 'createdAt' | 'updatedAt' | 'lastUsedAt' | 'state'> & {
+      state?: MindTemporalState;
+    },
+  ): Promise<DurableMindEntry | null> {
     return this.enqueueMutation(async () => {
       const targetFile = input.scope === 'global' ? GLOBAL_PROFILE_FILE : PROJECT_RULES_FILE;
       const data = await this.readDurableData(targetFile);
-      const now = Date.now();
 
+      // Check duplicate against durable entries
+      const durableList = await this.internalListDurable();
+      if (isMemoryDuplicate(input.content, durableList)) {
+        return null;
+      }
+
+      // Check duplicate against MemoryStore
+      const memoryStore = this.getMemoryStore?.();
+      if (memoryStore) {
+        const memoryEntries = await memoryStore.load();
+        if (isMemoryDuplicate(input.content, memoryEntries)) {
+          return null;
+        }
+      }
+
+      const now = Date.now();
       const entry: DurableMindEntry = {
         id: generateId('mind'),
         category: input.category,
@@ -336,6 +394,29 @@ export class MindStore {
     });
   }
 
+  async forgetRule(keyword: string): Promise<DurableMindEntry | null> {
+    return this.enqueueMutation(async () => {
+      const normalized = keyword.trim().toLowerCase();
+      if (!normalized) return null;
+
+      for (const file of [PROJECT_RULES_FILE, GLOBAL_PROFILE_FILE]) {
+        const data = await this.readDurableData(file);
+        const idx = data.entries.findIndex((e) => {
+          if (e.content.toLowerCase().includes(normalized)) return true;
+          if (e.tags?.some((t) => t.toLowerCase().includes(normalized))) return true;
+          return false;
+        });
+
+        if (idx !== -1) {
+          const [removed] = data.entries.splice(idx, 1);
+          await this.writeDurableData(file, data);
+          return removed;
+        }
+      }
+      return null;
+    });
+  }
+
   // --- Internal IO Helpers ---
 
   private async readStagingData(): Promise<StagingStoreData> {
@@ -353,6 +434,7 @@ export class MindStore {
   private async writeStagingData(data: StagingStoreData): Promise<void> {
     await this.adapter.ensureFolder(AWARENESS_DIR);
     await this.adapter.write(STAGING_HABITS_FILE, JSON.stringify(data, null, 2));
+    this.notifyStagingChanged(data.entries.length);
   }
 
   private async readDurableData(file: string): Promise<MindStoreData> {

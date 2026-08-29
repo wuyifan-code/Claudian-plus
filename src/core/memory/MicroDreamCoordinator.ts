@@ -6,6 +6,7 @@ import {
 } from '../prompt/dreamMemory';
 import type { ProviderId } from '../providers/types';
 import { DEFAULT_CHAT_PROVIDER_ID } from '../providers/types';
+import type { MemoryStore } from './MemoryStore';
 import type { MindStore } from './MindStore';
 
 export interface SessionMessageInput {
@@ -31,9 +32,11 @@ export interface MicroDreamCoordinatorDependencies {
   mindStore: MindStore;
   createRunner: (providerId: ProviderId) => AuxQueryRunner;
   getConversationContext?: () => { providerId: ProviderId; model: string | null } | null;
+  getMemoryStore?: () => MemoryStore | null;
   isEnabled?: () => boolean;
   minTurns?: number;
   maxTrajectoryChars?: number;
+  onNewStaging?: (count: number) => void;
 }
 
 function stringifyMessageContent(content: unknown): string {
@@ -62,6 +65,9 @@ export class MicroDreamCoordinator {
   constructor(private readonly deps: MicroDreamCoordinatorDependencies) {
     this.minTurns = deps.minTurns ?? 3;
     this.maxTrajectoryChars = deps.maxTrajectoryChars ?? 6000;
+    if (deps.getMemoryStore) {
+      deps.mindStore.setMemoryStoreProvider(deps.getMemoryStore);
+    }
   }
 
   async evaluateSession(session: SessionEvaluationInput): Promise<MicroDreamRunResult> {
@@ -94,9 +100,13 @@ export class MicroDreamCoordinator {
       // Fetch existing durable rules to prevent re-extracting known rules
       const durableRules = await this.deps.mindStore.listDurable('project');
       const globalRules = await this.deps.mindStore.listDurable('global');
-      const existingRulesText = [...globalRules, ...durableRules]
-        .map((r) => `- [${r.category}] (${r.scope}) ${r.content}`)
-        .join('\n');
+      const memoryEntries = (await this.deps.getMemoryStore?.()?.load()) ?? [];
+      const memoryRulesText = memoryEntries.map((m) => `- [${m.category}] ${m.content}`);
+      const existingRulesText = [
+        ...globalRules.map((r) => `- [${r.category}] (${r.scope}) ${r.content}`),
+        ...durableRules.map((r) => `- [${r.category}] (${r.scope}) ${r.content}`),
+        ...memoryRulesText,
+      ].join('\n');
 
       const userPrompt = buildMicroDreamPrompt({
         trajectoryText,
@@ -148,6 +158,14 @@ export class MicroDreamCoordinator {
         });
         if (added) {
           addedCount++;
+        }
+      }
+
+      if (addedCount > 0 && this.deps.onNewStaging) {
+        try {
+          this.deps.onNewStaging(addedCount);
+        } catch {
+          // Callback errors should not fail synthesis result
         }
       }
 

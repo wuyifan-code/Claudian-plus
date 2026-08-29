@@ -1,8 +1,11 @@
 export { ConsciousnessEngine } from './ConsciousnessEngine';
 export {
-  DREAM_CHECK_INTERVAL_MS,
-  DreamService,
-} from './DreamService';
+  deduplicateMemoryEntries,
+  isMemoryDuplicate,
+  MIN_CONTAINMENT_LENGTH,
+  normalizeMemoryContent,
+} from './deduplication';
+export { DREAM_CHECK_INTERVAL_MS,DreamService } from './DreamService';
 export { HybridMindPromptInjector, type MindPromptContext } from './HybridMindPromptInjector';
 export { MemoryExtractor } from './MemoryExtractor';
 export { escapePromptTagCloser, formatMemoryAppendix, wrapMemoryInjection } from './memoryPrompt';
@@ -24,3 +27,4 @@ export type {
 } from './mind-types';
 export { MindStore } from './MindStore';
 export { VaultKnowledgeEngine } from './VaultKnowledgeEngine';
+

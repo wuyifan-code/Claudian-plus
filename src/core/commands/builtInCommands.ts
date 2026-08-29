@@ -8,7 +8,7 @@
 import { ProviderRegistry } from '../providers/ProviderRegistry';
 import type { ProviderCapabilities, ProviderId } from '../providers/types';
 
-export type BuiltInCommandAction = 'clear' | 'add-dir' | 'resume' | 'fork';
+export type BuiltInCommandAction = 'clear' | 'add-dir' | 'resume' | 'fork' | 'remember' | 'forget';
 type BuiltInCommandCapability = 'supportsNativeHistory' | 'supportsFork';
 type BuiltInCommandSupportContext = ProviderId | Pick<ProviderCapabilities, BuiltInCommandCapability>;
 
@@ -56,6 +56,20 @@ export const BUILT_IN_COMMANDS: BuiltInCommand[] = [
     description: 'Fork entire conversation to new session',
     action: 'fork',
     requiredCapability: 'supportsFork',
+  },
+  {
+    name: 'remember',
+    description: 'Save a habit or project rule to Mind store',
+    action: 'remember',
+    hasArgs: true,
+    argumentHint: '<rule or preference>',
+  },
+  {
+    name: 'forget',
+    description: 'Remove a habit or rule from Mind store',
+    action: 'forget',
+    hasArgs: true,
+    argumentHint: '<keyword or rule>',
   },
 ];
 

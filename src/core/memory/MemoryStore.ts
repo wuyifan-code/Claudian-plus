@@ -1,5 +1,7 @@
 import type { VaultFileAdapter } from '../storage/VaultFileAdapter';
 import { backupFileBeforeWrite } from './backup';
+import { isMemoryDuplicate, normalizeMemoryContent } from './deduplication';
+import type { MindStore } from './MindStore';
 import {
   DEFAULT_MEMORY_FILE_PATH,
   DEFAULT_MEMORY_MAX_INJECTION_CHARS,
@@ -11,10 +13,6 @@ import {
 
 function generateMemoryId(): string {
   return `mem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function normalizeMemoryContent(content: string): string {
-  return content.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
 }
 
 interface ParsedSection {
@@ -32,6 +30,7 @@ interface ParsedSection {
 export class MemoryStore {
   private options: MemoryStoreOptions;
   private mutationTail: Promise<void> = Promise.resolve();
+  private getMindStore?: () => MindStore | null;
 
   constructor(
     private adapter: VaultFileAdapter,
@@ -41,6 +40,7 @@ export class MemoryStore {
       filePath: options?.filePath || DEFAULT_MEMORY_FILE_PATH,
       maxInjectionChars: options?.maxInjectionChars ?? DEFAULT_MEMORY_MAX_INJECTION_CHARS,
     };
+    this.getMindStore = options?.getMindStore;
   }
 
   get filePath(): string {
@@ -51,6 +51,11 @@ export class MemoryStore {
     return this.options.maxInjectionChars;
   }
 
+  /** Set provider for cross-deduplication with MindStore. */
+  setMindStoreProvider(provider: () => MindStore | null): void {
+    this.getMindStore = provider;
+  }
+
   /** Update options at runtime (e.g. when settings change). */
   updateOptions(options: Partial<MemoryStoreOptions>): void {
     if (options.filePath !== undefined) {
@@ -58,6 +63,9 @@ export class MemoryStore {
     }
     if (options.maxInjectionChars !== undefined) {
       this.options.maxInjectionChars = options.maxInjectionChars;
+    }
+    if (options.getMindStore !== undefined) {
+      this.getMindStore = options.getMindStore;
     }
   }
 
@@ -93,12 +101,20 @@ export class MemoryStore {
       };
 
       const existing = await this.load();
-      const normalizedContent = normalizeMemoryContent(fullEntry.content);
-      const duplicate = existing.find(entry =>
-        normalizeMemoryContent(entry.content) === normalizedContent
+      const duplicate = existing.find(e =>
+        isMemoryDuplicate(fullEntry.content, [e])
       );
       if (duplicate) {
         return duplicate;
+      }
+
+      // Check cross-deduplication against MindStore
+      const mindStore = this.getMindStore?.();
+      if (mindStore) {
+        const durable = await mindStore.listDurable();
+        if (isMemoryDuplicate(fullEntry.content, durable)) {
+          return fullEntry;
+        }
       }
 
       existing.push(fullEntry);
@@ -112,7 +128,7 @@ export class MemoryStore {
    * Returns the number of entries removed.
    */
   async remove(searchTerm: string): Promise<number> {
-    const normalizedSearch = searchTerm.toLowerCase().trim();
+    const normalizedSearch = normalizeMemoryContent(searchTerm);
     if (!normalizedSearch) {
       return 0;
     }
@@ -120,7 +136,7 @@ export class MemoryStore {
     return this.enqueueMutation(async () => {
       const existing = await this.load();
       const filtered = existing.filter(entry => {
-        const normalizedContent = entry.content.toLowerCase().trim();
+        const normalizedContent = normalizeMemoryContent(entry.content);
         // Remove if content matches or contains the search term
         return !normalizedContent.includes(normalizedSearch);
       });

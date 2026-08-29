@@ -2317,7 +2317,7 @@ describe('MessageRenderer', () => {
   // ============================================
 
   describe('Actionable Response Bar & Selective Insertion', () => {
-    it('creates actionable response bar with all four action buttons', () => {
+    it('creates actionable response bar with all action buttons including pin', () => {
       const messagesEl = createMockEl();
       const { renderer } = createRenderer(messagesEl);
       const textEl = createMockEl();
@@ -2331,11 +2331,78 @@ describe('MessageRenderer', () => {
       const replaceBtn = actionsBar.children.find((c: any) => c.className?.includes('claudian-plus-action-replace-btn'));
       const noteBtn = actionsBar.children.find((c: any) => c.className?.includes('claudian-plus-action-note-btn'));
       const diffBtn = actionsBar.children.find((c: any) => c.className?.includes('claudian-plus-action-diff-btn'));
+      const pinBtn = actionsBar.children.find((c: any) => c.className?.includes('claudian-plus-action-pin-btn'));
 
       expect(insertBtn).toBeTruthy();
       expect(replaceBtn).toBeTruthy();
       expect(noteBtn).toBeTruthy();
       expect(diffBtn).toBeTruthy();
+      expect(pinBtn).toBeTruthy();
+    });
+  });
+
+  // ============================================
+  // In-Chat Mind Recall Transparency Badge
+  // ============================================
+
+  describe('In-Chat Mind Recall Transparency Badge', () => {
+    it('renders mind recall pill when assistant message has mindRecall entries', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+
+      const msg: ChatMessage = {
+        id: 'm-mind',
+        role: 'assistant',
+        content: 'Hello, I remember your preferences',
+        timestamp: Date.now(),
+        contentBlocks: [
+          { type: 'text', content: 'Hello, I remember your preferences' },
+        ],
+        mindRecall: [
+          {
+            id: 'rule-1',
+            category: 'user_preference',
+            scope: 'project',
+            content: 'Always respond in Chinese',
+            confidence: 0.95,
+          },
+          {
+            id: 'rule-2',
+            category: 'coding_habit',
+            scope: 'global',
+            content: 'Prefer arrow functions',
+            confidence: 0.88,
+          },
+        ],
+      };
+
+      renderer.renderStoredMessage(msg);
+
+      const pill = messagesEl.querySelector('.claudian-plus-mind-recall-pill');
+      expect(pill).toBeTruthy();
+      expect(pill?.textContent).toContain('2');
+    });
+
+    it('does not render mind recall pill when mindRecall is empty or absent', () => {
+      const messagesEl = createMockEl();
+      const { renderer } = createRenderer(messagesEl);
+      jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+
+      const msg: ChatMessage = {
+        id: 'm-no-mind',
+        role: 'assistant',
+        content: 'Plain response without recall',
+        timestamp: Date.now(),
+        contentBlocks: [
+          { type: 'text', content: 'Plain response without recall' },
+        ],
+      };
+
+      renderer.renderStoredMessage(msg);
+
+      const pill = messagesEl.querySelector('.claudian-plus-mind-recall-pill');
+      expect(pill).toBeNull();
     });
   });
 });

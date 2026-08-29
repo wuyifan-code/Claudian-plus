@@ -7,6 +7,7 @@ import {
   DreamService,
 } from '@/core/memory/DreamService';
 import { MemoryStore } from '@/core/memory/MemoryStore';
+import type { MindStore } from '@/core/memory/MindStore';
 import type { ProviderId } from '@/core/providers/types';
 import type { VaultFileAdapter } from '@/core/storage/VaultFileAdapter';
 
@@ -84,7 +85,7 @@ function createHarness(options: {
   const { runner, queryMock } = createFakeRunner(
     options.response ?? JSON.stringify({
       newFacts: [{ category: 'User Preferences', content: 'Prefers dark mode' }],
-      profileUpdates: [{ section: '偏好', content: 'Prefers dark mode in all apps' }],
+      profileUpdates: [{ section: '偏好', content: 'Prefers concise responses' }],
       insights: [{ content: 'User values privacy' }],
     }),
   );
@@ -226,7 +227,7 @@ describe('DreamService', () => {
       expect(memoryContent).toContain('User values privacy');
 
       const userContent = await adapter.read(USER_FILE);
-      expect(userContent).toContain('Prefers dark mode in all apps');
+      expect(userContent).toContain('Prefers concise responses');
 
       const journal = await adapter.read(`${DREAM_DIR}/${TODAY}.md`);
       expect(journal).toContain('Prefers dark mode');
@@ -555,6 +556,36 @@ describe('DreamService', () => {
     it('returns false when disabled', async () => {
       const { service } = createHarness({ enabled: false });
       expect(await service.isDreamDue()).toBe(false);
+    });
+  });
+
+  describe('cross-deduplication with MindStore', () => {
+    it('does not duplicate facts that exist in MindStore durable rules', async () => {
+      const mindStore = {
+        listDurable: jest.fn().mockResolvedValue([
+          { id: 'mind-1', content: 'Prefers dark mode', category: 'user_preference' },
+        ]),
+      };
+
+      const harness = createHarness({
+        files: {
+          ...dayLog(TODAY, 'User: I prefer dark mode\nAssistant: Understood.'),
+        },
+        response: JSON.stringify({
+          newFacts: [{ category: 'User Preferences', content: 'Prefers dark mode' }],
+          profileUpdates: [],
+          insights: [],
+        }),
+      });
+
+      const service = new DreamService({
+        ...harness.service['deps'],
+        mindStore: mindStore as unknown as MindStore,
+      });
+
+      const result = await service.runDream(true);
+      expect(result.ran).toBe(true);
+      expect(result.newFacts).toBe(0);
     });
   });
 });

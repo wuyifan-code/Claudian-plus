@@ -1,4 +1,5 @@
 import { HybridMindPromptInjector } from '@/core/memory/HybridMindPromptInjector';
+import { MemoryStore } from '@/core/memory/MemoryStore';
 import { MindStore } from '@/core/memory/MindStore';
 import type { VaultFileAdapter } from '@/core/storage/VaultFileAdapter';
 
@@ -91,7 +92,7 @@ describe('HybridMindPromptInjector', () => {
     expect(result).toContain('Always use Vitest with mocked adapter');
 
     // Should record hit
-    const updated = (await mindStore.listDurable()).find((e) => e.id === created.id);
+    const updated = (await mindStore.listDurable()).find((e) => e.id === created!.id);
     expect(updated?.lastUsedAt).toBeGreaterThan(0);
   });
 
@@ -115,4 +116,98 @@ describe('HybridMindPromptInjector', () => {
 
     expect(result.length).toBeLessThan(350);
   });
+
+  it('returns both injection text and recalledEntries with resolveInjection', async () => {
+    await mindStore.addDurable({
+      category: 'user_preference',
+      scope: 'global',
+      state: 'active',
+      content: 'Always respond in Chinese',
+      confidence: 0.95,
+      tags: ['lang'],
+    });
+
+    await mindStore.addDurable({
+      category: 'project_rule',
+      scope: 'project',
+      state: 'active',
+      content: 'Use Obsidian mock adapters',
+      confidence: 0.9,
+      matchPatterns: ['tests/**'],
+      tags: ['test'],
+    });
+
+    const injector = new HybridMindPromptInjector(mindStore);
+    const resolved = await injector.resolveInjection({
+      activeFilePath: 'tests/unit/example.test.ts',
+      userPromptText: 'Help me write tests',
+    });
+
+    expect(resolved.injectionText).toContain('Always respond in Chinese');
+    expect(resolved.injectionText).toContain('Use Obsidian mock adapters');
+    expect(resolved.recalledEntries).toHaveLength(2);
+    const contents = resolved.recalledEntries.map((e) => e.content);
+    expect(contents).toContain('Always respond in Chinese');
+    expect(contents).toContain('Use Obsidian mock adapters');
+    expect(resolved.recalledEntries.find((e) => e.content === 'Always respond in Chinese')?.scope).toBe('global');
+    expect(resolved.recalledEntries.find((e) => e.content === 'Use Obsidian mock adapters')?.scope).toBe('project');
+  });
+
+  it('injects non-duplicate entries from MemoryStore and respects total budget', async () => {
+    const memoryStore = new MemoryStore(mockAdapter);
+    await memoryStore.add({
+      category: 'User Preferences',
+      content: 'Always respond in Chinese', // Duplicate of Mind global rule below
+      source: 'user-explicit',
+    });
+    await memoryStore.add({
+      category: 'Project Context',
+      content: 'Database is PostgreSQL 16', // Unique to memory.md
+      source: 'user-explicit',
+    });
+
+    await mindStore.addDurable({
+      category: 'user_preference',
+      scope: 'global',
+      state: 'active',
+      content: 'Always respond in Chinese',
+      confidence: 0.95,
+      tags: ['lang'],
+    });
+
+    const injector = new HybridMindPromptInjector(mindStore, {
+      getMemoryStore: () => memoryStore,
+      isMemoryStoreEnabled: () => true,
+      maxTotalChars: 1500,
+    });
+
+    const result = await injector.buildPromptInjection({});
+
+    expect(result).toContain('<user_mind_profile>');
+    expect(result).toContain('Always respond in Chinese');
+    expect(result).toContain('<memory>');
+    expect(result).toContain('Database is PostgreSQL 16');
+    // The duplicate item in memory.md should be filtered out
+    const memorySection = result.slice(result.indexOf('<memory>'));
+    expect(memorySection).not.toContain('Always respond in Chinese');
+  });
+
+  it('skips MemoryStore entries when memory store is disabled or returns null', async () => {
+    const memoryStore = new MemoryStore(mockAdapter);
+    await memoryStore.add({
+      category: 'Project Context',
+      content: 'Database is PostgreSQL 16',
+      source: 'user-explicit',
+    });
+
+    const injector = new HybridMindPromptInjector(mindStore, {
+      getMemoryStore: () => memoryStore,
+      isMemoryStoreEnabled: () => false,
+    });
+
+    const result = await injector.buildPromptInjection({});
+    expect(result).not.toContain('<memory>');
+    expect(result).not.toContain('Database is PostgreSQL 16');
+  });
 });
+

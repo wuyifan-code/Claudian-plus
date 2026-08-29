@@ -19,6 +19,7 @@ import {
   type ScheduledAnimationFrame,
 } from '../../utils/animationFrame';
 import type { FeatureHost } from '../FeatureHost';
+import { openMindSettings } from './actions/ActionableOutputController';
 import type { HistoryConversationStatus } from './controllers/ConversationController';
 import { MentionCacheCoordinator } from './services/MentionCacheCoordinator';
 import { TabStatePersistenceCoordinator } from './services/TabStatePersistenceCoordinator';
@@ -71,6 +72,8 @@ export class ClaudianPlusView extends ItemView {
   // Header elements
   private historyDropdown: HTMLElement | null = null;
   private historyRenderAbortController: AbortController | null = null;
+  private stagingBadgeEl: HTMLElement | null = null;
+  private unsubscribeStaging: (() => void) | null = null;
 
   // Event refs for cleanup
   private eventRefs: EventRef[] = [];
@@ -340,6 +343,9 @@ export class ClaudianPlusView extends ItemView {
     }
     this.eventRefs = [];
 
+    this.unsubscribeStaging?.();
+    this.unsubscribeStaging = null;
+
     try {
       await this.persistTabStateImmediate();
     } catch {
@@ -390,6 +396,26 @@ export class ClaudianPlusView extends ItemView {
     titleEl.createEl('h4', { text: 'Claudian Plus', cls: 'claudian-plus-title-text' });
 
     const headerActionsEl = header.createDiv({ cls: 'claudian-plus-header-actions' });
+
+    const stagingBadgeEl = headerActionsEl.createDiv({
+      cls: 'claudian-plus-header-action-btn claudian-plus-mind-staging-badge claudian-plus-hidden',
+      attr: {
+        'aria-label': 'Mind staging rules waiting for review',
+        title: 'Mind staging rules waiting for review',
+        role: 'button',
+        tabindex: '0',
+      },
+    });
+    this.stagingBadgeEl = stagingBadgeEl;
+    stagingBadgeEl.addEventListener('click', () => {
+      openMindSettings(this.app);
+    });
+
+    this.updateStagingBadge();
+    this.unsubscribeStaging = this.plugin.getMindStore?.()?.onStagingChanged?.(() => {
+      this.updateStagingBadge();
+    }) ?? null;
+
     const newSessionBtn = headerActionsEl.createDiv({
       cls: 'claudian-plus-header-action-btn claudian-plus-header-new-btn',
       attr: { 'aria-label': 'New conversation', role: 'button', tabindex: '0' },
@@ -405,6 +431,24 @@ export class ClaudianPlusView extends ItemView {
         this.updateHistoryDropdown();
       })().catch(() => new Notice('Failed to create conversation'));
     });
+  }
+
+  private updateStagingBadge(): void {
+    void (async () => {
+      try {
+        const count = await this.plugin.getMindStore?.()?.getStagingCount?.() ?? 0;
+        if (!this.stagingBadgeEl) return;
+        if (count > 0) {
+          this.stagingBadgeEl.empty();
+          this.stagingBadgeEl.removeClass('claudian-plus-hidden');
+          this.stagingBadgeEl.setText(`🧠 ${count}`);
+        } else {
+          this.stagingBadgeEl.addClass('claudian-plus-hidden');
+        }
+      } catch {
+        // Safe fallback
+      }
+    })();
   }
 
   setHomeView(view: 'chat' | 'sessions'): void {

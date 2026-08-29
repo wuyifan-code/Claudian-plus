@@ -1,6 +1,7 @@
 import type { App, Component } from 'obsidian';
 import { MarkdownRenderer, Menu, Notice, setIcon } from 'obsidian';
 
+import type { MindRecallInfo } from '../../../core/memory/mind-types';
 import { DEFAULT_CHAT_PROVIDER_ID, type ProviderCapabilities } from '../../../core/providers/types';
 import type { ChatRewindMode } from '../../../core/runtime/types';
 import {
@@ -30,6 +31,7 @@ import {
   insertAtCursor,
   insertCodeBlockAtCursor,
   openDiffReview,
+  openMindSettings,
   replaceSelection,
 } from '../actions/ActionableOutputController';
 import { FloatingSelectionToolbar } from '../actions/FloatingSelectionToolbar';
@@ -135,8 +137,36 @@ export class MessageRenderer {
       this.floatingToolbar = new FloatingSelectionToolbar({
         app: this.app,
         containerEl: this.messagesEl,
+        onPinToMind: (text) => this.pinTextToMind(text),
       });
     }
+  }
+
+  pinTextToMind(text: string): void {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    void (async () => {
+      try {
+        const mindStore = this.plugin.getMindStore?.();
+        if (!mindStore) return;
+        const entry = await mindStore.addStaging({
+          category: 'user_preference',
+          scope: 'project',
+          content: trimmed,
+          rationale: 'Pinned from chat response/selection',
+          sourceSessionId: '',
+          confidence: 0.9,
+        });
+        if (entry) {
+          new Notice(localeText('已添加到心智草稿箱，可在设置中审阅', 'Added to Mind staging queue for review'));
+        } else {
+          new Notice(localeText('心智库中已存在相同规则', 'Rule already exists in Mind store'));
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        new Notice(`Failed to pin rule: ${msg}`);
+      }
+    })();
   }
 
   /** Sets the messages container element. */
@@ -301,6 +331,11 @@ export class MessageRenderer {
       this.renderUserText(msg, msgEl, contentEl);
       if (this.rewindCallback || this.forkCallback) {
         this.liveMessageEls.set(msg.id, msgEl);
+      }
+    } else if (msg.role === 'assistant') {
+      this.addAssistantContextMenu(msgEl);
+      if (msg.mindRecall && msg.mindRecall.length > 0) {
+        this.renderMindRecallPill(contentEl, msg.mindRecall);
       }
     }
 
@@ -611,6 +646,10 @@ export class MessageRenderer {
    * Renders assistant message content (content blocks or fallback).
    */
   private renderAssistantContent(msg: ChatMessage, contentEl: HTMLElement): boolean {
+    if (msg.mindRecall && msg.mindRecall.length > 0) {
+      this.renderMindRecallPill(contentEl, msg.mindRecall);
+    }
+
     let hadLegacyInterruptIndicator = false;
 
     if (msg.contentBlocks && msg.contentBlocks.length > 0) {
@@ -1126,6 +1165,145 @@ export class MessageRenderer {
       const targetText = selectedText || markdown;
       openDiffReview(this.plugin.app, targetText);
     });
+
+    // Pin to Mind Habits (Staging Queue)
+    const pinBtn = actionsBar.createSpan({
+      cls: 'claudian-plus-action-btn claudian-plus-action-pin-btn',
+      attr: {
+        title: localeText('沉淀到心智草稿箱', 'Pin to Mind habits'),
+        'aria-label': localeText('沉淀到心智草稿箱', 'Pin to Mind habits'),
+      },
+    });
+    setIcon(pinBtn, 'pin');
+    pinBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const selectedText = getSelectedTextWithin(textEl);
+      const targetText = (selectedText || markdown).trim();
+      this.pinTextToMind(targetText);
+    });
+  }
+
+  private renderMindRecallPill(contentEl: HTMLElement, entries: MindRecallInfo[]): void {
+    if (!entries || entries.length === 0) return;
+
+    const count = entries.length;
+    const label = localeText(`🧠 ${count} 条规则生效`, `🧠 ${count} rule${count > 1 ? 's' : ''} active`);
+
+    const pillContainer = contentEl.createDiv({ cls: 'claudian-plus-mind-recall-container' });
+    const pill = pillContainer.createDiv({
+      cls: 'claudian-plus-mind-recall-pill',
+      text: label,
+      attr: {
+        title: localeText('点击查看本轮生效的心智规则', 'Click to view active mind rules for this turn'),
+        role: 'button',
+        tabindex: '0',
+      },
+    });
+
+    let popoverEl: HTMLElement | null = null;
+
+    const togglePopover = () => {
+      if (popoverEl) {
+        popoverEl.remove();
+        popoverEl = null;
+        pill.removeClass('is-active');
+        return;
+      }
+
+      pill.addClass('is-active');
+      popoverEl = pillContainer.createDiv({ cls: 'claudian-plus-mind-recall-popover' });
+
+      // Header
+      const header = popoverEl.createDiv({ cls: 'claudian-plus-mind-recall-header' });
+      header.createSpan({
+        cls: 'claudian-plus-mind-recall-title',
+        text: localeText('生效的心智规则', 'Active Mind Rules'),
+      });
+
+      const manageBtn = header.createEl('button', {
+        cls: 'claudian-plus-mind-manage-btn',
+        text: localeText('管理心智库', 'Manage Mind'),
+      });
+      manageBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openMindSettings(this.plugin.app);
+      });
+
+      // Rules list
+      const listEl = popoverEl.createDiv({ cls: 'claudian-plus-mind-recall-list' });
+      for (const entry of entries) {
+        const itemEl = listEl.createDiv({ cls: 'claudian-plus-mind-recall-item' });
+
+        itemEl.createSpan({
+          cls: `claudian-plus-mind-badge badge-${entry.category}`,
+          text: this.getCategoryBadgeText(entry.category),
+        });
+
+        itemEl.createSpan({
+          cls: 'claudian-plus-mind-rule-text',
+          text: entry.content,
+        });
+
+        if (entry.confidence !== undefined) {
+          itemEl.createSpan({
+            cls: 'claudian-plus-mind-confidence',
+            text: `${Math.round(entry.confidence * 100)}%`,
+          });
+        }
+
+        const disableBtn = itemEl.createSpan({
+          cls: 'claudian-plus-mind-rule-disable-btn',
+          attr: {
+            title: localeText('从心智库停用此规则', 'Deactivate this rule from Mind store'),
+            role: 'button',
+          },
+        });
+        setIcon(disableBtn, 'x');
+        disableBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          void (async () => {
+            try {
+              const mindStore = this.plugin.getMindStore?.();
+              if (mindStore) {
+                await mindStore.updateDurable(entry.id, { state: 'stale' });
+                itemEl.addClass('is-stale');
+                new Notice(localeText(`已停用规则: "${entry.content}"`, `Deactivated rule: "${entry.content}"`));
+              }
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              new Notice(`Failed to deactivate rule: ${msg}`);
+            }
+          })();
+        });
+      }
+    };
+
+    pill.addEventListener('click', (e) => {
+      e.stopPropagation();
+      togglePopover();
+    });
+
+    pill.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        togglePopover();
+      }
+    });
+  }
+
+  private getCategoryBadgeText(cat: string): string {
+    switch (cat) {
+      case 'user_preference':
+        return localeText('偏好', 'Pref');
+      case 'coding_habit':
+        return localeText('习惯', 'Habit');
+      case 'project_rule':
+        return localeText('规则', 'Rule');
+      case 'correction_rule':
+        return localeText('纠偏', 'Fix');
+      default:
+        return cat;
+    }
   }
 
   addTextCopyButton(textEl: HTMLElement, markdown: string): void {

@@ -63,14 +63,43 @@ export class ModelSelector {
   private container: HTMLElement;
   private buttonEl: HTMLElement | null = null;
   private dropdownEl: HTMLElement | null = null;
+  private searchInputEl: HTMLInputElement | null = null;
+  private listContainerEl: HTMLElement | null = null;
   private callbacks: ToolbarCallbacks;
+  private isOpen = false;
+  private searchQuery = '';
+  private highlightedIndex = 0;
+  private filteredOptions: ProviderUIOption[] = [];
+  private documentClickListener: ((e: MouseEvent) => void) | null = null;
+
   constructor(parentEl: HTMLElement, callbacks: ToolbarCallbacks) {
     this.callbacks = callbacks;
     this.container = parentEl.createDiv({ cls: 'claudian-plus-model-selector' });
     this.render();
+    this.setupGlobalListeners();
   }
 
-  private getAvailableModels() {
+  private setupGlobalListeners() {
+    this.documentClickListener = (e: MouseEvent) => {
+      if (!this.isOpen) return;
+      const target = e.target as Node | null;
+      if (target && !this.container.contains(target)) {
+        this.close();
+      }
+    };
+    const doc = this.container.ownerDocument ?? activeDocument;
+    doc.addEventListener?.('click', this.documentClickListener);
+  }
+
+  destroy() {
+    const doc = this.container.ownerDocument ?? activeDocument;
+    if (this.documentClickListener) {
+      doc.removeEventListener?.('click', this.documentClickListener);
+      this.documentClickListener = null;
+    }
+  }
+
+  private getAvailableModels(): ProviderUIOption[] {
     const settings = this.callbacks.getSettings();
     const uiConfig = this.callbacks.getUIConfig();
     return uiConfig.getModelOptions({
@@ -82,11 +111,54 @@ export class ModelSelector {
   private render() {
     this.container.empty();
 
-    this.buttonEl = this.container.createDiv({ cls: 'claudian-plus-model-btn' });
+    this.buttonEl = this.container.createDiv({
+      cls: 'claudian-plus-model-btn',
+      attr: { role: 'button', tabindex: '0', 'aria-haspopup': 'listbox' },
+    });
+
+    this.buttonEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggle();
+    });
+
+    this.buttonEl.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        this.open();
+      }
+    });
+
     this.updateDisplay();
 
     this.dropdownEl = this.container.createDiv({ cls: 'claudian-plus-model-dropdown' });
-    this.renderOptions();
+    this.renderDropdownContent();
+  }
+
+  toggle() {
+    if (this.isOpen) {
+      this.close();
+    } else {
+      this.open();
+    }
+  }
+
+  open() {
+    if (this.isOpen) return;
+    this.isOpen = true;
+    this.searchQuery = '';
+    this.container.addClass('is-open');
+    this.dropdownEl?.addClass('is-open');
+    this.renderDropdownContent();
+    window.setTimeout(() => {
+      this.searchInputEl?.focus();
+    }, 10);
+  }
+
+  close() {
+    if (!this.isOpen) return;
+    this.isOpen = false;
+    this.container.removeClass('is-open');
+    this.dropdownEl?.removeClass('is-open');
   }
 
   updateDisplay() {
@@ -94,59 +166,241 @@ export class ModelSelector {
     const currentModel = this.callbacks.getSettings().model;
     const models = this.getAvailableModels();
     const modelInfo = models.find(m => m.value === currentModel);
-
     const displayModel = modelInfo || models[0];
 
     this.buttonEl.empty();
 
+    const icon = displayModel?.providerIcon ?? this.callbacks.getUIConfig().getProviderIcon?.();
+    if (icon) {
+      createProviderIconSvg(icon, {
+        className: 'claudian-plus-model-btn-icon',
+        height: 12,
+        parent: this.buttonEl,
+        width: 12,
+      });
+    }
+
     const labelEl = this.buttonEl.createSpan({ cls: 'claudian-plus-model-label' });
     labelEl.setText(displayModel?.label || 'Unknown');
+
+    const chevronEl = this.buttonEl.createSpan({ cls: 'claudian-plus-model-chevron' });
+    chevronEl.setText('▾');
   }
 
-  renderOptions() {
+  private renderDropdownContent() {
     if (!this.dropdownEl) return;
     this.dropdownEl.empty();
 
-    const currentModel = this.callbacks.getSettings().model;
     const models = this.getAvailableModels();
-    const reversed = [...models].reverse();
+    const showSearch = models.length >= 4;
+
+    if (showSearch) {
+      const searchContainer = this.dropdownEl.createDiv({ cls: 'claudian-plus-model-search-container' });
+      const searchWrapper = searchContainer.createDiv({ cls: 'claudian-plus-model-search-wrapper' });
+
+      searchWrapper.createSpan({ cls: 'claudian-plus-model-search-icon', text: '🔍' });
+
+      this.searchInputEl = searchWrapper.createEl('input', {
+        cls: 'claudian-plus-model-search-input',
+        type: 'text',
+        attr: { placeholder: 'Search models...', spellcheck: 'false' },
+      });
+      this.searchInputEl.value = this.searchQuery;
+
+      if (this.searchQuery) {
+        const clearBtn = searchWrapper.createSpan({ cls: 'claudian-plus-model-search-clear', text: '×' });
+        clearBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.searchQuery = '';
+          if (this.searchInputEl) this.searchInputEl.value = '';
+          this.renderList();
+          this.searchInputEl?.focus();
+        });
+      }
+
+      this.searchInputEl.addEventListener('input', () => {
+        this.searchQuery = this.searchInputEl?.value.trim().toLowerCase() ?? '';
+        this.highlightedIndex = 0;
+        this.renderList();
+      });
+
+      this.searchInputEl.addEventListener('keydown', (e: KeyboardEvent) => {
+        this.handleKeyboardNav(e);
+      });
+    }
+
+    this.listContainerEl = this.dropdownEl.createDiv({ cls: 'claudian-plus-model-list' });
+    this.renderList();
+  }
+
+  private getFilteredModels(): ProviderUIOption[] {
+    const models = this.getAvailableModels();
+    if (!this.searchQuery) {
+      return models;
+    }
+    const q = this.searchQuery.toLowerCase();
+    return models.filter((m) => {
+      const labelMatch = m.label.toLowerCase().includes(q);
+      const valueMatch = m.value.toLowerCase().includes(q);
+      const groupMatch = m.group?.toLowerCase().includes(q) ?? false;
+      const descMatch = m.description?.toLowerCase().includes(q) ?? false;
+      const badgeMatch = m.badges?.some(b => b.toLowerCase().includes(q)) ?? false;
+      return labelMatch || valueMatch || groupMatch || descMatch || badgeMatch;
+    });
+  }
+
+  private renderList() {
+    if (!this.listContainerEl) return;
+    this.listContainerEl.empty();
+
+    const currentModel = this.callbacks.getSettings().model;
+    const filtered = this.getFilteredModels();
+    this.filteredOptions = filtered;
+
+    if (filtered.length === 0) {
+      this.listContainerEl.createDiv({
+        cls: 'claudian-plus-model-empty',
+        text: `No models match "${this.searchQuery}"`,
+      });
+      return;
+    }
 
     let lastGroup: string | undefined;
-    for (const model of reversed) {
+    filtered.forEach((model, index) => {
       if (model.group && model.group !== lastGroup) {
-        const separator = this.dropdownEl.createDiv({ cls: 'claudian-plus-model-group' });
-        separator.setText(model.group);
+        const groupHeader = this.listContainerEl!.createDiv({ cls: 'claudian-plus-model-group claudian-plus-model-group-header' });
+        groupHeader.setText(model.group);
         lastGroup = model.group;
       }
 
-      const option = this.dropdownEl.createDiv({ cls: 'claudian-plus-model-option' });
-      if (model.value === currentModel) {
-        option.addClass('selected');
-      }
+      const isSelected = model.value === currentModel;
+      const isHighlighted = index === this.highlightedIndex;
+
+      const optionEl = this.listContainerEl!.createDiv({
+        cls: `claudian-plus-model-option${isSelected ? ' selected' : ''}${isHighlighted ? ' highlighted' : ''}`,
+        attr: { role: 'option', 'aria-selected': isSelected ? 'true' : 'false' },
+      });
 
       const icon = model.providerIcon ?? this.callbacks.getUIConfig().getProviderIcon?.();
       if (icon) {
         createProviderIconSvg(icon, {
           className: 'claudian-plus-model-provider-icon',
-          height: 12,
-          parent: option,
-          width: 12,
+          height: 14,
+          parent: optionEl,
+          width: 14,
         });
       }
-      option.createSpan({ text: model.label });
-      if (model.description) {
-        option.setAttribute('title', model.description);
+
+      optionEl.createSpan({ cls: 'claudian-plus-model-option-label', text: model.label });
+
+      const badges = this.resolveBadges(model);
+      if (badges.length > 0) {
+        const badgesContainer = optionEl.createSpan({ cls: 'claudian-plus-model-badges' });
+        for (const badge of badges) {
+          badgesContainer.createSpan({
+            cls: `claudian-plus-model-badge ${this.getBadgeClass(badge)}`,
+            text: badge,
+          });
+        }
       }
 
-      option.addEventListener('click', (e) => {
+      if (model.description) {
+        optionEl.setAttribute('title', model.description);
+      }
+
+      if (isSelected) {
+        optionEl.createSpan({ cls: 'claudian-plus-model-check', text: '✓' });
+      }
+
+      optionEl.addEventListener('click', (e) => {
         e.stopPropagation();
-        runToolbarAction(async () => {
-          await this.callbacks.onModelChange(model.value);
-          this.updateDisplay();
-          this.renderOptions();
-        }, 'Failed to change model');
+        this.selectModel(model.value);
       });
+
+      optionEl.addEventListener('mouseenter', () => {
+        this.highlightedIndex = index;
+        this.updateHighlight();
+      });
+    });
+  }
+
+  private resolveBadges(model: ProviderUIOption): string[] {
+    const badges: string[] = [...(model.badges ?? [])];
+    const settings = this.callbacks.getSettings();
+    const uiConfig = this.callbacks.getUIConfig();
+
+    if (uiConfig.isAdaptiveReasoningModel?.(model.value, settings) && !badges.some(b => b.includes('Reasoning') || b.includes('Thinking'))) {
+      badges.push('🧠 Reasoning');
     }
+    return badges;
+  }
+
+  private getBadgeClass(badge: string): string {
+    if (badge.includes('Reasoning') || badge.includes('Thinking') || badge.includes('🧠')) {
+      return 'claudian-plus-model-badge--reasoning';
+    }
+    if (badge.includes('CN') || badge.includes('🇨🇳') || badge.includes('国内')) {
+      return 'claudian-plus-model-badge--cn';
+    }
+    if (badge.includes('1M') || badge.includes('200k') || badge.includes('128k')) {
+      return 'claudian-plus-model-badge--context';
+    }
+    if (badge.includes('Default') || badge.includes('默认')) {
+      return 'claudian-plus-model-badge--default';
+    }
+    return 'claudian-plus-model-badge--default';
+  }
+
+  private updateHighlight() {
+    if (!this.listContainerEl) return;
+    const options = this.listContainerEl.querySelectorAll('.claudian-plus-model-option');
+    options.forEach((opt, idx) => {
+      if (idx === this.highlightedIndex) {
+        opt.addClass('highlighted');
+        (opt as HTMLElement).scrollIntoView?.({ block: 'nearest' });
+      } else {
+        opt.removeClass('highlighted');
+      }
+    });
+  }
+
+  private handleKeyboardNav(e: KeyboardEvent) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (this.filteredOptions.length > 0) {
+        this.highlightedIndex = (this.highlightedIndex + 1) % this.filteredOptions.length;
+        this.updateHighlight();
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (this.filteredOptions.length > 0) {
+        this.highlightedIndex = (this.highlightedIndex - 1 + this.filteredOptions.length) % this.filteredOptions.length;
+        this.updateHighlight();
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const target = this.filteredOptions[this.highlightedIndex];
+      if (target) {
+        this.selectModel(target.value);
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      this.close();
+      this.buttonEl?.focus();
+    }
+  }
+
+  private selectModel(modelValue: string) {
+    this.close();
+    runToolbarAction(async () => {
+      await this.callbacks.onModelChange(modelValue);
+      this.updateDisplay();
+      this.renderDropdownContent();
+    }, 'Failed to change model');
+  }
+
+  renderOptions() {
+    this.renderDropdownContent();
   }
 }
 
