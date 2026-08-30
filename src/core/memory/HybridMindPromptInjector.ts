@@ -4,6 +4,11 @@ import type { MemoryStore } from './MemoryStore';
 import type { DurableMindEntry, HybridMindInjectionResult, MindRecallInfo } from './mind-types';
 import type { MindStore } from './MindStore';
 import type { MemoryEntry } from './types';
+import {
+  DEFAULT_MEMORY_MAX_GLOBAL_INJECTION_CHARS,
+  DEFAULT_MEMORY_MAX_INJECTION_CHARS,
+  DEFAULT_MEMORY_MAX_PROJECT_INJECTION_CHARS,
+} from './types';
 
 export interface MindPromptContext {
   activeFilePath?: string;
@@ -42,9 +47,9 @@ function matchGlob(pattern: string, filePath: string): boolean {
 }
 
 export class HybridMindPromptInjector {
-  private readonly maxTotalChars: number;
-  private readonly maxGlobalChars: number;
-  private readonly maxProjectChars: number;
+  private maxTotalChars: number;
+  private maxGlobalChars: number;
+  private maxProjectChars: number;
   private readonly getMemoryStore?: () => MemoryStore | null;
   private readonly isMemoryStoreEnabled?: () => boolean;
 
@@ -52,11 +57,24 @@ export class HybridMindPromptInjector {
     private readonly mindStore: MindStore,
     config?: HybridMindInjectorConfig,
   ) {
-    this.maxTotalChars = config?.maxTotalChars ?? 1500;
-    this.maxGlobalChars = config?.maxGlobalChars ?? 350;
-    this.maxProjectChars = config?.maxProjectChars ?? 500;
+    this.maxTotalChars = config?.maxTotalChars ?? DEFAULT_MEMORY_MAX_INJECTION_CHARS;
+    this.maxGlobalChars = config?.maxGlobalChars ?? DEFAULT_MEMORY_MAX_GLOBAL_INJECTION_CHARS;
+    this.maxProjectChars = config?.maxProjectChars ?? DEFAULT_MEMORY_MAX_PROJECT_INJECTION_CHARS;
     this.getMemoryStore = config?.getMemoryStore;
     this.isMemoryStoreEnabled = config?.isMemoryStoreEnabled;
+  }
+
+  /** Update budgets at runtime (e.g. when settings change on a cached instance). */
+  updateConfig(config: Pick<HybridMindInjectorConfig, 'maxTotalChars' | 'maxGlobalChars' | 'maxProjectChars'>): void {
+    if (config.maxTotalChars !== undefined) {
+      this.maxTotalChars = config.maxTotalChars;
+    }
+    if (config.maxGlobalChars !== undefined) {
+      this.maxGlobalChars = config.maxGlobalChars;
+    }
+    if (config.maxProjectChars !== undefined) {
+      this.maxProjectChars = config.maxProjectChars;
+    }
   }
 
   async resolveInjection(context: MindPromptContext): Promise<HybridMindInjectionResult> {
@@ -72,39 +90,59 @@ export class HybridMindPromptInjector {
       const activePath = context.activeFilePath ?? '';
       const userPrompt = (context.userPromptText ?? '').toLowerCase();
 
-      const matchedEntries: DurableMindEntry[] = [];
+      // Targeted matches are scoped to the current file or prompt; untargeted
+      // entries match every turn. Keeping them in separate queues stops a
+      // confident always-on rule from outrunning a path-specific one.
+      const targetedEntries: DurableMindEntry[] = [];
+      const untargetedEntries: DurableMindEntry[] = [];
 
       for (const entry of projectEntries) {
-        let isMatched = false;
-
         // Check path patterns
         if (activePath && entry.matchPatterns && entry.matchPatterns.length > 0) {
+          let patternMatched = false;
           for (const pattern of entry.matchPatterns) {
             if (matchGlob(pattern, activePath)) {
-              isMatched = true;
+              patternMatched = true;
               break;
             }
+          }
+          if (patternMatched) {
+            targetedEntries.push(entry);
+            continue;
           }
         }
 
         // Check tags against prompt or path
-        if (!isMatched && entry.tags && entry.tags.length > 0) {
+        if (entry.tags && entry.tags.length > 0) {
+          let tagMatched = false;
           for (const tag of entry.tags) {
             const normTag = tag.trim().toLowerCase();
             if (normTag && (userPrompt.includes(normTag) || activePath.toLowerCase().includes(normTag))) {
-              isMatched = true;
+              tagMatched = true;
               break;
             }
           }
+          if (tagMatched) {
+            targetedEntries.push(entry);
+            continue;
+          }
         }
 
-        if (isMatched) {
-          matchedEntries.push(entry);
+        // Entries without targeting metadata (e.g. added via /remember or
+        // pin-to-mind) apply project-wide; without this fallback they would
+        // never reach the prompt.
+        const hasTargeting = (entry.matchPatterns?.length ?? 0) > 0 || (entry.tags?.length ?? 0) > 0;
+        if (!hasTargeting) {
+          untargetedEntries.push(entry);
         }
       }
 
+      const matchedEntries = [
+        ...targetedEntries.sort((a, b) => b.confidence - a.confidence),
+        ...untargetedEntries.sort((a, b) => b.confidence - a.confidence),
+      ];
+
       if (matchedEntries.length > 0) {
-        matchedEntries.sort((a, b) => b.confidence - a.confidence);
         const projectLines: string[] = [];
         let currentLen = 0;
         const projectLimit = Math.min(this.maxProjectChars, this.maxTotalChars - totalInjectedLength);

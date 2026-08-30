@@ -334,6 +334,15 @@ export class ClaudianPlusSettingsStorage {
     if (typeof merged.memoryEnabled !== 'boolean') {
       merged.memoryEnabled = DEFAULT_CLAUDIAN_PLUS_SETTINGS.memoryEnabled;
     }
+    for (const key of [
+      'memoryMaxGlobalInjectionChars',
+      'memoryMaxProjectInjectionChars',
+    ] as const) {
+      const value = merged[key];
+      if (typeof value !== 'number' || !Number.isFinite(value) || value < 100) {
+        merged[key] = DEFAULT_CLAUDIAN_PLUS_SETTINGS[key];
+      }
+    }
 
     // Normalize dream memory settings: fallback to defaults for invalid values.
     for (const key of ['dreamIntervalMs', 'dreamMaxLogDays', 'dreamInputCharCap', 'dreamMaxNewFacts'] as const) {

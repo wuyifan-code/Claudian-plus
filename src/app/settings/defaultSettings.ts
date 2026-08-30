@@ -1,4 +1,9 @@
-import { DEFAULT_MEMORY_FILE_PATH, DEFAULT_MEMORY_MAX_INJECTION_CHARS } from '../../core/memory/types';
+import {
+  DEFAULT_MEMORY_FILE_PATH,
+  DEFAULT_MEMORY_MAX_GLOBAL_INJECTION_CHARS,
+  DEFAULT_MEMORY_MAX_INJECTION_CHARS,
+  DEFAULT_MEMORY_MAX_PROJECT_INJECTION_CHARS,
+} from '../../core/memory/types';
 import { getDefaultHiddenProviderCommands } from '../../core/providers/commands/hiddenCommands';
 import { DEFAULT_REASONING_VALUE } from '../../core/providers/reasoning';
 import { type ClaudianPlusSettings } from '../../core/types/settings';
@@ -82,6 +87,8 @@ export const DEFAULT_CLAUDIAN_PLUS_SETTINGS: ClaudianPlusSettings = {
   memoryEnabled: true,
   memoryFilePath: DEFAULT_MEMORY_FILE_PATH,
   memoryMaxInjectionChars: DEFAULT_MEMORY_MAX_INJECTION_CHARS,
+  memoryMaxGlobalInjectionChars: DEFAULT_MEMORY_MAX_GLOBAL_INJECTION_CHARS,
+  memoryMaxProjectInjectionChars: DEFAULT_MEMORY_MAX_PROJECT_INJECTION_CHARS,
 
   // Consciousness data can contain personal context and is injected into provider prompts.
   // Require an explicit opt-in on new installations.

@@ -170,6 +170,31 @@ describe('ClaudianPlusSettingsStorage', () => {
       expect(writtenContent.chatViewPlacement).toBe('right-sidebar');
     });
 
+    it('normalizes memory injection sub-caps on load', async () => {
+      mockAdapter.exists.mockResolvedValue(true);
+      mockAdapter.read.mockResolvedValue(JSON.stringify({
+        memoryMaxGlobalInjectionChars: 800,
+        memoryMaxProjectInjectionChars: 'wide',
+      }));
+
+      const result = await storage.load();
+
+      expect(result.memoryMaxGlobalInjectionChars).toBe(800);
+      expect(result.memoryMaxProjectInjectionChars).toBe(DEFAULT_SETTINGS.memoryMaxProjectInjectionChars);
+    });
+
+    it('defaults memory injection sub-caps for settings written before they existed', async () => {
+      mockAdapter.exists.mockResolvedValue(true);
+      mockAdapter.read.mockResolvedValue(JSON.stringify({
+        memoryMaxInjectionChars: 2000,
+      }));
+
+      const result = await storage.load();
+
+      expect(result.memoryMaxGlobalInjectionChars).toBe(DEFAULT_SETTINGS.memoryMaxGlobalInjectionChars);
+      expect(result.memoryMaxProjectInjectionChars).toBe(DEFAULT_SETTINGS.memoryMaxProjectInjectionChars);
+    });
+
     it('should strip legacy blocklist fields from loaded data', async () => {
       mockAdapter.exists.mockResolvedValue(true);
       mockAdapter.read.mockResolvedValue(JSON.stringify({

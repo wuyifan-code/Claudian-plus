@@ -209,5 +209,117 @@ describe('HybridMindPromptInjector', () => {
     expect(result).not.toContain('<memory>');
     expect(result).not.toContain('Database is PostgreSQL 16');
   });
+
+  it('injects untargeted project rules (no matchPatterns/tags) as project-wide fallback', async () => {
+    // Rules added via /remember or pin-to-mind carry no targeting metadata.
+    // They must still reach the prompt, otherwise those entry points produce inert rules.
+    await mindStore.addDurable({
+      category: 'user_preference',
+      scope: 'project',
+      state: 'active',
+      content: 'Always format dates in ISO format',
+      confidence: 0.95,
+      tags: [],
+    });
+
+    const injector = new HybridMindPromptInjector(mindStore);
+    const result = await injector.buildPromptInjection({ userPromptText: 'unrelated question' });
+
+    expect(result).toContain('<project_context_rules>');
+    expect(result).toContain('Always format dates in ISO format');
+  });
+
+  it('orders targeted rules before untargeted fallback even when the fallback is more confident', async () => {
+    await mindStore.addDurable({
+      category: 'user_preference',
+      scope: 'project',
+      state: 'active',
+      content: 'Always format dates in ISO format',
+      confidence: 0.98,
+      tags: [],
+    });
+    await mindStore.addDurable({
+      category: 'project_rule',
+      scope: 'project',
+      state: 'active',
+      content: 'Provider contracts must not import features',
+      confidence: 0.55,
+      matchPatterns: ['src/providers/**'],
+      tags: [],
+    });
+
+    const injector = new HybridMindPromptInjector(mindStore);
+    const resolved = await injector.resolveInjection({
+      activeFilePath: 'src/providers/acp/AcpSubprocess.ts',
+    });
+
+    const projectContents = resolved.recalledEntries
+      .filter((entry) => entry.scope === 'project')
+      .map((entry) => entry.content);
+
+    expect(projectContents).toEqual([
+      'Provider contracts must not import features',
+      'Always format dates in ISO format',
+    ]);
+  });
+
+  it('spends a tight project budget on the targeted rule, not the confident fallback', async () => {
+    await mindStore.addDurable({
+      category: 'user_preference',
+      scope: 'project',
+      state: 'active',
+      content: 'Always format dates in ISO format and never localize numbers',
+      confidence: 0.98,
+      tags: [],
+    });
+    await mindStore.addDurable({
+      category: 'project_rule',
+      scope: 'project',
+      state: 'active',
+      content: 'Provider contracts must not import features',
+      confidence: 0.55,
+      matchPatterns: ['src/providers/**'],
+      tags: [],
+    });
+
+    // Fits the targeted line only; the fallback line is longer than the budget.
+    const injector = new HybridMindPromptInjector(mindStore, { maxProjectChars: 55 });
+    const resolved = await injector.resolveInjection({
+      activeFilePath: 'src/providers/acp/AcpSubprocess.ts',
+    });
+
+    expect(resolved.injectionText).toContain('Provider contracts must not import features');
+    expect(resolved.injectionText).not.toContain('Always format dates in ISO format');
+  });
+
+  it('applies updateConfig at runtime for cached injector instances', async () => {
+    await mindStore.addDurable({
+      category: 'user_preference',
+      scope: 'global',
+      state: 'active',
+      content: 'High confidence rule alpha with some detail',
+      confidence: 0.95,
+      tags: [],
+    });
+    await mindStore.addDurable({
+      category: 'user_preference',
+      scope: 'global',
+      state: 'active',
+      content: 'Lower confidence rule beta with some detail',
+      confidence: 0.9,
+      tags: [],
+    });
+
+    const injector = new HybridMindPromptInjector(mindStore, { maxGlobalChars: 500 });
+    const before = await injector.buildPromptInjection({});
+    expect(before).toContain('rule alpha');
+    expect(before).toContain('rule beta');
+
+    // The first (highest-confidence) line is always kept; a shrunk budget drops the rest.
+    injector.updateConfig({ maxGlobalChars: 60 });
+    const after = await injector.buildPromptInjection({});
+    expect(after).toContain('rule alpha');
+    expect(after).not.toContain('rule beta');
+  });
 });
 
