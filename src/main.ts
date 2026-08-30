@@ -1263,6 +1263,12 @@ export default class ClaudianPlusPlugin extends Plugin {
 
   /** Get the memory injection text for system prompt, or null if disabled/empty. */
   async getMemoryInjectionText(): Promise<string | null> {
+    // memoryEnabled is the Tier-1 master switch for the whole Mind + memory.md
+    // injection, not just the vault markdown layer.
+    if (!this.settings.memoryEnabled) {
+      return null;
+    }
+
     try {
       const context = this.getActiveChatContext();
       const mindInjector = this.getHybridMindPromptInjector();
@@ -1313,8 +1319,17 @@ export default class ClaudianPlusPlugin extends Plugin {
         getMemoryStore: () => this.getMemoryStore(),
         isMemoryStoreEnabled: () => !!this.settings.memoryEnabled,
         maxTotalChars: this.settings.memoryMaxInjectionChars,
+        maxGlobalChars: this.settings.memoryMaxGlobalInjectionChars,
+        maxProjectChars: this.settings.memoryMaxProjectInjectionChars,
       });
     }
+    // The injector is cached for the plugin lifetime, while the budget is
+    // editable at runtime. Re-sync before returning, mirroring getMemoryStore().
+    this._hybridMindPromptInjector.updateConfig({
+      maxTotalChars: this.settings.memoryMaxInjectionChars,
+      maxGlobalChars: this.settings.memoryMaxGlobalInjectionChars,
+      maxProjectChars: this.settings.memoryMaxProjectInjectionChars,
+    });
     return this._hybridMindPromptInjector;
   }
 

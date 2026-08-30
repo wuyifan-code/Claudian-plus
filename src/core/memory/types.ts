@@ -29,6 +29,10 @@ export const LEGACY_MEMORY_FILE_PATH = '.claudian/memory.md';
 /** Default maximum characters to inject into system prompt. */
 export const DEFAULT_MEMORY_MAX_INJECTION_CHARS = 1500;
 
+/** Per-layer sub-caps within the total injection budget. */
+export const DEFAULT_MEMORY_MAX_GLOBAL_INJECTION_CHARS = 350;
+export const DEFAULT_MEMORY_MAX_PROJECT_INJECTION_CHARS = 500;
+
 /** Template header written when creating a new memory file. */
 export const MEMORY_FILE_TEMPLATE = `# Claudian Plus Memory
 

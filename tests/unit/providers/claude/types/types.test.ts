@@ -124,6 +124,8 @@ describe('types.ts', () => {
         memoryEnabled: true,
         memoryFilePath: '.claudian-plus/memory.md',
         memoryMaxInjectionChars: 1500,
+        memoryMaxGlobalInjectionChars: 350,
+        memoryMaxProjectInjectionChars: 500,
         consciousnessEnabled: true,
         consciousnessAutoMemory: true,
       };
@@ -183,6 +185,8 @@ describe('types.ts', () => {
         memoryEnabled: true,
         memoryFilePath: '.claudian-plus/memory.md',
         memoryMaxInjectionChars: 1500,
+        memoryMaxGlobalInjectionChars: 350,
+        memoryMaxProjectInjectionChars: 500,
         consciousnessEnabled: true,
         consciousnessAutoMemory: true,
       };
@@ -243,6 +247,8 @@ describe('types.ts', () => {
         memoryEnabled: true,
         memoryFilePath: '.claudian-plus/memory.md',
         memoryMaxInjectionChars: 1500,
+        memoryMaxGlobalInjectionChars: 350,
+        memoryMaxProjectInjectionChars: 500,
         consciousnessEnabled: true,
         consciousnessAutoMemory: true,
       };

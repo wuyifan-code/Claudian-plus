@@ -172,6 +172,10 @@ export interface ClaudianPlusSettings {
   memoryEnabled: boolean;
   memoryFilePath: string;
   memoryMaxInjectionChars: number;
+  /** Sub-cap for the global mind profile layer, within memoryMaxInjectionChars. */
+  memoryMaxGlobalInjectionChars: number;
+  /** Sub-cap for the dynamic project rules layer, within memoryMaxInjectionChars. */
+  memoryMaxProjectInjectionChars: number;
 
   // Consciousness system (QoderWork-inspired)
   consciousnessEnabled: boolean;

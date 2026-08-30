@@ -57,22 +57,6 @@ function formatHotkey(hotkey: ObsidianHotkey): string {
   return isMac ? [...mods, key].join('') : [...mods, key].join('+');
 }
 
-export function openMindSettings(app: App): void {
-  const setting = (app as AppWithHotkeyInternals).setting;
-  if (!setting) {
-    return;
-  }
-
-  setting.open();
-  setting.openTabById('claudian-plus');
-  window.setTimeout(() => {
-    const tab = setting.activeTab as unknown as { selectCategory?: (id: string) => void };
-    if (tab && typeof tab.selectCategory === 'function') {
-      tab.selectCategory('memory');
-    }
-  }, 50);
-}
-
 function openHotkeySettings(app: App): void {
   const setting = (app as AppWithHotkeyInternals).setting;
   if (!setting) {
@@ -879,6 +863,68 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
         name: t('settings.memory.maxChars.name'),
         desc: t('settings.memory.maxChars.desc'),
         targetEl: maxCharsSetting.settingEl,
+      });
+
+      const globalCharsSetting = new Setting(memoryCard)
+        .setName(featureCopy(locale, '全局画像预算（字符）', 'Global profile budget (chars)'))
+        .setDesc(featureCopy(
+          locale,
+          '用户画像层在总预算内可占用的上限。',
+          'Cap for the user mind profile layer within the total budget.',
+        ))
+        .addSlider((slider) => {
+          slider
+            .setLimits(100, 1500, 50)
+            .setValue(this.plugin.settings.memoryMaxGlobalInjectionChars)
+            .setDynamicTooltip()
+            .onChange(async (value) => {
+              await this.plugin.mutateSettings((settings) => {
+                settings.memoryMaxGlobalInjectionChars = value;
+              });
+            });
+        });
+      this.registerSearchEntry({
+        categoryId: 'memory',
+        categoryLabel: 'Memory & Consciousness',
+        settingKey: 'memory-global-chars',
+        name: featureCopy(locale, '全局画像预算（字符）', 'Global profile budget (chars)'),
+        desc: featureCopy(
+          locale,
+          '用户画像层在总预算内可占用的上限。',
+          'Cap for the user mind profile layer within the total budget.',
+        ),
+        targetEl: globalCharsSetting.settingEl,
+      });
+
+      const projectCharsSetting = new Setting(memoryCard)
+        .setName(featureCopy(locale, '项目规则预算（字符）', 'Project rules budget (chars)'))
+        .setDesc(featureCopy(
+          locale,
+          '动态项目规则层在总预算内可占用的上限。',
+          'Cap for the dynamic project rules layer within the total budget.',
+        ))
+        .addSlider((slider) => {
+          slider
+            .setLimits(100, 2000, 50)
+            .setValue(this.plugin.settings.memoryMaxProjectInjectionChars)
+            .setDynamicTooltip()
+            .onChange(async (value) => {
+              await this.plugin.mutateSettings((settings) => {
+                settings.memoryMaxProjectInjectionChars = value;
+              });
+            });
+        });
+      this.registerSearchEntry({
+        categoryId: 'memory',
+        categoryLabel: 'Memory & Consciousness',
+        settingKey: 'memory-project-chars',
+        name: featureCopy(locale, '项目规则预算（字符）', 'Project rules budget (chars)'),
+        desc: featureCopy(
+          locale,
+          '动态项目规则层在总预算内可占用的上限。',
+          'Cap for the dynamic project rules layer within the total budget.',
+        ),
+        targetEl: projectCharsSetting.settingEl,
       });
 
       const memoryButtonSetting = new Setting(memoryCard)
