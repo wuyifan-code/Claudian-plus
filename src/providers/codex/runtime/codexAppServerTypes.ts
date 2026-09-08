@@ -60,7 +60,8 @@ export interface Thread {
   cwd: string;
   cliVersion: string;
   status: ThreadStatus;
-  turns: Turn[];
+  /** Omitted by paginated thread responses that defer history to thread/turns/list. */
+  turns?: Turn[];
   createdAt: number;
   updatedAt: number;
   name: string | null;
@@ -461,22 +462,16 @@ export type ThreadResumeResult = ThreadStartResult;
 
 export interface ThreadForkParams {
   threadId: string;
+  /**
+   * Inclusive fork boundary: the fork retains history through this turn and
+   * omits all later turns. Must reference a completed turn in the source
+   * thread; the server rejects unknown turn ids instead of forking the
+   * whole thread. The source thread is never modified.
+   */
+  lastTurnId?: string;
 }
 
 export type ThreadForkResult = ThreadStartResult;
-
-// ---------------------------------------------------------------------------
-// thread/rollback
-// ---------------------------------------------------------------------------
-
-export interface ThreadRollbackParams {
-  threadId: string;
-  numTurns: number;
-}
-
-export interface ThreadRollbackResult {
-  thread: Thread;
-}
 
 // ---------------------------------------------------------------------------
 // thread/compact/start

@@ -62,7 +62,6 @@ import type {
   ThreadCompactStartResult,
   ThreadForkResult,
   ThreadResumeResult,
-  ThreadRollbackResult,
   ThreadStartResult,
   TurnStartedNotification,
   TurnStartResult,
@@ -440,25 +439,31 @@ export class CodexChatRuntime implements ChatRuntime {
       }
 
       if (this.pendingFork) {
-        // Pending fork: fork the source thread, optionally roll back, then start a turn
+        // Pending fork: fork the source thread at the server-side checkpoint
+        // boundary, then start a turn. lastTurnId is inclusive, so the fork
+        // keeps history through the checkpoint turn and the source thread is
+        // never modified. thread/rollback is not usable here because
+        // paginated threads reject it.
         const fork = this.pendingFork;
 
         const forkResult = await this.transport!.request<ThreadForkResult>('thread/fork', {
           threadId: fork.sessionId,
+          lastTurnId: fork.resumeAt,
         });
         threadId = forkResult.thread.id;
         threadTargetPath = forkResult.thread.path ?? null;
         threadPath = this.toHostSessionPath(threadTargetPath);
 
-        // Compute rollback: count turns after the resumeAt checkpoint
-        const forkTurns = forkResult.thread.turns ?? [];
-        const checkpointIndex = forkTurns.findIndex(t => t.id === fork.resumeAt);
-        if (checkpointIndex < 0) {
-          throw new Error(`Fork checkpoint not found: ${fork.resumeAt}`);
+        // When the server hydrates fork history it must end at the
+        // checkpoint. A longer history means the boundary was ignored (e.g.
+        // an app-server without lastTurnId support forking the whole
+        // thread), which would desync the fork from the local conversation.
+        const forkTurns = forkResult.thread.turns;
+        if (forkTurns && forkTurns.length > 0 && forkTurns[forkTurns.length - 1].id !== fork.resumeAt) {
+          throw new Error(`Fork checkpoint not applied: ${fork.resumeAt}`);
         }
-        const numTurnsToRollback = forkTurns.length - checkpointIndex - 1;
 
-        // Resume the forked thread (required before rollback and turn/start)
+        // Resume the forked thread (required before turn/start)
         const permissionMode = this.resolveSandboxConfig();
         await this.transport!.request<ThreadResumeResult>('thread/resume', {
           threadId,
@@ -471,13 +476,6 @@ export class CodexChatRuntime implements ChatRuntime {
           persistExtendedHistory: true,
           dynamicTools: this.dynamicToolRegistry.getThreadStartSpecs(),
         });
-
-        if (numTurnsToRollback > 0) {
-          await this.transport!.request<ThreadRollbackResult>('thread/rollback', {
-            threadId,
-            numTurns: numTurnsToRollback,
-          });
-        }
 
         this.loadedThreadId = threadId;
         completedPendingFork = true;
