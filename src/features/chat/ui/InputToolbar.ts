@@ -198,8 +198,6 @@ export class ModelSelector {
       const searchContainer = this.dropdownEl.createDiv({ cls: 'claudian-plus-model-search-container' });
       const searchWrapper = searchContainer.createDiv({ cls: 'claudian-plus-model-search-wrapper' });
 
-      searchWrapper.createSpan({ cls: 'claudian-plus-model-search-icon', text: '🔍' });
-
       this.searchInputEl = searchWrapper.createEl('input', {
         cls: 'claudian-plus-model-search-input',
         type: 'text',
@@ -308,10 +306,6 @@ export class ModelSelector {
         optionEl.setAttribute('title', model.description);
       }
 
-      if (isSelected) {
-        optionEl.createSpan({ cls: 'claudian-plus-model-check', text: '✓' });
-      }
-
       optionEl.addEventListener('click', (e) => {
         e.stopPropagation();
         this.selectModel(model.value);
@@ -330,16 +324,16 @@ export class ModelSelector {
     const uiConfig = this.callbacks.getUIConfig();
 
     if (uiConfig.isAdaptiveReasoningModel?.(model.value, settings) && !badges.some(b => b.includes('Reasoning') || b.includes('Thinking'))) {
-      badges.push('🧠 Reasoning');
+      badges.push('Reasoning');
     }
     return badges;
   }
 
   private getBadgeClass(badge: string): string {
-    if (badge.includes('Reasoning') || badge.includes('Thinking') || badge.includes('🧠')) {
+    if (badge.includes('Reasoning') || badge.includes('Thinking')) {
       return 'claudian-plus-model-badge--reasoning';
     }
-    if (badge.includes('CN') || badge.includes('🇨🇳') || badge.includes('国内')) {
+    if (badge.includes('CN') || badge.includes('国内')) {
       return 'claudian-plus-model-badge--cn';
     }
     if (badge.includes('1M') || badge.includes('200k') || badge.includes('128k')) {

@@ -1306,8 +1306,8 @@ export default class ClaudianPlusPlugin extends Plugin {
         onNewStaging: (count) => {
           const isZh = (this.settings.locale ?? 'en').toLowerCase().startsWith('zh');
           const noticeText = isZh
-            ? `✨ 微梦境提炼了 ${count} 条新偏好，可在设置中审阅`
-            : `✨ Micro-dream synthesized ${count} new rule${count > 1 ? 's' : ''}, review in Settings`;
+            ? `微梦境提炼了 ${count} 条新偏好，可在设置中审阅`
+            : `Micro-dream synthesized ${count} new rule${count > 1 ? 's' : ''}, review in Settings`;
           new Notice(noticeText);
         },
       });

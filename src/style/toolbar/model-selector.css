@@ -97,12 +97,6 @@
   border-color: var(--interactive-accent);
 }
 
-.claudian-plus-model-search-icon {
-  font-size: 11px;
-  opacity: 0.6;
-  user-select: none;
-}
-
 .claudian-plus-model-search-input {
   border: none;
   outline: none;
@@ -255,12 +249,4 @@
 .claudian-plus-model-badge--default {
   background-color: var(--background-secondary);
   color: var(--text-faint);
-}
-
-.claudian-plus-model-check {
-  color: var(--interactive-accent);
-  font-weight: bold;
-  font-size: 11px;
-  margin-left: 2px;
-  flex-shrink: 0;
 }

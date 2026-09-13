@@ -53,7 +53,7 @@ export class MindSettingsTab {
     const card = root.createDiv({ cls: 'claudian-plus-settings-card' });
     const header = card.createDiv({
       cls: 'claudian-plus-settings-card-header',
-      text: this.isZh ? '🧠 AI 心智与微梦境 (Dreaming V3)' : '🧠 AI Mind & Habits (Dreaming V3)',
+      text: this.isZh ? 'AI 心智与微梦境 (Dreaming V3)' : 'AI Mind & Habits (Dreaming V3)',
     });
     header.createDiv({
       cls: 'claudian-plus-settings-feature-guide-copy',
@@ -76,7 +76,7 @@ export class MindSettingsTab {
       const actionsEl = headerRow.createDiv({ cls: 'claudian-plus-mind-header-actions' });
       const approveAllBtn = actionsEl.createEl('button', {
         cls: 'mod-cta',
-        text: this.isZh ? '✓ 全部采纳' : '✓ Approve All',
+        text: this.isZh ? '全部采纳' : 'Approve All',
       });
       approveAllBtn.addEventListener('click', () => {
         void (async () => {
@@ -124,7 +124,7 @@ export class MindSettingsTab {
     });
     metaRow.createSpan({
       cls: 'claudian-plus-mind-scope-pill',
-      text: entry.scope === 'global' ? (this.isZh ? '🌐 全局偏好' : '🌐 Global') : (this.isZh ? '📁 本库专属' : '📁 Project'),
+      text: entry.scope === 'global' ? (this.isZh ? '全局偏好' : 'Global') : (this.isZh ? '本库专属' : 'Project'),
     });
     metaRow.createSpan({
       cls: 'claudian-plus-mind-confidence',
@@ -147,7 +147,7 @@ export class MindSettingsTab {
     const actionRow = card.createDiv({ cls: 'claudian-plus-mind-action-row' });
     const approveBtn = actionRow.createEl('button', {
       cls: 'claudian-plus-mind-btn-approve mod-cta',
-      text: this.isZh ? '✓ 采纳' : '✓ Approve',
+      text: this.isZh ? '采纳' : 'Approve',
     });
     approveBtn.addEventListener('click', () => {
       void (async () => {
@@ -161,7 +161,7 @@ export class MindSettingsTab {
 
     const dismissBtn = actionRow.createEl('button', {
       cls: 'claudian-plus-mind-btn-dismiss',
-      text: this.isZh ? '✕ 忽略' : '✕ Dismiss',
+      text: this.isZh ? '忽略' : 'Dismiss',
     });
     dismissBtn.addEventListener('click', () => {
       void (async () => {
@@ -255,7 +255,7 @@ export class MindSettingsTab {
     });
     metaRow.createSpan({
       cls: 'claudian-plus-mind-scope-pill',
-      text: entry.scope === 'global' ? (this.isZh ? '🌐 全局' : '🌐 Global') : (this.isZh ? '📁 本库' : '📁 Project'),
+      text: entry.scope === 'global' ? (this.isZh ? '全局' : 'Global') : (this.isZh ? '本库' : 'Project'),
     });
     metaRow.createSpan({
       cls: 'claudian-plus-mind-state-tag',

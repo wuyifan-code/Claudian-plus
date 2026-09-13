@@ -272,7 +272,7 @@ describe('ModelSelector', () => {
       { value: 'claude-3-7-sonnet', label: 'Claude 3.7 Sonnet', group: 'Anthropic' },
       { value: 'claude-3-5-haiku', label: 'Claude 3.5 Haiku', group: 'Anthropic' },
       { value: 'gpt-4o', label: 'GPT-4o', group: 'OpenAI' },
-      { value: 'deepseek-r1', label: 'DeepSeek R1', group: 'DeepSeek', badges: ['🧠 Reasoning', '🇨🇳 CN-Hosted'] },
+      { value: 'deepseek-r1', label: 'DeepSeek R1', group: 'DeepSeek', badges: ['Reasoning', 'CN-Hosted'] },
     ];
     const uiConfig = createMockUIConfig();
     uiConfig.getModelOptions.mockReturnValue(manyModels);
@@ -289,7 +289,7 @@ describe('ModelSelector', () => {
     expect(options.length).toBe(1);
     expect(options[0]?.querySelector('.claudian-plus-model-option-label')?.textContent).toBe('DeepSeek R1');
     const badges = options[0]?.querySelectorAll('.claudian-plus-model-badge') || [];
-    expect(badges.some((b: any) => b.textContent?.includes('🇨🇳 CN-Hosted'))).toBe(true);
+    expect(badges.some((b: any) => b.textContent?.includes('CN-Hosted'))).toBe(true);
   });
 
   it('should always show brand color on model button', () => {

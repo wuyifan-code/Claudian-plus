@@ -639,7 +639,7 @@ describe('ClaudianPlusView Escape handling', () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(badgeEl.hasClass('claudian-plus-hidden')).toBe(false);
-      expect(badgeEl.textContent).toContain('🧠 3');
+      expect(badgeEl.textContent).toBe('3');
     });
 
     it('hides staging count badge when staging count is 0', async () => {

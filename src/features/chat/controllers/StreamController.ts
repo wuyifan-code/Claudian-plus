@@ -194,13 +194,13 @@ export class StreamController {
 
       case 'notice':
         this.flushPendingTools();
-        await this.appendText(`\n\n⚠️ **${chunk.level === 'warning' ? 'Blocked' : 'Notice'}:** ${chunk.content}`);
+        await this.appendText(`\n\n**${chunk.level === 'warning' ? 'Blocked' : 'Notice'}:** ${chunk.content}`);
         break;
 
       case 'error':
         // Flush pending tools before rendering error message
         this.flushPendingTools();
-        await this.appendText(`\n\n❌ **Error:** ${chunk.content}`);
+        await this.appendText(`\n\n**Error:** ${chunk.content}`);
         break;
 
       case 'done':

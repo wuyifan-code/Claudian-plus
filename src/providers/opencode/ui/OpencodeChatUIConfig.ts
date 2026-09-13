@@ -52,10 +52,10 @@ export const opencodeChatUIConfig: ProviderChatUIConfig = {
         || ((opencodeSettings.thinkingOptionsByModel[model.rawId]?.length ?? 0) > 0);
       const badges: string[] = [];
       if (hasThinking) {
-        badges.push('🧠 Reasoning');
+        badges.push('Reasoning');
       }
       if (isChinaHosted) {
-        badges.push('🇨🇳 CN-Hosted');
+        badges.push('CN-Hosted');
       }
       return [
         encodeOpencodeModelId(model.rawId),
@@ -86,7 +86,7 @@ export const opencodeChatUIConfig: ProviderChatUIConfig = {
       const isChinaHosted = isOpencodeChinaHostedModel(rawModelId);
       const badges: string[] = [];
       if (isChinaHosted) {
-        badges.push('🇨🇳 CN-Hosted');
+        badges.push('CN-Hosted');
       }
       pushOption(
         options,

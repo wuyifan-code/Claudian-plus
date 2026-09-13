@@ -16,7 +16,7 @@
 
 - [ ] 新建 Tab（+ 按钮），选择 provider（Claude / Codex / OpenCode / Kimi / Pi）
 - [ ] 发送简单 prompt（如 "hello"），确认收到流式回复
-- [ ] 关闭 Tab（✕），重新打开面板，确认 Tab 恢复
+- [ ] 关闭 Tab（标签页关闭按钮），重新打开面板，确认 Tab 恢复
 - [ ] 多个 Tab 之间切换，确认状态保持
 
 ## 历史搜索
