@@ -70,6 +70,8 @@ describe('ClaudianPlusPlugin', () => {
 
     mockApp = {
       vault: {
+        // Vault lifecycle events; a real vault always exposes `on`.
+        on: jest.fn(),
         adapter: {
           basePath: '/test/vault',
           exists: jest.fn().mockResolvedValue(false),

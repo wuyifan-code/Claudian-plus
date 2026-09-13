@@ -14,7 +14,7 @@ import { DEFAULT_MEMORY_FILE_PATH } from './types';
 
 /** Awareness file paths relative to vault root. */
 export const AWARENESS_DIR = '.claudian-plus/awareness';
-const LEGACY_AWARENESS_DIR = '.claudian/awareness';
+export const LEGACY_AWARENESS_DIR = '.claudian/awareness';
 export const SOUL_FILE = `${AWARENESS_DIR}/SOUL.md`;
 export const USER_FILE = `${AWARENESS_DIR}/USER.md`;
 export const LEGACY_SOUL_FILE = `${LEGACY_AWARENESS_DIR}/SOUL.md`;

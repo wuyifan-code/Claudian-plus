@@ -19,7 +19,6 @@ import { DEFAULT_CLAUDIAN_PLUS_SETTINGS } from './app/settings/defaultSettings';
 import type { ConditionalSettingsMutation } from './app/settings/SettingsCoordinator';
 import { SettingsCoordinator, type SettingsMutation } from './app/settings/SettingsCoordinator';
 import { SharedStorageService } from './app/storage/SharedStorageService';
-import type { SharedAppStorage } from './core/bootstrap/storage';
 import {
   ConsciousnessEngine,
   DREAM_CHECK_INTERVAL_MS,
@@ -133,7 +132,7 @@ function hasSamePendingProviderSessionInvalidations(
 
 export default class ClaudianPlusPlugin extends Plugin {
   settings!: ClaudianPlusSettings;
-  storage!: SharedAppStorage;
+  storage!: SharedStorageService;
   readonly idleScheduler = new CooperativeIdleScheduler();
   readonly startupCoordinator = new StagedStartupCoordinator({ scheduler: this.idleScheduler });
   readonly providerHost = new ClaudianPlusProviderHost(this);
@@ -655,6 +654,10 @@ export default class ClaudianPlusPlugin extends Plugin {
       ...DEFAULT_CLAUDIAN_PLUS_SETTINGS,
       ...claudianPlus,
     };
+    // The memory read cache is created with the storage service, before settings
+    // exist. Resolve the (user configurable) memory file path lazily so a custom
+    // path is cacheable without recreating the adapter.
+    this.storage.setMemoryFilePathProvider(() => this.settings?.memoryFilePath);
     // Fresh installs get the lightweight welcome animation by default while
     // upgrades keep the legacy Three.js cube they already saw.
     if (this.settings.welcomeAnimationMode === undefined) {
