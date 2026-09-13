@@ -4,7 +4,7 @@
 Geometry and eye UI directly reused from https://github.com/w210548735-art/grok_bot-icon-study (`replica/geometry-data.js` → `window.GROK_GEO`, commit `cfc31de publish Grok Bot icon study`, cloned 2026-08-20 to `$TEMP/grok_bot-icon-study`). Path `BLOB_PATH` and `EYES[25]` arrays are verbatim with header `// Sourced from ...` in `geometry.ts`. Architecture pattern (state machine / spring / eye morph / overlay) inspired by that study's `extracted/` and `replica/src/` modules. Upstream material is from a third-party application; reused here for research with attribution. Do not publish the geometry as your own original asset without verifying applicable rights. Spring/eye/overlay logic (`BlobSpring.ts`, `BlobEyeMorph.ts`, `BlobOverlays.ts`, `BlobRenderer.ts`, `BlobController.ts`, `BlobEngine.ts`) is authored in this repo.
 
 ## Overview
-- Layers: pure-logic (state machine / spring / eye lerp → unit-testable) → renderer (SVG + rAF, DOM-coupled) → controller (visibility pause) → engine assembly + internal preview.
+- Layers: pure-logic (state machine / spring / eye lerp → unit-testable) → renderer (SVG + rAF, DOM-coupled) → controller (visibility pause) → engine assembly.
 - Location: `src/shared/blob/` (shared UI asset, not a provider). No changes to `src/core/` or `src/providers/*/`.
 - Colors via `src/style/base/tokens.css` (`--claudian-plus-surface-primary`, `--claudian-plus-text-normal`, `--claudian-plus-border`, `--claudian-plus-accent`, `--claudian-plus-text-muted`). No hard-coded hex/rgb outside `base/variables.css` / `base/tokens.css` (enforced by `tests/unit/style/style-tokens.test.ts`).
 - Rendering: SVG `viewBox="-15 -15 259 259"` (`VIEWBOX`, `GEO_RE=114.2705`), body `<path d="BLOB_PATH">`, eyes as `<path>` from `EYES` polygons via `lerpPoly`, overlay as `circle` with `var(--claudian-plus-accent)`.
@@ -22,7 +22,7 @@ Geometry and eye UI directly reused from https://github.com/w210548735-art/grok_
 | `error` | — | — | — | — | — | `error` (self) | `idle` |
 | `celebrate` | — | — | — | — | — | `error` | `idle` |
 
-Priority: `error` event wins in any state (global gate in `BlobStateMachine.dispatch`). Invalid transitions are no-ops. `celebrate` is timed (2s in preview) then `reset` to `idle`; pure logic uses injected reset, no real timers.
+Priority: `error` event wins in any state (global gate in `BlobStateMachine.dispatch`). Invalid transitions are no-ops. `celebrate` is timed (2s) then `reset` to `idle`; pure logic uses injected reset, no real timers.
 
 Defined in `src/shared/blob/BlobStateMachine.ts: BLOB_TRANSITIONS`.
 
@@ -77,11 +77,7 @@ Matches `replica/src/fx.js MAP` (`thinking→dots`, `writing→pencil`, `alertin
 | Body stroke | `--claudian-plus-border` | `var(--background-modifier-border)` |
 | Eye fill | `--claudian-plus-text-normal` | `var(--text-normal)` |
 | Overlay stroke | `--claudian-plus-accent` | `var(--interactive-accent)` |
-| Preview host bg | `--claudian-plus-surface-primary` | `var(--background-primary)` |
-| Preview border | `--claudian-plus-border` | `var(--background-modifier-border)` |
-| Preview shadow | `--claudian-plus-shadow-md` | `var(--background-modifier-cover)` etc. |
-
-All in `src/style/components/blob.css` and `blob-preview.css`; no `#hex` or `rgb()` literals (ratchet green).
+All in `src/style/components/blob.css`; no `#hex` or `rgb()` literals (ratchet green).
 
 ## Testing
 
@@ -106,25 +102,16 @@ console.log(await engine.measureIdleCpu(2000)); // < 1
 // Hide sidebar or set document.hidden = true, then controller.isPaused === true
 ```
 
-## Internal Preview
-
-`src/shared/blob/preview.ts: mountBlobPreview()` mounts a fixed bottom-right floating layer cycling the 6 states every `2000ms`, with manual buttons per state and a close button. Exposed as `window.__CLAUDIAN_BLOB_PREVIEW__` for console: `window.__CLAUDIAN_BLOB_PREVIEW__()`.
-
-This milestone does **not** integrate into the welcome page (M3). Preview is dev-only.
-
 ## Follow Pointer (Welcome only)
 
 `createBlobEngine(container, {followPointer:true})` enables mouse follow for the welcome large blob only (small indicators remain static). `window.pointermove` (passive) maps via `BlobFollow.mapToSmallCircle` (6px clamp, `calcSquash`) and `gaze` offset; follow is gated to the area **above the input** (`e.clientY <= inputTop`, full-width), otherwise returns to center. `squash` scales with distance, `tx/ty` springs follow. Controlled by `settings.blobFollowPointer` (default `true`, `Appearance → Follow mouse` toggle); `MessageRenderer` passes it to `BlobWelcomeView` and `refreshWelcomeAnimation` recreates the welcome. Small blobs ignore the flag.
 
-Preview (`preview.ts`) has a `Follow: ON/OFF` button to toggle live.
-
-## M3 Usage (Welcome + Indicators)
+## M3 Usage (Welcome)
 
 - **Welcome** (`src/features/chat/ui/BlobWelcomeView.ts`): large 120px blob `idle` (25-eye playlist, 1.2-2.2s) + greeting only (recents/quick actions removed per feedback); onboarding 1200ms `onboardMood` cycle from `curious` once via `blob.onboardingSeen` flag, now with `followPointer` when enabled.
-- **Composer** (`src/features/chat/ui/ComposerBlobIndicator.ts`): 20px small, `listening` on focus, `thinking`/`writing` on stream, hidden on `idle` (no follow).
-- **Tabs** (`src/features/chat/tabs/TabBlobIndicator.ts`): per-tab 20px small, isolated `Map<tabId, BlobEngine>`, `idle` hidden (no follow).
-- **Wiring** (`src/features/chat/services/BlobStateWiring.ts`): `mapStreamStatusToBlobState` pure, no provider logic.
 - **Gate** `blobFollowPointer` (`src/core/types/settings.ts`, `defaultSettings.ts`) defaults `true`, toggle under Appearance.
+
+The per-composer and per-tab small indicators were never wired into the UI (no styles, no call sites) and were removed along with the dev-only preview.
 
 ## Verification
 
@@ -135,4 +122,4 @@ node scripts/run-jest.js --runInBand tests/unit/shared/blob
 npm run build
 ```
 
-Full suite `node scripts/run-jest.js --runInBand` baseline 6 suites / 14 tests failures (Windows) must not grow. Manual: light / dark / Minimal theme, sidebar hidden → `BlobController.isPaused` true.
+Full suite `node scripts/run-jest.js --runInBand` baseline 4 suites / 5 tests failures (Windows, 2026-09-13) must not grow. Manual: light / dark / Minimal theme, sidebar hidden → `BlobController.isPaused` true.

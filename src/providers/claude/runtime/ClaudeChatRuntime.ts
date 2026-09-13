@@ -127,8 +127,8 @@ export type {
 
 export interface ClaudeRuntimeServices {
   mcpManager: McpServerManager;
-  pluginManager: AppPluginManager;
-  agentManager: Pick<AppAgentManager, 'setBuiltinAgentNames'>;
+  pluginManager?: AppPluginManager;
+  agentManager?: Pick<AppAgentManager, 'setBuiltinAgentNames'>;
 }
 
 type QueryOptions = ChatRuntimeQueryOptions;
@@ -229,27 +229,21 @@ export class ClaudeChatRuntime implements ChatRuntime {
     };
   }
 
-  private getLegacyPluginDeps(): ProviderHost & {
+  // ClaudeRuntimeServices may omit the managers; fall back to the plugin host,
+  // which carries them at runtime and is the only source for callers that pass
+  // services without them.
+  private pluginHostDeps(): ProviderHost & {
     agentManager?: Pick<AppAgentManager, 'setBuiltinAgentNames'>;
     pluginManager?: AppPluginManager;
   } {
     return this.plugin;
   }
 
-  constructor(plugin: ProviderHost, services: ClaudeRuntimeServices | McpServerManager) {
+  constructor(plugin: ProviderHost, services: ClaudeRuntimeServices) {
     this.plugin = plugin;
-    const legacyPlugin = this.getLegacyPluginDeps();
-
-    if ('mcpManager' in services) {
-      this.mcpManager = services.mcpManager;
-      this.pluginManager = services.pluginManager ?? legacyPlugin.pluginManager ?? null;
-      this.agentManager = services.agentManager ?? legacyPlugin.agentManager ?? null;
-      return;
-    }
-
-    this.mcpManager = services;
-    this.pluginManager = legacyPlugin.pluginManager ?? null;
-    this.agentManager = legacyPlugin.agentManager ?? null;
+    this.mcpManager = services.mcpManager;
+    this.pluginManager = services.pluginManager ?? this.pluginHostDeps().pluginManager ?? null;
+    this.agentManager = services.agentManager ?? this.pluginHostDeps().agentManager ?? null;
   }
 
   getCapabilities() {
@@ -877,7 +871,7 @@ export class ClaudeChatRuntime implements ChatRuntime {
   }
 
   private requirePluginManager(): AppPluginManager {
-    const pluginManager = this.pluginManager ?? this.getLegacyPluginDeps().pluginManager ?? null;
+    const pluginManager = this.pluginManager ?? this.pluginHostDeps().pluginManager ?? null;
     if (!pluginManager) {
       throw new Error('Claude plugin manager is unavailable.');
     }
@@ -885,7 +879,7 @@ export class ClaudeChatRuntime implements ChatRuntime {
   }
 
   private getAgentManager(): Pick<AppAgentManager, 'setBuiltinAgentNames'> | null {
-    return this.agentManager ?? this.getLegacyPluginDeps().agentManager ?? null;
+    return this.agentManager ?? this.pluginHostDeps().agentManager ?? null;
   }
 
   /**

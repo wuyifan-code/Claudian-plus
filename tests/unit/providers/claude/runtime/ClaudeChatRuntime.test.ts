@@ -81,7 +81,7 @@ describe('ClaudeChatRuntime', () => {
       transformMentions: jest.fn().mockImplementation((text: string) => text),
     } as unknown as MockMcpServerManager;
 
-    service = new ClaudeChatRuntime(mockPlugin as ClaudianPlusPlugin, mockMcpManager);
+    service = new ClaudeChatRuntime(mockPlugin as ClaudianPlusPlugin, { mcpManager: mockMcpManager });
   });
 
   describe('prepareTurn', () => {

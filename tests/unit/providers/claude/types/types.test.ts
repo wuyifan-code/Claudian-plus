@@ -1,3 +1,4 @@
+import { DEFAULT_CLAUDIAN_PLUS_SETTINGS } from '@/app/settings/defaultSettings';
 import type {
   ChatMessage,
   Conversation,
@@ -22,7 +23,6 @@ import {
 } from '@/providers/claude/types/models';
 import {
   createPermissionRule,
-  DEFAULT_SETTINGS,
   parseCCPermissionRule,
 } from '@/providers/claude/types/settings';
 
@@ -33,42 +33,42 @@ describe('types.ts', () => {
     });
   });
 
-  describe('DEFAULT_SETTINGS', () => {
+  describe('DEFAULT_CLAUDIAN_PLUS_SETTINGS', () => {
     it('should default to normal permission mode', () => {
-      expect(DEFAULT_SETTINGS.permissionMode).toBe('normal');
+      expect(DEFAULT_CLAUDIAN_PLUS_SETTINGS.permissionMode).toBe('normal');
     });
 
     it('should have sharedEnvironmentVariables as empty string by default', () => {
-      expect(DEFAULT_SETTINGS.sharedEnvironmentVariables).toBe('');
+      expect(DEFAULT_CLAUDIAN_PLUS_SETTINGS.sharedEnvironmentVariables).toBe('');
     });
 
     it('should have envSnippets as empty array by default', () => {
-      expect(DEFAULT_SETTINGS.envSnippets).toEqual([]);
+      expect(DEFAULT_CLAUDIAN_PLUS_SETTINGS.envSnippets).toEqual([]);
     });
 
     it('should have custom model aliases as an empty map by default', () => {
-      expect(DEFAULT_SETTINGS.customModelAliases).toEqual({});
+      expect(DEFAULT_CLAUDIAN_PLUS_SETTINGS.customModelAliases).toEqual({});
     });
 
     it('should have lastClaudeModel set to haiku by default', () => {
-      expect(getClaudeProviderSettings(DEFAULT_SETTINGS).lastModel).toBe('haiku');
+      expect(getClaudeProviderSettings(DEFAULT_CLAUDIAN_PLUS_SETTINGS).lastModel).toBe('haiku');
     });
 
     it('should have no Claude model environment source by default', () => {
-      expect(getClaudeProviderSettings(DEFAULT_SETTINGS).modelEnvironmentType).toBe('');
-      expect(getClaudeProviderSettings(DEFAULT_SETTINGS).titleModelEnvironmentType).toBe('');
+      expect(getClaudeProviderSettings(DEFAULT_CLAUDIAN_PLUS_SETTINGS).modelEnvironmentType).toBe('');
+      expect(getClaudeProviderSettings(DEFAULT_CLAUDIAN_PLUS_SETTINGS).titleModelEnvironmentType).toBe('');
     });
 
     it('should have empty custom Claude models by default', () => {
-      expect(getClaudeProviderSettings(DEFAULT_SETTINGS).customModels).toBe('');
+      expect(getClaudeProviderSettings(DEFAULT_CLAUDIAN_PLUS_SETTINGS).customModels).toBe('');
     });
 
     it('should have lastCustomModel as empty string by default', () => {
-      expect(DEFAULT_SETTINGS.lastCustomModel).toBe('');
+      expect(DEFAULT_CLAUDIAN_PLUS_SETTINGS.lastCustomModel).toBe('');
     });
 
     it('should collapse file edits by default', () => {
-      expect(DEFAULT_SETTINGS.expandFileEditsByDefault).toBe(false);
+      expect(DEFAULT_CLAUDIAN_PLUS_SETTINGS.expandFileEditsByDefault).toBe(false);
     });
   });
 

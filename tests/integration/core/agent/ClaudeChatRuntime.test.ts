@@ -144,7 +144,7 @@ describe('ClaudeChatRuntime', () => {
     jest.clearAllMocks();
     resetMockMessages();
     mockPlugin = createMockPlugin();
-    service = new ClaudeChatRuntime(mockPlugin, createMockMcpManager());
+    service = new ClaudeChatRuntime(mockPlugin, { mcpManager: createMockMcpManager() });
   });
 
   afterEach(() => {
@@ -216,7 +216,7 @@ describe('ClaudeChatRuntime', () => {
           mockPlugin.getActiveEnvironmentVariables()
         )
       );
-      service = new ClaudeChatRuntime(mockPlugin, createMockMcpManager());
+      service = new ClaudeChatRuntime(mockPlugin, { mcpManager: createMockMcpManager() });
 
       (fs.existsSync as jest.Mock).mockImplementation((p: string) => p === customPath);
       (fs.statSync as jest.Mock).mockReturnValue({ isFile: () => true });
@@ -247,7 +247,7 @@ describe('ClaudeChatRuntime', () => {
           mockPlugin.getActiveEnvironmentVariables()
         )
       );
-      service = new ClaudeChatRuntime(mockPlugin, createMockMcpManager());
+      service = new ClaudeChatRuntime(mockPlugin, { mcpManager: createMockMcpManager() });
 
       const homeDir = os.homedir();
       const autoDetectedPath = path.join(homeDir, '.claude', 'local', 'claude');
@@ -283,7 +283,7 @@ describe('ClaudeChatRuntime', () => {
           mockPlugin.getActiveEnvironmentVariables()
         )
       );
-      service = new ClaudeChatRuntime(mockPlugin, createMockMcpManager());
+      service = new ClaudeChatRuntime(mockPlugin, { mcpManager: createMockMcpManager() });
 
       const homeDir = os.homedir();
       const autoDetectedPath = path.join(homeDir, '.claude', 'local', 'claude');
@@ -319,7 +319,7 @@ describe('ClaudeChatRuntime', () => {
           mockPlugin.getActiveEnvironmentVariables()
         )
       );
-      service = new ClaudeChatRuntime(mockPlugin, createMockMcpManager());
+      service = new ClaudeChatRuntime(mockPlugin, { mcpManager: createMockMcpManager() });
 
       const homeDir = os.homedir();
       const autoDetectedPath = path.join(homeDir, '.claude', 'local', 'claude');
@@ -365,7 +365,7 @@ describe('ClaudeChatRuntime', () => {
           mockPlugin.getActiveEnvironmentVariables()
         )
       );
-      service = new ClaudeChatRuntime(mockPlugin, createMockMcpManager());
+      service = new ClaudeChatRuntime(mockPlugin, { mcpManager: createMockMcpManager() });
 
       (fs.existsSync as jest.Mock).mockImplementation((p: string) => p === firstPath);
       (fs.statSync as jest.Mock).mockReturnValue({ isFile: () => true });
@@ -849,7 +849,7 @@ describe('ClaudeChatRuntime', () => {
           },
         },
       };
-      service = new ClaudeChatRuntime(mockPlugin, createMockMcpManager());
+      service = new ClaudeChatRuntime(mockPlugin, { mcpManager: createMockMcpManager() });
 
       const chunks: any[] = [];
       for await (const chunk of service.query('hello')) {
@@ -1569,7 +1569,7 @@ describe('ClaudeChatRuntime', () => {
     it('updates permission mode via setPermissionMode when going from YOLO to normal', async () => {
       // Start in YOLO mode
       mockPlugin.settings.permissionMode = 'yolo';
-      service = new ClaudeChatRuntime(mockPlugin, createMockMcpManager());
+      service = new ClaudeChatRuntime(mockPlugin, { mcpManager: createMockMcpManager() });
 
       const chunks1: any[] = [];
       for await (const c of service.query('first')) chunks1.push(c);
@@ -1588,7 +1588,7 @@ describe('ClaudeChatRuntime', () => {
     it('updates permission mode via setPermissionMode when going from normal to YOLO', async () => {
       // Start in normal mode
       mockPlugin.settings.permissionMode = 'normal';
-      service = new ClaudeChatRuntime(mockPlugin, createMockMcpManager());
+      service = new ClaudeChatRuntime(mockPlugin, { mcpManager: createMockMcpManager() });
 
       const chunks1: any[] = [];
       for await (const c of service.query('first')) chunks1.push(c);

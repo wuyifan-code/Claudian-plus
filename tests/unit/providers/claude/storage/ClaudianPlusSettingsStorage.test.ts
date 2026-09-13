@@ -7,9 +7,9 @@ import {
   ClaudianPlusSettingsStorage,
   LEGACY_CLAUDIAN_PLUS_SETTINGS_PATH,
 } from '@/app/settings/ClaudianPlusSettingsStorage';
+import { DEFAULT_CLAUDIAN_PLUS_SETTINGS } from '@/app/settings/defaultSettings';
 import type { VaultFileAdapter } from '@/core/storage/VaultFileAdapter';
 import { getClaudeProviderSettings } from '@/providers/claude/settings';
-import { DEFAULT_SETTINGS } from '@/providers/claude/types/settings';
 import {
   getCodexProviderSettings,
   updateCodexProviderSettings,
@@ -60,12 +60,12 @@ describe('ClaudianPlusSettingsStorage', () => {
 
       const result = await storage.load();
 
-      expect(result.model).toBe(DEFAULT_SETTINGS.model);
+      expect(result.model).toBe(DEFAULT_CLAUDIAN_PLUS_SETTINGS.model);
       expect(result.model).toBe('gpt-5.6-sol');
       expect(result.settingsProvider).toBe('codex');
       expect(getCodexProviderSettings(result).enabled).toBe(true);
-      expect(result.thinkingBudget).toBe(DEFAULT_SETTINGS.thinkingBudget);
-      expect(result.permissionMode).toBe(DEFAULT_SETTINGS.permissionMode);
+      expect(result.thinkingBudget).toBe(DEFAULT_CLAUDIAN_PLUS_SETTINGS.thinkingBudget);
+      expect(result.permissionMode).toBe(DEFAULT_CLAUDIAN_PLUS_SETTINGS.permissionMode);
       expect(result.requireCommandOrControlEnterToSend).toBe(false);
       expect(mockAdapter.read).not.toHaveBeenCalled();
     });
@@ -126,7 +126,7 @@ describe('ClaudianPlusSettingsStorage', () => {
       expect(result.model).toBe('claude-opus-4-5');
       expect(result.userName).toBe('TestUser');
       // Defaults should still be present for unspecified fields
-      expect(result.thinkingBudget).toBe(DEFAULT_SETTINGS.thinkingBudget);
+      expect(result.thinkingBudget).toBe(DEFAULT_CLAUDIAN_PLUS_SETTINGS.thinkingBudget);
     });
 
     it('migrates legacy openInMainTab true to main-tab placement', async () => {
@@ -180,7 +180,7 @@ describe('ClaudianPlusSettingsStorage', () => {
       const result = await storage.load();
 
       expect(result.memoryMaxGlobalInjectionChars).toBe(800);
-      expect(result.memoryMaxProjectInjectionChars).toBe(DEFAULT_SETTINGS.memoryMaxProjectInjectionChars);
+      expect(result.memoryMaxProjectInjectionChars).toBe(DEFAULT_CLAUDIAN_PLUS_SETTINGS.memoryMaxProjectInjectionChars);
     });
 
     it('defaults memory injection sub-caps for settings written before they existed', async () => {
@@ -191,8 +191,8 @@ describe('ClaudianPlusSettingsStorage', () => {
 
       const result = await storage.load();
 
-      expect(result.memoryMaxGlobalInjectionChars).toBe(DEFAULT_SETTINGS.memoryMaxGlobalInjectionChars);
-      expect(result.memoryMaxProjectInjectionChars).toBe(DEFAULT_SETTINGS.memoryMaxProjectInjectionChars);
+      expect(result.memoryMaxGlobalInjectionChars).toBe(DEFAULT_CLAUDIAN_PLUS_SETTINGS.memoryMaxGlobalInjectionChars);
+      expect(result.memoryMaxProjectInjectionChars).toBe(DEFAULT_CLAUDIAN_PLUS_SETTINGS.memoryMaxProjectInjectionChars);
     });
 
     it('should strip legacy blocklist fields from loaded data', async () => {
@@ -689,7 +689,7 @@ describe('ClaudianPlusSettingsStorage', () => {
   describe('save', () => {
     it('should write settings to file', async () => {
       const settings = {
-        ...DEFAULT_SETTINGS,
+        ...DEFAULT_CLAUDIAN_PLUS_SETTINGS,
         model: 'claude-opus-4-5' as const,
       };
 
@@ -709,10 +709,10 @@ describe('ClaudianPlusSettingsStorage', () => {
 
     it('should strip legacy slashCommands before writing', async () => {
       const settings = {
-        ...DEFAULT_SETTINGS,
+        ...DEFAULT_CLAUDIAN_PLUS_SETTINGS,
         model: 'claude-opus-4-5' as const,
         slashCommands: [{ id: 'cmd-review', name: 'review', content: 'Review' }],
-      } as typeof DEFAULT_SETTINGS & { slashCommands: unknown[] };
+      } as typeof DEFAULT_CLAUDIAN_PLUS_SETTINGS & { slashCommands: unknown[] };
 
       await storage.save(settings as any);
 
@@ -723,11 +723,11 @@ describe('ClaudianPlusSettingsStorage', () => {
 
     it('persists the Codex catalog with hand-picked model IDs', async () => {
       const settings = {
-        ...DEFAULT_SETTINGS,
+        ...DEFAULT_CLAUDIAN_PLUS_SETTINGS,
         providerConfigs: {
-          ...DEFAULT_SETTINGS.providerConfigs,
+          ...DEFAULT_CLAUDIAN_PLUS_SETTINGS.providerConfigs,
           codex: {
-            ...DEFAULT_SETTINGS.providerConfigs.codex,
+            ...DEFAULT_CLAUDIAN_PLUS_SETTINGS.providerConfigs.codex,
             discoveredModels: TEST_CODEX_CATALOG,
             visibleModels: ['gpt-5.4-mini'],
           },
@@ -744,11 +744,11 @@ describe('ClaudianPlusSettingsStorage', () => {
 
     it('preserves Codex model aliases and catalog across restart', async () => {
       const settings = {
-        ...DEFAULT_SETTINGS,
+        ...DEFAULT_CLAUDIAN_PLUS_SETTINGS,
         providerConfigs: {
-          ...DEFAULT_SETTINGS.providerConfigs,
+          ...DEFAULT_CLAUDIAN_PLUS_SETTINGS.providerConfigs,
           codex: {
-            ...DEFAULT_SETTINGS.providerConfigs.codex,
+            ...DEFAULT_CLAUDIAN_PLUS_SETTINGS.providerConfigs.codex,
             discoveredModels: TEST_CODEX_CATALOG,
             modelAliases: {
               'gpt-5.5': 'Primary',
@@ -785,7 +785,7 @@ describe('ClaudianPlusSettingsStorage', () => {
         path === LEGACY_CLAUDIAN_PLUS_SETTINGS_PATH
       ));
 
-      await storage.save(DEFAULT_SETTINGS);
+      await storage.save(DEFAULT_CLAUDIAN_PLUS_SETTINGS);
 
       expect(mockAdapter.write).toHaveBeenCalledWith(
         CLAUDIAN_PLUS_SETTINGS_PATH,
@@ -797,7 +797,7 @@ describe('ClaudianPlusSettingsStorage', () => {
     it('should throw on write error', async () => {
       mockAdapter.write.mockRejectedValue(new Error('Write failed'));
 
-      await expect(storage.save(DEFAULT_SETTINGS)).rejects.toThrow('Write failed');
+      await expect(storage.save(DEFAULT_CLAUDIAN_PLUS_SETTINGS)).rejects.toThrow('Write failed');
     });
   });
 
