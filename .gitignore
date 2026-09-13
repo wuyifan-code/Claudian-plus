@@ -1,6 +1,7 @@
 # Build output
+# main.js is bundled by esbuild and copied into vaults, not tracked.
+# styles.css and versions.json are generated too, but committed for distribution.
 /main.js
-# Built assets – committed for Obsidian distribution.
 .codex-vendor/
 *.js.map
 dist/
@@ -37,8 +38,6 @@ ehthumbs.db
 Thumbs.db
 
 # npm/yarn
-npm-debug.log*
-yarn-error.log*
 .yarn-integrity
 
 # TypeScript
@@ -92,6 +91,9 @@ dev
 .context/
 CLAUDE.local.md
 .reasonix/
+# Agent tooling state
+.mimosa/
+.workbuddy/
 
 # Lock files (uncomment based on package manager)
 # yarn.lock
