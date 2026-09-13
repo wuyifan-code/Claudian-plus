@@ -505,11 +505,31 @@ Tab 在首次发送前保持冷态；runtime warmup 必须 explicit 且 provider
 | `HybridMindPromptInjector.ts` | memory 与 mind 双通道混合注入，产出 `HybridMindInjectionResult` / `MindRecallInfo` |
 | `deduplication.ts` | 记忆条目去重：`normalizeMemoryContent` / `isMemoryDuplicate` / `deduplicateMemoryEntries`（`MIN_CONTAINMENT_LENGTH`） |
 | `mind-types.ts` | Dreaming V3 Mind & Habit Engine 类型与 schema（`MindCategory`: user_preference / coding_habit / project_rule / correction_rule） |
+| `memoryCachePolicy.ts` | 记忆子系统读缓存的白名单策略：awareness 目录（含 legacy）、当前 `memoryFilePath`、legacy memory 文件 |
 | `consciousness-types.ts` / `types.ts` | 配置与类型 |
 | `index.ts` | 模块导出（barrel） |
 | `backup.ts` | 写入前备份 |
 
 注入入口：`ClaudianPlusPlugin.getMemoryInjectionText()` / `getConsciousnessInjectionText()`，作为 system prompt 增强返回给 provider runtime（增强失败必须静默，不可阻断 provider 启动）。
+
+### 8.1 每轮注入的读缓存
+
+五个 provider runtime 在每次发送前都会 `await` 这两个注入入口（`ClaudeChatRuntime.ts:812`、`CodexChatRuntime.ts:307/364`、`KimiChatRuntime.ts:329/508`、`OpencodeChatRuntime.ts:357`、`PiChatRuntime.ts:315`），因此这条路径上的每一次读盘都是**每消息成本**。走 pass-through 适配器时实测为每轮 17 次读侧操作 + 1 次写（`recordHit` 的用量记录）。
+
+`SharedStorageService` 把共享的 `VaultFileAdapter` 包在 [CachedVaultAdapter](../src/core/storage/CachedVaultAdapter.ts) 里，并由 `memoryCachePolicy` 限定只有记忆子系统的路径进入缓存；其余路径（`.claudian-plus/sessions/**`、settings、conversations、provider 历史）完全透传，I/O 与内存画像不变。
+
+失效契约：
+
+| 触发 | 机制 |
+| --- | --- |
+| 记忆子系统自身的写入（memory add/forget、mind approve/dismiss/decay、Dream、MicroDream、awareness 写入、knowledge scan） | 覆盖 `write` 等变更方法：写入内容直接播种进缓存（写穿透），不失效 |
+| 用户在 Obsidian 中手改 `memory.md` / awareness 文件 | `vault.on('modify' | 'create')` → `invalidate(path)` |
+| 删除 / 重命名 | `invalidateSubtree`，同时覆盖正缓存与负缓存 |
+| `memoryFilePath` 等设置变更 | 策略谓词每次操作实时求值，无需重建适配器 |
+
+不变式：缓存只保存**原始文本与存在性事实**，不保存解析后的结构（`resolveInjection` 会对条目排序/过滤，共享可变数组会产生别名 bug）；`exists` 的已知事实总是直接回答，策略只决定缓存**允许学到什么**；读失败不入缓存。
+
+预算与回归门禁见 `tests/integration/memory/injectionIoBudget.test.ts`：冷态 ≤ 12 次读侧操作，热态必须为 0，并逐路径锁定了冷态成本表。
 
 ---
 
@@ -686,24 +706,31 @@ Composer 内：`/clear`、`/resume`、`/fork`、`/add-dir`、`/compact`（provid
 - `StartupProfiler` 在 `onload` 各阶段埋点；`loadSettings` 默认 `deferNonRestoredSessionMetadata: true`，仅同步加载已恢复 tab 的元数据，剩余延后到 `onLayoutReady` 后用 0ms timeout 调度，分批 publish。
 - Provider workspace services 懒初始化（首次使用才 init）。
 
-### 13.4 环境变量与会话失效
+### 13.4 每轮注入预算
+
+- 记忆/意识注入是**每消息**成本，不是启动成本：见 §8.1 的读缓存与失效契约。
+- 门禁在 `tests/integration/memory/injectionIoBudget.test.ts`：冷态读侧操作 ≤ 12（棘轮常量，只许下调），**热态必须为 0**，并逐路径锁定冷态成本表。改动这条路径若使计数上升，测试会直接失败。
+- 该用例用 `@test/helpers/countingVault` 在 Obsidian vault 适配器层计数——与 `long-thread-baseline.md` 的方法论一致，结构性计数与引擎无关，是首要比较信号（jsdom 的墙钟时间只作参考）。
+- `HybridMindPromptInjector` 的 `recordHit()` 是 fire-and-forget 的用量写（每轮命中项目规则时整文件读改写一次）；测计数前必须先用 spy 排空这些 promise，否则计数不确定。
+
+### 13.5 环境变量与会话失效
 
 - `applyEnvironmentVariablesBatch` 串行化（`environmentUpdateTail` promise 链）。
 - 受影响 provider 触发 `markPendingSessionInvalidations`（generation = `max(Date.now(), prev+1)`），阻塞完成直到 model catalog 刷新 + 会话持久化 + runtime 重启。
 - 失效 generation 持久化到 `settings.pendingProviderSessionInvalidations`，全部受影响会话元数据持久化后才清除。
 
-### 13.5 迁移与兼容
+### 13.6 迁移与兼容
 
 - 读取 legacy `.claudian/` 数据，迁移到 `.claudian-plus/`，归档到 `archived-legacy/`，从不自动删除。
 - 不要同时对同一 Vault 运行旧 Claudian 与 Claudian Plus。
 - `migrateClaudeServiceSettings` 把 legacy Claude 兼容 endpoint 环境块迁入结构化 service registry。
 - Plan mode 是临时的，加载时归一化回 `normal`（`prePlanPermissionMode` 会丢失）。
 
-### 13.6 i18n
+### 13.7 i18n
 
 [src/i18n/i18n.ts](../src/i18n/i18n.ts) 提供 `localeText(zh, en)` 与 `setLocale(locale)`。UI 语言跟随 Obsidian locale，支持 en/zh-CN/zh-TW/ja/ko/de/es/fr/pt/ru（见 [src/i18n/locales/](../src/i18n/locales/)）。
 
-### 13.7 上游许可
+### 13.8 上游许可
 
 仓库含 MIT（Claudian 派生 + 原创部分）与 AGPL-3.0（Codian 派生部分）双许可。再分发或修改 Codian 派生部分须遵循 AGPL-3.0。详见 [LICENSE](../LICENSE) 与 [NOTICE](../NOTICE)。
 

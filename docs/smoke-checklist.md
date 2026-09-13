@@ -55,6 +55,8 @@
 
 - [ ] 启动冷加载时间（Console 中 StartupProfiler 输出）
 - [ ] 发送 prompt 到首次 token 出现的时间
+- [ ] 记忆读缓存生效：连续发送 3 条以上消息后，`app.plugins.plugins['claudian-plus'].storage.getContentCache().stats.misses` 不随消息数增长（首轮之后应基本不变）
+- [ ] 记忆读缓存不陈旧：在 Obsidian 中手工编辑 `.claudian-plus/memory.md` 后，下一条消息的注入内容能看到改动
 
 ## 无障碍
 
