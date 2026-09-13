@@ -441,7 +441,7 @@ export class ClaudianPlusView extends ItemView {
         if (count > 0) {
           this.stagingBadgeEl.empty();
           this.stagingBadgeEl.removeClass('claudian-plus-hidden');
-          this.stagingBadgeEl.setText(`🧠 ${count}`);
+          this.stagingBadgeEl.setText(String(count));
         } else {
           this.stagingBadgeEl.addClass('claudian-plus-hidden');
         }

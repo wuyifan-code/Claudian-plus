@@ -1187,7 +1187,7 @@ export class MessageRenderer {
     if (!entries || entries.length === 0) return;
 
     const count = entries.length;
-    const label = localeText(`🧠 ${count} 条规则生效`, `🧠 ${count} rule${count > 1 ? 's' : ''} active`);
+    const label = localeText(`${count} 条规则生效`, `${count} rule${count > 1 ? 's' : ''} active`);
 
     const pillContainer = contentEl.createDiv({ cls: 'claudian-plus-mind-recall-container' });
     const pill = pillContainer.createDiv({

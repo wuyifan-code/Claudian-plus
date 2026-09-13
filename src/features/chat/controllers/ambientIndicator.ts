@@ -14,32 +14,31 @@ export function formatAmbientChipLabel(snapshot: AmbientContextSnapshot): string
   if (!doc && !focus) return null;
 
   const basename = doc?.basename ?? localeText('当前文档', 'Active Document');
-  const prefix = snapshot.mode === 'pinned' ? '📌 ' : '';
 
   if (focus?.type === 'selection') {
     const range = focus.range ? `L${focus.range.startLine}-L${focus.range.endLine}` : '';
     const charCount = `${focus.content.length} ${localeText('字符', 'chars')}`;
     const details = [range, charCount].filter(Boolean).join(' · ');
     const tag = localeText('焦点: 选区', 'Focus: selection');
-    return `${prefix}[${tag}] ${basename}${details ? ` (${details})` : ''}`;
+    return `[${tag}] ${basename}${details ? ` (${details})` : ''}`;
   }
 
   if (focus?.type === 'section') {
     const heading = focus.heading || (focus.headingPath && focus.headingPath[focus.headingPath.length - 1]) || localeText('章节', 'Section');
     const tag = localeText('焦点: 章节', 'Focus: section');
-    return `${prefix}[${tag}] ${basename} (${heading})`;
+    return `[${tag}] ${basename} (${heading})`;
   }
 
   if (focus?.type === 'canvas_node') {
     const neighborCount = snapshot.graph?.canvasContext?.neighborNodes.length ?? 0;
     const tag = localeText('焦点: 画布', 'Focus: canvas');
     const countLabel = `${neighborCount + 1} ${localeText('个节点', 'nodes')}`;
-    return `${prefix}[${tag}] ${basename} (${countLabel})`;
+    return `[${tag}] ${basename} (${countLabel})`;
   }
 
   if (doc) {
     const tag = localeText('焦点: 文档', 'Focus: doc');
-    return `${prefix}[${tag}] ${basename}`;
+    return `[${tag}] ${basename}`;
   }
 
   return null;

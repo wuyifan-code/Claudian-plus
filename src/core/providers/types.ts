@@ -215,7 +215,7 @@ export interface ProviderUIOption {
   group?: string;
   /** Per-option icon override (e.g. when mixing providers in a single dropdown). */
   providerIcon?: ProviderIconSvg;
-  /** Optional feature badges (e.g. ['🧠 Reasoning', '🇨🇳 CN', '1M']). */
+  /** Optional feature badges (e.g. ['Reasoning', 'CN-Hosted', '1M']). */
   badges?: string[];
   /** Whether the model is hosted in China (may require explicit opt-in). */
   isChinaHosted?: boolean;

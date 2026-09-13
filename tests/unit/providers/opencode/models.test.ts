@@ -143,7 +143,7 @@ describe('opencodeChatUIConfig', () => {
 
     expect(options).toEqual([
       {
-        badges: ['🧠 Reasoning'],
+        badges: ['Reasoning'],
         description: 'ACP runtime',
         group: 'OpenAI',
         isChinaHosted: false,
@@ -152,7 +152,7 @@ describe('opencodeChatUIConfig', () => {
         value: 'opencode:openai/gpt-5',
       },
       {
-        badges: ['🧠 Reasoning'],
+        badges: ['Reasoning'],
         description: 'ACP runtime',
         group: 'Anthropic',
         isChinaHosted: false,
@@ -240,10 +240,10 @@ describe('opencodeChatUIConfig', () => {
     });
 
     expect(options[0]?.isChinaHosted).toBe(true);
-    expect(options[0]?.badges).toContain('🇨🇳 CN-Hosted');
+    expect(options[0]?.badges).toContain('CN-Hosted');
     expect(options[0]?.group).toBe('Qwen');
     expect(options[1]?.isChinaHosted).toBe(true);
-    expect(options[1]?.badges).toContain('🇨🇳 CN-Hosted');
+    expect(options[1]?.badges).toContain('CN-Hosted');
     expect(options[1]?.group).toBe('DeepSeek');
   });
 

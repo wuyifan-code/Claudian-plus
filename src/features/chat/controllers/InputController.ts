@@ -1980,7 +1980,7 @@ export class InputController {
             tags: [],
           });
           if (entry) {
-            new Notice(`🧠 Remembered: "${entry.content}"`);
+            new Notice(`Remembered: "${entry.content}"`);
           } else {
             new Notice(`Rule already remembered: "${ruleContent}"`);
           }
@@ -2001,7 +2001,7 @@ export class InputController {
           const removedFromMemory = this.deps.plugin.getMemoryStore ? await this.deps.plugin.getMemoryStore().remove(keyword) : 0;
           if (forgotten || removedFromMemory > 0) {
             const label = forgotten ? forgotten.content : keyword;
-            new Notice(`🧠 Forgot rule/memory: "${label}"`);
+            new Notice(`Forgot rule/memory: "${label}"`);
           } else {
             new Notice(`No matching rule found for "${keyword}"`);
           }
