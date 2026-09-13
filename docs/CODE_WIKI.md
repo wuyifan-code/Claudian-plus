@@ -1,7 +1,7 @@
 # Claudian Plus Code Wiki
 
 > 本文档对 Claudian Plus 仓库进行结构化梳理，覆盖整体架构、模块职责、关键类型/类/函数、依赖关系以及构建运行方式。
-> 仓库版本：`2.2.2`（见 [package.json](../package.json) / [manifest.json](../manifest.json)）。
+> 仓库版本：`3.0.1`（见 [package.json](../package.json) / [manifest.json](../manifest.json)）。
 
 ---
 
@@ -25,10 +25,10 @@
 
 ## 1. 项目概览
 
-**Claudian Plus** 是一个仅桌面端的 Obsidian 插件（`isDesktopOnly: true`），把编码 Agent（Codex、Claude、OpenCode、Pi）嵌入 Obsidian 侧边栏。设计目标：
+**Claudian Plus** 是一个仅桌面端的 Obsidian 插件（`isDesktopOnly: true`），把编码 Agent（Codex、Claude、OpenCode、Kimi、Pi）嵌入 Obsidian 侧边栏。设计目标：
 
 - **本地优先**：会话、记忆、Provider 会话都保存在 Vault 内（`.claudian-plus/`），无遥测。
-- **Provider 可插拔**：四个 Provider 通过 `ProviderRegistry` 与 `ProviderWorkspaceRegistry` 接入，共享 `Conversation` 模型与 `ChatRuntime` 契约，但保留各自的运行时协议、历史格式、权限流。
+- **Provider 可插拔**：五个 Provider 通过 `ProviderRegistry` 与 `ProviderWorkspaceRegistry` 接入，共享 `Conversation` 模型与 `ChatRuntime` 契约，但保留各自的运行时协议、历史格式、权限流。
 - **Codex 优先**：默认 Provider 为 Codex，默认模型 `gpt-5.6-sol`（见 [src/app/settings/defaultSettings.ts](../src/app/settings/defaultSettings.ts)）。
 - **Vault 即工作区**：`@note` / `@folder` 上下文、Canvas/Properties/links 读写、知识索引、意识机制等围绕笔记展开。
 
@@ -80,7 +80,7 @@
 
 1. `patchSetMaxListenersForElectron()` 在任何 SDK import 之前修补 Electron 兼容性。
 2. `StartupProfiler.finishModuleEvaluation()` 标记模块求值完成。
-3. 动态 `import('./providers')` → `registerBuiltInProviders()` 注册四个 Provider 到两个 registry。
+3. 动态 `import('./providers')` → `registerBuiltInProviders()` 注册五个 Provider 到两个 registry。
 4. `loadSettings({ deferNonRestoredSessionMetadata: true })`：并行加载 settings 与 tabManagerState，迁移 Claude service 设置，归一化 plan mode 与 provider selection，仅同步加载已恢复 tab 的会话元数据，剩余延后到 `onLayoutReady` 之后。
 5. 绑定 `ClaudePlusPlugin` 到 vault 事件。
 6. 启动定时器：Dream（每小时检查 + 启动后 30s 一次启动梦境）。
@@ -108,9 +108,10 @@
 | `src/style/` | 模块化 CSS，构建为 `styles.css` |
 | `src/i18n/` | 多语言（en/zh-CN/zh-TW/ja/ko/de/es/fr/pt/ru） |
 | `scripts/` | 构建、CSS 合并、架构边界检查、版本同步、性能检查、测试运行器 |
-| `docs/` | 设计文档、smoke checklist |
+| `tests/` | `src/` 的镜像测试（`unit/` 与 `integration/`） |
+| `docs/` | `CODE_WIKI.md`、`smoke-checklist.md`、图片资源 `assets/`、已归档设计文档 `plans/archive/` |
 | `.github/workflows/` | CI、release、claude review、stale、duplicate-issues |
-| `.context/` | 非提交的笔记、trace、临时脚本（按 AGENTS.md 约定） |
+| `.context/` | 非提交的笔记（`notes/`）、探针与性能夹具（`probes/`）、baseline JSON（按 AGENTS.md 约定） |
 
 ### 3.2 `src/core/` 模块（见 [src/core/AGENTS.md](../src/core/AGENTS.md)）
 
@@ -415,7 +416,7 @@ src/providers/<id>/
 - 记忆/意识注入：Kimi config 无 system prompt 字段，注入走 prompt 前缀（`<system_context>` 块，`buildKimiPrompt`）。
 - 环境失效键：`KIMI_CONFIG`、`KIMI_HOME`、`KIMI_DATA_DIR`、`XDG_DATA_HOME`。
 - 关键类：`KimiChatRuntime`、`KimiAuxQueryRunner`（独立 ACP 进程）、`KimiCliResolver`、`KimiCommandCatalog`、`KimiSettingsReconciler`、`KimiSettingsTab`、`KimiChatUIConfig`、`KimiConversationHistoryService`。
-- 探查记录：`.context/kimi-probe/NOTES.md`（含账号配额 403 静默吞错的行为说明）。
+- 探查记录：`.context/probes/kimi-probe/NOTES.md`（含账号配额 403 静默吞错的行为说明）。
 
 ### 6.5 Pi（[src/providers/pi/](../src/providers/pi/)）
 - 传输：`pi --mode rpc` 子进程。`PiLaunchSpec.ts` 集中命令行参数。
@@ -499,7 +500,13 @@ Tab 在首次发送前保持冷态；runtime warmup 必须 explicit 且 provider
 | `DreamService.ts` | 梦境记忆整合：周期性把短期日志蒸馏为长期记忆 facts / profile updates / insights。`DREAM_CHECK_INTERVAL_MS` 每小时检查；启动后 30s 跑一次 startup dream |
 | `VaultKnowledgeEngine.ts` | 轻量 Vault 知识摘要，注入 awareness context |
 | `memoryPrompt.ts` | `wrapMemoryInjection` / `escapePromptTagCloser` / `formatMemoryAppendix` |
+| `MindStore.ts` | Dreaming V3 心智存储：durable / staging 条目、scope 与时序状态（`DurableMindEntry`、`StagingMindEntry`、`MindTemporalState`） |
+| `MicroDreamCoordinator.ts` | 微梦境协调：借 `AuxQueryRunner` 与 `prompt/dreamMemory` 在空闲时做小规模整合 |
+| `HybridMindPromptInjector.ts` | memory 与 mind 双通道混合注入，产出 `HybridMindInjectionResult` / `MindRecallInfo` |
+| `deduplication.ts` | 记忆条目去重：`normalizeMemoryContent` / `isMemoryDuplicate` / `deduplicateMemoryEntries`（`MIN_CONTAINMENT_LENGTH`） |
+| `mind-types.ts` | Dreaming V3 Mind & Habit Engine 类型与 schema（`MindCategory`: user_preference / coding_habit / project_rule / correction_rule） |
 | `consciousness-types.ts` / `types.ts` | 配置与类型 |
+| `index.ts` | 模块导出（barrel） |
 | `backup.ts` | 写入前备份 |
 
 注入入口：`ClaudianPlusPlugin.getMemoryInjectionText()` / `getConsciousnessInjectionText()`，作为 system prompt 增强返回给 provider runtime（增强失败必须静默，不可阻断 provider 启动）。
@@ -541,7 +548,7 @@ devDependencies 含 esbuild、eslint（含 `eslint-plugin-obsidianmd`、`eslint-
 - Claude 依赖 `@anthropic-ai/claude-agent-sdk`，独立于其他 provider。
 - OpenCode 依赖共享 `src/providers/acp/`。
 - Codex、Pi 各自独立子进程协议。
-- 四个 provider 之间无直接代码依赖，仅通过 core 契约协作。
+- 五个 provider 之间无直接代码依赖，仅通过 core 契约协作。
 
 ---
 
@@ -579,14 +586,13 @@ Settings writer 必须 merge 现有 provider-owned 数据，不可 clobber。
 ### 11.1 环境要求
 
 - Node.js `>=24 <25`（见 [package.json](../package.json) `engines`，[.node-version](../.node-version)）。
-- 至少一个支持的 provider CLI（Codex / Claude / OpenCode / Pi）。
+- 至少一个支持的 provider CLI（Codex / Claude / OpenCode / Kimi / Pi）。
 - Obsidian 桌面端（`minAppVersion: 1.11.4`，`isDesktopOnly: true`）。
 
 ### 11.2 安装依赖
 
 ```bash
 npm ci
-# 或 bun install --frozen-lockfile（preversion 脚本使用 bun）
 ```
 
 `postinstall` 脚本：[scripts/postinstall.mjs](../scripts/postinstall.mjs)。
@@ -645,7 +651,7 @@ Composer 内：`/clear`、`/resume`、`/fork`、`/add-dir`、`/compact`（provid
 
 - 配置：[jest.config.js](../jest.config.js)、[scripts/run-tests.js](../scripts/run-tests.js)、[scripts/run-jest.js](../scripts/run-jest.js)。
 - 测试镜像 `src/` 结构：`tests/unit/` 与 `tests/integration/`。
-- 架构边界测试：[scripts/check-architecture-boundaries.test.mjs](../scripts/check-architecture-boundaries.test.mjs)（`npm run test:architecture`），强制 §10.1 依赖方向。
+- 架构边界测试：[scripts/check-architecture-boundaries.test.mjs](../scripts/check-architecture-boundaries.test.mjs)（`npm run test:architecture`），强制 §9.1 依赖方向。
 - ESLint 配置测试：[scripts/check-eslint-config.test.mjs](../scripts/check-eslint-config.test.mjs)。
 - Release 版本检查：[scripts/check-release-version.mjs](../scripts/check-release-version.mjs) + 其测试。
 - 启动性能检查：[scripts/check-startup-performance.mjs](../scripts/check-startup-performance.mjs)。

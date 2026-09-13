@@ -43,6 +43,8 @@ npm run typecheck && npm run lint && npm run test && npm run build
 
 Tests mirror `src/` under `tests/unit/` and `tests/integration/`.
 
+`main.js` is a build product and is not tracked. `styles.css` and `versions.json` are build products that **are** tracked for distribution: regenerate them with `npm run build:css` and `npm run version`, never edit them by hand.
+
 ## Architecture
 
 | Area | Ownership |
