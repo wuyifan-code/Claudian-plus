@@ -1,10 +1,10 @@
 
+import { DEFAULT_CLAUDIAN_PLUS_SETTINGS } from '@/app/settings/defaultSettings';
 import { SessionStorage } from '@/core/bootstrap/SessionStorage';
 import { ProviderSettingsCoordinator } from '@/core/providers/ProviderSettingsCoordinator';
 import { TOOL_SUBAGENT } from '@/core/tools/toolNames';
 import { VIEW_TYPE_CLAUDIAN_PLUS } from '@/core/types';
 import * as sdkSession from '@/providers/claude/history/ClaudeHistoryStore';
-import { DEFAULT_SETTINGS } from '@/providers/claude/types/settings';
 
 // Mock fs for ClaudeChatRuntime
 jest.mock('fs');
@@ -115,8 +115,8 @@ describe('ClaudianPlusPlugin', () => {
       await plugin.onload();
 
       expect(plugin.settings).toBeDefined();
-      expect(plugin.settings.permissionMode).toBe(DEFAULT_SETTINGS.permissionMode);
-      expect(plugin.settings.hiddenProviderCommands).toEqual(DEFAULT_SETTINGS.hiddenProviderCommands);
+      expect(plugin.settings.permissionMode).toBe(DEFAULT_CLAUDIAN_PLUS_SETTINGS.permissionMode);
+      expect(plugin.settings.hiddenProviderCommands).toEqual(DEFAULT_CLAUDIAN_PLUS_SETTINGS.hiddenProviderCommands);
     });
 
     // Note: With multi-tab, agentService is per-tab via TabManager, not on plugin
@@ -810,7 +810,7 @@ describe('ClaudianPlusPlugin', () => {
       await plugin.loadSettings();
 
       expect(plugin.settings.userName).toBe('TestUser');
-      expect(plugin.settings.hiddenProviderCommands).toEqual(DEFAULT_SETTINGS.hiddenProviderCommands);
+      expect(plugin.settings.hiddenProviderCommands).toEqual(DEFAULT_CLAUDIAN_PLUS_SETTINGS.hiddenProviderCommands);
     });
 
     it('should strip legacy blocklist fields when loading old settings', async () => {
@@ -852,7 +852,7 @@ describe('ClaudianPlusPlugin', () => {
       await plugin.loadSettings();
 
       expect(plugin.settings).toEqual({
-        ...DEFAULT_SETTINGS,
+        ...DEFAULT_CLAUDIAN_PLUS_SETTINGS,
         welcomeAnimationMode: 'lite',
       });
     });
@@ -865,7 +865,7 @@ describe('ClaudianPlusPlugin', () => {
       await plugin.loadSettings();
 
       expect(plugin.settings).toEqual({
-        ...DEFAULT_SETTINGS,
+        ...DEFAULT_CLAUDIAN_PLUS_SETTINGS,
         welcomeAnimationMode: 'lite',
       });
     });
