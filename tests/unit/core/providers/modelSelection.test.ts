@@ -13,6 +13,7 @@ describe('model selection namespacing', () => {
       expect(getProviderModelSelectionPrefix('codex')).toBe('openai-codex/');
       expect(getProviderModelSelectionPrefix('opencode')).toBe('opencode/');
       expect(getProviderModelSelectionPrefix('pi')).toBe('pi/');
+      expect(getProviderModelSelectionPrefix('antigravity')).toBe('antigravity/');
     });
 
     it('returns null for a provider with no registered prefix', () => {
@@ -70,6 +71,14 @@ describe('model selection namespacing', () => {
         providerId: 'pi',
         modelId: 'assistant',
       });
+      expect(decodeProviderModelSelectionId('antigravity/gemini-3.8-flash-low')).toEqual({
+        providerId: 'antigravity',
+        modelId: 'gemini-3.8-flash-low',
+      });
+      expect(decodeProviderModelSelectionId('antigravity/claude-sonnet-4-6')).toEqual({
+        providerId: 'antigravity',
+        modelId: 'claude-sonnet-4-6',
+      });
     });
 
     it('returns null for empty or whitespace-only input', () => {
@@ -106,6 +115,8 @@ describe('model selection namespacing', () => {
     it('is false for a value carrying a different provider namespace', () => {
       expect(isProviderModelSelectionId('codex', 'claude-code/deepseek-v4-pro')).toBe(false);
       expect(isProviderModelSelectionId('claude', 'openai-codex/gpt-5')).toBe(false);
+      expect(isProviderModelSelectionId('antigravity', 'claude-code/gemini-3.8-flash-low')).toBe(false);
+      expect(isProviderModelSelectionId('claude', 'antigravity/gemini-3.8-flash-low')).toBe(false);
     });
 
     it('is false for a bare model id and for empty input', () => {
@@ -141,6 +152,7 @@ describe('model selection namespacing', () => {
       ['codex', 'openai-codex/', 'gpt-5-custom'],
       ['opencode', 'opencode/', 'qwen-max'],
       ['pi', 'pi/', 'assistant-1'],
+      ['antigravity', 'antigravity/', 'gemini-3.1-pro-high'],
     ] as const)('round-trips a %s model id through encode and toRuntimeModelId', (providerId, prefix, modelId) => {
       const encoded = encodeProviderModelSelectionId(providerId, modelId);
       expect(encoded).toBe(`${prefix}${modelId}`);

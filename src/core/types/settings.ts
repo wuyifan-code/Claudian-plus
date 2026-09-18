@@ -83,6 +83,15 @@ export type HostnameCliPaths = Record<string, string>;
 export type ProviderConfigMap = Partial<Record<string, Record<string, unknown>>>;
 
 /**
+ * Explicit saving mode for automatic background model requests.
+ * `standard` keeps today's behavior; `economy` skips automatic background
+ * requests (AI titles, micro-dreams, scheduled dreams) while manual,
+ * user-triggered operations always run. Missing values resolve to `standard`
+ * so upgrades never force-disable a feature the user had enabled.
+ */
+export type AuxiliarySavingMode = 'standard' | 'economy';
+
+/**
  * Application settings stored in .claudian-plus/claudian-plus-settings.json.
  *
  * Provider-specific fields (model, thinkingBudget, effortLevel, serviceTier, etc.) use
@@ -190,6 +199,14 @@ export interface ClaudianPlusSettings {
   dreamInputCharCap?: number;
   /** Maximum new long-term memory facts per dream cycle. */
   dreamMaxNewFacts?: number;
+
+  // Saving mode for automatic background requests (R1)
+  /** Missing values are treated as `standard` for existing installs. */
+  auxiliarySavingMode?: AuxiliarySavingMode;
+  /** Daily cap for automatic background requests; `null`/undefined = unlimited. */
+  backgroundRequestDailyLimit?: number | null;
+  /** Internal: persisted { day, count } so the daily count survives a restart. */
+  backgroundRequestUsage?: { day: string; count: number };
 
   // Allow provider-specific extension fields
   [key: string]: unknown;

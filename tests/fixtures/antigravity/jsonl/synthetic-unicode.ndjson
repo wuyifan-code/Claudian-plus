@@ -1,0 +1,2 @@
+{"event":"step_update","step_update":{"conversation_id":"00000000-0000-0000-0000-000000000000","step_index":1,"state":"ACTIVE","step_type":"agent_response","text_delta":"你好，🌍 — synthetic multibyte sample"}}
+{"event":"future_event","future_payload":{"opaque":[1,2,3],"note":"synthetic unknown event for parser pass-through"}}

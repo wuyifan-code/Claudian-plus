@@ -57,3 +57,15 @@ test('persisted settings changes use the coordinator boundary', () => {
   ].includes(file));
   assert.deepEqual(matches, []);
 });
+
+test('no source module statically imports an externalized package at load time', () => {
+  // The build externalizes @modelcontextprotocol/sdk (bundling it costs ~835 KB and
+  // would blow the bundle ceiling, and the installed plugin folder ships only
+  // main.js/manifest.json/styles.css so it cannot be vendored either). A static
+  // import therefore becomes a top-level require() in main.js that cannot resolve
+  // inside Obsidian, and the whole plugin refuses to load — exactly the failure
+  // observed on 2026-09-18. Value imports must be dynamic (await import); type-only
+  // imports erase at compile time and stay allowed.
+  const pattern = /import\s+(?!type\s)[^;]*from\s+['"]@modelcontextprotocol\/sdk\//;
+  assert.deepEqual(findMatches([sourceRoot], pattern), []);
+});

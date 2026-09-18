@@ -201,6 +201,22 @@
       "name": "Générer automatiquement les titres de conversation",
       "desc": "Génère automatiquement les titres de conversation après le premier message de l'utilisateur."
     },
+    "savingMode": {
+      "name": "Mode économie",
+      "desc": "En mode économie, les requêtes d'arrière-plan automatiques sont ignorées (titres IA, micro-rêves, consolidation mémoire planifiée). Le chat, l'édition en ligne et les actions manuelles fonctionnent toujours.",
+      "standard": "Standard",
+      "economy": "Économie"
+    },
+    "backgroundRequestDailyLimit": {
+      "name": "Plafond quotidien de requêtes en arrière-plan",
+      "desc": "Nombre maximal de requêtes automatiques au modèle par jour. Les actions manuelles ne sont jamais comptées. Compteur local uniquement — ce n'est pas un quota, un crédit restant ni un coût fournisseur.",
+      "unlimited": "Illimité",
+      "perDay": "{count} par jour"
+    },
+    "backgroundRequestsToday": {
+      "name": "Requêtes d'arrière-plan aujourd'hui",
+      "desc": "Requêtes d'arrière-plan automatiques émises aujourd'hui (titres, synthèse mémoire). Compteur local uniquement — pas un quota, un crédit ni un coût fournisseur."
+    },
     "titleModel": {
       "name": "Modèle de génération de titre",
       "desc": "Modèle utilisé pour générer automatiquement les titres de conversation.",

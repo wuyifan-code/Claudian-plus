@@ -101,4 +101,9 @@ export const DEFAULT_CLAUDIAN_PLUS_SETTINGS: ClaudianPlusSettings = {
   dreamMaxLogDays: 7,
   dreamInputCharCap: 8000,
   dreamMaxNewFacts: 10,
+
+  // Saving mode stays `standard` on fresh installs so automatic background
+  // behavior is unchanged; the daily cap is unlimited until the user opts in.
+  auxiliarySavingMode: 'standard',
+  backgroundRequestDailyLimit: null,
 };

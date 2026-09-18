@@ -1,4 +1,9 @@
 import {
+  type BackgroundRequestGate,
+  buildLocalFallbackTitle,
+  getSharedBackgroundRequestGate,
+} from '../../../core/auxiliary/AuxiliaryRequestPolicy';
+import {
   buildTitleGenerationPrompt,
   parseTitleGenerationResponse,
   TITLE_GENERATION_SYSTEM_PROMPT,
@@ -28,6 +33,45 @@ export class TitleGenerationService {
     userMessage: string,
     callback: TitleGenerationCallback
   ): Promise<void> {
+    const gate = getSharedBackgroundRequestGate();
+    if (gate && !gate.allowsAutomaticTask('auto-title')) {
+      await this.deliverLocalTitle(conversationId, userMessage, callback);
+      return;
+    }
+
+    await this.runGeneration(conversationId, userMessage, callback, gate ?? undefined);
+  }
+
+  /**
+   * Manual, user-triggered regeneration. The saving-mode policy and the daily
+   * background request budget do not apply, because the user asked for it.
+   */
+  async generateTitleManually(
+    conversationId: string,
+    userMessage: string,
+    callback: TitleGenerationCallback
+  ): Promise<void> {
+    await this.runGeneration(conversationId, userMessage, callback, undefined);
+  }
+
+  /** Model-free degradation used when the gate blocks the background request. */
+  private async deliverLocalTitle(
+    conversationId: string,
+    userMessage: string,
+    callback: TitleGenerationCallback
+  ): Promise<void> {
+    await this.safeCallback(callback, conversationId, {
+      success: true,
+      title: buildLocalFallbackTitle(userMessage),
+    });
+  }
+
+  private async runGeneration(
+    conversationId: string,
+    userMessage: string,
+    callback: TitleGenerationCallback,
+    gate?: BackgroundRequestGate
+  ): Promise<void> {
     // Cancel any existing generation for this conversation
     const existingController = this.activeGenerations.get(conversationId);
     if (existingController) {
@@ -35,6 +79,13 @@ export class TitleGenerationService {
     }
 
     const abortController = new AbortController();
+    if (gate) {
+      const rejection = gate.tryBegin(abortController.signal);
+      if (rejection !== null) {
+        await this.deliverLocalTitle(conversationId, userMessage, callback);
+        return;
+      }
+    }
     this.activeGenerations.set(conversationId, abortController);
 
     const prompt = buildTitleGenerationPrompt(userMessage);
@@ -63,6 +114,7 @@ export class TitleGenerationService {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       await this.safeCallback(callback, conversationId, { success: false, error: msg });
     } finally {
+      gate?.end();
       this.activeGenerations.delete(conversationId);
     }
   }

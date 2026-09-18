@@ -68,9 +68,11 @@ type SwitchTabOptions = {
   deferHydration?: boolean;
 };
 
-type OpenConversationOptions = {
+export type OpenConversationOptions = {
   preferNewTab?: boolean;
   activate?: boolean;
+  searchQuery?: string;
+  targetTurnId?: string;
 };
 
 type ProviderCommandCacheEntry = {
@@ -631,11 +633,16 @@ export class TabManager implements TabManagerInterface {
     const activate = typeof options === 'boolean'
       ? true
       : options.activate ?? true;
+    const searchQuery = typeof options === 'object' ? options.searchQuery : undefined;
+    const targetTurnId = typeof options === 'object' ? options.targetTurnId : undefined;
 
     // Check if conversation is already open in this view's tabs
     for (const tab of this.tabs.values()) {
       if (tab.conversationId === conversationId) {
         await this.switchToTab(tab.id);
+        if (searchQuery || targetTurnId) {
+          this.scrollToTurnInTab(tab, { searchQuery, targetTurnId });
+        }
         return;
       }
     }
@@ -647,23 +654,80 @@ export class TabManager implements TabManagerInterface {
     if (crossViewResult && !isSameView) {
       // Focus the other view and switch to its tab instead of opening duplicate
       await revealWorkspaceLeaf(this.plugin.app.workspace, crossViewResult.view.leaf);
-      await crossViewResult.view.getTabManager()?.switchToTab(crossViewResult.tabId);
+      const otherTabManager = crossViewResult.view.getTabManager();
+      await otherTabManager?.switchToTab(crossViewResult.tabId);
+      const otherTab = otherTabManager?.getTab?.(crossViewResult.tabId);
+      if (otherTab && (searchQuery || targetTurnId)) {
+        otherTabManager?.scrollToTurnInTab?.(otherTab, { searchQuery, targetTurnId });
+      }
       return;
     }
 
     // Open in current tab or new tab
+    let targetTab: TabData | null = null;
     if (preferNewTab && this.canCreateTab()) {
-      await this.createTab(conversationId, undefined, { activate });
+      targetTab = await this.createTab(conversationId, undefined, { activate });
     } else {
       // Open in current tab
-      // Note: Don't set tab.conversationId here - the onConversationIdChanged callback
-      // will sync it after successful switch. Setting it before switchTo() would cause
-      // incorrect tab metadata if switchTo() returns early (streaming/switching/creating).
       const activeTab = this.getActiveTab();
       if (activeTab) {
         await activeTab.controllers.conversationController?.switchTo(conversationId);
+        targetTab = activeTab;
       }
     }
+
+    if (targetTab && (searchQuery || targetTurnId)) {
+      scheduleAnimationFrame(() => {
+        this.scrollToTurnInTab(targetTab, { searchQuery, targetTurnId });
+      });
+    }
+  }
+
+  scrollToTurnInTab(tab: TabData, target: { searchQuery?: string; targetTurnId?: string }): boolean {
+    const messagesEl = tab.dom?.messagesEl;
+    if (!messagesEl) return false;
+
+    let targetEl: HTMLElement | null = null;
+    if (target.targetTurnId) {
+      // The rendered message window may not include the target; reveal it
+      // (switching the window when needed) before querying the DOM.
+      targetEl = tab.renderer?.revealMessage(target.targetTurnId) ?? null;
+    }
+
+    if (target.searchQuery) {
+      const query = target.searchQuery.toLowerCase();
+      if (!targetEl) {
+        // Prefer revealing the matching message through its stored content,
+        // which also finds matches outside the rendered window.
+        const matchedMessage = tab.state.messages.find((msg) => {
+          const haystack = `${msg.displayContent ?? ''}\n${msg.content}`.toLowerCase();
+          return haystack.includes(query);
+        });
+        if (matchedMessage) {
+          targetEl = tab.renderer?.revealMessage(matchedMessage.id) ?? null;
+        }
+      }
+
+      if (!targetEl) {
+        const messageEls = Array.from(messagesEl.querySelectorAll<HTMLElement>('.claudian-plus-message'));
+        for (const msgEl of messageEls) {
+          if (msgEl.textContent?.toLowerCase().includes(query)) {
+            targetEl = msgEl;
+            break;
+          }
+        }
+      }
+    }
+
+    if (targetEl) {
+      targetEl.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+      targetEl.addClass('claudian-plus-turn-pulse');
+      window.setTimeout(() => {
+        targetEl?.removeClass('claudian-plus-turn-pulse');
+      }, 2000);
+      return true;
+    }
+    return false;
   }
 
   /**
@@ -672,6 +736,12 @@ export class TabManager implements TabManagerInterface {
   async createNewConversation(): Promise<void> {
     const activeTab = this.getActiveTab();
     if (activeTab) {
+      if (activeTab.state.messages.length > 0) {
+        void this.plugin.getMicroDreamCoordinator?.()?.evaluateSession({
+          id: activeTab.conversationId || activeTab.id,
+          messages: activeTab.state.messages,
+        });
+      }
       await activeTab.controllers.conversationController?.createNew();
       // Sync tab.conversationId with the newly created conversation
       activeTab.conversationId = activeTab.state.currentConversationId;

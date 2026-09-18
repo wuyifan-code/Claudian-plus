@@ -1,5 +1,5 @@
-import type { App, Component } from 'obsidian';
-import { MarkdownRenderer, Menu, Notice, setIcon } from 'obsidian';
+import type { App } from 'obsidian';
+import { Component, MarkdownRenderer, Menu, Notice, setIcon } from 'obsidian';
 
 import type { MindRecallInfo } from '../../../core/memory/mind-types';
 import { DEFAULT_CHAT_PROVIDER_ID, type ProviderCapabilities } from '../../../core/providers/types';
@@ -40,6 +40,7 @@ import { WelcomeService } from '../services/WelcomeService';
 import { BlobWelcomeView } from '../ui/BlobWelcomeView';
 import type { WelcomeAnimation, WelcomeAnimationMode } from '../ui/welcomeAnimation';
 import { formatConversationDirectoryTitle } from '../utils/conversationDirectoryTitle';
+import { MessageRenderWindow } from './MessageRenderWindow';
 import { resolveSubagentLifecycleAdapter } from './subagentLifecycleResolution';
 import {
   renderStoredAsyncSubagent,
@@ -51,6 +52,12 @@ import { renderStoredWriteEdit } from './WriteEditRenderer';
 
 export interface RenderContentOptions {
   deferMath?: boolean;
+  /**
+   * Component that owns the rendered markdown. Stored (history) messages pass
+   * a per-message child component so window eviction can release everything
+   * the markdown render registered; live streaming keeps the shared component.
+   */
+  component?: Component;
 }
 
 export type RenderContentFn = (
@@ -62,11 +69,13 @@ export type RenderContentFn = (
 interface RendererTimeout {
   id: number;
   ownerWindow: Window;
+  ownerEl: HTMLElement;
 }
 
 interface RendererAnimationFrame {
   id: number;
   ownerWindow: Window;
+  ownerEl: HTMLElement;
 }
 
 function runRendererAction(action: () => Promise<void>): void {
@@ -89,6 +98,13 @@ export class MessageRenderer {
   private pendingAnimationFrames = new Set<RendererAnimationFrame>();
   private disposed = false;
   private floatingToolbar: FloatingSelectionToolbar | null = null;
+  /** Sliding window over the stored (history) message nodes. */
+  private messageWindow: MessageRenderWindow;
+  /** Per-message markdown scopes keyed by the message's top-level nodes. */
+  private storedMessageComponents = new WeakMap<HTMLElement, Component>();
+  private storedScopes = new Set<Component>();
+  /** Live-appended nodes (streaming turn, images) in DOM order. */
+  private liveNodeOrder: HTMLElement[] = [];
 
   private getReadingMode?: () => boolean;
 
@@ -125,6 +141,13 @@ export class MessageRenderer {
 
     // Register delegated click handler for file links
     registerFileLinkHandler(this.app, this.messagesEl, this.component);
+    this.messageWindow = new MessageRenderWindow({
+      renderStoredMessage: (msg, allMessages, index) =>
+        this.renderStoredMessage(msg, allMessages, index),
+      releaseStoredNodes: (nodes, messageId) => this.releaseStoredNodes(nodes, messageId),
+      getFirstLiveNode: () => this.firstLiveNode(),
+    });
+    this.messageWindow.setContainer(messagesEl);
     this.initFloatingToolbar();
   }
 
@@ -174,7 +197,10 @@ export class MessageRenderer {
     this.cancelPendingUiCallbacks();
     this.destroyWelcomeCube();
     this.closeActiveImageModal();
+    this.releaseAllStoredScopes();
     this.messagesEl = el;
+    this.liveNodeOrder = [];
+    this.messageWindow.setContainer(el);
     this.initFloatingToolbar();
   }
 
@@ -184,9 +210,12 @@ export class MessageRenderer {
     this.cancelPendingUiCallbacks();
     this.destroyWelcomeCube();
     this.closeActiveImageModal();
+    this.messageWindow.dispose();
+    this.releaseAllStoredScopes();
     this.floatingToolbar?.destroy();
     this.floatingToolbar = null;
     this.liveMessageEls.clear();
+    this.liveNodeOrder = [];
   }
 
   private scheduleTimeout(
@@ -195,7 +224,7 @@ export class MessageRenderer {
     delayMs: number,
   ): RendererTimeout {
     const ownerWindow = ownerEl.ownerDocument?.defaultView ?? window;
-    const scheduled: RendererTimeout = { id: -1, ownerWindow };
+    const scheduled: RendererTimeout = { id: -1, ownerWindow, ownerEl };
     scheduled.id = ownerWindow.setTimeout(() => {
       this.pendingTimeouts.delete(scheduled);
       if (this.disposed || ownerEl.isConnected === false) return;
@@ -216,7 +245,7 @@ export class MessageRenderer {
     callback: () => void,
   ): RendererAnimationFrame {
     const ownerWindow = ownerEl.ownerDocument?.defaultView ?? window;
-    const scheduled: RendererAnimationFrame = { id: -1, ownerWindow };
+    const scheduled: RendererAnimationFrame = { id: -1, ownerWindow, ownerEl };
     scheduled.id = ownerWindow.requestAnimationFrame(() => {
       this.pendingAnimationFrames.delete(scheduled);
       if (this.disposed || ownerEl.isConnected === false) return;
@@ -235,6 +264,24 @@ export class MessageRenderer {
       scheduled.ownerWindow.cancelAnimationFrame(scheduled.id);
     }
     this.pendingAnimationFrames.clear();
+  }
+
+  /** Cancels scheduled UI callbacks bound to (the subtrees of) the given nodes. */
+  private cancelPendingUiCallbacksFor(nodes: HTMLElement[]): void {
+    const isWithin = (el: HTMLElement) =>
+      nodes.some((node) => node === el || node.contains(el));
+    for (const scheduled of this.pendingTimeouts) {
+      if (isWithin(scheduled.ownerEl)) {
+        scheduled.ownerWindow.clearTimeout(scheduled.id);
+        this.pendingTimeouts.delete(scheduled);
+      }
+    }
+    for (const scheduled of this.pendingAnimationFrames) {
+      if (isWithin(scheduled.ownerEl)) {
+        scheduled.ownerWindow.cancelAnimationFrame(scheduled.id);
+        this.pendingAnimationFrames.delete(scheduled);
+      }
+    }
   }
 
   /** Pauses the welcome visual while its tab is hidden or starts a turn. */
@@ -304,7 +351,8 @@ export class MessageRenderer {
   addMessage(msg: ChatMessage): HTMLElement {
     // Render images above message bubble for user messages
     if (msg.role === 'user' && msg.images && msg.images.length > 0) {
-      this.renderMessageImages(this.messagesEl, msg.images);
+      const imagesEl = this.renderMessageImages(this.messagesEl, msg.images);
+      if (imagesEl) this.liveNodeOrder.push(imagesEl);
     }
 
     // Skip empty bubble for image-only messages
@@ -324,6 +372,7 @@ export class MessageRenderer {
         'data-role': msg.role,
       },
     });
+    this.liveNodeOrder.push(msgEl);
 
     const contentEl = msgEl.createDiv({ cls: 'claudian-plus-message-content', attr: { dir: 'auto' } });
 
@@ -389,6 +438,8 @@ export class MessageRenderer {
 
     msgEl.remove();
     this.liveMessageEls.delete(messageId);
+    this.liveNodeOrder = this.liveNodeOrder.filter((el) => el !== msgEl);
+    this.messageWindow.forget(messageId);
   }
 
   // ============================================
@@ -400,8 +451,12 @@ export class MessageRenderer {
   private welcomeRenderToken = 0;
 
   /**
-   * Renders all messages for conversation load/switch.
-   * @param messages Array of messages to render
+   * Renders a conversation for load/switch. Only the most recent window of
+   * messages is rendered on first paint; older history loads on demand through
+   * the message window. The caller's array is never truncated and remains the
+   * single source for provider context.
+   *
+   * @param messages Full conversation snapshot to render
    * @param getGreeting Function to get greeting text
    * @returns The newly created welcome element
    */
@@ -414,6 +469,9 @@ export class MessageRenderer {
 
     this.messagesEl.empty();
     this.liveMessageEls.clear();
+    this.liveNodeOrder = [];
+    // Drop the previous conversation's window so its result is never reused.
+    this.messageWindow.reset([]);
 
     if (messages.length === 0) {
       const welcomeMode = this.getWelcomeAnimationMode();
@@ -484,54 +542,86 @@ export class MessageRenderer {
     });
     hiddenWelcomeEl.createDiv({ cls: 'claudian-plus-welcome-greeting', text: getGreeting() });
 
-    for (let i = 0; i < messages.length; i++) {
-      this.renderStoredMessage(messages[i], messages, i);
-    }
+    this.messageWindow.reset(messages);
 
     this.scrollToBottom();
     return hiddenWelcomeEl;
   }
 
-  renderStoredMessage(msg: ChatMessage, allMessages?: ChatMessage[], index?: number): void {
+  /**
+   * Brings a message into the rendered window and scrolls it into view,
+   * switching the window when the target lies outside it. Returns the message
+   * node, or null when no such node exists or can be rendered.
+   */
+  revealMessage(messageId: string): HTMLElement | null {
+    const existing = this.messagesEl.querySelector<HTMLElement>(
+      `[data-message-id="${messageId}"]`
+    );
+    if (existing) {
+      existing.scrollIntoView?.({ block: 'center' });
+      return existing;
+    }
+
+    const node = this.messageWindow.ensureMessageRendered(messageId);
+    if (!node) return null;
+    node.scrollIntoView?.({ block: 'center' });
+    return node;
+  }
+
+  renderStoredMessage(
+    msg: ChatMessage,
+    allMessages?: ChatMessage[],
+    index?: number,
+    container?: HTMLElement
+  ): HTMLElement[] {
+    const target = container ?? this.messagesEl;
+    const nodes: HTMLElement[] = [];
+
     if (msg.isInterrupt && (msg.role === 'user' || !this.hasVisibleContent(msg))) {
-      this.renderInterruptMessage();
-      return;
+      nodes.push(this.renderInterruptMessage(target));
+      return nodes;
     }
 
     // Skip rebuilt context messages (history sent to SDK on session reset)
     // These are internal context for the AI, not actual user messages to display
     if (msg.isRebuiltContext) {
-      return;
+      return nodes;
     }
 
     // Render images above bubble for user messages
     if (msg.role === 'user' && msg.images && msg.images.length > 0) {
-      this.renderMessageImages(this.messagesEl, msg.images);
+      const imagesEl = this.renderMessageImages(target, msg.images);
+      if (imagesEl) nodes.push(imagesEl);
     }
 
     // Skip empty bubble for image-only messages
     if (msg.role === 'user') {
       const textToShow = this.getUserMessageTextToShow(msg);
       if (!textToShow) {
-        return;
+        return nodes;
       }
     }
     if (msg.role === 'assistant' && !this.hasVisibleContent(msg)) {
-      return;
+      return nodes;
     }
 
-    const msgEl = this.messagesEl.createDiv({
+    // Per-message scope so window eviction can release everything the
+    // markdown renders registered on it.
+    const scope = this.createStoredMessageScope();
+    const msgEl = target.createDiv({
       cls: `claudian-plus-message claudian-plus-message-${msg.role}`,
       attr: {
         'data-message-id': msg.id,
         'data-role': msg.role,
       },
     });
+    this.storedMessageComponents.set(msgEl, scope);
+    nodes.push(msgEl);
 
     const contentEl = msgEl.createDiv({ cls: 'claudian-plus-message-content', attr: { dir: 'auto' } });
 
     if (msg.role === 'user') {
-      this.renderUserText(msg, msgEl, contentEl);
+      this.renderUserText(msg, msgEl, contentEl, scope);
       if (msg.userMessageId) {
         if (this.rewindCallback && this.isRewindEligible(allMessages, index)) {
           this.addRewindButton(msgEl, msg.id);
@@ -542,11 +632,55 @@ export class MessageRenderer {
       }
     } else if (msg.role === 'assistant') {
       this.addAssistantContextMenu(msgEl);
-      const hadLegacyInterruptIndicator = this.renderAssistantContent(msg, contentEl);
+      const hadLegacyInterruptIndicator = this.renderAssistantContent(msg, contentEl, scope);
       if (msg.isInterrupt || hadLegacyInterruptIndicator) {
         this.appendInterruptIndicator(contentEl);
       }
     }
+
+    return nodes;
+  }
+
+  private createStoredMessageScope(): Component {
+    const scope = new Component();
+    this.component.addChild(scope);
+    this.storedScopes.add(scope);
+    return scope;
+  }
+
+  /**
+   * Releases the resources a stored message holds beyond its DOM: the
+   * per-message markdown component (registered events/observers) and any UI
+   * callbacks still scheduled against the discarded nodes.
+   */
+  private releaseStoredNodes(nodes: HTMLElement[], messageId: string): void {
+    for (const node of nodes) {
+      const scope = this.storedMessageComponents.get(node);
+      if (scope) {
+        scope.unload();
+        this.storedScopes.delete(scope);
+        this.storedMessageComponents.delete(node);
+      }
+    }
+    this.cancelPendingUiCallbacksFor(nodes);
+    this.liveMessageEls.delete(messageId);
+    this.liveNodeOrder = this.liveNodeOrder.filter((el) => !nodes.includes(el));
+  }
+
+  private releaseAllStoredScopes(): void {
+    for (const scope of this.storedScopes) {
+      scope.unload();
+    }
+    this.storedScopes.clear();
+    this.storedMessageComponents = new WeakMap();
+  }
+
+  private firstLiveNode(): HTMLElement | null {
+    for (const el of this.liveNodeOrder) {
+      if (el.isConnected === false) continue;
+      if (this.messagesEl.contains(el)) return el;
+    }
+    return null;
   }
 
   private hasVisibleContent(msg: ChatMessage): boolean {
@@ -579,10 +713,11 @@ export class MessageRenderer {
     return !!ctx.prevAssistantUuid && ctx.hasResponse;
   }
 
-  private renderInterruptMessage(): void {
-    const msgEl = this.messagesEl.createDiv({ cls: 'claudian-plus-message claudian-plus-message-assistant' });
+  private renderInterruptMessage(container: HTMLElement): HTMLElement {
+    const msgEl = container.createDiv({ cls: 'claudian-plus-message claudian-plus-message-assistant' });
     const contentEl = msgEl.createDiv({ cls: 'claudian-plus-message-content', attr: { dir: 'auto' } });
     this.appendInterruptIndicator(contentEl);
+    return msgEl;
   }
 
   private addAssistantContextMenu(msgEl: HTMLElement): void {
@@ -645,7 +780,26 @@ export class MessageRenderer {
   /**
    * Renders assistant message content (content blocks or fallback).
    */
-  private renderAssistantContent(msg: ChatMessage, contentEl: HTMLElement): boolean {
+  /**
+   * Renders message markdown, routing through the per-message component when
+   * one exists. Live messages keep the original two-argument call shape.
+   */
+  private renderMessageMarkdown(
+    el: HTMLElement,
+    markdown: string,
+    markdownComponent?: Component
+  ): Promise<void> {
+    if (markdownComponent) {
+      return this.renderContent(el, markdown, { component: markdownComponent });
+    }
+    return this.renderContent(el, markdown);
+  }
+
+  private renderAssistantContent(
+    msg: ChatMessage,
+    contentEl: HTMLElement,
+    markdownComponent?: Component
+  ): boolean {
     if (msg.mindRecall && msg.mindRecall.length > 0) {
       this.renderMindRecallPill(contentEl, msg.mindRecall);
     }
@@ -660,7 +814,7 @@ export class MessageRenderer {
             contentEl,
             block.content,
             block.durationSeconds,
-            (el, md) => this.renderContent(el, md),
+            (el, md) => this.renderMessageMarkdown(el, md, markdownComponent),
             { collapsedByDefault: this.isReadingModeActive() }
           );
         } else if (block.type === 'text') {
@@ -671,7 +825,7 @@ export class MessageRenderer {
             continue;
           }
           const textEl = contentEl.createDiv({ cls: 'claudian-plus-text-block' });
-          void this.renderContent(textEl, normalized.content);
+          void this.renderMessageMarkdown(textEl, normalized.content, markdownComponent);
           this.addTextCopyButton(textEl, normalized.content);
           this.addActionableResponseBar(textEl, normalized.content);
         } else if (block.type === 'tool_use') {
@@ -709,7 +863,7 @@ export class MessageRenderer {
         hadLegacyInterruptIndicator ||= normalized.interrupted;
         if (normalized.content.trim()) {
           const textEl = contentEl.createDiv({ cls: 'claudian-plus-text-block' });
-          void this.renderContent(textEl, normalized.content);
+          void this.renderMessageMarkdown(textEl, normalized.content, markdownComponent);
           this.addTextCopyButton(textEl, normalized.content);
           this.addActionableResponseBar(textEl, normalized.content);
         }
@@ -894,8 +1048,9 @@ export class MessageRenderer {
 
   /**
    * Renders image attachments above a message.
+   * @returns The created images container, or null when nothing was rendered.
    */
-  renderMessageImages(containerEl: HTMLElement, images: ImageAttachment[]): void {
+  renderMessageImages(containerEl: HTMLElement, images: ImageAttachment[]): HTMLElement | null {
     const imagesEl = containerEl.createDiv({ cls: 'claudian-plus-message-images' });
 
     for (const image of images) {
@@ -913,6 +1068,8 @@ export class MessageRenderer {
         void this.showFullImage(image);
       });
     }
+
+    return imagesEl;
   }
 
   /**
@@ -1007,7 +1164,7 @@ export class MessageRenderer {
         processedMarkdown,
         el,
         '',
-        this.component
+        options?.component ?? this.component
       );
 
       // Wrap pre elements and move buttons outside scroll area
@@ -1386,11 +1543,16 @@ export class MessageRenderer {
 
 
   /** Renders the user message text with copy button and TOC title wiring. */
-  private renderUserText(msg: ChatMessage, msgEl: HTMLElement, contentEl: HTMLElement): void {
+  private renderUserText(
+    msg: ChatMessage,
+    msgEl: HTMLElement,
+    contentEl: HTMLElement,
+    markdownComponent?: Component
+  ): void {
     const textToShow = this.getUserMessageTextToShow(msg);
     if (textToShow) {
       const textEl = contentEl.createDiv({ cls: 'claudian-plus-text-block' });
-      void this.renderContent(textEl, textToShow);
+      void this.renderMessageMarkdown(textEl, textToShow, markdownComponent);
       this.addUserCopyButton(msgEl, textToShow);
       this.applyTocTitle(msgEl, textToShow);
     }

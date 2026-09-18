@@ -81,17 +81,31 @@ export interface StreamControllerDeps {
 export class StreamController {
   private static readonly ASYNC_SUBAGENT_RESULT_RETRY_DELAYS_MS = [200, 600, 1500] as const;
 
+  /**
+   * Minimum wall-clock spacing between streamed markdown renders. Stream chunks
+   * arrive faster than anyone reads, and every render re-parses the whole
+   * accumulated body — rendering at animation-frame rate makes the cost grow
+   * quadratically with reply size. The scheduled rAF frame simply re-arms
+   * itself until the interval elapses, so coalescing still rides the existing
+   * scheduler instead of a second one.
+   */
+  private static readonly MIN_STREAM_RENDER_INTERVAL_MS = 100;
+
   private deps: StreamControllerDeps;
   private pendingTextRenderFrame: ScheduledAnimationFrame | null = null;
   private pendingTextRenderPromise: Promise<void> | null = null;
   private resolvePendingTextRender: (() => void) | null = null;
   private isTextRenderRunning = false;
   private textRenderGeneration = 0;
+  /** performance.now() of the last executed text render; -Infinity = due now. */
+  private lastTextRenderAtMs = Number.NEGATIVE_INFINITY;
   private pendingThinkingRenderFrame: ScheduledAnimationFrame | null = null;
   private pendingThinkingRenderPromise: Promise<void> | null = null;
   private resolvePendingThinkingRender: (() => void) | null = null;
   private isThinkingRenderRunning = false;
   private thinkingRenderGeneration = 0;
+  /** performance.now() of the last executed thinking render; -Infinity = due now. */
+  private lastThinkingRenderAtMs = Number.NEGATIVE_INFINITY;
   private pendingToolOutputFrames = new Map<string, ScheduledAnimationFrame>();
   private pendingScrollFrame: ScheduledAnimationFrame | null = null;
   private pendingAsyncSubagentRetryTimers = new Set<{
@@ -206,6 +220,10 @@ export class StreamController {
       case 'done':
         // Flush any remaining pending tools
         this.flushPendingTools();
+        // Completion must paint everything the render interval still holds,
+        // including the final chunk.
+        await this.flushPendingTextRender();
+        await this.flushPendingThinkingRender();
         break;
 
       case 'context_compacted': {
@@ -733,6 +751,37 @@ export class StreamController {
     return this.pendingTextRenderPromise;
   }
 
+  /**
+   * Whether a streamed markdown render may execute now. Defers while the owner
+   * document is hidden (data keeps accumulating in state) and until the
+   * minimum interval since the previous render has elapsed.
+   */
+  private isStreamRenderDue(lastRenderAtMs: number, ownerDoc: Document | null): boolean {
+    if (ownerDoc?.hidden === true) {
+      return false;
+    }
+    if (lastRenderAtMs === Number.NEGATIVE_INFINITY) {
+      return true;
+    }
+    return performance.now() - lastRenderAtMs >= StreamController.MIN_STREAM_RENDER_INTERVAL_MS;
+  }
+
+  private getStreamingRenderDoc(): Document | null {
+    const { state } = this.deps;
+    return state.currentTextEl?.ownerDocument
+      ?? state.currentContentEl?.ownerDocument
+      ?? this.deps.getMessagesEl().ownerDocument
+      ?? null;
+  }
+
+  private getThinkingRenderDoc(): Document | null {
+    const { state } = this.deps;
+    return state.currentThinkingState?.contentEl.ownerDocument
+      ?? state.currentContentEl?.ownerDocument
+      ?? this.deps.getMessagesEl().ownerDocument
+      ?? null;
+  }
+
   private scheduleTextRenderFrame(): void {
     if (
       this.pendingTextRenderPromise
@@ -741,6 +790,11 @@ export class StreamController {
     ) {
       this.pendingTextRenderFrame = scheduleAnimationFrame(() => {
         this.pendingTextRenderFrame = null;
+        if (!this.isStreamRenderDue(this.lastTextRenderAtMs, this.getStreamingRenderDoc())) {
+          // Stay on the same rAF path and re-arm until the render is due.
+          this.scheduleTextRenderFrame();
+          return;
+        }
         void this.renderPendingText();
       }, this.getStreamingRenderWindow());
     }
@@ -770,6 +824,7 @@ export class StreamController {
 
     try {
       if (textEl) {
+        this.lastTextRenderAtMs = performance.now();
         const options = this.getStreamingRenderOptions(content);
         if (options) {
           await renderer.renderContent(textEl, content, options);
@@ -908,6 +963,11 @@ export class StreamController {
     ) {
       this.pendingThinkingRenderFrame = scheduleAnimationFrame(() => {
         this.pendingThinkingRenderFrame = null;
+        if (!this.isStreamRenderDue(this.lastThinkingRenderAtMs, this.getThinkingRenderDoc())) {
+          // Stay on the same rAF path and re-arm until the render is due.
+          this.scheduleThinkingRenderFrame();
+          return;
+        }
         void this.renderPendingThinking();
       }, this.getThinkingRenderWindow());
     }
@@ -937,6 +997,7 @@ export class StreamController {
 
     try {
       if (thinkingState) {
+        this.lastThinkingRenderAtMs = performance.now();
         const options = this.getStreamingRenderOptions(content);
         if (options) {
           await renderer.renderContent(thinkingState.contentEl, content, options);
@@ -1652,6 +1713,8 @@ export class StreamController {
     const { state } = this.deps;
     this.cancelPendingTextRender();
     this.cancelPendingThinkingRender();
+    this.lastTextRenderAtMs = Number.NEGATIVE_INFINITY;
+    this.lastThinkingRenderAtMs = Number.NEGATIVE_INFINITY;
     this.cancelPendingToolOutputRenders();
     this.cancelPendingScroll();
     this.cancelPendingAsyncSubagentRetries();

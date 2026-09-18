@@ -1,6 +1,22 @@
 // Mock for Obsidian API
 import { createMockEl } from '../helpers/mockElement';
 
+export class Component {
+  static instances: Component[] = [];
+
+  registerDomEvent = jest.fn();
+  register = jest.fn();
+  registerEvent = jest.fn();
+  load = jest.fn();
+  unload = jest.fn();
+  addChild = jest.fn();
+  removeChild = jest.fn();
+
+  constructor() {
+    Component.instances.push(this);
+  }
+}
+
 export class Plugin {
   app: any;
   manifest: any;

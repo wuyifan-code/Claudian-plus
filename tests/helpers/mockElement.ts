@@ -1,6 +1,7 @@
 export interface MockElement {
   tagName: string;
   children: MockElement[];
+  parentNode: MockElement | null;
   style: Record<string, string>;
   dataset: Record<string, string>;
   scrollTop: number;
@@ -188,6 +189,7 @@ export function createMockEl(tag = 'div'): any {
   const element: MockElement = {
     tagName: tag.toUpperCase(),
     children,
+    parentNode: null,
     style,
     dataset,
     scrollTop: 0,
@@ -250,6 +252,7 @@ export function createMockEl(tag = 'div'): any {
           child.setAttribute(name, value);
         }
       }
+      child.parentNode = element;
       children.push(child);
       return child;
     },
@@ -262,6 +265,7 @@ export function createMockEl(tag = 'div'): any {
           child.setAttribute(name, value);
         }
       }
+      child.parentNode = element;
       children.push(child);
       return child;
     },
@@ -274,6 +278,7 @@ export function createMockEl(tag = 'div'): any {
           child.setAttribute(name, value);
         }
       }
+      child.parentNode = element;
       children.push(child);
       return child;
     },
@@ -285,15 +290,46 @@ export function createMockEl(tag = 'div'): any {
           child.setAttribute(name, value);
         }
       }
+      child.parentNode = element;
       children.push(child);
       return child;
     },
 
-    appendChild(child: any) { children.push(child); return child; },
-    insertBefore(el: MockElement, _ref: MockElement | null) { children.unshift(el); },
+    appendChild(child: any) {
+      if (child && typeof child === 'object') {
+        (child as MockElement).parentNode = element;
+      }
+      children.push(child);
+      return child;
+    },
+    insertBefore(el: MockElement, ref: MockElement | null) {
+      // Mirror real DOM move semantics: an element that is already a child is
+      // relocated, and a null reference appends.
+      const existingIndex = children.indexOf(el);
+      if (existingIndex !== -1) children.splice(existingIndex, 1);
+      const refIndex = ref === null ? -1 : children.indexOf(ref);
+      if (refIndex === -1) {
+        children.push(el);
+      } else {
+        children.splice(refIndex, 0, el);
+      }
+      el.parentNode = element;
+      return el;
+    },
     get firstChild() { return children[0] || null; },
-    remove() {},
+    remove() {
+      const parent = element.parentNode;
+      if (!parent) return;
+      const index = parent.children.indexOf(element);
+      if (index !== -1) parent.children.splice(index, 1);
+      element.parentNode = null;
+    },
     empty() {
+      for (const child of children) {
+        if (child && typeof child === 'object') {
+          (child as MockElement).parentNode = null;
+        }
+      }
       children.length = 0;
       element.innerHTML = '';
       textContent = '';

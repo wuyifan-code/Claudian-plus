@@ -143,6 +143,10 @@ export class ConversationController {
       // Persist terminalized background tasks before clearing their runtime state.
       if (state.currentConversationId && state.messages.length > 0) {
         await this.save();
+        void plugin.getMicroDreamCoordinator?.()?.evaluateSession({
+          id: state.currentConversationId,
+          messages: state.messages,
+        });
       }
 
       subagentManager.clear();
@@ -1210,8 +1214,14 @@ export class ConversationController {
     await plugin.updateConversation(conversationId, { titleGenerationStatus: 'pending' });
     this.updateHistoryDropdown();
 
+    // The user triggered this regeneration explicitly, so prefer the manual
+    // entry point, which bypasses the automatic saving-mode policy and budget.
+    const generateTitle = titleService.generateTitleManually
+      ? titleService.generateTitleManually.bind(titleService)
+      : titleService.generateTitle.bind(titleService);
+
     // Fire async AI title generation
-    await titleService.generateTitle(
+    await generateTitle(
       conversationId,
       userContent,
       async (convId, result) => {

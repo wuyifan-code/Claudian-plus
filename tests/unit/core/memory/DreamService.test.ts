@@ -1,3 +1,4 @@
+import { AuxiliaryRequestGate } from '@/core/auxiliary/AuxiliaryRequestPolicy';
 import type { AuxQueryConfig, AuxQueryRunner } from '@/core/auxiliary/AuxQueryRunner';
 import { ACTIVITY_FILE, SHORT_TERM_DIR, USER_FILE } from '@/core/memory/consciousness-types';
 import { ConsciousnessEngine } from '@/core/memory/ConsciousnessEngine';
@@ -69,6 +70,7 @@ function createHarness(options: {
   intervalMs?: number;
   queryTimeoutMs?: number;
   context?: { providerId: ProviderId; model: string | null } | null;
+  gate?: AuxiliaryRequestGate;
 } = {}): ServiceHarness {
   const adapter = createMockAdapter(options.files);
   const memoryStore = new MemoryStore(adapter);
@@ -98,6 +100,7 @@ function createHarness(options: {
     createRunner: runnerFactory,
     getConversationContext: () => options.context ?? null,
     isEnabled: () => options.enabled ?? true,
+    backgroundRequestGate: options.gate,
     config: { intervalMs: options.intervalMs ?? 0, queryTimeoutMs: options.queryTimeoutMs },
   });
 
@@ -586,6 +589,117 @@ describe('DreamService', () => {
       const result = await service.runDream(true);
       expect(result.ran).toBe(true);
       expect(result.newFacts).toBe(0);
+    });
+  });
+
+  describe('saving mode and background budget', () => {
+    function createGate(
+      overrides: Partial<ConstructorParameters<typeof AuxiliaryRequestGate>[0]> = {},
+    ): AuxiliaryRequestGate {
+      return new AuxiliaryRequestGate({
+        resolveSavingMode: () => 'standard',
+        resolveDailyLimit: () => null,
+        ...overrides,
+      });
+    }
+
+    it('skips the scheduled dream in economy mode without a model request', async () => {
+      const gate = createGate({ resolveSavingMode: () => 'economy' });
+      const { service, runnerFactory } = createHarness({
+        files: { ...dayLog(TODAY, 'User: hi') },
+        gate,
+      });
+
+      const result = await service.runDream(false);
+
+      expect(result).toMatchObject({ ran: false, reason: 'saving-mode' });
+      expect(runnerFactory).not.toHaveBeenCalled();
+      expect(gate.getIssuedToday()).toBe(0);
+    });
+
+    it('still runs a manual dream in economy mode', async () => {
+      const gate = createGate({ resolveSavingMode: () => 'economy' });
+      const { service, queryMock } = createHarness({
+        files: { ...dayLog(TODAY, 'User: hi') },
+        gate,
+      });
+
+      const result = await service.runDream(true);
+
+      expect(result.ran).toBe(true);
+      expect(queryMock).toHaveBeenCalledTimes(1);
+      expect(gate.getIssuedToday()).toBe(0);
+    });
+
+    it('skips the scheduled dream when the daily budget is exhausted', async () => {
+      const gate = createGate({ resolveDailyLimit: () => 1 });
+      gate.tryBegin();
+      gate.end();
+      const { service, runnerFactory } = createHarness({
+        files: { ...dayLog(TODAY, 'User: hi') },
+        gate,
+      });
+
+      const result = await service.runDream(false);
+
+      expect(result).toMatchObject({ ran: false, reason: 'budget-exceeded' });
+      expect(runnerFactory).not.toHaveBeenCalled();
+      expect(gate.getIssuedToday()).toBe(1);
+    });
+
+    it('does not charge a manual dream to the daily budget', async () => {
+      const gate = createGate({ resolveDailyLimit: () => 1 });
+      gate.tryBegin();
+      gate.end();
+      const { service, queryMock } = createHarness({
+        files: { ...dayLog(TODAY, 'User: hi') },
+        gate,
+      });
+
+      const result = await service.runDream(true);
+
+      expect(result.ran).toBe(true);
+      expect(queryMock).toHaveBeenCalledTimes(1);
+      expect(gate.getIssuedToday()).toBe(1);
+    });
+
+    it('counts a scheduled dream that runs and releases the slot afterwards', async () => {
+      const gate = createGate();
+      const { service, queryMock } = createHarness({
+        files: { ...dayLog(TODAY, 'User: hi') },
+        gate,
+      });
+
+      const result = await service.runDream(false);
+
+      expect(result.ran).toBe(true);
+      expect(queryMock).toHaveBeenCalledTimes(1);
+      expect(gate.getIssuedToday()).toBe(1);
+      expect(gate.getInFlightCount()).toBe(0);
+    });
+
+    it('still counts a dream whose runner fails after being issued', async () => {
+      const gate = createGate();
+      const adapter = createMockAdapter({ ...dayLog(TODAY, 'User: hi') });
+      const memoryStore = new MemoryStore(adapter);
+      const consciousness = new ConsciousnessEngine(adapter, { enabled: true });
+      const service = new DreamService({
+        adapter,
+        memoryStore,
+        consciousness,
+        createRunner: () => ({
+          query: jest.fn(async () => { throw new Error('provider offline'); }),
+          reset: jest.fn(),
+        }) as unknown as AuxQueryRunner,
+        backgroundRequestGate: gate,
+      });
+
+      const result = await service.runDream(false);
+
+      expect(result).toMatchObject({ ran: false, reason: 'failed' });
+      expect(result.error).toContain('provider offline');
+      expect(gate.getIssuedToday()).toBe(1);
+      expect(gate.getInFlightCount()).toBe(0);
     });
   });
 });

@@ -14,6 +14,7 @@ import {
 } from '@/core/tools/toolNames';
 import type { ChatMessage, ToolCallInfo } from '@/core/types';
 import { StreamController, type StreamControllerDeps } from '@/features/chat/controllers/StreamController';
+import { MessageRenderer } from '@/features/chat/rendering/MessageRenderer';
 import { ChatState } from '@/features/chat/state/ChatState';
 
 jest.mock('@/core/tools/todo', () => ({
@@ -2273,6 +2274,208 @@ describe('StreamController - Text Content', () => {
 
       expect(enqueueBackgroundWork).not.toHaveBeenCalled();
       expect(runtime.loadSubagentFinalResult).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Stream render interval gating (R4a)', () => {
+    let clock = 1_000_000;
+    let performanceNowSpy: jest.SpyInstance<number, []>;
+
+    const advanceFrame = async (ms: number): Promise<void> => {
+      clock += ms;
+      jest.advanceTimersByTime(ms);
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    };
+
+    beforeEach(() => {
+      clock = 1_000_000;
+      performanceNowSpy = jest.spyOn(performance, 'now').mockImplementation(() => clock);
+    });
+
+    afterEach(() => {
+      performanceNowSpy.mockRestore();
+    });
+
+    it('coalesces one-chunk-per-frame text streams into fewer renders than frames', async () => {
+      deps.state.currentTextEl = createMockEl();
+
+      for (const chunk of ['one ', 'two ', 'three ', 'four ', 'five ', 'six ']) {
+        await controller.appendText(chunk);
+        await advanceFrame(16);
+      }
+      await advanceFrame(120);
+
+      expect(deps.renderer.renderContent).toHaveBeenCalledTimes(2);
+      expect(deps.renderer.renderContent).toHaveBeenLastCalledWith(
+        expect.anything(),
+        'one two three four five six '
+      );
+    });
+
+    it('never loses the final character when completion flushes the gated render', async () => {
+      const msg = createTestMessage();
+      deps.state.currentTextEl = createMockEl();
+
+      await controller.appendText('first half ');
+      await advanceFrame(16);
+      await controller.appendText('tail ending with final char');
+
+      expect(deps.renderer.renderContent).toHaveBeenCalledTimes(1);
+
+      await controller.finalizeCurrentTextBlock(msg);
+
+      expect(deps.renderer.renderContent).toHaveBeenLastCalledWith(
+        expect.anything(),
+        'first half tail ending with final char'
+      );
+      expect(msg.contentBlocks).toContainEqual({
+        type: 'text',
+        content: 'first half tail ending with final char',
+      });
+    });
+
+    it('keeps text received before a stop visible', async () => {
+      const msg = createTestMessage();
+      deps.state.currentTextEl = createMockEl();
+
+      await controller.appendText('partial answer before stop');
+      await controller.finalizeCurrentTextBlock(msg);
+      controller.resetStreamingState();
+
+      expect(deps.renderer.renderContent).toHaveBeenCalledWith(
+        expect.anything(),
+        'partial answer before stop'
+      );
+      expect(msg.contentBlocks).toContainEqual({
+        type: 'text',
+        content: 'partial answer before stop',
+      });
+    });
+
+    it('flushes gated body text before a tool_use reorders the stream', async () => {
+      const msg = createTestMessage();
+      deps.state.currentContentEl = createMockEl();
+
+      await controller.appendText('body before tool');
+      await advanceFrame(16);
+      await controller.appendText(' gated tail');
+
+      expect(deps.renderer.renderContent).toHaveBeenCalledTimes(1);
+
+      await controller.handleStreamChunk(
+        { type: 'tool_use', id: 'tool-1', name: 'Read', input: { file_path: 'a.md' } },
+        msg
+      );
+
+      expect(deps.renderer.renderContent).toHaveBeenCalledWith(
+        expect.anything(),
+        'body before tool gated tail'
+      );
+      expect(msg.contentBlocks!.map(block => block.type)).toEqual(['text', 'tool_use']);
+    });
+
+    it('defers DOM rendering while the document is hidden and keeps the message data', async () => {
+      const msg = createTestMessage();
+      const textEl = createMockEl();
+      const ownerDocument = textEl.ownerDocument as any;
+      ownerDocument.hidden = true;
+      deps.state.currentTextEl = textEl;
+
+      await controller.handleStreamChunk({ type: 'text', content: 'background data' }, msg);
+      await advanceFrame(16);
+      await advanceFrame(200);
+
+      expect(deps.renderer.renderContent).not.toHaveBeenCalled();
+      expect(msg.content).toBe('background data');
+      expect(deps.state.currentTextContent).toBe('background data');
+
+      ownerDocument.hidden = false;
+      await advanceFrame(16);
+
+      expect(deps.renderer.renderContent).toHaveBeenCalledWith(
+        expect.anything(),
+        'background data'
+      );
+    });
+
+    it('coalesces high-frequency thinking chunks across the render interval', async () => {
+      const { createThinkingBlock } = jest.requireMock('@/features/chat/rendering/ThinkingBlockRenderer');
+      createThinkingBlock.mockReturnValueOnce({
+        wrapperEl: createMockEl(),
+        contentEl: createMockEl(),
+        labelEl: createMockEl(),
+        content: '',
+        startTime: Date.now(),
+      });
+
+      for (const chunk of ['a ', 'b ', 'c ', 'd ']) {
+        await controller.appendThinking(chunk);
+        await advanceFrame(16);
+      }
+      await advanceFrame(120);
+
+      expect(deps.renderer.renderContent).toHaveBeenCalledTimes(2);
+    });
+
+    it('final DOM for code blocks, tables and math matches a whole-segment render', async () => {
+      const { MarkdownRenderer } = await import('obsidian');
+      const renderMarkdown = MarkdownRenderer.renderMarkdown as jest.Mock;
+      const originalImplementation = renderMarkdown.getMockImplementation();
+      renderMarkdown.mockImplementation(async (markdown: string, el: any) => {
+        for (const block of String(markdown).split(/\n\n+/)) {
+          const cls = block.startsWith('```')
+            ? 'md-code'
+            : block.startsWith('|')
+              ? 'md-table'
+              : block.includes('$')
+                ? 'md-math'
+                : 'md-paragraph';
+          el.createDiv({ cls, text: block });
+        }
+      });
+
+      const segments = [
+        'Intro paragraph with $x^2$ inline math.',
+        '```ts\nconst value = 42;\n```',
+        '| col | value |\n| --- | --- |\n| a | 1 |',
+        'Closing paragraph.',
+      ];
+      const fullText = segments.join('\n\n');
+
+      const realRenderer = new MessageRenderer(
+        { app: {}, settings: {} } as any,
+        { register: () => {}, registerDomEvent: () => {}, addChild: () => {} } as any,
+        createMockEl(),
+      );
+      deps.renderer = realRenderer as any;
+
+      try {
+        const msg = createTestMessage();
+        deps.state.currentContentEl = createMockEl();
+        for (const segment of segments) {
+          await controller.appendText(
+            segment === segments[0] ? segment : `\n\n${segment}`
+          );
+          await advanceFrame(16);
+        }
+        const streamedTextEl = deps.state.currentTextEl;
+        await controller.finalizeCurrentTextBlock(msg);
+
+        const refEl = createMockEl();
+        await realRenderer.renderContent(refEl, fullText);
+
+        const serialize = (el: any) =>
+          el.children
+            .filter((child: any) => !String(child.className).includes('claudian-plus-text-copy-btn'))
+            .map((child: any) => `${child.className}::${child.textContent}`)
+            .join('||');
+
+        expect(serialize(streamedTextEl)).toBe(serialize(refEl));
+      } finally {
+        renderMarkdown.mockImplementation(originalImplementation);
+      }
     });
   });
 

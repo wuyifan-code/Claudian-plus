@@ -3402,3 +3402,69 @@ describe('TabManager - buildForkTitle', () => {
     expect(updateCall.title).toBe('Fork: My Chat (#1) 4');
   });
 });
+
+describe('TabManager - scrollToTurnInTab window reveal', () => {
+  function buildLongHistory(): any[] {
+    const messages: any[] = [];
+    for (let i = 0; i < 3000; i++) {
+      messages.push({
+        id: `m-${i}`,
+        role: i % 2 === 0 ? 'user' : 'assistant',
+        content: i === 5 ? 'the unique needle phrase' : `message ${i}`,
+        timestamp: i,
+      });
+    }
+    return messages;
+  }
+
+  function createRevealHarness() {
+    const messagesEl = createMockEl();
+    const renderer = { revealMessage: jest.fn() };
+    const tab = createMockTabData({
+      id: 'reveal-tab',
+      state: { messages: buildLongHistory() },
+      dom: { contentEl: createMockEl(), messagesEl },
+      renderer,
+    });
+    const manager = createManager();
+    return { manager, tab, renderer, messagesEl };
+  }
+
+  it('reveals an out-of-window target turn through the renderer', () => {
+    const { manager, tab, renderer } = createRevealHarness();
+    const targetNode = createMockEl();
+    renderer.revealMessage.mockReturnValue(targetNode);
+
+    const result = manager.scrollToTurnInTab(tab, { targetTurnId: 'm-10' });
+
+    expect(result).toBe(true);
+    expect(renderer.revealMessage).toHaveBeenCalledWith('m-10');
+  });
+
+  it('reveals a stored search match that lies outside the rendered window', () => {
+    const { manager, tab, renderer } = createRevealHarness();
+    const targetNode = createMockEl();
+    renderer.revealMessage.mockImplementation((messageId: string) =>
+      messageId === 'm-5' ? targetNode : null
+    );
+
+    const result = manager.scrollToTurnInTab(tab, { searchQuery: 'unique needle phrase' });
+
+    expect(result).toBe(true);
+    expect(renderer.revealMessage).toHaveBeenCalledWith('m-5');
+  });
+
+  it('falls back to the rendered DOM when the renderer cannot reveal the match', () => {
+    const { manager, tab, renderer, messagesEl } = createRevealHarness();
+    renderer.revealMessage.mockReturnValue(null);
+    const renderedNode = createMockEl();
+    renderedNode.addClass('claudian-plus-message');
+    renderedNode.textContent = 'needle rendered in window';
+    messagesEl.appendChild(renderedNode);
+
+    const result = manager.scrollToTurnInTab(tab, { searchQuery: 'rendered in window' });
+
+    expect(result).toBe(true);
+    expect(renderer.revealMessage).not.toHaveBeenCalled();
+  });
+});

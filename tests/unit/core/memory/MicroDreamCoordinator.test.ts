@@ -1,3 +1,4 @@
+import { AuxiliaryRequestGate } from '@/core/auxiliary/AuxiliaryRequestPolicy';
 import type { AuxQueryRunner } from '@/core/auxiliary/AuxQueryRunner';
 import type { MemoryStore } from '@/core/memory/MemoryStore';
 import { MicroDreamCoordinator } from '@/core/memory/MicroDreamCoordinator';
@@ -232,5 +233,280 @@ describe('MicroDreamCoordinator', () => {
     expect(result.ran).toBe(true);
     expect(result.newStagingCount).toBe(1);
     expect(onNewStagingSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('records evaluation watermark and prevents redundant evaluation', async () => {
+    mockRunner.query.mockResolvedValue(
+      JSON.stringify({
+        rules: [
+          {
+            category: 'coding_habit',
+            scope: 'project',
+            content: 'Prefer pure functions',
+            rationale: 'Observed style',
+            confidence: 0.9,
+          },
+        ],
+      }),
+    );
+
+    const coordinator = new MicroDreamCoordinator({
+      mindStore,
+      createRunner,
+      minTurns: 2,
+    });
+
+    const messages = [
+      { role: 'user', content: 'hello turn 1' },
+      { role: 'assistant', content: 'reply 1' },
+      { role: 'user', content: 'hello turn 2' },
+      { role: 'assistant', content: 'reply 2' },
+    ];
+
+    // First evaluation: should run
+    const result1 = await coordinator.evaluateSession({
+      id: 'sess-watermark',
+      messages,
+    });
+    expect(result1.ran).toBe(true);
+    expect(coordinator.getLastEvaluatedTurnCount('sess-watermark')).toBe(2);
+    expect(createRunner).toHaveBeenCalledTimes(1);
+
+    // Second evaluation with identical messages: should skip due to watermark
+    const result2 = await coordinator.evaluateSession({
+      id: 'sess-watermark',
+      messages,
+    });
+    expect(result2.ran).toBe(false);
+    expect(result2.reason).toBe('redundant');
+    expect(createRunner).toHaveBeenCalledTimes(1);
+
+    // Third evaluation with an additional user turn: should run again
+    const updatedMessages = [
+      ...messages,
+      { role: 'user', content: 'hello turn 3' },
+      { role: 'assistant', content: 'reply 3' },
+    ];
+    const result3 = await coordinator.evaluateSession({
+      id: 'sess-watermark',
+      messages: updatedMessages,
+    });
+    expect(result3.ran).toBe(true);
+    expect(coordinator.getLastEvaluatedTurnCount('sess-watermark')).toBe(3);
+    expect(createRunner).toHaveBeenCalledTimes(2);
+
+    // Clear watermark: should allow re-evaluation
+    coordinator.clearWatermark('sess-watermark');
+    expect(coordinator.getLastEvaluatedTurnCount('sess-watermark')).toBeUndefined();
+  });
+
+  it('deduplicates concurrent in-flight evaluations for the same session', async () => {
+    let resolveQuery!: (val: string) => void;
+    const queryPromise = new Promise<string>((resolve) => {
+      resolveQuery = resolve;
+    });
+    mockRunner.query.mockReturnValue(queryPromise);
+
+    const coordinator = new MicroDreamCoordinator({
+      mindStore,
+      createRunner,
+      minTurns: 2,
+    });
+
+    const messages = [
+      { role: 'user', content: 'turn 1' },
+      { role: 'assistant', content: 'reply 1' },
+      { role: 'user', content: 'turn 2' },
+      { role: 'assistant', content: 'reply 2' },
+    ];
+
+    // Trigger two evaluations concurrently before the first resolves
+    const evalPromise1 = coordinator.evaluateSession({ id: 'sess-concurrent', messages });
+    const evalPromise2 = coordinator.evaluateSession({ id: 'sess-concurrent', messages });
+
+    resolveQuery(JSON.stringify({
+      rules: [
+        {
+          category: 'project_rule',
+          scope: 'project',
+          content: 'Test rule',
+          rationale: 'Test',
+          confidence: 0.9,
+        },
+      ],
+    }));
+
+    const [res1, res2] = await Promise.all([evalPromise1, evalPromise2]);
+    expect(res1).toBe(res2);
+    expect(res1.ran).toBe(true);
+    expect(createRunner).toHaveBeenCalledTimes(1);
+  });
+
+  describe('saving mode and background budget', () => {
+    const SUBSTANTIAL_MESSAGES = [
+      { role: 'user', content: 'turn 1' },
+      { role: 'assistant', content: 'reply 1' },
+      { role: 'user', content: 'turn 2' },
+      { role: 'assistant', content: 'reply 2' },
+    ];
+
+    function createGate(
+      overrides: Partial<ConstructorParameters<typeof AuxiliaryRequestGate>[0]> = {},
+    ): AuxiliaryRequestGate {
+      return new AuxiliaryRequestGate({
+        resolveSavingMode: () => 'standard',
+        resolveDailyLimit: () => null,
+        ...overrides,
+      });
+    }
+
+    function createCoordinator(
+      gate: AuxiliaryRequestGate,
+    ): MicroDreamCoordinator {
+      return new MicroDreamCoordinator({
+        mindStore,
+        createRunner,
+        minTurns: 2,
+        backgroundRequestGate: gate,
+      });
+    }
+
+    it('issues no model request for an automatic micro-dream trigger in economy mode', async () => {
+      const gate = createGate({ resolveSavingMode: () => 'economy' });
+      const coordinator = createCoordinator(gate);
+
+      const result = await coordinator.evaluateSession({
+        id: 'sess-economy',
+        messages: SUBSTANTIAL_MESSAGES,
+      });
+
+      expect(result).toMatchObject({ ran: false, reason: 'saving-mode' });
+      expect(result.error).toBeUndefined();
+      expect(createRunner).not.toHaveBeenCalled();
+      expect(gate.getIssuedToday()).toBe(0);
+      expect(coordinator.getLastEvaluatedTurnCount('sess-economy')).toBeUndefined();
+    });
+
+    it('skips quietly without advancing the watermark when the daily budget is exhausted', async () => {
+      let dailyLimit: number | null = 1;
+      const gate = createGate({ resolveDailyLimit: () => dailyLimit });
+      gate.tryBegin();
+      gate.end();
+      const coordinator = createCoordinator(gate);
+
+      const result = await coordinator.evaluateSession({
+        id: 'sess-capped',
+        messages: SUBSTANTIAL_MESSAGES,
+      });
+
+      expect(result).toMatchObject({ ran: false, reason: 'budget-exceeded' });
+      expect(createRunner).not.toHaveBeenCalled();
+      expect(coordinator.getLastEvaluatedTurnCount('sess-capped')).toBeUndefined();
+
+      // Budget headroom restored (user raises the cap or the day rolls over):
+      // the same turn count is retried, not treated as redundant.
+      dailyLimit = 2;
+      mockRunner.query.mockResolvedValueOnce(JSON.stringify({ rules: [] }));
+      const retried = await coordinator.evaluateSession({
+        id: 'sess-capped',
+        messages: SUBSTANTIAL_MESSAGES,
+      });
+      expect(retried.ran).toBe(true);
+      expect(createRunner).toHaveBeenCalledTimes(1);
+      expect(gate.getIssuedToday()).toBe(2);
+    });
+
+    it('does not spend the budget on sessions rejected by the cheap local gates', async () => {
+      const gate = createGate({ resolveDailyLimit: () => 1 });
+      gate.tryBegin();
+      gate.end();
+      const coordinator = createCoordinator(gate);
+
+      const result = await coordinator.evaluateSession({
+        id: 'sess-short',
+        messages: [
+          { role: 'user', content: 'hello' },
+          { role: 'assistant', content: 'hi' },
+        ],
+      });
+
+      expect(result).toMatchObject({ ran: false, reason: 'insubstantial' });
+      expect(gate.getIssuedToday()).toBe(1);
+    });
+
+    async function waitForSlotAcquired(gate: AuxiliaryRequestGate): Promise<void> {
+      const start = Date.now();
+      while (gate.getInFlightCount() === 0) {
+        if (Date.now() - start > 1000) {
+          throw new Error('background slot was never acquired');
+        }
+        await new Promise(resolve => setTimeout(resolve, 2));
+      }
+    }
+
+    it('enforces single concurrency across different sessions through the shared gate', async () => {
+      const gate = createGate();
+      let releaseFirst!: (value: string) => void;
+      mockRunner.query.mockImplementationOnce(() => new Promise<string>((resolve) => {
+        releaseFirst = resolve;
+      }));
+      mockRunner.query.mockResolvedValueOnce(JSON.stringify({ rules: [] }));
+      const coordinator = createCoordinator(gate);
+
+      const first = coordinator.evaluateSession({
+        id: 'sess-first',
+        messages: SUBSTANTIAL_MESSAGES,
+      });
+      await waitForSlotAcquired(gate);
+      const second = await coordinator.evaluateSession({
+        id: 'sess-second',
+        messages: SUBSTANTIAL_MESSAGES,
+      });
+
+      expect(second).toMatchObject({ ran: false, reason: 'busy' });
+      expect(createRunner).toHaveBeenCalledTimes(1);
+
+      releaseFirst(JSON.stringify({ rules: [] }));
+      const firstResult = await first;
+      expect(firstResult.ran).toBe(true);
+    });
+
+    it('still counts a micro-dream whose runner fails after being issued', async () => {
+      const gate = createGate({ resolveDailyLimit: () => 1 });
+      mockRunner.query.mockRejectedValueOnce(new Error('provider offline'));
+      const coordinator = createCoordinator(gate);
+
+      const result = await coordinator.evaluateSession({
+        id: 'sess-failing',
+        messages: SUBSTANTIAL_MESSAGES,
+      });
+
+      expect(result).toMatchObject({ ran: false, reason: 'failed' });
+      expect(gate.getIssuedToday()).toBe(1);
+
+      const next = await coordinator.evaluateSession({
+        id: 'sess-failing',
+        messages: SUBSTANTIAL_MESSAGES,
+      });
+      expect(next).toMatchObject({ ran: false, reason: 'budget-exceeded' });
+      expect(createRunner).toHaveBeenCalledTimes(1);
+    });
+
+    it('behaves as before when no gate is configured', async () => {
+      mockRunner.query.mockResolvedValueOnce(JSON.stringify({ rules: [] }));
+      const coordinator = new MicroDreamCoordinator({
+        mindStore,
+        createRunner,
+        minTurns: 2,
+      });
+
+      const result = await coordinator.evaluateSession({
+        id: 'sess-ungated',
+        messages: SUBSTANTIAL_MESSAGES,
+      });
+
+      expect(result.ran).toBe(true);
+      expect(createRunner).toHaveBeenCalledTimes(1);
+    });
   });
 });

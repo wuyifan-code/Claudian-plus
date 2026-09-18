@@ -2963,3 +2963,42 @@ describe('ConversationController - Rewind', () => {
     });
   });
 });
+
+describe('ConversationController - windowed render completeness', () => {
+  function buildLongHistory(count: number): any[] {
+    const messages: any[] = [];
+    for (let i = 0; i < count; i++) {
+      messages.push({
+        id: `m-${i}`,
+        role: i % 2 === 0 ? 'user' : 'assistant',
+        content: i % 2 === 0 ? `question ${i}` : `answer ${i}`,
+        timestamp: i,
+      });
+    }
+    return messages;
+  }
+
+  it('keeps the complete ChatState and hands the full history to the renderer', async () => {
+    const deps = createMockDeps();
+    const history = buildLongHistory(3000);
+    (deps.plugin.getConversationById as jest.Mock).mockResolvedValue({
+      id: 'conv-long',
+      title: 'Long conversation',
+      messages: history,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    deps.state.currentConversationId = 'conv-long';
+    const controller = new ConversationController(deps);
+
+    await controller.loadActive();
+
+    // ChatState keeps every message; windowing stays a renderer concern.
+    expect(deps.state.messages).toHaveLength(3000);
+    const renderCalls = (deps.renderer.renderMessages as jest.Mock).mock.calls;
+    expect(renderCalls).toHaveLength(1);
+    expect(renderCalls[0][0]).toHaveLength(3000);
+    expect(renderCalls[0][0][0].id).toBe('m-0');
+    expect(renderCalls[0][0][2999].id).toBe('m-2999');
+  });
+});
