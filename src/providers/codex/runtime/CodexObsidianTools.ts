@@ -13,6 +13,7 @@ import {
   diffPropertiesWrite,
   readCanvas,
   readProperties,
+  searchVaultNotes,
   undoLastCanvasWrite,
   writeProperties,
 } from '../../../core/obsidian';
@@ -502,5 +503,29 @@ export function createCodexObsidianTools(
     },
   );
 
-  return [canvasRead, canvasWritePreview, canvasWrite, canvasUndo, propertiesGet, propertiesSet, linksGet, graphNeighbors, dataviewQuery];
+  const vaultSearch = registration(
+    'vault_search',
+    'Search markdown notes across the vault by keyword, matching note titles, tags, and headings.',
+    {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search keyword or terms.' },
+        limit: { type: 'number', description: 'Maximum number of note matches to return (default 20).' },
+      },
+      required: ['query'],
+      additionalProperties: false,
+    },
+    async (params) => {
+      try {
+        const args = objectArguments(params.arguments);
+        const query = requiredString(args.query, 'query');
+        const limit = typeof args.limit === 'number' ? args.limit : undefined;
+        return success(await searchVaultNotes(app, query, { limit }));
+      } catch (error) {
+        return failure(error);
+      }
+    },
+  );
+
+  return [canvasRead, canvasWritePreview, canvasWrite, canvasUndo, propertiesGet, propertiesSet, linksGet, graphNeighbors, dataviewQuery, vaultSearch];
 }

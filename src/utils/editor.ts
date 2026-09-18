@@ -30,6 +30,7 @@ export interface EditorSelectionContext {
   cursorContext?: CursorContext;
   lineCount?: number; // Number of lines in selection (for UI indicator)
   startLine?: number; // 1-indexed starting line number
+  selectionRange?: { from: { line: number; ch: number }; to: { line: number; ch: number } };
 }
 
 export function findNearestNonEmptyLine(

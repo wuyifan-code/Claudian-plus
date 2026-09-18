@@ -1,0 +1,139 @@
+/* Inline Edit Modal & Floating Diff Preview */
+.claudian-plus-inline-edit-modal {
+  padding: 16px;
+  max-width: 650px;
+  width: 90vw;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.claudian-plus-inline-edit-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.claudian-plus-inline-edit-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.claudian-plus-inline-edit-icon {
+  color: var(--interactive-accent);
+  display: inline-flex;
+  margin-right: 6px;
+}
+
+.claudian-plus-inline-edit-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.claudian-plus-inline-edit-close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--text-muted);
+}
+
+.claudian-plus-inline-edit-close-btn:hover {
+  color: var(--text-normal);
+}
+
+.claudian-plus-inline-edit-context-badge {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.claudian-plus-inline-edit-input-wrapper {
+  width: 100%;
+}
+
+.claudian-plus-inline-edit-input {
+  width: 100%;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--background-modifier-border);
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  resize: vertical;
+}
+
+.claudian-plus-inline-edit-input:focus {
+  border-color: var(--interactive-accent);
+}
+
+.claudian-plus-inline-edit-diff {
+  max-height: 250px;
+  overflow-y: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background-color: var(--background-secondary);
+  font-family: var(--font-monospace);
+  font-size: 0.85rem;
+}
+
+.claudian-plus-diff-lines-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.claudian-plus-diff-line {
+  display: flex;
+  padding: 2px 8px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.claudian-plus-diff-prefix {
+  width: 20px;
+  user-select: none;
+  font-weight: 600;
+}
+
+.claudian-plus-diff-text {
+  flex: 1;
+}
+
+.claudian-plus-diff-insert {
+  background-color: var(--background-modifier-success);
+  color: var(--text-success);
+}
+
+.claudian-plus-diff-delete {
+  background-color: var(--background-modifier-error);
+  color: var(--text-error);
+  text-decoration: line-through;
+}
+
+.claudian-plus-diff-equal {
+  color: var(--text-muted);
+}
+
+.claudian-plus-inline-edit-status {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  min-height: 1.2rem;
+}
+
+.claudian-plus-inline-edit-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.claudian-plus-inline-edit-btn {
+  padding: 6px 14px;
+  border-radius: var(--radius-s);
+  cursor: pointer;
+}

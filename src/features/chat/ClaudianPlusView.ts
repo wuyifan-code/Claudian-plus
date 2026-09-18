@@ -12,6 +12,7 @@ import { ProviderSettingsCoordinator } from '../../core/providers/ProviderSettin
 import { type AppTabManagerState, DEFAULT_CHAT_PROVIDER_ID, type ProviderId } from '../../core/providers/types';
 import { VIEW_TYPE_CLAUDIAN_PLUS } from '../../core/types';
 import { t } from '../../i18n/i18n';
+import { localeText } from '../../i18n/i18n';
 import { createProviderIconSvg } from '../../shared/icons';
 import {
   cancelScheduledAnimationFrame,
@@ -19,7 +20,6 @@ import {
   type ScheduledAnimationFrame,
 } from '../../utils/animationFrame';
 import type { FeatureHost } from '../FeatureHost';
-import { openMindSettings } from './actions/ActionableOutputController';
 import type { HistoryConversationStatus } from './controllers/ConversationController';
 import { MentionCacheCoordinator } from './services/MentionCacheCoordinator';
 import { TabStatePersistenceCoordinator } from './services/TabStatePersistenceCoordinator';
@@ -73,6 +73,8 @@ export class ClaudianPlusView extends ItemView {
   private historyDropdown: HTMLElement | null = null;
   private historyRenderAbortController: AbortController | null = null;
   private stagingBadgeEl: HTMLElement | null = null;
+  private stagingDrawerEl: HTMLElement | null = null;
+  private isStagingDrawerOpen = false;
   private unsubscribeStaging: (() => void) | null = null;
 
   // Event refs for cleanup
@@ -345,6 +347,9 @@ export class ClaudianPlusView extends ItemView {
 
     this.unsubscribeStaging?.();
     this.unsubscribeStaging = null;
+    this.closeStagingDrawer();
+    this.stagingDrawerEl?.remove();
+    this.stagingDrawerEl = null;
 
     try {
       await this.persistTabStateImmediate();
@@ -408,7 +413,7 @@ export class ClaudianPlusView extends ItemView {
     });
     this.stagingBadgeEl = stagingBadgeEl;
     stagingBadgeEl.addEventListener('click', () => {
-      openMindSettings(this.app);
+      this.toggleStagingDrawer();
     });
 
     this.updateStagingBadge();
@@ -445,10 +450,137 @@ export class ClaudianPlusView extends ItemView {
         } else {
           this.stagingBadgeEl.addClass('claudian-plus-hidden');
         }
+        if (this.isStagingDrawerOpen) {
+          void this.renderStagingDrawer();
+        }
       } catch {
         // Safe fallback
       }
     })();
+  }
+
+  toggleStagingDrawer(): void {
+    if (this.isStagingDrawerOpen) {
+      this.closeStagingDrawer();
+    } else {
+      void this.openStagingDrawer();
+    }
+  }
+
+  closeStagingDrawer(): void {
+    this.isStagingDrawerOpen = false;
+    this.stagingDrawerEl?.addClass('claudian-plus-hidden');
+  }
+
+  async openStagingDrawer(): Promise<void> {
+    this.isStagingDrawerOpen = true;
+    if (!this.stagingDrawerEl && this.viewContainerEl) {
+      this.stagingDrawerEl = this.viewContainerEl.createDiv({ cls: 'claudian-plus-staging-drawer' });
+    }
+    this.stagingDrawerEl?.removeClass('claudian-plus-hidden');
+    await this.renderStagingDrawer();
+  }
+
+  async renderStagingDrawer(): Promise<void> {
+    if (!this.stagingDrawerEl) return;
+    this.stagingDrawerEl.empty();
+
+    const mindStore = this.plugin.getMindStore?.();
+    const stagingList = (await mindStore?.listStaging?.()) ?? [];
+
+
+    const headerEl = this.stagingDrawerEl.createDiv({ cls: 'claudian-plus-staging-drawer-header' });
+    const titleRow = headerEl.createDiv({ cls: 'claudian-plus-staging-drawer-title-row' });
+    titleRow.createEl('h5', {
+      text: `${localeText('心智草稿箱', 'Candidate Memory Rules')} (${stagingList.length})`,
+      cls: 'claudian-plus-staging-drawer-title',
+    });
+
+    const closeBtn = titleRow.createEl('button', {
+      cls: 'claudian-plus-staging-drawer-close-btn',
+      attr: { 'aria-label': 'Close staging drawer' },
+    });
+    setIcon(closeBtn, 'x');
+    closeBtn.addEventListener('click', () => this.closeStagingDrawer());
+
+    const bodyEl = this.stagingDrawerEl.createDiv({ cls: 'claudian-plus-staging-drawer-body' });
+
+    if (stagingList.length === 0) {
+      const emptyEl = bodyEl.createDiv({ cls: 'claudian-plus-staging-empty' });
+      emptyEl.setText(
+        localeText(
+          '暂无待审阅的记忆规则。会话结束后，Micro-Dream 将在此生成规则草稿。',
+          'No pending candidate memory rules. When substantive sessions finish, Micro-Dream synthesizes rules here.'
+        )
+      );
+      return;
+    }
+
+    const listEl = bodyEl.createDiv({ cls: 'claudian-plus-mind-list' });
+    for (const entry of stagingList) {
+      const card = listEl.createDiv({ cls: 'claudian-plus-staging-card' });
+
+      const metaRow = card.createDiv({ cls: 'claudian-plus-mind-meta-row' });
+      metaRow.createSpan({
+        cls: `claudian-plus-mind-badge badge-${entry.category}`,
+        text: entry.category,
+      });
+      metaRow.createSpan({
+        cls: 'claudian-plus-mind-scope-pill',
+        text: entry.scope === 'global' ? localeText('全局偏好', 'Global') : localeText('本库专属', 'Project'),
+      });
+      metaRow.createSpan({
+        cls: 'claudian-plus-mind-confidence',
+        text: `${Math.round(entry.confidence * 100)}% conf`,
+      });
+
+      const contentInput = card.createEl('input', {
+        cls: 'claudian-plus-mind-content-input',
+        type: 'text',
+        value: entry.content,
+      });
+      contentInput.value = entry.content;
+      contentInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          approveBtn.click();
+        }
+      });
+
+      if (entry.rationale) {
+        card.createDiv({
+          cls: 'claudian-plus-mind-rationale',
+          text: `${localeText('来源依据: ', 'Rationale: ')}${entry.rationale}`,
+        });
+      }
+
+      const actionRow = card.createDiv({ cls: 'claudian-plus-mind-action-row' });
+      const approveBtn = actionRow.createEl('button', {
+        cls: 'claudian-plus-mind-btn-approve mod-cta',
+        text: localeText('采纳', 'Adopt'),
+      });
+      approveBtn.addEventListener('click', () => {
+        void (async () => {
+          await mindStore?.approveStaging(entry.id, {
+            content: contentInput.value.trim() || entry.content,
+          });
+          this.updateStagingBadge();
+          await this.renderStagingDrawer();
+        })();
+      });
+
+      const dismissBtn = actionRow.createEl('button', {
+        cls: 'claudian-plus-mind-btn-dismiss',
+        text: localeText('忽略', 'Dismiss'),
+      });
+      dismissBtn.addEventListener('click', () => {
+        void (async () => {
+          await mindStore?.dismissStaging(entry.id);
+          this.updateStagingBadge();
+          await this.renderStagingDrawer();
+        })();
+      });
+    }
   }
 
   setHomeView(view: 'chat' | 'sessions'): void {
@@ -485,11 +617,11 @@ export class ClaudianPlusView extends ItemView {
               searchText: c.searchText,
             }));
           },
-          onOpenConversation: (id, newTab) => {
+          onOpenConversation: (id, newTab, options) => {
             void (async () => {
               this.switchHomeView('chat');
               await this.whenReady();
-              await this.tabManager?.openConversation(id, { preferNewTab: newTab });
+              await this.tabManager?.openConversation(id, { preferNewTab: newTab, ...options });
             })();
           },
           onDeleteConversation: async (id) => {

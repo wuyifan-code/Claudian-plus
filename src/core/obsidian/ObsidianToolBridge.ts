@@ -14,6 +14,7 @@ import {
   readProperties,
   writeProperties,
 } from './ObsidianContextService';
+import { searchVaultNotes } from './vaultSearch';
 
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const MAX_WRITE_OPERATIONS = 100;
@@ -144,6 +145,10 @@ export class ObsidianToolBridge {
     return authorization === `Bearer ${token}` || request.headers['x-claudian-plus-token'] === token;
   }
 
+  async execute(request: ObsidianToolBridgeRequest): Promise<unknown> {
+    return this.dispatch(request);
+  }
+
   private async dispatch(request: ObsidianToolBridgeRequest): Promise<unknown> {
     const input = request.arguments ?? {};
     switch (request.name) {
@@ -208,6 +213,11 @@ export class ObsidianToolBridge {
       case 'canvas_undo': {
         const filePath = vaultRelativePath(input.path);
         return undoLastCanvasWrite(this.app.vault, filePath);
+      }
+      case 'vault_search': {
+        const query = requiredString(input.query, 'query');
+        const limit = typeof input.limit === 'number' ? input.limit : undefined;
+        return searchVaultNotes(this.app, query, { limit });
       }
       default:
         throw new Error(`Unknown Obsidian tool: ${request.name}`);

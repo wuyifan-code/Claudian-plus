@@ -1,6 +1,6 @@
 import { createMockEl } from '@test/helpers/mockElement';
 
-import { filterSessions, SessionsView, sortSessions } from '@/features/chat/ui/SessionsView';
+import { extractSearchSnippet, filterSessions, renderHighlightedSnippet, SessionsView, sortSessions } from '@/features/chat/ui/SessionsView';
 
 describe('SessionsView', () => {
   describe('sortSessions', () => {
@@ -104,5 +104,127 @@ describe('SessionsView', () => {
 
       view.destroy();
     });
+
+  describe('extractSearchSnippet', () => {
+    it('returns null if text or query is empty', () => {
+      expect(extractSearchSnippet('', 'test')).toBeNull();
+      expect(extractSearchSnippet('some text', '')).toBeNull();
+    });
+
+    it('returns null if query is not found in text', () => {
+      expect(extractSearchSnippet('Hello world', 'nonexistent')).toBeNull();
+    });
+
+    it('extracts prefix, match, and suffix around match', () => {
+      const text = 'The quick brown fox jumps over the lazy dog';
+      const snippet = extractSearchSnippet(text, 'brown fox', 30);
+      expect(snippet).not.toBeNull();
+      expect(snippet?.match).toBe('brown fox');
+      expect(snippet?.prefix).toContain('quick ');
+      expect(snippet?.suffix).toContain(' jumps');
+    });
+
+    it('preserves case of matched text from original text', () => {
+      const text = 'User wants to Optimize Algorithm performance';
+      const snippet = extractSearchSnippet(text, 'optimize', 40);
+      expect(snippet).not.toBeNull();
+      expect(snippet?.match).toBe('Optimize');
+    });
+  });
+
+  describe('renderHighlightedSnippet', () => {
+    it('renders prefix, mark with class, and suffix into container', () => {
+      const container = createMockEl('div');
+      renderHighlightedSnippet(container, 'prefix ', 'MATCH', ' suffix');
+
+      const mark = container.querySelector('.claudian-plus-search-match');
+      expect(mark).not.toBeNull();
+      expect(mark?.tagName?.toLowerCase()).toBe('mark');
+      expect(mark?.textContent).toBe('MATCH');
+    });
+  });
+
+  describe('Search highlighting and navigation', () => {
+    let containerEl: any;
+    let mockOnOpenConversation: jest.Mock;
+    let mockOnDeleteConversation: jest.Mock;
+    let mockOnRenameConversation: jest.Mock;
+    let mockPlugin: any;
+
+    beforeEach(() => {
+      containerEl = createMockEl();
+      mockOnOpenConversation = jest.fn();
+      mockOnDeleteConversation = jest.fn().mockResolvedValue(undefined);
+      mockOnRenameConversation = jest.fn().mockResolvedValue(undefined);
+      mockPlugin = {
+        deleteConversation: mockOnDeleteConversation,
+        renameConversation: mockOnRenameConversation,
+      };
+    });
+
+    it('renders highlighted snippet in preview when search query matches searchText', () => {
+      const sessions = [
+        {
+          id: 's-search',
+          title: 'Search Session',
+          searchText: 'User asked about machine learning algorithms in deep neural nets',
+          createdAt: 1000,
+        },
+      ];
+
+      const view = new SessionsView(containerEl, {
+        plugin: mockPlugin,
+        getConversationList: () => sessions,
+        onOpenConversation: mockOnOpenConversation,
+        onDeleteConversation: mockOnDeleteConversation,
+        onRenameConversation: mockOnRenameConversation,
+      });
+
+      const searchInput = containerEl.querySelector('.claudian-plus-sessions-search-input');
+      expect(searchInput).not.toBeNull();
+      searchInput.value = 'learning';
+      searchInput.dispatchEvent('input');
+
+      const markEl = containerEl.querySelector('.claudian-plus-search-match');
+      expect(markEl).not.toBeNull();
+      expect(markEl?.textContent).toBe('learning');
+
+      const row = containerEl.querySelector('.claudian-plus-session-row');
+      row.click();
+      expect(mockOnOpenConversation).toHaveBeenCalledWith('s-search', false, { searchQuery: 'learning' });
+
+      view.destroy();
+    });
+
+    it('passes searchQuery when opening in new tab from action button', () => {
+      const sessions = [
+        {
+          id: 's-search-2',
+          title: 'Session 2',
+          searchText: 'Testing unit test snippets',
+          createdAt: 1000,
+        },
+      ];
+
+      const view = new SessionsView(containerEl, {
+        plugin: mockPlugin,
+        getConversationList: () => sessions,
+        onOpenConversation: mockOnOpenConversation,
+        onDeleteConversation: mockOnDeleteConversation,
+        onRenameConversation: mockOnRenameConversation,
+      });
+
+      const searchInput = containerEl.querySelector('.claudian-plus-sessions-search-input');
+      searchInput.value = 'unit test';
+      searchInput.dispatchEvent('input');
+
+      const newTabBtn = containerEl.querySelector('.claudian-plus-session-action-btn');
+      newTabBtn.click();
+      expect(mockOnOpenConversation).toHaveBeenCalledWith('s-search-2', true, { searchQuery: 'unit test' });
+
+      view.destroy();
+    });
+  });
+
   });
 });

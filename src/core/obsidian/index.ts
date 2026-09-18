@@ -1,8 +1,13 @@
 export type {
+  Box,
   CanvasNeighborWritePlanOptions,
   CanvasNeighborWritePlanResult,
 } from './canvasNeighborPlan';
-export { buildCanvasNeighborWritePlan } from './canvasNeighborPlan';
+export {
+  buildCanvasNeighborWritePlan,
+  checkAABBCollision,
+  findNonCollidingSlot,
+} from './canvasNeighborPlan';
 export type {
   CanvasWriteCommitResult,
   CanvasWriteUndoResult,
@@ -50,3 +55,9 @@ export type {
   ObsidianToolBridgeSuccess,
 } from './ObsidianToolBridge';
 export { ObsidianToolBridge } from './ObsidianToolBridge';
+export type {
+  VaultSearchNoteResult,
+  VaultSearchOptions,
+  VaultSearchResponse,
+} from './vaultSearch';
+export { searchVaultNotes } from './vaultSearch';
