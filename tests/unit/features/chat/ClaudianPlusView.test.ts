@@ -657,5 +657,71 @@ describe('ClaudianPlusView Escape handling', () => {
 
       expect(badgeEl.hasClass('claudian-plus-hidden')).toBe(true);
     });
+
+    it('toggles and renders in-chat staging drawer with adopt and dismiss actions', async () => {
+      const view = Object.create(ClaudianPlusView.prototype) as any;
+      const containerEl = createMockEl();
+      view.viewContainerEl = containerEl;
+      view.isStagingDrawerOpen = false;
+
+      const mockApprove = jest.fn().mockResolvedValue(undefined);
+      const mockDismiss = jest.fn().mockResolvedValue(undefined);
+      const mockListStaging = jest.fn().mockResolvedValue([
+        {
+          id: 'rule-1',
+          category: 'coding_habit',
+          scope: 'project',
+          content: 'Always use strict equality',
+          rationale: 'Observed bug',
+          confidence: 0.95,
+        },
+      ]);
+
+      view.plugin = {
+        settings: { language: 'en' },
+        getMindStore: () => ({
+          listStaging: mockListStaging,
+          approveStaging: mockApprove,
+          dismissStaging: mockDismiss,
+          getStagingCount: jest.fn().mockResolvedValue(1),
+        }),
+      };
+      view.updateStagingBadge = jest.fn();
+
+      // Open staging drawer
+      await view.openStagingDrawer();
+      expect(view.isStagingDrawerOpen).toBe(true);
+      expect(view.stagingDrawerEl).not.toBeNull();
+      expect(view.stagingDrawerEl.hasClass('claudian-plus-hidden')).toBe(false);
+
+      // Verify header and card rendered
+      const title = view.stagingDrawerEl.querySelector('.claudian-plus-staging-drawer-title');
+      expect(title?.textContent).toContain('Candidate Memory Rules (1)');
+
+      const card = view.stagingDrawerEl.querySelector('.claudian-plus-staging-card');
+      expect(card).not.toBeNull();
+
+      const input = card.querySelector('input');
+      expect(input?.value).toBe('Always use strict equality');
+
+      // Test adopt action
+      const approveBtn = card.querySelector('.claudian-plus-mind-btn-approve');
+      approveBtn.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(mockApprove).toHaveBeenCalledWith('rule-1', {
+        content: 'Always use strict equality',
+      });
+
+      // Test dismiss action
+      const dismissBtn = card.querySelector('.claudian-plus-mind-btn-dismiss');
+      dismissBtn.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(mockDismiss).toHaveBeenCalledWith('rule-1');
+
+      // Close staging drawer
+      view.closeStagingDrawer();
+      expect(view.isStagingDrawerOpen).toBe(false);
+      expect(view.stagingDrawerEl.hasClass('claudian-plus-hidden')).toBe(true);
+    });
   });
 });

@@ -15,6 +15,7 @@ import {
   diffPropertiesWrite,
   readCanvas,
   readProperties,
+  searchVaultNotes,
   undoLastCanvasWrite,
   writeProperties,
 } from '../../../core/obsidian';
@@ -370,11 +371,23 @@ export async function createClaudeObsidianMcpServer(
       }
     },
   );
+  const vaultSearch = tool(
+    'vault_search',
+    'Search markdown notes across the vault by keyword, matching note titles, tags, and headings.',
+    { query: z.string().min(1), limit: z.number().int().min(1).max(50).optional() },
+    async ({ query, limit }) => {
+      try {
+        return result(await searchVaultNotes(app, query, { limit }));
+      } catch (error) {
+        return errorResult(error);
+      }
+    },
+  );
 
   return createSdkMcpServer({
     name: 'obsidian',
     version: '1.0.0',
     instructions: 'Vault-scoped Obsidian tools. All paths are relative to the current vault; write operations require user approval.',
-    tools: [canvasRead, canvasWritePreview, canvasWrite, canvasUndo, propertiesGet, propertiesSet, linksGet, graphNeighbors, dataviewQuery],
+    tools: [canvasRead, canvasWritePreview, canvasWrite, canvasUndo, propertiesGet, propertiesSet, linksGet, graphNeighbors, dataviewQuery, vaultSearch],
   });
 }

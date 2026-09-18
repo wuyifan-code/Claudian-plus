@@ -1,4 +1,20 @@
 // Mock for @anthropic-ai/claude-agent-sdk
+import { z } from 'zod';
+
+export { z };
+
+export function tool(name: string, description: string, schema: any, handler: any) {
+  return { name, description, schema, handler };
+}
+
+export function createSdkMcpServer(options: any) {
+  return {
+    name: options.name,
+    instance: {
+      _tools: options.tools,
+    },
+  };
+}
 
 export interface HookCallbackMatcher {
   matcher?: string;

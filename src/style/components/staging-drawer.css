@@ -1,0 +1,98 @@
+/* Staging Drawer for In-Chat Memory Rules Review */
+.claudian-plus-staging-drawer {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  left: 0;
+  bottom: 0;
+  background-color: var(--background-primary);
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.claudian-plus-staging-drawer-header {
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background-color: var(--background-secondary);
+}
+
+.claudian-plus-staging-drawer-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.claudian-plus-staging-drawer-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.claudian-plus-staging-drawer-close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-s);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.claudian-plus-staging-drawer-close-btn:hover {
+  color: var(--text-normal);
+  background-color: var(--background-modifier-hover);
+}
+
+.claudian-plus-staging-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.claudian-plus-staging-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+/* Turn Pulse Animation for Search Jump */
+@keyframes claudian-plus-turn-pulse-anim {
+  0% {
+    box-shadow: 0 0 0 2px var(--interactive-accent);
+    background-color: var(--background-modifier-hover);
+  }
+  50% {
+    box-shadow: 0 0 0 4px var(--interactive-accent);
+    background-color: var(--background-modifier-hover);
+  }
+  100% {
+    box-shadow: none;
+    background-color: transparent;
+  }
+}
+
+.claudian-plus-turn-pulse {
+  animation: claudian-plus-turn-pulse-anim 2s ease-out;
+  border-radius: var(--radius-s);
+}
+
+/* Search Highlight in Session View */
+.claudian-plus-search-match {
+  background-color: var(--text-highlight-bg);
+  color: inherit;
+  font-weight: 600;
+  border-radius: 2px;
+  padding: 0 2px;
+}

@@ -1,3 +1,4 @@
+import type { ObsidianMcpServerHandle } from '../core/mcp/ObsidianMcpServer';
 import type {
   ConsciousnessEngine,
   DreamService,
@@ -25,6 +26,7 @@ export interface FeatureTabManagerHost {
   switchToTab(tabId: TabId): Promise<void>;
   broadcastToAllTabs(action: (runtime: ChatRuntime) => Promise<void>): Promise<void>;
   recycleProviderRuntimes(providerIds: ProviderId | ProviderId[]): Promise<void>;
+  scrollToTurnInTab?(tab: TabData, target: { searchQuery?: string; targetTurnId?: string }): boolean;
 }
 
 export interface FeatureViewHost extends TabManagerViewHost {
@@ -64,6 +66,9 @@ export interface FeatureHost extends ProviderHost {
 
   /** Get the vault knowledge index for awareness reset and retrieval features. */
   getVaultKnowledgeEngine(): VaultKnowledgeEngine;
+
+  /** Expose native Obsidian tools via local SSE MCP server for Claude Code. */
+  ensureObsidianMcpServer?(): Promise<ObsidianMcpServerHandle>;
 
   getActiveEnvironmentVariables(providerId?: ProviderId): string;
 

@@ -27,6 +27,7 @@
 @import "./components/blob-welcome.css";
 @import "./components/ambient-context.css";
 @import "./components/actionable-response.css";
+@import "./components/staging-drawer.css";
 
 /* Toolbar */
 @import "./toolbar/model-selector.css";
@@ -48,6 +49,7 @@
 @import "./features/resume-session.css";
 @import "./features/ask-user-question.css";
 @import "./features/plan-mode.css";
+@import "./features/inline-edit.css";
 
 /* Modals */
 @import "./modals/instruction.css";

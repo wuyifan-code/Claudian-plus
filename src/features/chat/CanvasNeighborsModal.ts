@@ -317,7 +317,7 @@ export class CanvasNeighborsModal extends Modal {
 
     let write: { plan: CanvasWritePlan; addedPaths: string[] };
     try {
-      write = buildCanvasNeighborWritePlan(current, this.context.nodeIds, candidates);
+      write = buildCanvasNeighborWritePlan(current, this.context.nodeIds, candidates, { avoidCollisions: true });
     } catch (error) {
       new Notice(error instanceof Error ? error.message : String(error));
       return;

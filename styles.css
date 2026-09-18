@@ -3554,6 +3554,109 @@ body.theme-light .claudian-plus-message-content pre {
 
 
 /* ============================================
+   components/staging-drawer.css
+   ============================================ */
+/* Staging Drawer for In-Chat Memory Rules Review */
+.claudian-plus-staging-drawer {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  left: 0;
+  bottom: 0;
+  background-color: var(--background-primary);
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.claudian-plus-staging-drawer-header {
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background-color: var(--background-secondary);
+}
+
+.claudian-plus-staging-drawer-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.claudian-plus-staging-drawer-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.claudian-plus-staging-drawer-close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-s);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.claudian-plus-staging-drawer-close-btn:hover {
+  color: var(--text-normal);
+  background-color: var(--background-modifier-hover);
+}
+
+.claudian-plus-staging-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.claudian-plus-staging-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+/* Turn Pulse Animation for Search Jump */
+@keyframes claudian-plus-turn-pulse-anim {
+  0% {
+    box-shadow: 0 0 0 2px var(--interactive-accent);
+    background-color: var(--background-modifier-hover);
+  }
+  50% {
+    box-shadow: 0 0 0 4px var(--interactive-accent);
+    background-color: var(--background-modifier-hover);
+  }
+  100% {
+    box-shadow: none;
+    background-color: transparent;
+  }
+}
+
+.claudian-plus-turn-pulse {
+  animation: claudian-plus-turn-pulse-anim 2s ease-out;
+  border-radius: var(--radius-s);
+}
+
+/* Search Highlight in Session View */
+.claudian-plus-search-match {
+  background-color: var(--text-highlight-bg);
+  color: inherit;
+  font-weight: 600;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+
+/* ============================================
    toolbar/model-selector.css
    ============================================ */
 /* Model selector */
@@ -5682,6 +5785,150 @@ code .claudian-plus-file-link:hover {
 .claudian-plus-input-wrapper.claudian-plus-input-plan-mode {
   --claudian-plus-input-wrapper-border-color: var(--claudian-plus-success);
   --claudian-plus-input-wrapper-box-shadow: 0 0 0 1px var(--claudian-plus-success);
+}
+
+
+/* ============================================
+   features/inline-edit.css
+   ============================================ */
+/* Inline Edit Modal & Floating Diff Preview */
+.claudian-plus-inline-edit-modal {
+  padding: 16px;
+  max-width: 650px;
+  width: 90vw;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.claudian-plus-inline-edit-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.claudian-plus-inline-edit-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.claudian-plus-inline-edit-icon {
+  color: var(--interactive-accent);
+  display: inline-flex;
+  margin-right: 6px;
+}
+
+.claudian-plus-inline-edit-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.claudian-plus-inline-edit-close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--text-muted);
+}
+
+.claudian-plus-inline-edit-close-btn:hover {
+  color: var(--text-normal);
+}
+
+.claudian-plus-inline-edit-context-badge {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.claudian-plus-inline-edit-input-wrapper {
+  width: 100%;
+}
+
+.claudian-plus-inline-edit-input {
+  width: 100%;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--background-modifier-border);
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  resize: vertical;
+}
+
+.claudian-plus-inline-edit-input:focus {
+  border-color: var(--interactive-accent);
+}
+
+.claudian-plus-inline-edit-diff {
+  max-height: 250px;
+  overflow-y: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background-color: var(--background-secondary);
+  font-family: var(--font-monospace);
+  font-size: 0.85rem;
+}
+
+.claudian-plus-diff-lines-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.claudian-plus-diff-line {
+  display: flex;
+  padding: 2px 8px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.claudian-plus-diff-prefix {
+  width: 20px;
+  user-select: none;
+  font-weight: 600;
+}
+
+.claudian-plus-diff-text {
+  flex: 1;
+}
+
+.claudian-plus-diff-insert {
+  background-color: var(--background-modifier-success);
+  color: var(--text-success);
+}
+
+.claudian-plus-diff-delete {
+  background-color: var(--background-modifier-error);
+  color: var(--text-error);
+  text-decoration: line-through;
+}
+
+.claudian-plus-diff-equal {
+  color: var(--text-muted);
+}
+
+.claudian-plus-inline-edit-status {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  min-height: 1.2rem;
+}
+
+.claudian-plus-inline-edit-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.claudian-plus-inline-edit-btn {
+  padding: 6px 14px;
+  border-radius: var(--radius-s);
+  cursor: pointer;
 }
 
 

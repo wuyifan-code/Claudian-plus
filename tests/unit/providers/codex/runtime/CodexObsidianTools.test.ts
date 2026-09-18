@@ -121,4 +121,17 @@ describe('Codex Obsidian tools', () => {
         contentItems: [{ text: expect.stringContaining('Dataview is not installed') }],
       });
   });
+
+  it('searches vault notes by keyword with vault_search', async () => {
+    const app = createApp();
+    app.vault.getMarkdownFiles = jest.fn().mockReturnValue([
+      { path: 'notes/a.md', basename: 'a' },
+      { path: 'notes/b.md', basename: 'b' },
+    ]);
+    const tools = createCodexObsidianTools(app, () => null);
+    const result = await callTool(tools, 'vault_search', { query: 'a' });
+    expect(result).toMatchObject({ success: true });
+    const text = (result.contentItems[0] as { text: string }).text;
+    expect(text).toContain('notes/a.md');
+  });
 });

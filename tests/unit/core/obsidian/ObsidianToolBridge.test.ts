@@ -211,4 +211,26 @@ describe('ObsidianToolBridge', () => {
       edgeOps: [],
     }, expected)).rejects.toThrow('changed while the write was awaiting approval');
   });
+
+  it('dispatches vault_search native tool', async () => {
+    const { app } = createApp();
+    app.vault.getMarkdownFiles = jest.fn().mockReturnValue([
+      { path: 'A.md', basename: 'A' },
+      { path: 'B.md', basename: 'B' },
+    ]);
+    const bridge = new ObsidianToolBridge(app);
+    const handle = await bridge.start();
+    try {
+      const response = await callBridge(handle, {
+        name: 'vault_search',
+        arguments: { query: 'A' },
+      });
+      expect(response.status).toBe(200);
+      expect(response.body.ok).toBe(true);
+      expect(response.body.result.results).toHaveLength(1);
+      expect(response.body.result.results[0].path).toBe('A.md');
+    } finally {
+      await bridge.stop();
+    }
+  });
 });

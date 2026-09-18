@@ -38,10 +38,67 @@ export function filterSessions<T extends { title: string; searchText?: string; p
   });
 }
 
+export interface SearchSnippetMatch {
+  prefix: string;
+  match: string;
+  suffix: string;
+}
+
+export function extractSearchSnippet(
+  text: string,
+  query: string,
+  maxLength = 100
+): SearchSnippetMatch | null {
+  if (!text || !query) return null;
+  const lowerText = text.toLowerCase();
+  const lowerQuery = query.toLowerCase();
+  const matchIndex = lowerText.indexOf(lowerQuery);
+  if (matchIndex === -1) return null;
+
+  const matchLen = query.length;
+  const contextBefore = Math.floor((maxLength - matchLen) / 2);
+  let start = Math.max(0, matchIndex - Math.max(20, contextBefore));
+  const end = Math.min(text.length, start + maxLength);
+
+  if (end - start < maxLength && start > 0) {
+    start = Math.max(0, end - maxLength);
+  }
+
+  const prefix = (start > 0 ? '… ' : '') + text.slice(start, matchIndex);
+  const match = text.slice(matchIndex, matchIndex + matchLen);
+  const suffix = text.slice(matchIndex + matchLen, end) + (end < text.length ? ' …' : '');
+
+  return { prefix, match, suffix };
+}
+
+export function renderHighlightedSnippet(
+  containerEl: HTMLElement,
+  prefix: string,
+  match: string,
+  suffix: string
+): void {
+  containerEl.empty();
+  if (prefix) {
+    containerEl.appendText(prefix);
+  }
+  containerEl.createEl('mark', {
+    cls: 'claudian-plus-search-match',
+    text: match,
+  });
+  if (suffix) {
+    containerEl.appendText(suffix);
+  }
+}
+
+export interface OpenConversationActionOptions {
+  searchQuery?: string;
+  targetTurnId?: string;
+}
+
 export interface SessionsViewDeps {
   plugin: FeatureHost;
   getConversationList: () => SessionItemData[];
-  onOpenConversation: (id: string, newTab?: boolean) => void;
+  onOpenConversation: (id: string, newTab?: boolean, options?: OpenConversationActionOptions) => void;
   onDeleteConversation: (id: string) => Promise<void>;
   onRenameConversation: (id: string, newTitle: string) => Promise<void>;
   getActiveConversationId?: () => string | null;
@@ -130,9 +187,22 @@ export class SessionsView {
     const timestamp = session.lastResponseAt ?? session.updatedAt ?? session.createdAt;
     timeEl.setText(formatConversationTimestamp(timestamp));
 
-    if (session.preview) {
-      const previewEl = contentEl.createDiv({ cls: 'claudian-plus-session-preview' });
+    const previewEl = contentEl.createDiv({ cls: 'claudian-plus-session-preview' });
+    const trimmedQuery = this.searchQuery.trim();
+    if (trimmedQuery) {
+      const sourceText = session.searchText || session.preview || '';
+      const snippet = extractSearchSnippet(sourceText, trimmedQuery);
+      if (snippet) {
+        renderHighlightedSnippet(previewEl, snippet.prefix, snippet.match, snippet.suffix);
+      } else if (session.preview) {
+        previewEl.setText(session.preview);
+      } else {
+        previewEl.remove();
+      }
+    } else if (session.preview) {
       previewEl.setText(session.preview);
+    } else {
+      previewEl.remove();
     }
 
     // Actions on hover
@@ -145,7 +215,12 @@ export class SessionsView {
     setIcon(newTabBtn, 'square-plus');
     newTabBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      this.deps.onOpenConversation(session.id, true);
+      const q = this.searchQuery.trim();
+      if (q) {
+        this.deps.onOpenConversation(session.id, true, { searchQuery: q });
+      } else {
+        this.deps.onOpenConversation(session.id, true);
+      }
     });
 
     const renameBtn = actionsEl.createEl('button', {
@@ -170,7 +245,12 @@ export class SessionsView {
 
     // Row click -> open in current tab
     row.addEventListener('click', () => {
-      this.deps.onOpenConversation(session.id, false);
+      const q = this.searchQuery.trim();
+      if (q) {
+        this.deps.onOpenConversation(session.id, false, { searchQuery: q });
+      } else {
+        this.deps.onOpenConversation(session.id, false);
+      }
     });
 
     // Context menu
@@ -179,12 +259,22 @@ export class SessionsView {
       const menu = new Menu();
       menu.addItem((item) =>
         item.setTitle('Open in current tab').onClick(() => {
-          this.deps.onOpenConversation(session.id, false);
+          const q = this.searchQuery.trim();
+          if (q) {
+        this.deps.onOpenConversation(session.id, false, { searchQuery: q });
+      } else {
+        this.deps.onOpenConversation(session.id, false);
+      }
         })
       );
       menu.addItem((item) =>
         item.setTitle('Open in new tab').onClick(() => {
-          this.deps.onOpenConversation(session.id, true);
+          const q = this.searchQuery.trim();
+          if (q) {
+        this.deps.onOpenConversation(session.id, true, { searchQuery: q });
+      } else {
+        this.deps.onOpenConversation(session.id, true);
+      }
         })
       );
       menu.addItem((item) =>
