@@ -38,6 +38,13 @@ export interface ProviderCapabilities {
   planPathPrefix?: string;
 }
 
+/**
+ * Historical fallback provider id. This is not the configurable product
+ * default for new conversations: the UI resolves that from settings and
+ * enabled state (blank-tab model routing plus an explicit providerId on every
+ * ConversationRepository.create call). Legacy session metadata without a
+ * providerId is bound to this constant only at the migration boundary.
+ */
 export const DEFAULT_CHAT_PROVIDER_ID = 'claude' as const satisfies ProviderId;
 
 export interface CreateChatRuntimeOptions {
@@ -589,6 +596,16 @@ export type TitleGenerationCallback = (
 
 export interface TitleGenerationService {
   generateTitle(
+    conversationId: string,
+    userMessage: string,
+    callback: TitleGenerationCallback
+  ): Promise<void>;
+  /**
+   * Manual, user-triggered regeneration. It is never subject to the automatic
+   * auxiliary saving-mode policy or to the daily background request budget.
+   * Optional: callers fall back to `generateTitle` when a provider omits it.
+   */
+  generateTitleManually?(
     conversationId: string,
     userMessage: string,
     callback: TitleGenerationCallback

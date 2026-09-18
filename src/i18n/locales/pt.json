@@ -201,6 +201,22 @@
       "name": "Gerar automaticamente títulos de conversa",
       "desc": "Gera automaticamente títulos de conversa após a primeira mensagem do usuário."
     },
+    "savingMode": {
+      "name": "Modo de economia",
+      "desc": "No modo economia, as requisições automáticas em segundo plano são ignoradas (títulos com IA, micro-sonhos, consolidação programada de memória). Chat, edição integrada e ações manuais sempre funcionam.",
+      "standard": "Padrão",
+      "economy": "Economia"
+    },
+    "backgroundRequestDailyLimit": {
+      "name": "Limite diário de requisições em segundo plano",
+      "desc": "Máximo de requisições automáticas ao modelo por dia. Ações manuais nunca são contadas. É um contador local — não representa cota, crédito restante ou custo do provedor.",
+      "unlimited": "Ilimitado",
+      "perDay": "{count} por dia"
+    },
+    "backgroundRequestsToday": {
+      "name": "Requisições em segundo plano hoje",
+      "desc": "Requisições automáticas em segundo plano emitidas hoje (títulos, síntese de memória). Apenas um contador local — não representa cota, crédito ou custo do provedor."
+    },
     "titleModel": {
       "name": "Modelo de geração de título",
       "desc": "Modelo usado para gerar automaticamente títulos de conversa.",

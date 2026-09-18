@@ -187,7 +187,13 @@ const external = [
   '@lezer/common',
   '@lezer/highlight',
   '@lezer/lr',
+  // The MCP SDK stays external: bundling it costs ~835 KB, which exceeds the
+  // bundle budget, and the installed plugin folder ships only main.js, so it
+  // cannot be vendored alongside. Every import of it must therefore be lazy —
+  // otherwise a missing module breaks plugin load instead of failing one feature.
   '@modelcontextprotocol/sdk/*',
+
+
   ...builtinModules,
   ...builtinModules.map(m => `node:${m}`),
 ];

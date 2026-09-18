@@ -20,6 +20,15 @@ import type { ConditionalSettingsMutation } from './app/settings/SettingsCoordin
 import { SettingsCoordinator, type SettingsMutation } from './app/settings/SettingsCoordinator';
 import { SharedStorageService } from './app/storage/SharedStorageService';
 import {
+  AuxiliaryRequestGate,
+  resolveAuxiliarySavingMode,
+  setSharedBackgroundRequestGate,
+} from './core/auxiliary/AuxiliaryRequestPolicy';
+import {
+  ObsidianMcpServer,
+  type ObsidianMcpServerHandle,
+} from './core/mcp/ObsidianMcpServer';
+import {
   ConsciousnessEngine,
   DREAM_CHECK_INTERVAL_MS,
   DreamService,
@@ -57,6 +66,7 @@ import type { AgentSkillRegistry} from './core/skills/AgentSkillRegistry';
 import { createAgentSkillRegistry } from './core/skills/AgentSkillRegistry';
 import { AgentSkillRepository } from './core/skills/AgentSkillRepository';
 import { HomeFileAdapter } from './core/storage/HomeFileAdapter';
+import { VaultFileAdapter } from './core/storage/VaultFileAdapter';
 import type {
   ClaudianPlusSettings,
   Conversation,
@@ -72,6 +82,7 @@ import { LivePreviewComposerEnhancement } from './features/chat/composer/LivePre
 import type { ComposerEnhancement } from './features/chat/composer/types';
 import { registerFileMenu } from './features/chat/fileMenu';
 import { QuickAgentInputModal } from './features/chat/QuickAgentInputModal';
+import { InlineEditModal, InlineEditService } from './features/inline-edit';
 import { ClaudianPlusSettingTab } from './features/settings/ClaudianPlusSettings';
 import { localeText, setLocale } from './i18n/i18n';
 import type { Locale } from './i18n/types';
@@ -144,6 +155,7 @@ export default class ClaudianPlusPlugin extends Plugin {
   private _consciousnessEngine: ConsciousnessEngine | null = null;
   private _vaultKnowledgeEngine: VaultKnowledgeEngine | null = null;
   private _dreamService: DreamService | null = null;
+  private _auxiliaryRequestGate: AuxiliaryRequestGate | null = null;
 
   private agentSkillRepository: AgentSkillRepository | null = null;
   private agentSkillRegistry: AgentSkillRegistry | null = null;
@@ -160,6 +172,8 @@ export default class ClaudianPlusPlugin extends Plugin {
   private remainingSessionMetadataLoad: Promise<void> | null = null;
   private isUnloading = false;
   private obsidianToolBridge: ObsidianToolBridge | null = null;
+  private obsidianMcpServer: ObsidianMcpServer | null = null;
+  private obsidianMcpServerHandle: ObsidianMcpServerHandle | null = null;
 
   async onload() {
     StartupProfiler.startOnload();
@@ -170,6 +184,9 @@ export default class ClaudianPlusPlugin extends Plugin {
       });
       this.startupCoordinator.registerPhase0Task('settings-load', () => {
         return this.loadSettings({ deferNonRestoredSessionMetadata: true });
+      });
+      this.startupCoordinator.registerPhase0Task('background-request-gate', () => {
+        setSharedBackgroundRequestGate(this.getAuxiliaryRequestGate());
       });
       await this.startupCoordinator.advanceToPhase(StartupPhase.Phase0_ShellReady);
 
@@ -249,6 +266,31 @@ export default class ClaudianPlusPlugin extends Plugin {
             if (activeTabId) {
               void tabManager.closeTab(activeTabId);
             }
+          }
+          return true;
+        },
+      });
+
+      this.addCommand({
+        id: 'inline-edit',
+        name: 'Inline edit with AI',
+        // eslint-disable-next-line obsidianmd/commands/no-default-hotkeys
+        hotkeys: [{ modifiers: ['Mod'], key: 'k' }],
+        editorCheckCallback: (checking: boolean, editor: Editor, ctx: unknown) => {
+          if (!(ctx instanceof MarkdownView)) return false;
+          if (!checking) {
+            const runnerFactory = () => {
+              const providerId = ProviderRegistry.resolveDefaultChatProviderId(this.settings) ?? 'codex';
+              return ProviderRegistry.createAuxQueryRunner(this, providerId);
+            };
+            const service = new InlineEditService(runnerFactory);
+            const modal = new InlineEditModal({
+              app: this.app,
+              editor,
+              view: ctx,
+              service,
+            });
+            modal.open();
           }
           return true;
         },
@@ -469,6 +511,15 @@ export default class ClaudianPlusPlugin extends Plugin {
           window.clearInterval(dreamInterval);
         }
 
+        this.startupCoordinator.registerIdleTask(
+          'mcp-server-init',
+          'Internal Obsidian MCP server initialization',
+          async () => {
+            await this.ensureObsidianMcpServer().catch(() => {});
+          },
+          'idle',
+        );
+
         void this.startupCoordinator.advanceToPhase(StartupPhase.Phase2_IdleBackground);
       };
 
@@ -485,6 +536,7 @@ export default class ClaudianPlusPlugin extends Plugin {
   }
 
   onunload(): void {
+    setSharedBackgroundRequestGate(null);
     this.isUnloading = true;
     this.startupCoordinator.dispose();
     this.idleScheduler.dispose();
@@ -496,6 +548,13 @@ export default class ClaudianPlusPlugin extends Plugin {
     void this.persistOpenTabStates().catch(() => undefined);
     void this.obsidianToolBridge?.stop();
     this.obsidianToolBridge = null;
+    if (this.obsidianMcpServer) {
+      const adapter = new VaultFileAdapter(this.app);
+      void ObsidianMcpServer.unregisterFromMcpConfigFile(adapter).catch(() => undefined);
+      void this.obsidianMcpServer.stop().catch(() => undefined);
+      this.obsidianMcpServer = null;
+      this.obsidianMcpServerHandle = null;
+    }
     void ProviderWorkspaceRegistry.disposeInitialized();
   }
 
@@ -506,6 +565,23 @@ export default class ClaudianPlusPlugin extends Plugin {
     }
     this.obsidianToolBridge ??= new ObsidianToolBridge(this.app);
     return this.obsidianToolBridge.start();
+  }
+
+  /** Expose native Obsidian tools via local SSE MCP server for Claude Code. */
+  async ensureObsidianMcpServer(): Promise<ObsidianMcpServerHandle> {
+    if (this.isUnloading) {
+      throw new Error('Obsidian MCP server is unavailable while the plugin is unloading.');
+    }
+    if (this.obsidianMcpServerHandle) {
+      return this.obsidianMcpServerHandle;
+    }
+    this.obsidianToolBridge ??= new ObsidianToolBridge(this.app);
+    this.obsidianMcpServer ??= new ObsidianMcpServer(this.app, this.obsidianToolBridge);
+    const handle = await this.obsidianMcpServer.start();
+    this.obsidianMcpServerHandle = handle;
+    const adapter = new VaultFileAdapter(this.app);
+    await ObsidianMcpServer.registerInMcpConfigFile(adapter, handle.port);
+    return handle;
   }
 
   private async persistOpenTabStates(): Promise<void> {
@@ -1295,10 +1371,37 @@ export default class ClaudianPlusPlugin extends Plugin {
     return this._mindStore;
   }
 
+  /**
+   * Get or create the shared gate for automatic background requests: the
+   * saving-mode policy plus one daily request budget shared by titles,
+   * micro-dreams, and scheduled dreams. The per-day count is persisted through
+   * settings so it survives a plugin restart.
+   */
+  getAuxiliaryRequestGate(): AuxiliaryRequestGate {
+    if (!this._auxiliaryRequestGate) {
+      this._auxiliaryRequestGate = new AuxiliaryRequestGate({
+        resolveSavingMode: () => resolveAuxiliarySavingMode(this.settings.auxiliarySavingMode),
+        resolveDailyLimit: () => {
+          const limit = this.settings.backgroundRequestDailyLimit;
+          return typeof limit === 'number' && Number.isFinite(limit) && limit > 0
+            ? Math.floor(limit)
+            : null;
+        },
+        initialUsage: this.settings.backgroundRequestUsage,
+        onUsageChanged: (usage) => {
+          this.settings.backgroundRequestUsage = usage;
+          void this.saveSettings().catch(() => undefined);
+        },
+      });
+    }
+    return this._auxiliaryRequestGate;
+  }
+
   /** Get or create the MicroDreamCoordinator instance for session synthesis. */
   getMicroDreamCoordinator(): MicroDreamCoordinator {
     if (!this._microDreamCoordinator) {
       this._microDreamCoordinator = new MicroDreamCoordinator({
+        backgroundRequestGate: this.getAuxiliaryRequestGate(),
         mindStore: this.getMindStore(),
         createRunner: (providerId) => ProviderRegistry.createAuxQueryRunner(this, providerId),
         getConversationContext: () => this.getActiveChatContext(),
@@ -1364,6 +1467,7 @@ export default class ClaudianPlusPlugin extends Plugin {
   getDreamService(): DreamService {
     if (!this._dreamService) {
       this._dreamService = new DreamService({
+        backgroundRequestGate: this.getAuxiliaryRequestGate(),
         adapter: this.storage.getAdapter(),
         memoryStore: this.getMemoryStore(),
         mindStore: this.getMindStore(),
@@ -1416,6 +1520,10 @@ export default class ClaudianPlusPlugin extends Plugin {
    * retried on the next launch.
    */
   private async runStartupDream(): Promise<void> {
+    // The startup scan is an automatic dream: saving mode skips its model request.
+    if (!this.getAuxiliaryRequestGate().allowsAutomaticTask('auto-dream')) {
+      return;
+    }
     if (!this.settings.consciousnessEnabled || !this.settings.consciousnessAutoMemory) {
       return;
     }

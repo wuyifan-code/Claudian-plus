@@ -1,0 +1,3 @@
+{"event":"init","conversation_id":"00000000-0000-4000-8000-0000000000a1","init":{"model":"gemini-3.8-flash-low","cwd":"<TMP>","tools":[],"permission_mode":"request-review"}}
+{"event":"step_update","step_update":{"conversation_id":"00000000-0000-4000-8000-0000000000a1","step_index":0,"state":"DONE","step_type":"user_input"}}
+{"event":"result","result":{"conversation_id":"00000000-0000-4000-8000-0000000000a1","status":"SUCCESS","response":"Final answer without any streamed deltas.\n","duration_seconds":1.5,"num_turns":1,"usage":{"input_tokens":120,"output_tokens":8,"thinking_tokens":0,"cache_read_tokens":0,"total_tokens":128}}}

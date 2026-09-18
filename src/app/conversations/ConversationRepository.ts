@@ -90,6 +90,8 @@ export class ConversationRepository {
     selectedModel?: string;
   }): Promise<Conversation> {
     const settings = this.deps.getSettings();
+    // UI callers always pass providerId explicitly; the constant below is the
+    // historical fallback, not the configurable product default.
     const providerId = options?.providerId ?? DEFAULT_CHAT_PROVIDER_ID;
     const sessionId = options?.sessionId;
     const providerSettings = ProviderSettingsCoordinator.getProviderSettingsSnapshot(settings, providerId);

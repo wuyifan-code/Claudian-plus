@@ -294,6 +294,23 @@ class RoutedTitleGenerationService implements TitleGenerationService {
     userMessage: string,
     callback: TitleGenerationCallback,
   ): Promise<void> {
+    await this.routeTitleGeneration(conversationId, userMessage, callback, false);
+  }
+
+  async generateTitleManually(
+    conversationId: string,
+    userMessage: string,
+    callback: TitleGenerationCallback,
+  ): Promise<void> {
+    await this.routeTitleGeneration(conversationId, userMessage, callback, true);
+  }
+
+  private async routeTitleGeneration(
+    conversationId: string,
+    userMessage: string,
+    callback: TitleGenerationCallback,
+    manual: boolean,
+  ): Promise<void> {
     const providerId = ProviderRegistry.resolveTitleGenerationProviderId(
       this.plugin.settings,
     );
@@ -304,13 +321,19 @@ class RoutedTitleGenerationService implements TitleGenerationService {
     this.activeGenerations.set(conversationId, generation);
     previous?.service.cancel();
 
+    const handler: TitleGenerationCallback = async (convId, result) => {
+      if (this.activeGenerations.get(conversationId) !== generation) {
+        return;
+      }
+      await callback(convId, result);
+    };
+
     try {
-      await service.generateTitle(conversationId, userMessage, async (convId, result) => {
-        if (this.activeGenerations.get(conversationId) !== generation) {
-          return;
-        }
-        await callback(convId, result);
-      });
+      if (manual && service.generateTitleManually) {
+        await service.generateTitleManually(conversationId, userMessage, handler);
+      } else {
+        await service.generateTitle(conversationId, userMessage, handler);
+      }
     } finally {
       if (this.activeGenerations.get(conversationId) === generation) {
         this.activeGenerations.delete(conversationId);

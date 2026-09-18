@@ -201,6 +201,22 @@
       "name": "Auto-generate conversation titles",
       "desc": "Automatically generate conversation titles after the first user message is sent."
     },
+    "savingMode": {
+      "name": "Saving mode",
+      "desc": "Economy skips automatic background requests (AI-generated titles, memory micro-dreams, scheduled memory consolidation). Chat, inline edit, and anything you trigger manually always run.",
+      "standard": "Standard",
+      "economy": "Economy"
+    },
+    "backgroundRequestDailyLimit": {
+      "name": "Daily background request cap",
+      "desc": "Maximum automatic background model requests per day. Manual actions are never counted. This is a local counter — not provider quota, remaining credit, or cost.",
+      "unlimited": "Unlimited",
+      "perDay": "{count} per day"
+    },
+    "backgroundRequestsToday": {
+      "name": "Background requests today",
+      "desc": "Automatic background requests issued today (titles, memory synthesis). A local counter only — it does not represent provider quota, credit, or cost."
+    },
     "titleModel": {
       "name": "Title generation model",
       "desc": "Model used for auto-generating conversation titles.",

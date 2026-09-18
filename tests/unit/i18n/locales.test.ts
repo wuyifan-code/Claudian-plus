@@ -92,6 +92,12 @@ const localizedKeys = [
   'settings.codex.environment.name',
   'settings.codexSkills.noSkills',
   'settings.codexSubagents.noAgents',
+  'settings.savingMode.name',
+  'settings.savingMode.desc',
+  'settings.backgroundRequestDailyLimit.name',
+  'settings.backgroundRequestDailyLimit.desc',
+  'settings.backgroundRequestsToday.name',
+  'settings.backgroundRequestsToday.desc',
 ] as const;
 
 const staleBangBashDesc =

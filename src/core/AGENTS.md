@@ -6,6 +6,7 @@
 
 | Module | Owns |
 | --- | --- |
+| `auxiliary/` | Query-backed auxiliary services (title generation, instruction refinement) and the automatic background request policy/budget (`AuxiliaryRequestPolicy`) |
 | `bootstrap/` | Provider-neutral session metadata storage and shared app-storage contracts |
 | `commands/` | Built-in cross-provider commands |
 | `mcp/` | Provider-neutral MCP coordination and config parsing |
@@ -41,6 +42,8 @@ for await (const chunk of runtime.query(preparedTurn, history)) {
 ```
 
 Title generation is provider-routed by the global `titleGenerationModel` setting and is independent from the active chat tab provider.
+
+Automatic background requests (AI titles, micro-dreams, scheduled dreams) go through the shared `AuxiliaryRequestGate` from `auxiliary/AuxiliaryRequestPolicy`: `economy` saving mode skips them, `standard` applies one daily request budget with single concurrency. Manual, user-triggered operations never consult the gate, and the decision is made at the scheduling boundary — never inside a runner.
 
 Workspace services are resolved through `ProviderWorkspaceRegistry`:
 

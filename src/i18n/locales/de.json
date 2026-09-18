@@ -201,6 +201,22 @@
       "name": "Konversationstitel automatisch generieren",
       "desc": "Generiert automatisch Konversationstitel nach der ersten Nutzernachricht."
     },
+    "savingMode": {
+      "name": "Sparmodus",
+      "desc": "Im Sparmodus werden automatische Hintergrundanfragen übersprungen (KI-Titel, Mikro-Träume, geplante Speicherkonsolidierung). Chat, Inline-Bearbeitung und manuell ausgelöste Aktionen laufen immer.",
+      "standard": "Standard",
+      "economy": "Economy"
+    },
+    "backgroundRequestDailyLimit": {
+      "name": "Tägliches Limit für Hintergrundanfragen",
+      "desc": "Maximale automatische Hintergrundanfragen pro Tag. Manuelle Aktionen werden nie gezählt. Ein lokaler Zähler — kein Anbieter-Kontingent, Restguthaben oder Kosten.",
+      "unlimited": "Unbegrenzt",
+      "perDay": "{count} pro Tag"
+    },
+    "backgroundRequestsToday": {
+      "name": "Hintergrundanfragen heute",
+      "desc": "Heute ausgelöste automatische Hintergrundanfragen (Titel, Speichersynthese). Nur ein lokaler Zähler — kein Anbieter-Kontingent, Guthaben oder Kosten."
+    },
     "titleModel": {
       "name": "Titel-Generierungsmodell",
       "desc": "Modell zur automatischen Generierung von Konversationstiteln.",

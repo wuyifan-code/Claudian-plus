@@ -1,3 +1,4 @@
+import type { BackgroundRequestGate } from '../auxiliary/AuxiliaryRequestPolicy';
 import type { AuxQueryRunner } from '../auxiliary/AuxQueryRunner';
 import {
   buildDreamPrompt,
@@ -68,7 +69,8 @@ interface DreamServiceConfig {
 
 interface DreamRunResult {
   ran: boolean;
-  reason?: 'disabled' | 'already-running' | 'no-new-logs' | 'failed';
+  reason?: 'disabled' | 'already-running' | 'no-new-logs' | 'failed'
+    | 'saving-mode' | 'budget-exceeded' | 'busy';
   error?: string;
   newFacts: number;
   profileUpdates: number;
@@ -87,6 +89,8 @@ interface DreamServiceDependencies {
   getConversationContext?: () => { providerId: ProviderId; model: string | null } | null;
   /** Feature gate. Defaults to consciousness enabled + auto-memory enabled. */
   isEnabled?: () => boolean;
+  /** Shared saving-mode policy + daily budget. Scheduled dreams are budgeted; manual runs are not. */
+  backgroundRequestGate?: BackgroundRequestGate;
   config?: DreamServiceConfig;
 }
 
@@ -161,6 +165,13 @@ export class DreamService {
     if (!this.enabled) {
       return emptyResult('disabled');
     }
+    // Manual (user-triggered) dreams bypass the saving-mode policy and the
+    // shared budget; scheduled dreams are the automatic background requests
+    // both exist to constrain.
+    const gate = this.deps.backgroundRequestGate;
+    if (!force && gate && !gate.allowsAutomaticTask('auto-dream')) {
+      return emptyResult('saving-mode');
+    }
     if (this.running) {
       return emptyResult('already-running');
     }
@@ -173,11 +184,25 @@ export class DreamService {
         return emptyResult('no-new-logs');
       }
 
-      const sanitized = await this.consolidate(
-        state,
-        pendingLogs.map(entry => entry.path),
-      );
-      return await this.persist(state, sanitized, pendingLogs);
+      let budgeted = false;
+      if (!force && gate) {
+        const rejection = gate.tryBegin();
+        if (rejection !== null) {
+          return emptyResult(rejection === 'busy' ? 'busy' : 'budget-exceeded');
+        }
+        budgeted = true;
+      }
+      try {
+        const sanitized = await this.consolidate(
+          state,
+          pendingLogs.map(entry => entry.path),
+        );
+        return await this.persist(state, sanitized, pendingLogs);
+      } finally {
+        if (budgeted) {
+          gate?.end();
+        }
+      }
     } catch (error) {
       return {
         ...emptyResult('failed'),

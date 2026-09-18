@@ -1,6 +1,5 @@
-import { Client } from '@modelcontextprotocol/sdk/client';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp';
+import type { Client } from '@modelcontextprotocol/sdk/client';
+import type { StreamableHTTPClientTransportOptions } from '@modelcontextprotocol/sdk/client/streamableHttp';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport';
 import * as http from 'http';
 import * as https from 'https';
@@ -9,6 +8,7 @@ import { getEnhancedPath } from '../../utils/env';
 import { parseCommand } from '../../utils/mcp';
 import type { ManagedMcpServer } from '../types';
 import { getMcpServerType } from '../types';
+import { loadMcpSdkValue } from './McpSdkLoader';
 
 export interface McpTool {
   name: string;
@@ -29,18 +29,19 @@ interface UrlServerConfig {
   headers?: Record<string, string>;
 }
 
-type StreamableHttpTransportOptions = ConstructorParameters<typeof StreamableHTTPClientTransport>[1];
-type LegacySseTransportConstructor = new (
-  url: URL,
-  options?: StreamableHttpTransportOptions,
-) => Transport;
+const MCP_TESTING_FEATURE = 'MCP server testing';
+const CONNECTION_TIMEOUT_ERROR = 'Connection timeout (10s)';
 
-function createLegacySseTransport(url: URL, options: StreamableHttpTransportOptions): Transport {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- Legacy SSE MCP servers still need the SDK's deprecated compatibility transport.
-  const module = require('@modelcontextprotocol/sdk/client/sse') as {
-    SSEClientTransport: LegacySseTransportConstructor;
-  };
-  return new module.SSEClientTransport(url, options);
+async function createLegacySseTransport(
+  url: URL,
+  options: StreamableHTTPClientTransportOptions,
+): Promise<Transport> {
+  // Legacy SSE MCP servers still need the SDK's deprecated compatibility transport.
+  const { SSEClientTransport } = await loadMcpSdkValue(
+    MCP_TESTING_FEATURE,
+    () => import('@modelcontextprotocol/sdk/client/sse'),
+  );
+  return new SSEClientTransport(url, options);
 }
 
 /**
@@ -231,14 +232,32 @@ const nodeFetch = createNodeFetch();
 export async function testMcpServer(server: ManagedMcpServer): Promise<McpTestResult> {
   const type = getMcpServerType(server.config);
 
+  // Registered before the first await so the 10s deadline also covers the lazy SDK
+  // load and transport setup, and so callers driving fake timers see a live timer as
+  // soon as the call returns.
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 10000);
+
   let transport: Transport;
+  let client: Client;
   try {
+    const { Client } = await loadMcpSdkValue(
+      MCP_TESTING_FEATURE,
+      () => import('@modelcontextprotocol/sdk/client'),
+    );
+    client = new Client({ name: 'claudian-plus-tester', version: '1.0.0' });
+
     if (type === 'stdio') {
       const config = server.config as { command: string; args?: string[]; env?: Record<string, string> };
       const { cmd, args } = parseCommand(config.command, config.args);
       if (!cmd) {
+        window.clearTimeout(timeout);
         return { success: false, tools: [], error: 'Missing command' };
       }
+      const { StdioClientTransport } = await loadMcpSdkValue(
+        MCP_TESTING_FEATURE,
+        () => import('@modelcontextprotocol/sdk/client/stdio'),
+      );
       transport = new StdioClientTransport({
         command: cmd,
         args,
@@ -252,11 +271,18 @@ export async function testMcpServer(server: ManagedMcpServer): Promise<McpTestRe
         fetch: nodeFetch,
         requestInit: config.headers ? { headers: config.headers } : undefined,
       };
-      transport = type === 'sse'
-        ? createLegacySseTransport(url, options)
-        : new StreamableHTTPClientTransport(url, options);
+      if (type === 'sse') {
+        transport = await createLegacySseTransport(url, options);
+      } else {
+        const { StreamableHTTPClientTransport } = await loadMcpSdkValue(
+          MCP_TESTING_FEATURE,
+          () => import('@modelcontextprotocol/sdk/client/streamableHttp'),
+        );
+        transport = new StreamableHTTPClientTransport(url, options);
+      }
     }
   } catch (error) {
+    window.clearTimeout(timeout);
     return {
       success: false,
       tools: [],
@@ -264,11 +290,12 @@ export async function testMcpServer(server: ManagedMcpServer): Promise<McpTestRe
     };
   }
 
-  const client = new Client({ name: 'claudian-plus-tester', version: '1.0.0' });
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 10000);
-
   try {
+    if (controller.signal.aborted) {
+      // The deadline expired while the SDK was loading or the transport was built.
+      return { success: false, tools: [], error: CONNECTION_TIMEOUT_ERROR };
+    }
+
     await client.connect(transport, { signal: controller.signal });
 
     const serverVersion = client.getServerVersion();
@@ -292,7 +319,7 @@ export async function testMcpServer(server: ManagedMcpServer): Promise<McpTestRe
     };
   } catch (error) {
     if (controller.signal.aborted) {
-      return { success: false, tools: [], error: 'Connection timeout (10s)' };
+      return { success: false, tools: [], error: CONNECTION_TIMEOUT_ERROR };
     }
     return {
       success: false,

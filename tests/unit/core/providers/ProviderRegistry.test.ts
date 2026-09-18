@@ -2,6 +2,7 @@ import '@/providers';
 
 import { TEST_CODEX_CATALOG, TEST_CODEX_MODEL } from '@test/helpers/codexModels';
 
+import { getEnabledProviderForModel } from '@/core/providers/modelRouting';
 import { ProviderRegistry } from '@/core/providers/ProviderRegistry';
 import { ProviderWorkspaceRegistry } from '@/core/providers/ProviderWorkspaceRegistry';
 import type {
@@ -294,7 +295,73 @@ describe('ProviderRegistry', () => {
       title: 'codex title',
     });
   });
+
+  it('resolves the fresh-install settings provider from configuration and enabled state', () => {
+    expect(ProviderRegistry.resolveSettingsProviderId(createFreshInstallSettings())).toBe('codex');
+    // An unset configured default keeps new-tab provider resolution on the
+    // model-driven path instead of pinning the historical constant.
+    expect(ProviderRegistry.resolveDefaultChatProviderId(createFreshInstallSettings())).toBeNull();
+  });
+
+  it('keeps an explicitly configured default chat provider', () => {
+    const settings = createFreshInstallSettings({ defaultChatProviderId: 'claude' });
+    expect(ProviderRegistry.resolveDefaultChatProviderId(settings)).toBe('claude');
+  });
+
+  it('does not resolve a configured default to a disabled provider', () => {
+    const settings = createFreshInstallSettings({
+      defaultChatProviderId: 'codex',
+      providerConfigs: { codex: { enabled: false } },
+    });
+    expect(ProviderRegistry.resolveDefaultChatProviderId(settings)).toBe('claude');
+  });
+
+  it('routes fresh-install conversation defaults to the enabled owning provider', () => {
+    // Blank tabs derive the conversation provider from the draft model. The
+    // enhanced default model (mirrors ENHANCED_DEFAULT_CODEX_MODEL) is
+    // Codex-owned, so a fresh install binds new conversations to Codex, not
+    // to the historical default constant.
+    expect(getEnabledProviderForModel('gpt-5.6-sol', createFreshInstallSettings())).toBe('codex');
+  });
+
+  it('falls unknown models back to an enabled provider, never a disabled one', () => {
+    expect(getEnabledProviderForModel('totally-unknown-model', createFreshInstallSettings())).toBe('codex');
+
+    const settings = createFreshInstallSettings({ providerConfigs: { codex: { enabled: false } } });
+    expect(getEnabledProviderForModel('gpt-5.6-sol', settings)).toBe('claude');
+    expect(getEnabledProviderForModel('totally-unknown-model', settings)).toBe('claude');
+  });
+
+  it('keeps the historical default as an inert last resort when every provider is disabled', () => {
+    const settings = {
+      providerConfigs: {
+        claude: { enabled: false },
+        codex: { enabled: false },
+        kimi: { enabled: false },
+        opencode: { enabled: false },
+        pi: { enabled: false },
+      },
+    };
+    expect(ProviderRegistry.resolveSettingsProviderId(settings)).toBe('claude');
+  });
 });
+
+/**
+ * Mirrors the fresh-install shape of `DEFAULT_CLAUDIAN_PLUS_SETTINGS` without
+ * importing it: no configured default provider, Codex as the settings
+ * provider, Codex enabled, Claude enabled through its own default.
+ */
+function createFreshInstallSettings(overrides: {
+  defaultChatProviderId?: string;
+  providerConfigs?: Record<string, unknown>;
+} = {}): Record<string, unknown> {
+  return {
+    defaultChatProviderId: '',
+    settingsProvider: 'codex',
+    providerConfigs: { codex: { enabled: true } },
+    ...overrides,
+  };
+}
 
 function createMockTitleService(providerId: ProviderId): TitleGenerationService {
   return {

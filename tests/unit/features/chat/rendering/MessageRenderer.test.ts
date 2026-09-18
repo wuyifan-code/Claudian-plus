@@ -117,7 +117,7 @@ describe('MessageRenderer', () => {
     const emptySpy = jest.spyOn(messagesEl, 'empty');
     const mockComponent = createMockComponent();
     const renderer = new MessageRenderer({} as any, mockComponent as any, messagesEl);
-    const renderStoredSpy = jest.spyOn(renderer, 'renderStoredMessage').mockImplementation(() => {});
+    const renderStoredSpy = jest.spyOn(renderer, 'renderStoredMessage').mockImplementation(() => []);
 
     const messages: ChatMessage[] = [
       { id: 'm1', role: 'assistant', content: '', timestamp: Date.now(), toolCalls: [], contentBlocks: [] },
@@ -133,7 +133,7 @@ describe('MessageRenderer', () => {
 
   it('renders empty messages list with just welcome element', () => {
     const { renderer } = createRenderer();
-    const renderStoredSpy = jest.spyOn(renderer, 'renderStoredMessage').mockImplementation(() => {});
+    const renderStoredSpy = jest.spyOn(renderer, 'renderStoredMessage').mockImplementation(() => []);
 
     const welcomeEl = renderer.renderMessages([], () => 'Welcome!');
 
@@ -338,7 +338,11 @@ describe('MessageRenderer', () => {
 
     renderer.renderStoredMessage(msg);
 
-    expect(renderContentSpy).toHaveBeenCalledWith(expect.anything(), 'user input only');
+    expect(renderContentSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      'user input only',
+      expect.anything()
+    );
   });
 
   it('renders extracted user display content when stored message has hidden XML context', () => {
@@ -355,13 +359,13 @@ describe('MessageRenderer', () => {
 
     renderer.renderStoredMessage(msg);
 
-    expect(renderContentSpy).toHaveBeenCalledWith(expect.anything(), 'Explain this');
+    expect(renderContentSpy).toHaveBeenCalledWith(expect.anything(), 'Explain this', expect.anything());
   });
 
   it('skips empty user message bubble (image-only)', () => {
     const messagesEl = createMockEl();
     const { renderer } = createRenderer(messagesEl);
-    jest.spyOn(renderer, 'renderMessageImages').mockImplementation(() => {});
+    jest.spyOn(renderer, 'renderMessageImages').mockImplementation(() => createMockEl());
 
     const msg: ChatMessage = {
       id: 'u1',
@@ -386,7 +390,7 @@ describe('MessageRenderer', () => {
     const messagesEl = createMockEl();
     const { renderer } = createRenderer(messagesEl);
     jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
-    const renderImagesSpy = jest.spyOn(renderer, 'renderMessageImages').mockImplementation(() => {});
+    const renderImagesSpy = jest.spyOn(renderer, 'renderMessageImages').mockImplementation(() => createMockEl());
 
     const images: ImageAttachment[] = [
       { id: 'img-1', name: 'photo.png', mediaType: 'image/png', data: 'base64data', size: 200, source: 'file' },
@@ -586,7 +590,7 @@ describe('MessageRenderer', () => {
     renderer.renderStoredMessage(msg);
 
     expect(renderStoredThinkingBlock).toHaveBeenCalled();
-    expect(renderContentSpy).toHaveBeenCalledWith(expect.anything(), 'Text block');
+    expect(renderContentSpy).toHaveBeenCalledWith(expect.anything(), 'Text block', expect.anything());
     // TodoWrite is not rendered inline - only in bottom panel
     expect(renderStoredWriteEdit).toHaveBeenCalled();
     expect(renderStoredToolCall).toHaveBeenCalled();
@@ -667,7 +671,7 @@ describe('MessageRenderer', () => {
 
     // Only the non-empty text block should trigger renderContent
     expect(renderContentSpy).toHaveBeenCalledTimes(1);
-    expect(renderContentSpy).toHaveBeenCalledWith(expect.anything(), 'Real content');
+    expect(renderContentSpy).toHaveBeenCalledWith(expect.anything(), 'Real content', expect.anything());
   });
 
   it('does not render stored Codex write_stdin transport tools', () => {
@@ -865,7 +869,7 @@ describe('MessageRenderer', () => {
     renderer.renderStoredMessage(msg);
 
     // Should render content text
-    expect(renderContentSpy).toHaveBeenCalledWith(expect.anything(), 'Legacy response text');
+    expect(renderContentSpy).toHaveBeenCalledWith(expect.anything(), 'Legacy response text', expect.anything());
     // Should add copy button for fallback text
     expect(addCopySpy).toHaveBeenCalledWith(expect.anything(), 'Legacy response text');
     // Should render tool call
@@ -894,7 +898,7 @@ describe('MessageRenderer', () => {
 
     renderer.renderStoredMessage(msg);
 
-    expect(renderContentSpy).toHaveBeenCalledWith(expect.anything(), 'Only text block persisted');
+    expect(renderContentSpy).toHaveBeenCalledWith(expect.anything(), 'Only text block persisted', expect.anything());
     expect(renderStoredToolCall).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ id: 'read-1', name: 'Read' }),
@@ -1178,7 +1182,7 @@ describe('MessageRenderer', () => {
     const messagesEl = createMockEl();
     const { renderer } = createRenderer(messagesEl);
     jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
-    const renderImagesSpy = jest.spyOn(renderer, 'renderMessageImages').mockImplementation(() => {});
+    const renderImagesSpy = jest.spyOn(renderer, 'renderMessageImages').mockImplementation(() => createMockEl());
 
     const images: ImageAttachment[] = [
       { id: 'img-1', name: 'photo.png', mediaType: 'image/png', data: 'base64data', size: 200, source: 'file' },
@@ -1200,7 +1204,7 @@ describe('MessageRenderer', () => {
   it('addMessage skips empty bubble for image-only user messages', () => {
     const messagesEl = createMockEl();
     const { renderer } = createRenderer(messagesEl);
-    jest.spyOn(renderer, 'renderMessageImages').mockImplementation(() => {});
+    jest.spyOn(renderer, 'renderMessageImages').mockImplementation(() => createMockEl());
     const scrollSpy = jest.spyOn(renderer, 'scrollToBottom').mockImplementation(() => {});
 
     const msg: ChatMessage = {
@@ -1603,7 +1607,7 @@ describe('MessageRenderer', () => {
     const messagesEl = createMockEl();
     const { renderer } = createRenderer(messagesEl);
     jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
-    jest.spyOn(renderer, 'renderMessageImages').mockImplementation(() => {});
+    jest.spyOn(renderer, 'renderMessageImages').mockImplementation(() => createMockEl());
 
     const messages: ChatMessage[] = [
       { id: 'u1', role: 'user', content: 'Hello', timestamp: Date.now() },
@@ -1641,7 +1645,7 @@ describe('MessageRenderer', () => {
     const messagesEl = createMockEl();
     const { renderer } = createRenderer(messagesEl);
     jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
-    jest.spyOn(renderer, 'renderMessageImages').mockImplementation(() => {});
+    jest.spyOn(renderer, 'renderMessageImages').mockImplementation(() => createMockEl());
 
     const messages: ChatMessage[] = [
       { id: 'u1', role: 'user', content: 'Hello', timestamp: Date.now() },
@@ -2403,6 +2407,306 @@ describe('MessageRenderer', () => {
 
       const pill = messagesEl.querySelector('.claudian-plus-mind-recall-pill');
       expect(pill).toBeNull();
+    });
+  });
+
+  // ============================================
+  // Windowed rendering (R3)
+  // ============================================
+
+  describe('windowed rendering', () => {
+    function buildHistory(count: number, prefix = 'm'): ChatMessage[] {
+      const messages: ChatMessage[] = [];
+      for (let i = 0; i < count; i++) {
+        const role = i % 2 === 0 ? 'user' : 'assistant';
+        messages.push({
+          id: `${prefix}-${i}`,
+          role,
+          content: role === 'user' ? `question ${i}` : `answer ${i}`,
+          timestamp: i,
+          ...(role === 'assistant'
+            ? { contentBlocks: [{ type: 'text', content: `answer ${i}` }] as any }
+            : {}),
+        });
+      }
+      return messages;
+    }
+
+    function createWindowedRenderer(messagesEl?: any) {
+      const el = messagesEl ?? createMockEl();
+      const component = createMockComponent();
+      const renderer = new MessageRenderer(
+        { app: {}, settings: { mediaFolder: '' } } as any,
+        component as any,
+        el,
+        undefined,
+        undefined,
+        mockCapabilities(),
+      );
+      return { renderer, messagesEl: el, component };
+    }
+
+    function getScopeComponents(component: ReturnType<typeof createMockComponent>): any[] {
+      return (component.addChild as jest.Mock).mock.calls.map((call: any[]) => call[0]);
+    }
+
+    it('renders only the most recent 40 messages of a 3000-message history on first paint', () => {
+      const { renderer, messagesEl } = createWindowedRenderer();
+      const renderContentSpy = jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+      const storedSpy = jest.spyOn(renderer, 'renderStoredMessage');
+
+      renderer.renderMessages(buildHistory(3000), () => 'Hello');
+
+      const messageNodes = messagesEl.querySelectorAll('.claudian-plus-message');
+      expect(messageNodes).toHaveLength(40);
+      // Stored rendering receives the original snapshot indexes and the full
+      // history so rewind/fork eligibility keeps working.
+      expect(storedSpy.mock.calls[0][2]).toBe(2960);
+      expect(storedSpy.mock.calls[39][2]).toBe(2999);
+      expect(storedSpy.mock.calls[0][1]).toHaveLength(3000);
+      // First-paint markdown work is bounded to the rendered window.
+      expect(renderContentSpy).toHaveBeenCalledTimes(40);
+    });
+
+    it('reveals an out-of-window message by switching the rendered window', () => {
+      const { renderer, messagesEl } = createWindowedRenderer();
+      jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+
+      renderer.renderMessages(buildHistory(3000), () => 'Hello');
+      expect(messagesEl.querySelector('[data-message-id="m-10"]')).toBeNull();
+
+      const node = renderer.revealMessage('m-10');
+
+      expect(node?.getAttribute('data-message-id')).toBe('m-10');
+      expect(messagesEl.querySelector('[data-message-id="m-10"]')).not.toBeNull();
+      expect(messagesEl.querySelectorAll('.claudian-plus-message')).toHaveLength(40);
+    });
+
+    it('keeps live streaming nodes attached when the window switches', () => {
+      const { renderer, messagesEl } = createWindowedRenderer();
+      jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+
+      renderer.renderMessages(buildHistory(3000), () => 'Hello');
+      renderer.addMessage({ id: 'live-user', role: 'user', content: 'new prompt', timestamp: 1 } as ChatMessage);
+      renderer.addMessage({ id: 'live-assistant', role: 'assistant', content: '', timestamp: 2 } as ChatMessage);
+
+      renderer.revealMessage('m-10');
+
+      expect(messagesEl.querySelector('[data-message-id="live-user"]')).not.toBeNull();
+      expect(messagesEl.querySelector('[data-message-id="live-assistant"]')).not.toBeNull();
+    });
+
+    it('returns the already-rendered node without re-rendering it', () => {
+      const { renderer, messagesEl } = createWindowedRenderer();
+      jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+      const storedSpy = jest.spyOn(renderer, 'renderStoredMessage');
+
+      renderer.renderMessages(buildHistory(3000), () => 'Hello');
+      const callsBefore = storedSpy.mock.calls.length;
+      const node = messagesEl.querySelector('[data-message-id="m-2990"]');
+
+      const revealed = renderer.revealMessage('m-2990');
+
+      expect(revealed).toBe(node);
+      expect(storedSpy.mock.calls.length).toBe(callsBefore);
+    });
+
+    it('releases discarded message markdown components and detaches their nodes', () => {
+      const { renderer, messagesEl, component } = createWindowedRenderer();
+      jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+
+      renderer.renderMessages(buildHistory(3000), () => 'Hello');
+      const scopes = getScopeComponents(component);
+      expect(scopes).toHaveLength(40);
+      const staleNode = messagesEl.querySelector('[data-message-id="m-2960"]');
+      const removeSpy = jest.spyOn(staleNode!, 'remove');
+
+      renderer.revealMessage('m-10');
+
+      // The dropped page's markdown scopes were unloaded — not just detached.
+      const unloaded = scopes.filter(
+        (scope: any) => (scope.unload as jest.Mock).mock.calls.length > 0
+      );
+      expect(unloaded).toHaveLength(40);
+      expect(removeSpy).toHaveBeenCalled();
+    });
+
+    it('cancels pending UI callbacks owned by discarded nodes', async () => {
+      jest.useFakeTimers();
+      const originalNavigator = globalThis.navigator;
+      Object.defineProperty(globalThis.navigator, 'clipboard', {
+        value: { writeText: jest.fn().mockResolvedValue(undefined) },
+        configurable: true,
+      });
+
+      try {
+        const { renderer, messagesEl } = createWindowedRenderer();
+        jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+
+        renderer.renderMessages(
+          [{ id: 'u-1', role: 'user', content: 'hello', timestamp: 1 }],
+          () => 'Hello'
+        );
+        const copyBtn = messagesEl.querySelector('.claudian-plus-user-msg-copy-btn');
+        copyBtn!.click();
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(copyBtn!.textContent).toBe('Copied!');
+
+        // A fresh render discards the old window; pending copy feedback must
+        // not fire against the discarded node.
+        renderer.renderMessages(
+          [{ id: 'u-2', role: 'user', content: 'next', timestamp: 2 }],
+          () => 'Hello'
+        );
+
+        jest.advanceTimersByTime(2000);
+        expect(copyBtn!.textContent).toBe('Copied!');
+      } finally {
+        jest.useRealTimers();
+        Object.defineProperty(globalThis.navigator, 'clipboard', {
+          value: originalNavigator?.clipboard,
+          configurable: true,
+        });
+      }
+    });
+
+    it('keeps rewind and fork controls bound to original message indexes inside the window', () => {
+      const messagesEl = createMockEl();
+      const rewindCallback = jest.fn().mockResolvedValue(undefined);
+      const forkCallback = jest.fn().mockResolvedValue(undefined);
+      const renderer = new MessageRenderer(
+        { app: {}, settings: { mediaFolder: '' } } as any,
+        createMockComponent() as any,
+        messagesEl,
+        rewindCallback,
+        forkCallback,
+        mockCapabilities(),
+      );
+      jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+
+      const messages = buildHistory(3000);
+      messages[2996] = {
+        ...messages[2996],
+        role: 'assistant',
+        contentBlocks: [{ type: 'text', content: 'earlier answer' }] as any,
+        assistantMessageId: 'prev-a',
+      };
+      messages[2997] = {
+        ...messages[2997],
+        role: 'user',
+        content: 'deep question',
+        timestamp: 2997,
+        userMessageId: 'user-deep',
+      };
+      messages[2998] = {
+        ...messages[2998],
+        role: 'assistant',
+        contentBlocks: [{ type: 'text', content: 'later answer' }] as any,
+        assistantMessageId: 'resp-a',
+      };
+
+      renderer.renderMessages(messages, () => 'Hello');
+
+      const deepNode = messagesEl.querySelector('[data-message-id="m-2997"]');
+      expect(deepNode).not.toBeNull();
+      expect(deepNode!.querySelector('.claudian-plus-message-rewind-btn')).not.toBeNull();
+      expect(deepNode!.querySelector('.claudian-plus-message-fork-btn')).not.toBeNull();
+    });
+
+    it('loads older history when the user scrolls to the top', () => {
+      const { renderer, messagesEl } = createWindowedRenderer();
+      jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+
+      renderer.renderMessages(buildHistory(3000), () => 'Hello');
+      expect(messagesEl.querySelectorAll('.claudian-plus-message')).toHaveLength(40);
+
+      messagesEl.scrollTop = 0;
+      messagesEl.dispatchEvent('scroll');
+
+      expect(messagesEl.querySelectorAll('.claudian-plus-message')).toHaveLength(80);
+    });
+
+    it('does not reuse the previous conversation window when switching conversations', () => {
+      const { renderer, messagesEl } = createWindowedRenderer();
+      jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+      const storedMessageSpy = jest.spyOn(renderer, 'renderStoredMessage');
+
+      renderer.renderMessages(buildHistory(3000, 'a'), () => 'Hello');
+      storedMessageSpy.mockClear();
+
+      renderer.renderMessages(buildHistory(10, 'b'), () => 'Hello');
+
+      expect(messagesEl.querySelector('[data-message-id="b-0"]')).not.toBeNull();
+      const renderedIds = storedMessageSpy.mock.calls.map((call) => (call[0] as ChatMessage).id);
+      expect(renderedIds).toHaveLength(10);
+      expect(renderedIds.every((id) => id.startsWith('b-'))).toBe(true);
+    });
+
+    it('restores collapse state when a message re-enters the rendered window', () => {
+      const { renderer, messagesEl } = createWindowedRenderer();
+      jest.spyOn(renderer, 'renderContent').mockResolvedValue(undefined);
+      (renderStoredToolCall as jest.Mock).mockImplementation((parentEl: any, toolCall: any) => {
+        const wrapper = parentEl.createDiv({ cls: 'claudian-plus-tool-call' });
+        wrapper.dataset.toolId = toolCall.id;
+        const header = wrapper.createDiv({ cls: 'claudian-plus-tool-call-header' });
+        header.setAttribute('aria-expanded', 'false');
+        header.addEventListener('click', () => {
+          const expanded = header.getAttribute('aria-expanded') === 'true';
+          header.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+        });
+        return wrapper;
+      });
+
+      const messages = buildHistory(3000);
+      messages[2975] = {
+        id: 'm-2975',
+        role: 'assistant',
+        content: '',
+        timestamp: 2975,
+        toolCalls: [
+          { id: 'tool-2975', name: 'Read', input: { file_path: 'a.md' }, status: 'completed' } as any,
+        ],
+        contentBlocks: [{ type: 'tool_use', toolId: 'tool-2975' } as any],
+      };
+
+      renderer.renderMessages(messages, () => 'Hello');
+      const header = messagesEl
+        .querySelector('[data-message-id="m-2975"]')!
+        .querySelector('[aria-expanded]')!;
+      expect(header).not.toBeNull();
+      header.click();
+      expect(header.getAttribute('aria-expanded')).toBe('true');
+
+      renderer.revealMessage('m-10');
+      renderer.revealMessage('m-2975');
+
+      const restoredHeader = messagesEl
+        .querySelector('[data-message-id="m-2975"]')!
+        .querySelector('[aria-expanded]')!;
+      expect(restoredHeader.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    it('renders stored markdown through a per-message child component', async () => {
+      const { renderer, component } = createWindowedRenderer();
+      const { MarkdownRenderer } = await import('obsidian');
+
+      renderer.renderMessages(
+        [{ id: 'u-1', role: 'user', content: 'hello', timestamp: 1 }],
+        () => 'Hello'
+      );
+      renderer.addMessage({ id: 'u-live', role: 'user', content: 'live text', timestamp: 2 } as ChatMessage);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const scopes = getScopeComponents(component);
+      expect(scopes.length).toBeGreaterThan(0);
+      const renderCalls = (MarkdownRenderer.render as jest.Mock).mock.calls;
+      expect(renderCalls.length).toBeGreaterThanOrEqual(2);
+      // Stored markdown uses a per-message scope; the live message keeps the
+      // main component.
+      expect(scopes).toContain(renderCalls[0][4]);
+      expect(renderCalls[renderCalls.length - 1][4]).toBe(component);
     });
   });
 });

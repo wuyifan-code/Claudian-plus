@@ -1,0 +1,7 @@
+{"event":"init","conversation_id":"00000000-0000-4000-8000-0000000000a3","init":{"model":"gemini-3.8-flash-low","cwd":"<TMP>","tools":["run_command"],"permission_mode":"request-review"}}
+{"event":"step_update","step_update":{"conversation_id":"00000000-0000-4000-8000-0000000000a3","step_index":0,"state":"DONE","step_type":"user_input"}}
+{"event":"step_update","step_update":{"conversation_id":"00000000-0000-4000-8000-0000000000a3","step_index":1,"state":"ACTIVE","step_type":"tool","tool_info":{"name":"run_command","parameters":{"command":"dir"}}}}
+{"event":"step_update","step_update":{"conversation_id":"00000000-0000-4000-8000-0000000000a3","step_index":1,"state":"DONE","step_type":"tool","tool_info":{"name":"run_command","parameters":{"command":"dir"},"error":{"type":"execution_error","message":"Command exited with code 1"}}}}
+{"event":"step_update","step_update":{"conversation_id":"00000000-0000-4000-8000-0000000000a3","step_index":2,"state":"ACTIVE","step_type":"agent_response","text_delta":"The command failed."}}
+{"event":"step_update","step_update":{"conversation_id":"00000000-0000-4000-8000-0000000000a3","step_index":2,"state":"DONE","step_type":"agent_response","text_delta":"","duration_seconds":0.2}}
+{"event":"result","result":{"conversation_id":"00000000-0000-4000-8000-0000000000a3","status":"SUCCESS","response":"The command failed.","duration_seconds":2.1,"num_turns":1,"usage":{"input_tokens":900,"output_tokens":6,"thinking_tokens":0,"cache_read_tokens":0,"total_tokens":906}}}

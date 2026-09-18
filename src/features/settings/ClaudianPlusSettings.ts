@@ -2,6 +2,7 @@ import type { App, Plugin } from 'obsidian';
 import { Notice, Platform, PluginSettingTab, setIcon, Setting } from 'obsidian';
 import * as path from 'path';
 
+import type { AuxiliaryRequestGate } from '../../core/auxiliary/AuxiliaryRequestPolicy';
 import {
   getHiddenProviderCommands,
   normalizeHiddenCommandList,
@@ -557,6 +558,78 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
         targetEl: titleModelSetting.settingEl,
       });
     }
+
+    // Saving mode and background request budget (R1)
+    const savingModeSetting = new Setting(titleCard)
+      .setName(t('settings.savingMode.name'))
+      .setDesc(t('settings.savingMode.desc'))
+      .addDropdown((dropdown) => {
+        dropdown
+          .addOption('standard', t('settings.savingMode.standard'))
+          .addOption('economy', t('settings.savingMode.economy'))
+          .setValue(this.plugin.settings.auxiliarySavingMode ?? 'standard')
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.auxiliarySavingMode = value === 'economy' ? 'economy' : 'standard';
+            });
+          });
+      });
+    this.registerSearchEntry({
+      categoryId: 'general',
+      categoryLabel: 'General',
+      settingKey: 'saving-mode',
+      name: t('settings.savingMode.name'),
+      desc: t('settings.savingMode.desc'),
+      targetEl: savingModeSetting.settingEl,
+    });
+
+    const dailyLimitOptions = ['', '20', '50', '100', '200'];
+    const dailyLimitSetting = new Setting(titleCard)
+      .setName(t('settings.backgroundRequestDailyLimit.name'))
+      .setDesc(t('settings.backgroundRequestDailyLimit.desc'))
+      .addDropdown((dropdown) => {
+        for (const option of dailyLimitOptions) {
+          dropdown.addOption(option, option === ''
+            ? t('settings.backgroundRequestDailyLimit.unlimited')
+            : t('settings.backgroundRequestDailyLimit.perDay', { count: option }));
+        }
+        const currentLimit = this.plugin.settings.backgroundRequestDailyLimit;
+        dropdown.setValue(currentLimit ? String(currentLimit) : '');
+        dropdown.onChange(async (value) => {
+          await this.plugin.mutateSettings((settings) => {
+            settings.backgroundRequestDailyLimit = value === ''
+              ? null
+              : Math.max(1, Number.parseInt(value, 10) || 0) || null;
+          });
+        });
+      });
+    this.registerSearchEntry({
+      categoryId: 'general',
+      categoryLabel: 'General',
+      settingKey: 'background-request-daily-limit',
+      name: t('settings.backgroundRequestDailyLimit.name'),
+      desc: t('settings.backgroundRequestDailyLimit.desc'),
+      targetEl: dailyLimitSetting.settingEl,
+    });
+
+    const requestsToday = (this.plugin as Plugin & {
+      getAuxiliaryRequestGate?: () => AuxiliaryRequestGate;
+    }).getAuxiliaryRequestGate?.().getIssuedToday() ?? 0;
+    const requestsTodaySetting = new Setting(titleCard)
+      .setName(t('settings.backgroundRequestsToday.name'))
+      .setDesc(t('settings.backgroundRequestsToday.desc'))
+      .addText((text) => {
+        text.setValue(String(requestsToday));
+        text.inputEl.disabled = true;
+      });
+    this.registerSearchEntry({
+      categoryId: 'general',
+      categoryLabel: 'General',
+      settingKey: 'background-requests-today',
+      name: t('settings.backgroundRequestsToday.name'),
+      desc: t('settings.backgroundRequestsToday.desc'),
+      targetEl: requestsTodaySetting.settingEl,
+    });
   }
 
   // --- Category: Appearance ---
