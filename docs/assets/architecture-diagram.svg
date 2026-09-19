@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 440" width="100%" height="100%" role="img" aria-labelledby="cpArchTitle cpArchDesc">
   <title id="cpArchTitle">Claudian Plus system boundaries</title>
-  <desc id="cpArchDesc">Three layers with a single dependency direction: vault context flows into a provider-neutral core runtime, which dispatches to provider adaptors. Vault context covers note and folder references, canvas and link graph, and frontmatter properties. The core runtime holds Dreaming V3, the session bus, and the vault write guard. Providers covers Codex as the default, Claude Code, and the opt-in Kimi, OpenCode and Pi adaptors.</desc>
+  <desc id="cpArchDesc">Three layers with a single dependency direction: vault context flows into a provider-neutral core runtime, which dispatches to provider adaptors. Vault context covers note and folder references, canvas and link graph, and frontmatter properties. The core runtime holds Dreaming V3, the session bus, and the vault write guard. Providers covers Codex as the default, Claude Code, and the opt-in Kimi, OpenCode, Pi and Antigravity adaptors.</desc>
   <defs>
     <style>
       .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Noto Sans", sans-serif; }
@@ -74,7 +74,7 @@
     <text x="20" y="174" class="mono" font-size="18" font-weight="600" fill="#1C1B19">Claude Code</text>
     <text x="20" y="198" class="sans" font-size="18" fill="#736D64">Thinking chains, session replay</text>
 
-    <text x="20" y="236" class="mono" font-size="18" font-weight="600" fill="#1C1B19">Kimi · OpenCode · Pi</text>
-    <text x="20" y="260" class="sans" font-size="18" fill="#736D64">Enable per provider; not parity</text>
+    <text x="20" y="236" class="mono" font-size="18" font-weight="600" fill="#1C1B19">Opt-in providers</text>
+    <text x="20" y="260" class="sans" font-size="18" fill="#736D64">Kimi, OpenCode, Pi, Antigravity</text>
   </g>
 </svg>

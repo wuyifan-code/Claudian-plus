@@ -23,7 +23,7 @@
     <text x="64" y="226" class="serif" font-size="27" fill="#1C1B19">你的笔记记得，</text>
     <text x="64" y="262" class="serif" font-size="27" fill="#1C1B19">你的 AI 也该记得。</text>
 
-    <text x="64" y="312" class="sans" font-size="19" fill="#736D64">五个编码 Agent，一个笔记库，一份你自己拥有的记忆文件。</text>
+    <text x="64" y="312" class="sans" font-size="19" fill="#736D64">六个编码 Agent，一个笔记库，一份你自己拥有的记忆文件。</text>
 
     <!-- Attribute tags -->
     <g id="tags">
