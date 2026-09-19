@@ -16,10 +16,10 @@
 
 <p align="center">
   <strong>Your notes remember. Now your AI does too.</strong><br>
-  Five coding agents in one Obsidian vault, with a memory file you own.
+  Six coding agents in one Obsidian vault, with a memory file you own.
 </p>
 
-Claudian Plus puts provider-backed coding agents in your Obsidian sidebar. Codex is the default; Claude, Kimi, OpenCode, and Pi plug into the same conversation model. When a session ends, its decisions do not evaporate — they are distilled into `.claudian-plus/memory.md`, a plain Markdown file inside your vault that you can read, edit, or delete.
+Claudian Plus puts provider-backed coding agents in your Obsidian sidebar. Codex is the default; Claude, Kimi, OpenCode, Pi, and Antigravity plug into the same conversation model. When a session ends, its decisions do not evaporate — they are distilled into `.claudian-plus/memory.md`, a plain Markdown file inside your vault that you can read, edit, or delete.
 
 ---
 
@@ -49,7 +49,7 @@ Most AI plugins treat conversation history as disposable text. Claudian Plus tre
 | What you need | Typical AI extension | Claudian Plus |
 | :--- | :--- | :--- |
 | **Continuity across sessions** | Erased when the window closes | Memory distilled into `memory.md`, injected into later prompts |
-| **Provider choice** | Locked to one vendor's web assumptions | Codex by default, plus Claude, Kimi, OpenCode, and Pi |
+| **Provider choice** | Locked to one vendor's web assumptions | Codex by default, plus Claude, Kimi, OpenCode, Pi, and Antigravity |
 | **Vault context** | Manual copy-paste into a chat box | `@note`, `@folder`, drag-and-drop, Canvas, frontmatter queries |
 | **Data sovereignty** | Sessions indexed on someone else's server | Every prompt, session, and memory stays under `.claudian-plus/` |
 | **Long-session focus** | A wall of tool calls and reasoning noise | Floating outline collapses the noise into clickable ticks |
@@ -95,8 +95,9 @@ Three layers, one direction of dependency: vault context feeds a provider-neutra
 - **Kimi — opt in.** ACP integration with dynamic model and command discovery, per-tool approval dialogs, and multimodal image attachments.
 - **OpenCode — opt in.** ACP agent over a sandboxed sidecar process.
 - **Pi — opt in.** RPC-mode sidecar that runs on Node built-ins and a bundled TypeBox, so it still works when external tool dependencies are missing.
+- **Antigravity — opt in, print mode only.** Wraps the `agy` CLI with per-host CLI paths and a per-turn print timeout. Its capabilities are declared conservatively: only print mode is verified end-to-end, so persistent runtime, plan mode, rewind, fork, images, MCP, and shared skills are all reported as absent rather than assumed.
 
-Kimi, OpenCode, and Pi are **disabled on a fresh install** and are enabled per provider in Settings.
+Kimi, OpenCode, Pi, and Antigravity are **disabled on a fresh install** and are enabled per provider in Settings. Only Codex and Claude start enabled.
 
 ---
 

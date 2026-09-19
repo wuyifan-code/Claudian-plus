@@ -16,10 +16,10 @@
 
 <p align="center">
   <strong>你的笔记记得，你的 AI 也该记得。</strong><br>
-  五个编码 Agent，一个笔记库，一份属于你自己的记忆文件。
+  六个编码 Agent，一个笔记库，一份属于你自己的记忆文件。
 </p>
 
-Claudian Plus 把编码 Agent 放进 Obsidian 侧边栏。默认使用 Codex，Claude、Kimi、OpenCode 与 Pi 接入同一套会话模型。一次对话结束后，它的结论不会蒸发——而是被蒸馏进笔记库里的 `.claudian-plus/memory.md`，一份你可以随时打开、修改、删除的纯 Markdown 文件。
+Claudian Plus 把编码 Agent 放进 Obsidian 侧边栏。默认使用 Codex，Claude、Kimi、OpenCode、Pi 与 Antigravity 接入同一套会话模型。一次对话结束后，它的结论不会蒸发——而是被蒸馏进笔记库里的 `.claudian-plus/memory.md`，一份你可以随时打开、修改、删除的纯 Markdown 文件。
 
 ---
 
@@ -49,7 +49,7 @@ Claudian Plus 把编码 Agent 放进 Obsidian 侧边栏。默认使用 Codex，C
 | 你的需求 | 常见的 AI 插件 | Claudian Plus |
 | :--- | :--- | :--- |
 | **跨会话的连续性** | 关掉窗口就没了 | 蒸馏进 `memory.md`，注入到后续 Prompt |
-| **选择 Provider 的自由** | 被绑死在单一厂商的网页假设上 | 默认 Codex，另有 Claude、Kimi、OpenCode、Pi |
+| **选择 Provider 的自由** | 被绑死在单一厂商的网页假设上 | 默认 Codex，另有 Claude、Kimi、OpenCode、Pi、Antigravity |
 | **笔记库上下文** | 手动复制粘贴进输入框 | `@note`、`@folder`、拖拽、Canvas、Frontmatter 查询 |
 | **数据主权** | 会话被索引到别人的服务器上 | 所有 Prompt、会话与记忆都留在 `.claudian-plus/` 下 |
 | **长对话专注度** | 满屏的工具调用与思考噪音 | 悬浮大纲把噪音折叠成可点击的标记 |
@@ -95,8 +95,9 @@ Claudian Plus 把编码 Agent 放进 Obsidian 侧边栏。默认使用 Codex，C
 - **Kimi —— 需手动开启。** 基于 ACP 协议接入，具备模型与命令自动发现、按工具审批以及多模态图片附件。
 - **OpenCode —— 需手动开启。** 运行在隔离 sidecar 进程上的 ACP Agent。
 - **Pi —— 需手动开启。** RPC 模式的 sidecar，基于 Node 内置模块与内置的 TypeBox，外部工具依赖缺失时依然可用。
+- **Antigravity —— 需手动开启，仅 print 模式。** 封装 `agy` CLI，支持按主机配置 CLI 路径与单轮 print 超时。它的能力是刻意保守声明的：只有 print 模式经过端到端验证，因此常驻运行时、Plan 模式、回退、分叉、图片、MCP 与共享 Skills 一律如实标记为不可用，而不是假定可用。
 
-Kimi、OpenCode 与 Pi 在全新安装下**默认关闭**，需要在设置中逐个启用。
+Kimi、OpenCode、Pi 与 Antigravity 在全新安装下**默认关闭**，需要在设置中逐个启用；**默认启用的只有 Codex 与 Claude**。
 
 ---
 
