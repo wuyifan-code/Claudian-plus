@@ -28,12 +28,10 @@ Claudian Plus embeds provider-backed coding agents in an Obsidian workspace. It 
 A 30-second walkthrough showing local memory distillation, knowledge graph linkage, and multi-agent coordination inside Obsidian:
 
 <div align="center">
-  <video src="docs/assets/claudian-plus-demo.mp4" controls="controls" muted="muted" width="100%" style="border-radius: 8px; border: 1px solid #E6DFD5;" poster="docs/assets/claudian-plus-demo-cover.png">
-    <a href="docs/assets/claudian-plus-demo.mp4">
-      <img src="docs/assets/claudian-plus-demo-cover.png" alt="Claudian Plus video demonstration poster" width="100%">
-    </a>
-  </video>
-  <p><em><a href="docs/assets/claudian-plus-demo.mp4">View or download the raw HD demo video (30s, 720p)</a></em></p>
+  <a href="docs/assets/claudian-plus-demo.mp4">
+    <img src="docs/assets/claudian-plus-demo.gif" alt="Claudian Plus 30-second workflow demonstration" width="100%" style="border-radius: 8px; border: 1px solid #E6DFD5;">
+  </a>
+  <p><em>Auto-playing demonstration • <a href="docs/assets/claudian-plus-demo.mp4">View or download raw HD video (30s, 720p)</a></em></p>
 </div>
 
 ### What the demonstration covers
