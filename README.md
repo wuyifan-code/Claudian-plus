@@ -3,189 +3,213 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/readme-hero.svg" alt="Claudian Plus - Local-First AI Workspace for Obsidian" width="100%">
+  <img src="docs/assets/readme-hero.svg" alt="Claudian Plus — a local-first agent workspace for Obsidian. Your notes remember. Now your AI does too." width="100%">
 </p>
 
 <p align="center">
   <a href="https://github.com/wuyifan-code/Claudian-plus/releases"><img src="https://img.shields.io/github/v/release/wuyifan-code/Claudian-plus?display_name=tag&sort=semver&style=flat-square&color=262626" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT%20%7C%20AGPL--3.0-262626?style=flat-square" alt="License"></a>
-  <a href="https://obsidian.md/"><img src="https://img.shields.io/badge/obsidian-desktop-262626?style=flat-square" alt="Obsidian desktop"></a>
+  <a href="https://obsidian.md/"><img src="https://img.shields.io/badge/obsidian-1.11.4%2B%20desktop-262626?style=flat-square" alt="Requires Obsidian 1.11.4 or later, desktop only"></a>
   <a href="https://github.com/wuyifan-code/Claudian-plus/actions"><img src="https://img.shields.io/github/actions/workflow/status/wuyifan-code/Claudian-plus/ci.yml?branch=main&label=checks&style=flat-square&color=262626" alt="CI status"></a>
-  <img src="https://img.shields.io/badge/telemetry-0%20KB%20offline-262626?style=flat-square" alt="Zero telemetry">
+  <img src="https://img.shields.io/badge/telemetry-none-262626?style=flat-square" alt="No telemetry">
 </p>
 
 <p align="center">
   <strong>Your notes remember. Now your AI does too.</strong><br>
-  A local-first AI workspace for Obsidian that anchors multi-agent reasoning, cognitive memory, and provider sessions directly inside your Vault.
+  Five coding agents in one Obsidian vault, with a memory file you own.
 </p>
 
-Claudian Plus embeds provider-backed coding agents in an Obsidian workspace. It combines Codex, Claude, OpenCode, Kimi, and Pi with a quiet background consciousness mechanism: instead of discarding conversations when a chat closes, it distills short-term working context into durable, searchable memory inside your Vault.
+Claudian Plus puts provider-backed coding agents in your Obsidian sidebar. Codex is the default; Claude, Kimi, OpenCode, and Pi plug into the same conversation model. When a session ends, its decisions do not evaporate — they are distilled into `.claudian-plus/memory.md`, a plain Markdown file inside your vault that you can read, edit, or delete.
 
 ---
 
-## 01 / Demonstration
+## 01 / Watch it work
 
-A 30-second walkthrough showing local memory distillation, knowledge graph linkage, and multi-agent coordination inside Obsidian:
+A 30-second animated overview of how the pieces fit together:
 
 <div align="center">
   <a href="docs/assets/claudian-plus-demo.mp4">
-    <img src="docs/assets/claudian-plus-demo.gif" alt="Claudian Plus 30-second workflow demonstration" width="100%" style="border-radius: 8px; border: 1px solid #E6DFD5;">
+    <img src="docs/assets/claudian-plus-demo.gif" alt="Claudian Plus animated overview: vault context, local memory, and multiple agent providers" width="100%" style="border-radius: 8px; border: 1px solid #E6DFD5;">
   </a>
-  <p><em>Auto-playing demonstration • <a href="docs/assets/claudian-plus-demo.mp4">View or download raw HD video (30s, 720p)</a></em></p>
+  <p><em>Click for the full-quality 30s 720p version.</em></p>
 </div>
 
-### What the demonstration covers
-- **Knowledge graph connection**: Conversations and decisions map directly into your Vault's link structure.
-- **Dreaming V3 distillation**: 30 seconds of typing silence triggers background memory extraction into `memory.md`.
-- **Multi-agent bus**: Coordinate across Codex CLI, Claude Code, Kimi ACP, and OpenCode/Pi without losing context.
+### Three things worth noticing
+
+- **Context arrives as references, not pasted text.** `@note`, `@folder`, and drag-and-drop resolve against the vault you already have open.
+- **Memory lands in a file you can open.** No database, no sync service — just `memory.md` sitting in your file list next to your notes.
+- **The provider switches without the conversation breaking.** Each provider keeps its own session history, so a session can move between Codex, Claude, Kimi, and OpenCode.
 
 ---
 
-## 02 / The Difference
+## 02 / Why it is different
 
-Most AI plugins treat conversation history as disposable text. Claudian Plus treats conversations as creative working sessions: context enters, decisions distill into memory, and every insight remains searchable weeks later.
+Most AI plugins treat conversation history as disposable text. Claudian Plus treats a session as a working record: context enters, decisions distill into memory, and the result stays searchable weeks later.
 
-| Everyday Need | Traditional AI Extensions | Claudian Plus |
+| What you need | Typical AI extension | Claudian Plus |
 | :--- | :--- | :--- |
-| **Long-term continuity** | Erased once the chat closes or context exceeds limits | **Dreaming V3**: idle micro-dreams distill facts into `memory.md` |
-| **Agent flexibility** | Locked into one provider's web chat assumptions | **Codex-first default** with Claude, Kimi ACP, and OpenCode/Pi parity |
-| **Vault context** | Manual copy-pasting into chat inputs | Direct `@note`, `@folder`, drag-and-drop, Canvas, and Properties queries |
-| **Privacy & sovereignty** | Sessions indexed on external cloud servers | **0 KB telemetry**: All memories and sessions remain inside your Vault |
-| **Long session focus** | Wall-of-text reasoning clutter | **Floating outline**: Collapses tool and thought noise into clickable ticks |
+| **Continuity across sessions** | Erased when the window closes | Memory distilled into `memory.md`, injected into later prompts |
+| **Provider choice** | Locked to one vendor's web assumptions | Codex by default, plus Claude, Kimi, OpenCode, and Pi |
+| **Vault context** | Manual copy-paste into a chat box | `@note`, `@folder`, drag-and-drop, Canvas, frontmatter queries |
+| **Data sovereignty** | Sessions indexed on someone else's server | Every prompt, session, and memory stays under `.claudian-plus/` |
+| **Long-session focus** | A wall of tool calls and reasoning noise | Floating outline collapses the noise into clickable ticks |
 
 ---
 
-## 03 / Cognitive Memory: Dreaming V3
+## 03 / What this is not
 
-Conversations end; memory continues. When your keyboard rests for 30 seconds, Claudian Plus triggers an unobtrusive background micro-dream:
+- **Not a cloud service.** No telemetry or analytics code ships in this plugin. Network calls are made by the provider CLI you configure, from your machine.
+- **Not a chat window bolted onto a note app.** Your memory is a Markdown file in your vault, not a row in someone's database.
+- **Not a promise that every provider behaves the same.** Capabilities differ per provider and are declared explicitly, because the codebase is written so no feature can silently assume parity.
+
+---
+
+## 04 / How memory actually works
+
+Conversations end; memory continues. The pipeline is deliberately boring — four steps, no timers, and nothing written behind your back.
 
 <p align="center">
-  <img src="docs/assets/dreaming-preview.gif" alt="Dreaming V3 idle distillation preview" width="100%" style="border-radius: 8px; border: 1px solid #E6DFD5;">
+  <img src="docs/assets/memory-pipeline.svg" alt="Memory lifecycle: a turn ends and the gate opens after three exchanges; an auxiliary query distills the transcript under an 8,000 character input cap; new rules are staged for review; approved memory is injected into later prompts within a 1,500 character budget." width="100%">
 </p>
 
-### Verified Engineering Specifications
+- **It is gated on real usage, not on a stopwatch.** Distillation is evaluated when a turn completes, and only once a session has at least **3 exchanges**. A separate hourly check consolidates older logs when a full interval has passed, and startup consolidates anything accumulated while Obsidian was closed.
+- **Input is capped before the model sees it.** The transcript handed to the auxiliary query is truncated at **8,000 characters**, so distillation cost stays bounded on long sessions.
+- **Nothing is written silently.** Newly extracted preferences and decisions surface as a notice and wait in Settings for you to accept.
+- **Output is capped before it reaches your prompt.** Approved memory is injected within a **1,500 character** budget by default, split across a 350-character profile layer and a 500-character project layer. All three are adjustable in **Settings → Memory & Consciousness**.
+- **You can always pull the plug.** `Open memory file` shows you exactly what has been distilled, and the file is plain Markdown.
 
-| Metric | Measured Value | Operational Scope |
-| :--- | :--- | :--- |
-| **Idle CPU overhead** | `< 1.2%` | Background memory distillation while typing is paused |
-| **Memory character budget** | `3,000` chars | Strict upper limit injected into subsequent agent prompts |
-| **Test suite pass rate** | `100%` | Continuous integration covering all provider runtimes |
-| **External telemetry emitted** | `0 KB` | Completely offline; requests route solely to configured CLIs |
-
-- **Idle micro-distillation**: Extracts user preferences, decisions, and constraints into `.claudian-plus/memory.md`.
-- **Budget-bounded injection**: Distilled insights are compacted within a strict 3,000 character ceiling before injection.
-- **Cross-source deduplication**: Resolves overlapping conclusions between multiple conversations automatically.
-- **Local file control**: View, edit, or clear memory at any time via **Open memory file**.
+> **Memory is opt-in.** `memoryEnabled` defaults to on, but the consciousness and auto-memory switches — the ones that send a transcript to an auxiliary query — default to **off** on new installations, because distilled memory contains personal context. Turn them on in **Settings → Memory & Consciousness** when you want it.
 
 ---
 
-## 04 / Multi-Agent Architecture
+## 05 / Providers and the dependency rule
 
-Work with the exact reasoning engine suited to your task without provider lock-in:
+Three layers, one direction of dependency: vault context feeds a provider-neutral core, which dispatches to provider adaptors. Feature code depends on core contracts, never on provider internals.
 
 <p align="center">
-  <img src="docs/assets/claudian-plus-overview.png" alt="Claudian Plus inside Obsidian workspace" width="100%" style="border-radius: 8px; border: 1px solid #E6DFD5;">
+  <img src="docs/assets/architecture-diagram.svg" alt="Three layers: vault context, a provider-neutral core runtime holding Dreaming V3, the session bus and the vault guard, and provider adaptors with Codex as the default." width="100%">
 </p>
 
-- **Codex CLI (Default)**: Preferred agent; automatically detects and leverages `gpt-5.6-sol` when exposed by your local CLI, with native real-time streaming output.
-- **Claude Code**: Supports Anthropic thinking chain folding, permission modes, and native project history replay.
-- **Kimi ACP protocol**: ACP standard integration with dynamic model/command discovery, tool approval dialogs, and multimodal image attachments.
-- **OpenCode & Pi sidecars**: Sandboxed sidecars utilizing Node built-ins and pre-bundled TypeBox, ensuring chat operates even when external tool dependencies are absent.
+- **Codex CLI — enabled by default.** Default model `gpt-5.6-sol`, with native streaming output over `codex app-server`.
+- **Claude Code — enabled by default.** Thinking-chain folding, permission modes, and native project history replay.
+- **Kimi — opt in.** ACP integration with dynamic model and command discovery, per-tool approval dialogs, and multimodal image attachments.
+- **OpenCode — opt in.** ACP agent over a sandboxed sidecar process.
+- **Pi — opt in.** RPC-mode sidecar that runs on Node built-ins and a bundled TypeBox, so it still works when external tool dependencies are missing.
+
+Kimi, OpenCode, and Pi are **disabled on a fresh install** and are enabled per provider in Settings.
 
 ---
 
-## 05 / Vault Workspace Integration
+## 06 / Install
 
-Anchor agent assistance directly into your personal knowledge base:
-
-- **Context ingestion**: Reference notes with `@note`, folders with `@folder`, drag-and-drop files, or highlight active editor selections.
-- **Visual Canvas and graph awareness**: Right-click any Canvas node to **Suggest neighboring notes** based on Obsidian's resolved link graph.
-- **Safe Vault guards**: File modifications display a structured diff preview with in-session **Undo** protection.
-- **Metadata extraction**: Fast `FROM` frontmatter queries execute without dependency on third-party plugin APIs.
-
----
-
-## 06 / System Architecture
-
-<p align="center">
-  <img src="docs/assets/architecture-diagram.svg" alt="Claudian Plus system architecture diagram" width="100%">
-</p>
-
----
-
-## 07 / Installation & Quickstart
-
-### Method 1: Install from Release (Recommended)
+### Method 1 — from a release (recommended)
 
 1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/wuyifan-code/Claudian-plus/releases/latest).
-2. Inside your Obsidian Vault, navigate to `.obsidian/plugins/` and create a `claudian-plus/` directory.
-3. Copy the three files into that directory.
-4. In Obsidian, go to **Settings → Community plugins**, refresh the list, and enable **Claudian Plus**.
+2. In your vault, create `.obsidian/plugins/claudian-plus/`.
+3. Copy the three files into it.
+4. In Obsidian, open **Settings → Community plugins**, refresh the list, and enable **Claudian Plus**.
 
-> *Note: Claudian Plus is desktop-only because it connects directly to local agent CLIs and the desktop filesystem.*
+> **Requirements:** Obsidian **1.11.4 or later**, desktop only. Claudian Plus talks to local agent CLI processes and the desktop filesystem, so there is no mobile build.
 
-### Method 2: Build from Source
+### Method 2 — from source
 
-Requirements: **Node.js 24+** and at least one local provider CLI ([Codex](https://github.com/openai/codex), [Claude Code](https://claude.ai/claude-code), [OpenCode](https://opencode.ai/), [Kimi](https://github.com/MoonshotAI/kimi-cli), or [Pi](https://github.com/badlogic/pi-mono)).
+Requires **Node.js 24** and at least one provider CLI: [Codex](https://github.com/openai/codex), [Claude Code](https://claude.ai/claude-code), [Kimi](https://github.com/MoonshotAI/kimi-cli), [OpenCode](https://opencode.ai/), or [Pi](https://github.com/badlogic/pi-mono).
 
 ```bash
-# 1. Clone repository
 git clone https://github.com/wuyifan-code/Claudian-plus.git
 cd Claudian-plus
 
-# 2. Install dependencies and verify types
 npm ci
 npm run typecheck
-
-# 3. Build production bundle
 npm run build
 ```
 
-*Tip: Set `OBSIDIAN_VAULT=D:\\Obsidian\\My Vault` in `.env.local` to have `npm run build` copy build artifacts directly into your Vault.*
+*Tip: set `OBSIDIAN_VAULT=D:\Obsidian\My Vault` in `.env.local` and `npm run build` will copy the build artifacts straight into your vault.*
 
 ---
 
-## 08 / Commands Reference
+## 07 / Command reference
 
-| Command | Action |
+All sixteen commands registered by the plugin:
+
+| Command | What it does |
 | :--- | :--- |
-| `Open chat view` | Launches the primary Claudian Plus sidebar workspace |
+| `Open chat view` | Opens the Claudian Plus sidebar workspace |
 | `Quick agent input` | Sends a focused prompt using the active editor selection |
-| `Search conversations` | Filters historical sessions by title, provider, model, or date |
-| `Open memory file` | Inspects `.claudian-plus/memory.md` distilled by Dreaming V3 |
-| `Scan vault knowledge` | Manually refreshes the local Vault knowledge index |
-| `Undo last Canvas write` | Reverts the last approved Canvas modification in the current session |
-| `Check provider CLI health` | Diagnoses missing, outdated, or misconfigured provider CLIs |
+| `New tab` | Opens another conversation tab |
+| `New session (in current tab)` | Starts a fresh session without leaving the tab |
+| `Close current tab` | Closes the active conversation tab |
+| `Inline edit with AI` | Edits the selected text in place |
+| `Summarize current note` | Summarizes the note you are in |
+| `Suggest tags for current note` | Proposes tags from the note's content |
+| `Create MOC for topic` | Builds a map-of-content note for a topic |
+| `Open memory file` | Opens the memory file distilled by Dreaming V3 |
+| `Cleanup expired short-term memories` | Drops short-term entries past their lifetime |
+| `Dream: consolidate short-term memories` | Runs memory consolidation on demand |
+| `Scan vault knowledge` | Rebuilds the local vault knowledge index |
+| `Undo last canvas write` | Reverts the last approved Canvas edit in this session |
+| `Check provider CLI health` | Reports missing, outdated, or misconfigured provider CLIs |
+| `Copy startup diagnostics` | Copies a startup report for bug reports |
+
+Conversation search lives in the sidebar itself rather than the command palette.
 
 ---
 
-## 09 / Privacy, Security & Data Layout
+## 08 / Privacy and data layout
 
-- **Zero telemetry**: No telemetry pings, no cloud analytics. All prompts, session archives, and memory files reside strictly under `.claudian-plus/` inside your Vault.
-- **Direct provider connection**: Network calls occur exclusively through the CLI or API endpoint you configure.
-- **Migration compatibility**: Claudian Plus automatically detects and non-destructively migrates historical data from legacy `.claudian/`.
+Everything the plugin knows lives inside your vault:
 
----
-
-## 10 / Verification
-
-```bash
-npm run typecheck            # TypeScript boundary verification
-npm run lint                 # ESLint static analysis
-npm run test                 # Unit and integration test suites
-npm run test:architecture    # Architecture dependency boundary enforcement
-npm run check:performance    # Startup and memory hydration baseline checks
+```text
+<your vault>/
+├── .claudian-plus/
+│   ├── claudian-plus-settings.json    # shared settings + per-provider config
+│   ├── memory.md                      # distilled, injectable memory
+│   └── sessions/
+│       └── *.meta.json                # per-session metadata
+├── .claudian/                         # legacy data, read non-destructively
+└── .obsidian/plugins/claudian-plus/
+    ├── main.js
+    ├── manifest.json
+    └── styles.css
 ```
 
+- **No telemetry.** There is no analytics or tracking code in `src/`. Whatever leaves your machine leaves through the provider CLI or API endpoint you configured.
+- **No migration surprises.** Legacy data under `.claudian/` is detected and migrated without deleting the original.
+- **Settings writers merge.** Provider-owned configuration is merged rather than overwritten, so switching versions does not wipe your setup.
+
 ---
 
-## 11 / Upstream Projects & Attribution
+## 09 / Development and verification
 
-Claudian Plus is built upon the work of two upstream projects:
+```bash
+npm run dev                  # build CSS + esbuild watch
+npm run typecheck            # TypeScript boundary checks
+npm run lint                 # ESLint, including obsidianmd rules
+npm run test                 # unit and integration suites
+npm run test:watch           # re-run tests on change
+npm run test:coverage        # coverage report
+npm run test:architecture    # cross-layer dependency boundaries
+npm run check:performance    # bundle ceiling + cold-evaluation timing
+```
 
-| Upstream Project | Original Author | License | Contribution to Claudian Plus |
+Two of these are worth knowing about before you open a pull request:
+
+- `test:architecture` enforces the dependency rule in section 05 — feature code may not import provider internals.
+- `check:performance` fails the build if `main.js` exceeds a **3.6 MB** ceiling, and warns when median cold module evaluation exceeds a **50 ms** indicator.
+
+`main.js` is a build product and is not tracked. `styles.css` and `versions.json` **are** tracked for distribution — regenerate them with `npm run build:css` and `npm run version` rather than editing them by hand.
+
+Start with `AGENTS.md`. It is the canonical cross-agent guide, and each scoped area under `src/` has its own `AGENTS.md` with local rules.
+
+---
+
+## 10 / Built on
+
+Claudian Plus is built on the work of two upstream projects:
+
+| Upstream project | Author | License | Contribution |
 | :--- | :--- | :--- | :--- |
-| **[Claudian](https://github.com/YishenTu/claudian)** | [Yishen Tu](https://github.com/YishenTu) | MIT | Core Obsidian agent workspace, provider abstraction, chat session foundation |
-| **[Codian](https://github.com/BCS1037/codian)** | [BCS1037 / BCS](https://github.com/BCS1037) | AGPL-3.0 | Live Composer, File Explorer actions, shared Skills manager, provider settings |
+| **[Claudian](https://github.com/YishenTu/claudian)** | [Yishen Tu](https://github.com/YishenTu) | MIT | Obsidian agent workspace, provider abstraction, chat session foundation |
+| **[Codian](https://github.com/BCS1037/codian)** | [BCS1037 / BCS](https://github.com/BCS1037) | AGPL-3.0 | Live Composer, file explorer actions, shared Skills manager, provider settings |
 
-*Original and Claudian-derived code are licensed under **MIT**; Codian-derived code retains **AGPL-3.0** obligations. See [LICENSE](LICENSE) and [NOTICE](NOTICE) for complete attribution details.*
+*Original and Claudian-derived code is licensed **MIT**; Codian-derived code retains **AGPL-3.0** obligations. See [LICENSE](LICENSE) and [NOTICE](NOTICE) for file-level attribution.*
