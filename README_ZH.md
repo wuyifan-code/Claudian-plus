@@ -28,12 +28,10 @@ Claudian Plus 将编码 Agent 嵌入 Obsidian 笔记工作流。它在桌面端�
 在 30 秒内完整了解 Claudian Plus 如何将日常对话蒸馏为持久的知识网络、联动图谱并在多个 Agent 间协同：
 
 <div align="center">
-  <video src="docs/assets/claudian-plus-demo.mp4" controls="controls" muted="muted" width="100%" style="border-radius: 8px; border: 1px solid #E6DFD5;" poster="docs/assets/claudian-plus-demo-cover.png">
-    <a href="docs/assets/claudian-plus-demo.mp4">
-      <img src="docs/assets/claudian-plus-demo-cover.png" alt="Claudian Plus 视频演示海报" width="100%">
-    </a>
-  </video>
-  <p><em><a href="docs/assets/claudian-plus-demo.mp4">查看或下载高清完整演示视频 (30s, 720p)</a></em></p>
+  <a href="docs/assets/claudian-plus-demo.mp4">
+    <img src="docs/assets/claudian-plus-demo.gif" alt="Claudian Plus 30 秒功能演示动图" width="100%" style="border-radius: 8px; border: 1px solid #E6DFD5;">
+  </a>
+  <p><em>自动循环演示 • <a href="docs/assets/claudian-plus-demo.mp4">查看或下载高清完整演示视频 (30s, 720p)</a></em></p>
 </div>
 
 ### 演示涵盖要点
