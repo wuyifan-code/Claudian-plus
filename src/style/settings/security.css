@@ -1,0 +1,119 @@
+/* Security & Permissions Protocols Settings */
+
+.claudian-plus-security-card {
+  position: relative;
+}
+
+.claudian-plus-security-notice {
+  margin-top: 8px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-left: 3px solid var(--interactive-accent);
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-normal);
+}
+
+.claudian-plus-security-notice strong {
+  color: var(--text-accent);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.claudian-approved-desc {
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.claudian-approved-empty {
+  padding: 20px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--background-secondary);
+  border: 1px dashed var(--background-modifier-border);
+  border-radius: 6px;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+
+.claudian-approved-list {
+  margin-top: 8px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.claudian-approved-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  transition: border-color 0.15s ease;
+}
+
+.claudian-approved-item:hover {
+  border-color: var(--interactive-accent);
+}
+
+.claudian-approved-item-info {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.claudian-approved-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.claudian-approved-item-tool {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(var(--claudian-plus-brand-rgb), 0.15);
+  color: var(--claudian-plus-brand);
+  border: 1px solid rgba(var(--claudian-plus-brand-rgb), 0.25);
+  border-radius: 4px;
+  font-family: var(--font-monospace);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.claudian-approved-item-pattern {
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  color: var(--text-normal);
+  word-break: break-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.claudian-approved-remove-btn {
+  flex-shrink: 0;
+  margin-left: 12px;
+  padding: 4px 10px;
+  font-size: 11px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-error);
+  border: 1px solid rgba(var(--claudian-plus-error-rgb), 0.3);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.claudian-approved-remove-btn:hover {
+  background: rgba(var(--claudian-plus-error-rgb), 0.15);
+  border-color: rgba(var(--claudian-plus-error-rgb), 0.5);
+  color: var(--text-error);
+}

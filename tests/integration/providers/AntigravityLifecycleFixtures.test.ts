@@ -5,6 +5,7 @@ import type { Conversation, StreamChunk } from '@/core/types';
 import { AntigravityChatRuntime } from '@/providers/antigravity/runtime/AntigravityChatRuntime';
 import type { AntigravitySubprocessLaunchSpec } from '@/providers/antigravity/runtime/AntigravitySubprocess';
 import { AntigravitySubprocess } from '@/providers/antigravity/runtime/AntigravitySubprocess';
+import { ANTIGRAVITY_SYSTEM_GUIDANCE } from '@/providers/antigravity/runtime/buildAntigravityPrompt';
 import {
   ANTIGRAVITY_SESSION_STATE_SCHEMA_VERSION,
   readAntigravitySessionState,
@@ -28,6 +29,7 @@ function createPlugin(providerConfigOverrides: Record<string, unknown> = {}): Pr
         timeoutMs: 20_000,
         environmentVariables: '',
         manualModelId: '',
+        autoApproveTools: false,
         ...providerConfigOverrides,
       },
     },
@@ -169,7 +171,7 @@ describe('Antigravity lifecycle fixtures (real subprocess, fixture agy protocol)
         const spec = harness.specs[0];
         expect(spec.args.slice(0, 4)).toEqual([
           '-p',
-          'Reply with exactly READY. Do not use tools.',
+          `Reply with exactly READY. Do not use tools.\n\n${ANTIGRAVITY_SYSTEM_GUIDANCE}`,
           '--output-format',
           'stream-json',
         ]);

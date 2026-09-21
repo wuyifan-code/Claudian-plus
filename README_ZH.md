@@ -19,7 +19,32 @@
   六个编码 Agent，一个笔记库，一份属于你自己的记忆文件。
 </p>
 
-Claudian Plus 把编码 Agent 放进 Obsidian 侧边栏。默认使用 Codex，Claude、Kimi、OpenCode、Pi 与 Antigravity 接入同一套会话模型。一次对话结束后，它的结论不会蒸发——而是被蒸馏进笔记库里的 `.claudian-plus/memory.md`，一份你可以随时打开、修改、删除的纯 Markdown 文件。
+Claudian Plus 把编码 Agent 深度整合进 Obsidian 侧边栏。默认使用 Codex，Claude、Kimi、OpenCode、Pi 与 Antigravity 接入同一套会话模型。一次对话结束后，它的结论不会蒸发——而是被蒸馏进笔记库里的 `.claudian-plus/memory.md`，一份你可以随时打开、修改、删除的纯 Markdown 文件。
+
+---
+
+## 🌟 V3.0.2 重大更新与核心体验优化
+
+在 **V3.0.2** 中，我们针对长任务交互痛点、网络通信稳定性与视觉体验带来了跨越式升级：
+
+### 1. 连续工具调用智能聚合与自动折叠（Tool Grouping & Auto-Collapse）
+- **告别刷屏噪音**：当 Agent 在一次回答中连续调用多个工具（如 10+ 步阅读文件、执行命令、编辑代码）时，不再自上而下铺满整个聊天流。
+- **流式展开，完结自折**：工具执行期间动态展开，实时查看当前运行步骤；一旦本轮工具执行完成，整组自动收起为高度仅 ~28px 的单行紧凑卡片。
+- **全局状态与一览无余**：卡片上实时显示执行总次数（如 `13 calls`）、调用工具名称摘要，以及全组状态指示灯（任一失败亮红报错，全部成功亮绿）；点击即可随时展开复查详情与代码 Diff。
+- **单个工具零干扰**：若仅调用单步工具，保持轻量单行呈现，绝不增加多余的点击折叠负担。
+
+### 2. Antigravity (Gemini) 网络连接稳定性根治与系统代理穿透
+- **彻底解决 TUN 虚拟网卡闲置超时断流**：针对 Windows 环境下 Go 编写的 `agy.exe` 不主动读取注册表代理导致走直连、被 Clash/Mihomo TUN Fake-IP 截获并在 4 分钟长思考后被误杀断流（`WSAECONNRESET 10054`）的深层底层机制问题，插件加入了**Windows 注册表系统代理自动嗅探引擎**。
+- **零配置，即开即用**：自动探测本机活动系统代理并为子进程静默挂载 `HTTP_PROXY`，彻底打通回环稳定长连接，免去用户手动配置环境变量的烦恼。
+- **品牌视觉归位**：集成原生 Antigravity 官方高保真 SVG 图标，告别错用图标；支持 Gemini 3.1 Pro、3.7 Flash、3.8 等最新模型及 Thinking 预算控制。
+
+### 3. 全新旗舰级极简圆形打断按钮（Modern Minimalist Stop Button）
+- **对标顶级现代 AI 交互**：彻底移除了突兀的红色边框矩形、"Stop" 文本与键盘徽章，采用极简正圆矢量设计（`28px × 28px`），内嵌圆角停止方块。
+- **高反差双主题自适应**：深色模式下为纯白圆底内嵌纯黑圆角方块，浅色模式下为纯黑圆底内嵌纯白圆角方块；配备细腻的触控放大（`scale(1.06)`）与实体按压（`scale(0.94)`）物理动效，悬停原生展示 `停止生成 (Esc)` 提示。
+
+### 4. 界面与排版全面精致化
+- **图标上浮修复**：修复了顶部 Provider 图标因定位漂移导致被窗口顶部截断的问题，无论窗口如何缩放始终居中优雅呈现。
+- **关于面板焕新**：新增关于卡片与作者公众号互动专区。
 
 ---
 
@@ -38,7 +63,7 @@ Claudian Plus 把编码 Agent 放进 Obsidian 侧边栏。默认使用 Codex，C
 
 - **上下文以引用形式进来，不是粘贴进来的文本。** `@note`、`@folder` 与拖拽文件都解析自你已经打开的那个笔记库。
 - **记忆落在你可以打开的文件里。** 没有数据库，没有同步服务——`memory.md` 就躺在你的文件列表中，和笔记排在一起。
-- **切换 Provider 不会打断会话。** 每个 Provider 各自保留自己的历史，同一段会话可以在 Codex、Claude、Kimi 与 OpenCode 之间转移。
+- **切换 Provider 不会打断会话。** 每个 Provider 各自保留自己的历史，同一段会话可以在 Codex、Claude、Kimi、OpenCode 与 Antigravity 之间无缝流转。
 
 ---
 
@@ -52,7 +77,7 @@ Claudian Plus 把编码 Agent 放进 Obsidian 侧边栏。默认使用 Codex，C
 | **选择 Provider 的自由** | 被绑死在单一厂商的网页假设上 | 默认 Codex，另有 Claude、Kimi、OpenCode、Pi、Antigravity |
 | **笔记库上下文** | 手动复制粘贴进输入框 | `@note`、`@folder`、拖拽、Canvas、Frontmatter 查询 |
 | **数据主权** | 会话被索引到别人的服务器上 | 所有 Prompt、会话与记忆都留在 `.claudian-plus/` 下 |
-| **长对话专注度** | 满屏的工具调用与思考噪音 | 悬浮大纲把噪音折叠成可点击的标记 |
+| **长对话专注度** | 满屏的工具调用与思考噪音 | 智能聚合自动折叠 + 悬浮大纲，把噪音收纳于无形 |
 
 ---
 
@@ -92,12 +117,10 @@ Claudian Plus 把编码 Agent 放进 Obsidian 侧边栏。默认使用 Codex，C
 
 - **Codex CLI —— 默认启用。** 默认模型 `gpt-5.6-sol`，通过 `codex app-server` 原生流式输出。
 - **Claude Code —— 默认启用。** 支持思维链折叠、权限模式与原生项目历史回放。
+- **Antigravity (Gemini) —— 需手动开启。** 深度封装 `agy` CLI，支持全自动系统代理探测与注入、多模型切换与原生品牌图标。
 - **Kimi —— 需手动开启。** 基于 ACP 协议接入，具备模型与命令自动发现、按工具审批以及多模态图片附件。
 - **OpenCode —— 需手动开启。** 运行在隔离 sidecar 进程上的 ACP Agent。
-- **Pi —— 需手动开启。** RPC 模式的 sidecar，基于 Node 内置模块与内置的 TypeBox，外部工具依赖缺失时依然可用。
-- **Antigravity —— 需手动开启，仅 print 模式。** 封装 `agy` CLI，支持按主机配置 CLI 路径与单轮 print 超时。它的能力是刻意保守声明的：只有 print 模式经过端到端验证，因此常驻运行时、Plan 模式、回退、分叉、图片、MCP 与共享 Skills 一律如实标记为不可用，而不是假定可用。
-
-Kimi、OpenCode、Pi 与 Antigravity 在全新安装下**默认关闭**，需要在设置中逐个启用；**默认启用的只有 Codex 与 Claude**。
+- **Pi —— 需手动开启。** RPC 模式的 sidecar，外部工具依赖缺失时依然可用。
 
 ---
 
@@ -105,7 +128,7 @@ Kimi、OpenCode、Pi 与 Antigravity 在全新安装下**默认关闭**，需要
 
 ### 方式一：从 Release 安装（推荐）
 
-1. 从 [最新 Release](https://github.com/wuyifan-code/Claudian-plus/releases/latest) 下载 `main.js`、`manifest.json` 与 `styles.css`。
+1. 从 [最新 Release (v3.0.2)](https://github.com/wuyifan-code/Claudian-plus/releases/latest) 下载 `main.js`、`manifest.json` 与 `styles.css`。
 2. 在你的笔记库中新建 `.obsidian/plugins/claudian-plus/` 目录。
 3. 把这三个文件复制进去。
 4. 在 Obsidian 中打开 **设置 → 第三方插件**，刷新列表并启用 **Claudian Plus**。
@@ -114,7 +137,7 @@ Kimi、OpenCode、Pi 与 Antigravity 在全新安装下**默认关闭**，需要
 
 ### 方式二：从源码构建
 
-需要 **Node.js 24**，以及至少一个 Provider CLI：[Codex](https://github.com/openai/codex)、[Claude Code](https://claude.ai/claude-code)、[Kimi](https://github.com/MoonshotAI/kimi-cli)、[OpenCode](https://opencode.ai/) 或 [Pi](https://github.com/badlogic/pi-mono)。
+需要 **Node.js 24**，以及至少一个 Provider CLI：[Codex](https://github.com/openai/codex)、[Claude Code](https://claude.ai/claude-code)、[Antigravity](https://github.com/google/antigravity)、[Kimi](https://github.com/MoonshotAI/kimi-cli)、[OpenCode](https://opencode.ai/) 或 [Pi](https://github.com/badlogic/pi-mono)。
 
 ```bash
 git clone https://github.com/wuyifan-code/Claudian-plus.git
@@ -130,8 +153,6 @@ npm run build
 ---
 
 ## 07 / 命令速查
-
-插件注册的全部十六条命令：
 
 | 命令 | 作用 |
 | :--- | :--- |
@@ -151,8 +172,6 @@ npm run build
 | `Undo last canvas write` | 回滚本次会话中最近一次获批的 Canvas 写入 |
 | `Check provider CLI health` | 检查各 Provider CLI 是否缺失、过期或配置有误 |
 | `Copy startup diagnostics` | 复制启动诊断信息，便于提 Issue |
-
-会话搜索在侧边栏内完成，不在命令面板里。
 
 ---
 
@@ -185,22 +204,13 @@ npm run build
 ```bash
 npm run dev                  # 构建 CSS + esbuild 监听
 npm run typecheck            # TypeScript 边界检查
-npm run lint                 # ESLint，含 obsidianmd 规则
-npm run test                 # 单元与集成测试
+npm run lint                 # ESLint 代码检查
+npm run test                 # 运行全部单元与集成测试
 npm run test:watch           # 变更时重跑测试
 npm run test:coverage        # 覆盖率报告
 npm run test:architecture    # 跨层级依赖边界守卫
 npm run check:performance    # 产物体积上限 + 冷启动评估耗时
 ```
-
-提 PR 之前，有两条值得先了解：
-
-- `test:architecture` 守住第 05 节那条依赖规则——功能层不允许 import Provider 内部实现。
-- `check:performance` 会在 `main.js` 超过 **3.6 MB** 上限时直接让构建失败，并在冷启动模块评估中位耗时超过 **50 ms** 指标时告警。
-
-`main.js` 是构建产物，不纳入版本控制。`styles.css` 与 `versions.json` 为了分发**需要**纳入版本控制——请用 `npm run build:css` 与 `npm run version` 重新生成，不要手工编辑。
-
-从 `AGENTS.md` 读起。它是跨 Agent 的权威指南，`src/` 下每个领域目录也各有一份 `AGENTS.md` 说明本地规则。
 
 ---
 
@@ -214,3 +224,15 @@ Claudian Plus 站在两个上游项目之上：
 | **[Codian](https://github.com/BCS1037/codian)** | [BCS1037 / BCS](https://github.com/BCS1037) | AGPL-3.0 | Live Composer、文件浏览器动作、Skills 统一管理、Provider 设置 |
 
 *原创与继承自 Claudian 的代码遵循 **MIT**；继承自 Codian 的代码保留 **AGPL-3.0** 义务。文件级归属说明见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)。*
+
+---
+
+## 💡 关注与交流
+
+> **致力于探索解决问题的极简方式**
+
+如果你在使用过程中遇到任何问题，或有新的灵感与功能建议，欢迎交流反馈：
+
+- 提 Issue 与讨论：[GitHub Issues](https://github.com/wuyifan-code/Claudian-plus/issues)
+- 微信公众号：**「递归识海」**
+- 文章与最新动态：[关注公众号：递归识海](https://mp.weixin.qq.com/s/m2AVQl2PdXERGmIrx4jiuA)

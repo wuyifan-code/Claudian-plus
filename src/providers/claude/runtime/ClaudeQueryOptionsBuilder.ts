@@ -317,7 +317,7 @@ export class QueryOptionsBuilder {
     options.thinking = { type: 'adaptive' };
     // SDK runtime accepts `xhigh` on Opus 4.7+, Sonnet 5+, and Fable, and silently
     // falls back to `high` elsewhere, but its type definition lags our local EffortLevel.
-    options.effort = effortLevel;
+    options.effort = effortLevel as unknown as Options['effort'];
   }
 
   private static pathsChanged(a?: string[], b?: string[]): boolean {

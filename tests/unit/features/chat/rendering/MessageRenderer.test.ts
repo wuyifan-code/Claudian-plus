@@ -1140,6 +1140,67 @@ describe('MessageRenderer', () => {
     );
   });
 
+  it('groups contiguous tool calls (>= 2) into a collapsed claudian-plus-tool-group', () => {
+    const messagesEl = createMockEl();
+    const mockComponent = createMockComponent();
+    const renderer = new MessageRenderer({} as any, mockComponent as any, messagesEl);
+
+    const msg: ChatMessage = {
+      id: 'm-grouped',
+      role: 'assistant',
+      content: 'Here are the results',
+      timestamp: Date.now(),
+      toolCalls: [
+        { id: 't-1', name: 'run_command', input: { command: 'ls' }, status: 'completed' } as any,
+        { id: 't-2', name: 'write_to_file', input: { path: 'a.txt' }, status: 'completed' } as any,
+        { id: 't-3', name: 'view_file', input: { path: 'b.txt' }, status: 'completed' } as any,
+      ],
+      contentBlocks: [
+        { type: 'tool_use', toolId: 't-1' } as any,
+        { type: 'tool_use', toolId: 't-2' } as any,
+        { type: 'tool_use', toolId: 't-3' } as any,
+        { type: 'text', content: 'Here are the results' } as any,
+      ],
+    };
+
+    renderer.renderStoredMessage(msg);
+    const group = messagesEl.querySelector('.claudian-plus-tool-group');
+    expect(group).not.toBeNull();
+    expect(group!.classList.contains('expanded')).toBe(false);
+
+    const count = group!.querySelector('.claudian-plus-tool-group-count');
+    expect(count?.textContent).toContain('3');
+  });
+
+  it('keeps a single tool call unbundled without a tool group', () => {
+    const messagesEl = createMockEl();
+    const mockComponent = createMockComponent();
+    const renderer = new MessageRenderer({} as any, mockComponent as any, messagesEl);
+
+    const msg: ChatMessage = {
+      id: 'm-single',
+      role: 'assistant',
+      content: 'Here is the file',
+      timestamp: Date.now(),
+      toolCalls: [
+        { id: 't-1', name: 'view_file', input: { path: 'b.txt' }, status: 'completed' } as any,
+      ],
+      contentBlocks: [
+        { type: 'tool_use', toolId: 't-1' } as any,
+        { type: 'text', content: 'Here is the file' } as any,
+      ],
+    };
+
+    renderer.renderStoredMessage(msg);
+    const group = messagesEl.querySelector('.claudian-plus-tool-group');
+    expect(group).toBeNull();
+    expect(renderStoredToolCall).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ id: 't-1' }),
+      expect.anything()
+    );
+  });
+
   // ============================================
   // addMessage (streaming)
   // ============================================

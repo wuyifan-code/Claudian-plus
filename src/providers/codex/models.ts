@@ -29,7 +29,6 @@ export interface CodexDiscoveredModel {
 }
 
 const DEFAULT_INPUT_MODALITIES: Array<'text' | 'image'> = ['text', 'image'];
-const EXCLUDED_REASONING_EFFORTS = new Set(['ultra']);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -57,7 +56,7 @@ function normalizeReasoningEfforts(value: unknown): CodexReasoningEffortOption[]
     }
 
     const effort = normalizeNonEmptyString(entry.value ?? entry.reasoningEffort);
-    if (!effort || EXCLUDED_REASONING_EFFORTS.has(effort.toLowerCase()) || seen.has(effort)) {
+    if (!effort || seen.has(effort)) {
       continue;
     }
 
@@ -134,23 +133,12 @@ export function normalizeCodexDiscoveredModels(value: unknown): CodexDiscoveredM
     }
 
     const supportedReasoningEfforts = normalizeReasoningEfforts(entry.supportedReasoningEfforts);
-    let defaultReasoningEffort = normalizeNonEmptyString(entry.defaultReasoningEffort);
+    const defaultReasoningEffort = normalizeNonEmptyString(entry.defaultReasoningEffort);
     if (
       !defaultReasoningEffort
       || !supportedReasoningEfforts.some(option => option.value === defaultReasoningEffort)
     ) {
-      if (
-        defaultReasoningEffort
-        && EXCLUDED_REASONING_EFFORTS.has(defaultReasoningEffort.toLowerCase())
-        && supportedReasoningEfforts.length > 0
-      ) {
-        defaultReasoningEffort = resolvePreferredReasoningDefault(
-          supportedReasoningEfforts.map(option => option.value),
-          supportedReasoningEfforts[0].value,
-        );
-      } else {
-        continue;
-      }
+      continue;
     }
 
     const serviceTiers = normalizeServiceTiers(entry.serviceTiers);
@@ -211,3 +199,12 @@ export function getCodexFastServiceTier(
 ): CodexModelServiceTier | null {
   return model.serviceTiers.find(tier => tier.name.trim().toLowerCase() === 'fast') ?? null;
 }
+
+export function supportsCodexUltraEffort(modelId: string | undefined): boolean {
+  if (!modelId) {
+    return false;
+  }
+  const normalized = modelId.trim().toLowerCase();
+  return normalized.includes('sol') || normalized.includes('ultra');
+}
+

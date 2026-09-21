@@ -1121,7 +1121,7 @@ export class ConversationController {
       personalize('Welcome back') + '!',
       personalize("What's new") + '?',
       ...(name ? [`${name} returns!`] : []),
-      'You are absolutely right!',
+      localeText('有什么想法？', 'What would you like to work on?'),
     ];
 
     // Combine day + time + general greetings, pick randomly

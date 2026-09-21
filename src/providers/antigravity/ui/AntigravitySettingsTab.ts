@@ -14,6 +14,9 @@ import {
 import { formatAntigravityDiagnosticsReport } from '../diagnostics/redactAntigravityDiagnostics';
 import type { AntigravityLastFailure } from '../lastFailure';
 import {
+  DEFAULT_ANTIGRAVITY_MODEL_ID,
+} from '../models';
+import {
   ANTIGRAVITY_DEFAULT_TIMEOUT_MS,
   getAntigravityProviderSettings,
   requestAntigravityDiagnosticsRefresh,
@@ -79,8 +82,8 @@ export const antigravitySettingsTabRenderer: ProviderSettingsTabRenderer = {
     new Setting(container)
       .setName(localeText('CLI 路径', 'CLI path'))
       .setDesc(localeText(
-        '此电脑上 agy CLI 的可选绝对路径。留空则使用 PATH 中的 `agy`。',
-        'Optional absolute path to the agy CLI for this computer. Leave empty to look up `agy` in PATH.',
+        '此电脑上 `agy` CLI 的可选绝对路径。留空则使用 PATH 中的 `agy`。',
+        'Optional absolute path to the `agy` CLI for this computer. Leave empty to look up `agy` in PATH.',
       ))
       .addText((text) => {
         const currentValue = antigravitySettings.cliPathsByHost[hostnameKey] || '';
@@ -108,13 +111,12 @@ export const antigravitySettingsTabRenderer: ProviderSettingsTabRenderer = {
     new Setting(container)
       .setName(localeText('手动模型 ID', 'Manual model id'))
       .setDesc(localeText(
-        '传给 `agy --model` 的模型 ID（例如 gemini-3.8-flash-low）。Antigravity 没有模型发现，需要手动填写 agy 接受的确切 ID；未设置前聊天中没有可选的 Antigravity 模型。',
-        'Model id passed to `agy --model` (for example gemini-3.8-flash-low). Antigravity has no model discovery: type the id exactly as your agy accepts it. Until a model id is set, no Antigravity model can be selected in chat.',
+        '传递给 `agy --model` 的模型 ID；留空默认使用 `gemini-3.8-flash-high`，也可在聊天面板直接选用。',
+        'Model ID passed to `agy --model`. Defaults to `gemini-3.8-flash-high` if empty; can also be selected in the chat panel.',
       ))
       .addText((text) => {
         text
-          // eslint-disable-next-line obsidianmd/ui/sentence-case -- The placeholder is a provider-verbatim model slug, not UI prose.
-          .setPlaceholder('gemini-3.8-flash-low')
+          .setPlaceholder(DEFAULT_ANTIGRAVITY_MODEL_ID)
           .setValue(antigravitySettings.manualModelId)
           .onChange((value) => {
             void persistManualModelId(value);
@@ -135,8 +137,8 @@ export const antigravitySettingsTabRenderer: ProviderSettingsTabRenderer = {
     new Setting(container)
       .setName(localeText('单轮超时（毫秒）', 'Turn timeout (ms)'))
       .setDesc(localeText(
-        '单次 agy 调用的超时时间（毫秒）；超时后该轮会被终止。',
-        'Per-turn timeout for one agy call in milliseconds; the turn is terminated when it expires.',
+        '单次 `agy` 调用的超时时间（毫秒）；超时后该轮会被终止。',
+        'Per-turn timeout for one `agy` call in milliseconds; the turn is terminated when it expires.',
       ))
       .addText((text) => {
         text

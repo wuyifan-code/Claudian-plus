@@ -22,6 +22,10 @@
     "rewind": "Rembobiner"
   },
   "chat": {
+    "interrupt": {
+      "label": "Arrêter",
+      "tooltip": "Arrêter la génération (Échap)"
+    },
     "rewind": {
       "confirmMessage": "Rembobiner jusqu'à ce point ? Les modifications de fichiers après ce message seront annulées. Le rembobinage n'affecte pas les fichiers modifiés manuellement ou via bash.",
       "confirmMessageConversationOnly": "Rembobiner la conversation jusqu'à ce point ? Les modifications de fichiers seront conservées.",
@@ -80,6 +84,14 @@
     "readingMode": {
       "on": "Activer le mode lecture",
       "off": "Désactiver le mode lecture"
+    },
+    "toolGroup": {
+      "calls": "{count} appels d'outils",
+      "callSingle": "1 appel d'outil",
+      "ariaLabel": "Groupe d'appels d'outils",
+      "statusAllSuccess": "Tous les outils terminés avec succès",
+      "statusHasErrors": "Certains outils ont échoué",
+      "statusBlocked": "Certains outils ont été bloqués"
     },
     "view": {
       "chat": "Chat",
@@ -689,6 +701,28 @@
       },
       "header": "Sous-agents Codex",
       "noAgents": "Aucun sous-agent Codex dans le vault. Cliquez sur + pour en créer un."
+    },
+    "security": {
+      "title": "Sécurité et Permissions",
+      "desc": "Configurez les règles de sécurité d'exécution des outils, les protocoles d'approbation et les permissions approuvées de manière permanente.",
+      "permissionMode": {
+        "name": "Mode de Permission par Défaut",
+        "desc": "Contrôle si les appels d'outils (modification de fichiers, exécution de commandes bash) nécessitent une confirmation.",
+        "normal": "Normal / Mode Sécurisé (Demander confirmation)",
+        "yolo": "Mode YOLO (Approbation automatique sans confirmation)"
+      },
+      "approvedActions": {
+        "title": "Permissions Approuvées",
+        "desc": "Actions et outils approuvés de manière permanente. Ils ne nécessiteront pas de confirmation pendant les sessions.",
+        "empty": "Aucune action approuvée pour l'instant. Cliquez sur Toujours autoriser pour que les règles apparaissent ici.",
+        "clearAll": "Tout Effacer",
+        "clearAllConfirm": "Êtes-vous sûr de vouloir effacer toutes les permissions approuvées de manière permanente ?",
+        "remove": "Supprimer"
+      },
+      "notice": {
+        "title": "Protocoles de Sécurité et Limite du Sandbox",
+        "desc": "Les actions d'outils de l'agent s'exécutent avec les privilèges de votre environnement utilisateur local. Gardez le Mode Normal / Sécurisé activé lors de l'ouverture de coffres, scripts ou prompts non vérifiés."
+      }
     }
   }
 }

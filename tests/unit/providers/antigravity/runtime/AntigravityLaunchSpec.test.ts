@@ -176,13 +176,36 @@ describe('AntigravityLaunchSpec', () => {
       ])).not.toThrow();
     });
 
+    it('allows --dangerously-skip-permissions when explicitly permitted', () => {
+      expect(() => assertNoForbiddenAntigravityFlags(
+        ['--dangerously-skip-permissions'],
+        { allowDangerouslySkipPermissions: true },
+      )).not.toThrow();
+      const spec = buildAntigravityLaunchSpec({
+        ...baseParams,
+        allowDangerouslySkipPermissions: true,
+      });
+      expect(spec.args).toContain('--dangerously-skip-permissions');
+    });
+
+    it('passes addDirs via --add-dir', () => {
+      const spec = buildAntigravityLaunchSpec({
+        ...baseParams,
+        addDirs: ['D:\\Vault', 'D:\\Vault\\Subdir'],
+      });
+      expect(spec.args).toEqual(expect.arrayContaining([
+        '--add-dir', 'D:\\Vault',
+        '--add-dir', 'D:\\Vault\\Subdir',
+      ]));
+    });
+
     it('declares the forbidden flag set used by the guard', () => {
       expect(ANTIGRAVITY_FORBIDDEN_FLAGS).toContain('--dangerously-skip-permissions');
       expect(ANTIGRAVITY_FORBIDDEN_FLAGS).toContain('-c');
       expect(ANTIGRAVITY_FORBIDDEN_FLAGS).toContain('--continue');
     });
 
-    it('never emits forbidden flags in any built spec', () => {
+    it('never emits forbidden flags in any default built spec', () => {
       const specs = [
         buildAntigravityLaunchSpec({ ...baseParams }),
         buildAntigravityLaunchSpec({

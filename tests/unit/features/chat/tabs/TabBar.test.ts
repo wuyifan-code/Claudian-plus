@@ -80,14 +80,16 @@ describe('TabBar', () => {
   });
 
   describe('badge rendering', () => {
-    it('should display index number as text', () => {
+    it('should display the conversation title as text', () => {
       const containerEl = createMockEl();
       const callbacks = createMockCallbacks();
       const tabBar = new TabBar(containerEl, callbacks);
 
-      tabBar.update([createTabBarItem({ index: 5 })]);
+      tabBar.update([createTabBarItem({ index: 5, title: 'Research notes' })]);
 
-      expect(containerEl._children[0].textContent).toBe('5');
+      expect(containerEl._children[0].textContent).toBe('Research notes');
+      expect(containerEl._children[0].tagName).toBe('BUTTON');
+      expect(containerEl._children[0].getAttribute('aria-selected')).toBe('false');
     });
 
     it('should use aria-label as the single tab title tooltip source', () => {
@@ -111,7 +113,7 @@ describe('TabBar', () => {
       expect(containerEl._children[0].getAttribute('data-provider')).toBe('opencode');
     });
 
-    it('should toggle between index and title labels on double click', () => {
+    it('should not use double click to change the visible title', () => {
       const containerEl = createMockEl();
       const callbacks = createMockCallbacks();
       const tabBar = new TabBar(containerEl, callbacks);
@@ -119,39 +121,8 @@ describe('TabBar', () => {
       tabBar.update([createTabBarItem({ index: 2, title: 'My Conversation' })]);
 
       const badge = containerEl._children[0];
-      const event = { preventDefault: jest.fn(), stopPropagation: jest.fn() };
-
-      badge.dispatchEvent('dblclick', event);
-
       expect(badge.textContent).toBe('My Conversation');
-      expect(badge.hasClass('claudian-plus-tab-badge-expanded')).toBe(true);
-      expect(badge.getAttribute('data-title-expanded')).toBe('true');
-      expect(event.preventDefault).toHaveBeenCalled();
-      expect(event.stopPropagation).toHaveBeenCalled();
-
-      badge.dispatchEvent('dblclick', { preventDefault: jest.fn(), stopPropagation: jest.fn() });
-
-      expect(badge.textContent).toBe('2');
-      expect(badge.hasClass('claudian-plus-tab-badge-expanded')).toBe(false);
-      expect(badge.getAttribute('data-title-expanded')).toBe('false');
-    });
-
-    it('should notify when title expansion state changes', () => {
-      const containerEl = createMockEl();
-      const callbacks = {
-        ...createMockCallbacks(),
-        onTitleExpansionChanged: jest.fn(),
-      };
-      const tabBar = new TabBar(containerEl, callbacks);
-
-      tabBar.update([createTabBarItem({ id: 'tab-2', index: 2, title: 'My Conversation' })]);
-
-      const badge = containerEl._children[0];
-      badge.dispatchEvent('dblclick', { preventDefault: jest.fn(), stopPropagation: jest.fn() });
-      badge.dispatchEvent('dblclick', { preventDefault: jest.fn(), stopPropagation: jest.fn() });
-
-      expect(callbacks.onTitleExpansionChanged).toHaveBeenNthCalledWith(1, ['tab-2']);
-      expect(callbacks.onTitleExpansionChanged).toHaveBeenNthCalledWith(2, []);
+      expect(badge._eventListeners.has('dblclick')).toBe(false);
     });
 
     it('should render restored expanded title state', () => {
@@ -163,41 +134,31 @@ describe('TabBar', () => {
       tabBar.update([createTabBarItem({ id: 'tab-1', index: 1, title: 'Restored Title' })]);
 
       expect(containerEl._children[0].textContent).toBe('Restored Title');
-      expect(containerEl._children[0].getAttribute('data-title-expanded')).toBe('true');
+      expect(containerEl._children[0].getAttribute('data-title-expanded')).toBeNull();
       expect(tabBar.getExpandedTitleTabIds()).toEqual(['tab-1']);
     });
 
-    it('should truncate expanded title labels with a literal ellipsis suffix', () => {
+    it('should truncate long title labels with a literal ellipsis suffix', () => {
       const containerEl = createMockEl();
       const callbacks = createMockCallbacks();
       const tabBar = new TabBar(containerEl, callbacks);
       const title = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 
       tabBar.update([createTabBarItem({ title })]);
-      containerEl._children[0].dispatchEvent('dblclick', {
-        preventDefault: jest.fn(),
-        stopPropagation: jest.fn(),
-      });
 
       expect(containerEl._children[0].textContent).toBe('ABCDEFGHIJKLMNOPQRSTUVWXYZ012...');
       expect(containerEl._children[0].textContent.endsWith('...')).toBe(true);
     });
 
-    it('should keep expanded title state across tab bar updates', () => {
+    it('should update the visible title across tab bar updates', () => {
       const containerEl = createMockEl();
       const callbacks = createMockCallbacks();
       const tabBar = new TabBar(containerEl, callbacks);
 
       tabBar.update([createTabBarItem({ id: 'tab-1', index: 1, title: 'First Title' })]);
-      containerEl._children[0].dispatchEvent('dblclick', {
-        preventDefault: jest.fn(),
-        stopPropagation: jest.fn(),
-      });
-
       tabBar.update([createTabBarItem({ id: 'tab-1', index: 1, title: 'Renamed Title' })]);
 
       expect(containerEl._children[0].textContent).toBe('Renamed Title');
-      expect(containerEl._children[0].hasClass('claudian-plus-tab-badge-expanded')).toBe(true);
     });
 
     it('should preserve horizontal scroll position across tab bar updates', () => {
@@ -332,19 +293,15 @@ describe('TabBar', () => {
       expect(callbacks.onTabClick).toHaveBeenCalledWith('clicked-tab');
     });
 
-    it('should call onTabClose on right-click when canClose is true', () => {
+    it('should leave right-click available for a context menu', () => {
       const containerEl = createMockEl();
       const callbacks = createMockCallbacks();
       const tabBar = new TabBar(containerEl, callbacks);
 
       tabBar.update([createTabBarItem({ id: 'closeable-tab', canClose: true })]);
 
-      // Simulate right-click (contextmenu)
-      const mockEvent = { preventDefault: jest.fn() };
-      containerEl._children[0].dispatchEvent('contextmenu', mockEvent);
-
-      expect(mockEvent.preventDefault).toHaveBeenCalled();
-      expect(callbacks.onTabClose).toHaveBeenCalledWith('closeable-tab');
+      expect(containerEl._children[0]._eventListeners.has('contextmenu')).toBe(false);
+      expect(callbacks.onTabClose).not.toHaveBeenCalled();
     });
 
     it('should not register contextmenu handler when canClose is false', () => {

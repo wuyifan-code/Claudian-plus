@@ -22,6 +22,10 @@
     "rewind": "Rebobinar"
   },
   "chat": {
+    "interrupt": {
+      "label": "Detener",
+      "tooltip": "Detener generación (Esc)"
+    },
     "rewind": {
       "confirmMessage": "¿Rebobinar a este punto? Los cambios de archivos después de este mensaje serán revertidos. El rebobinado no afecta archivos editados manualmente o mediante bash.",
       "confirmMessageConversationOnly": "¿Rebobinar la conversación hasta este punto? Se conservarán los cambios de archivos.",
@@ -80,6 +84,14 @@
     "readingMode": {
       "on": "Activar modo de lectura",
       "off": "Desactivar modo de lectura"
+    },
+    "toolGroup": {
+      "calls": "{count} llamadas a herramientas",
+      "callSingle": "1 llamada a herramienta",
+      "ariaLabel": "Grupo de llamadas a herramientas",
+      "statusAllSuccess": "Todas las herramientas completadas con éxito",
+      "statusHasErrors": "Algunas herramientas tuvieron errores",
+      "statusBlocked": "Algunas herramientas fueron bloqueadas"
     },
     "view": {
       "chat": "Chat",
@@ -689,6 +701,28 @@
       },
       "header": "Subagentes de Codex",
       "noAgents": "No hay subagentes Codex en el vault. Haz clic en + para crear uno."
+    },
+    "security": {
+      "title": "Seguridad y Permisos",
+      "desc": "Configure reglas de seguridad de ejecución de herramientas, protocolos de aprobación y permisos aprobados permanentemente.",
+      "permissionMode": {
+        "name": "Modo de Permisos Predeterminado",
+        "desc": "Controla si las llamadas a herramientas (modificar archivos, ejecutar comandos bash) requieren confirmación.",
+        "normal": "Normal / Modo Seguro (Solicitar confirmación)",
+        "yolo": "Modo YOLO (Aprobar automáticamente sin confirmación)"
+      },
+      "approvedActions": {
+        "title": "Permisos Aprobados",
+        "desc": "Acciones y herramientas aprobadas permanentemente. No requerirán confirmación durante las sesiones.",
+        "empty": "Aún no hay acciones aprobadas. Haga clic en Permitir siempre para que las reglas aparezcan aquí.",
+        "clearAll": "Borrar Todo",
+        "clearAllConfirm": "¿Está seguro de que desea borrar todos los permisos aprobados permanentemente?",
+        "remove": "Eliminar"
+      },
+      "notice": {
+        "title": "Protocolos de Seguridad y Límite de Sandbox",
+        "desc": "Las acciones de herramientas del agente se ejecutan con los privilegios de su entorno de usuario local. Mantenga el Modo Normal / Seguro activado al abrir vaults, scripts o prompts no verificados."
+      }
     }
   }
 }

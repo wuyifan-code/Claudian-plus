@@ -13,7 +13,7 @@
 
 - [ ] 启动 Obsidian，确认 Claudian Plus 插件已启用（Settings → Community Plugins）
 - [ ] 侧边栏图标出现（ribbon icon），点击打开 Claudian Plus 面板
-- [ ] 面板显示 "Claudian Plus" 标题
+- [ ] 面板顶部显示 Chat / Sessions 文字导航，且不重复显示产品标题
 - [ ] 启动时 Console 无红色错误
 
 ## Tab 与会话

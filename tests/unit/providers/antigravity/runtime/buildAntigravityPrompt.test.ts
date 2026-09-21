@@ -1,6 +1,9 @@
 import type { ChatTurnRequest } from '@/core/runtime/types';
 import type { ChatMessage, ImageAttachment } from '@/core/types';
-import { buildAntigravityPrompt } from '@/providers/antigravity/runtime/buildAntigravityPrompt';
+import {
+  ANTIGRAVITY_SYSTEM_GUIDANCE,
+  buildAntigravityPrompt,
+} from '@/providers/antigravity/runtime/buildAntigravityPrompt';
 
 function createRequest(overrides: Partial<ChatTurnRequest> = {}): ChatTurnRequest {
   return {
@@ -19,8 +22,10 @@ function createHistoryEntry(role: 'user' | 'assistant', content: string): ChatMe
 }
 
 describe('buildAntigravityPrompt', () => {
-  it('passes the user text through unchanged for a plain request', () => {
-    expect(buildAntigravityPrompt(createRequest())).toBe('Summarize this note.');
+  it('passes the user text through and appends headless execution guidance', () => {
+    const prompt = buildAntigravityPrompt(createRequest());
+    expect(prompt).toContain('Summarize this note.');
+    expect(prompt).toContain(ANTIGRAVITY_SYSTEM_GUIDANCE);
   });
 
   it('appends the current note context', () => {
@@ -46,7 +51,8 @@ describe('buildAntigravityPrompt', () => {
       createHistoryEntry('assistant', 'earlier assistant answer'),
     ];
     const prompt = buildAntigravityPrompt(createRequest(), history);
-    expect(prompt).toBe('Summarize this note.');
+    expect(prompt).toContain('Summarize this note.');
+    expect(prompt).toContain(ANTIGRAVITY_SYSTEM_GUIDANCE);
     expect(prompt).not.toContain('earlier user question');
     expect(prompt).not.toContain('earlier assistant answer');
   });

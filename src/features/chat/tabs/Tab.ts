@@ -537,8 +537,13 @@ export function createTab(options: TabCreateOptions): TabData {
 
   const contentEl = containerEl.createDiv({ cls: 'claudian-plus-tab-content claudian-plus-hidden' });
 
+  let tab: TabData | null = null;
+
   const state = new ChatState({
-    onStreamingStateChanged: onStreamingChanged,
+    onStreamingStateChanged: (isStreaming) => {
+      onStreamingChanged?.(isStreaming);
+      tab?.ui.interruptButton?.updateDisplay(isStreaming);
+    },
     onAttentionChanged: onAttentionChanged,
     onConversationChanged: onConversationIdChanged,
   });
@@ -575,7 +580,7 @@ export function createTab(options: TabCreateOptions): TabData {
   });
   const runtimeSupervisor = session.runtimeSupervisor;
 
-  const tab: TabData = {
+  tab = {
     session,
     get id() {
       return session.id;
@@ -647,6 +652,7 @@ export function createTab(options: TabCreateOptions): TabData {
       contextUsageMeter: null,
       statusPanel: null,
       navigationSidebar: null,
+      interruptButton: null,
     },
     dom,
     renderer: null,
@@ -1196,6 +1202,11 @@ function initializeInputToolbar(
         mode === 'plan' && getTabCapabilities(tab, plugin).supportsPlanMode,
       );
     },
+    onInterrupt: () => {
+      tab.controllers.inputController?.cancelStreaming();
+      dom.inputEl.focus();
+    },
+    isStreaming: () => tab.state.isStreaming,
   });
 
   tab.ui.modelSelector = toolbarComponents.modelSelector;
@@ -1206,6 +1217,8 @@ function initializeInputToolbar(
   tab.ui.mcpServerSelector = toolbarComponents.mcpServerSelector;
   tab.ui.permissionToggle = toolbarComponents.permissionToggle;
   tab.ui.serviceTierToggle = toolbarComponents.serviceTierToggle;
+  tab.ui.interruptButton = toolbarComponents.interruptButton ?? null;
+  tab.ui.interruptButton?.updateDisplay(tab.state.isStreaming);
 
   tab.ui.mcpServerSelector.setMcpManager(getProviderMcpManager(getTabProviderId(tab, plugin)));
 
@@ -1797,6 +1810,21 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
   };
   dom.inputEl.addEventListener('keydown', keydownHandler);
   dom.eventCleanups.push(() => dom.inputEl.removeEventListener('keydown', keydownHandler));
+
+  const contentKeydownHandler = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && !e.isComposing && state.isStreaming) {
+      const doc = dom.contentEl.ownerDocument ?? activeDocument;
+      if (doc.querySelector('.modal-container, .suggestion-container')) {
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      controllers.inputController?.cancelStreaming();
+      dom.inputEl.focus();
+    }
+  };
+  dom.contentEl.addEventListener('keydown', contentKeydownHandler);
+  dom.eventCleanups.push(() => dom.contentEl.removeEventListener('keydown', contentKeydownHandler));
 
   const inputHandler = () => {
     if (!ui.bangBashModeManager?.isActive()) {

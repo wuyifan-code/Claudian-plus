@@ -36,7 +36,14 @@ describe('Claude model tiers', () => {
     expect(fable.aliasHasOneMillionContext).toBe(true);
     expect(fable.supportsOneMillionSuffix).toBe(false);
     expect(fable.aliasSupportsXHigh).toBe(true);
+    expect(fable.aliasSupportsUltra).toBe(true);
     expect(haiku.aliasHasOneMillionContext).toBe(false);
     expect(haiku.aliasSupportsXHigh).toBe(false);
+    expect(haiku.aliasSupportsUltra).toBe(false);
+
+    const opus = getClaudeModelTierDefinition('opus');
+    const sonnet = getClaudeModelTierDefinition('sonnet');
+    expect(opus.aliasSupportsUltra).toBe(true);
+    expect(sonnet.aliasSupportsUltra).toBe(false);
   });
 });

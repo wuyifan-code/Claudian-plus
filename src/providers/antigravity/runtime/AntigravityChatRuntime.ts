@@ -1,3 +1,5 @@
+import * as path from 'node:path';
+
 import type { ProviderHost } from '../../../core/providers/ProviderHost';
 import type { ProviderCapabilities } from '../../../core/providers/types';
 import type { ChatRuntime } from '../../../core/runtime/ChatRuntime';
@@ -22,7 +24,7 @@ import type {
   SlashCommand,
   StreamChunk,
 } from '../../../core/types';
-import { parseEnvironmentVariables } from '../../../utils/env';
+import { parseEnvironmentVariables, resolveSystemProxyEnvironment } from '../../../utils/env';
 import { getVaultPath } from '../../../utils/path';
 import {
   AntigravityConversationHistoryService,
@@ -32,7 +34,11 @@ import {
 } from '../history/AntigravityConversationHistoryService';
 import { AntigravityHistoryStore } from '../history/AntigravityHistoryStore';
 import type { AntigravityFailureCategory } from '../lastFailure';
-import { toAntigravityRuntimeModelId } from '../models';
+import {
+  DEFAULT_ANTIGRAVITY_MODEL_ID,
+  encodeAntigravityModelSelectionId,
+  toAntigravityRuntimeModelId,
+} from '../models';
 import { getAntigravityProviderSettings, recordAntigravityLastFailure } from '../settings';
 import {
   ANTIGRAVITY_PROVIDER_CAPABILITIES,
@@ -431,6 +437,17 @@ export class AntigravityChatRuntime implements ChatRuntime {
     return invalidated;
   }
 
+  getAuxiliaryModel(): string | null {
+    if (this.currentConversationModel) {
+      return this.currentConversationModel;
+    }
+    const settings = getAntigravityProviderSettings(this.plugin.settings);
+    if (settings.manualModelId && settings.manualModelId.trim()) {
+      return encodeAntigravityModelSelectionId(settings.manualModelId.trim());
+    }
+    return encodeAntigravityModelSelectionId(DEFAULT_ANTIGRAVITY_MODEL_ID);
+  }
+
   isReady(): boolean {
     return this.ready;
   }
@@ -527,10 +544,16 @@ export class AntigravityChatRuntime implements ChatRuntime {
 
   private resolveRuntimeModelId(queryOptions?: ChatRuntimeQueryOptions): string | null {
     const selected = queryOptions?.model ?? this.currentConversationModel ?? null;
-    if (!selected || !selected.trim()) {
-      return null;
+    if (selected && selected.trim()) {
+      return toAntigravityRuntimeModelId(selected.trim()) || null;
     }
-    return toAntigravityRuntimeModelId(selected.trim()) || null;
+
+    const settings = getAntigravityProviderSettings(this.plugin.settings);
+    if (settings.manualModelId && settings.manualModelId.trim()) {
+      return toAntigravityRuntimeModelId(settings.manualModelId.trim()) || null;
+    }
+
+    return DEFAULT_ANTIGRAVITY_MODEL_ID;
   }
 
   private setReady(ready: boolean): void {
@@ -584,25 +607,47 @@ export class AntigravityChatRuntime implements ChatRuntime {
         return;
       }
 
-      const cwd = getVaultPath(this.plugin.app) ?? process.cwd();
+      const vaultPath = this.resolveVaultPath() ?? getVaultPath(this.plugin.app);
+      const cwd = vaultPath ?? process.cwd();
+      const pluginSettings = this.plugin.settings as Record<string, unknown>;
+      const allowDangerouslySkipPermissions =
+        settings.autoApproveTools !== false
+        || pluginSettings.permissionMode === 'yolo';
+      const providerEnv = parseEnvironmentVariables(settings.environmentVariables);
+      const activeEnv = typeof this.plugin.getActiveEnvironmentVariables === 'function'
+        ? parseEnvironmentVariables(this.plugin.getActiveEnvironmentVariables('antigravity'))
+        : {};
+      const customEnv = {
+        ...activeEnv,
+        ...providerEnv,
+      };
+      const systemProxyEnv = resolveSystemProxyEnvironment({ ...process.env, ...customEnv });
       const env: NodeJS.ProcessEnv = {
         ...process.env,
-        ...parseEnvironmentVariables(settings.environmentVariables),
+        ...systemProxyEnv,
+        ...customEnv,
       };
+      const addDirs: string[] = [];
+      if (vaultPath && path.resolve(vaultPath).toLowerCase() !== path.resolve(cwd).toLowerCase()) {
+        addDirs.push(vaultPath);
+      }
       const launchSpec: AntigravityLaunchSpec = buildAntigravityLaunchSpec({
         command: cliPath,
         cwd,
+        addDirs,
         prompt: turn.prompt,
         conversationId: this.confirmedSessionState?.conversationId ?? null,
         model: this.resolveRuntimeModelId(queryOptions),
-        printTimeout: `${Math.max(1, Math.ceil(settings.timeoutMs / 1000))}s`,
+        printTimeout: '0s',
         env,
+        allowDangerouslySkipPermissions,
       });
       const subprocess = this.createSubprocess({
         args: launchSpec.args,
         command: launchSpec.command,
         cwd: launchSpec.cwd,
         env: launchSpec.env,
+        allowDangerouslySkipPermissions,
       });
       active.subprocess = subprocess;
       turnState.markProcessSpawning();
@@ -626,19 +671,30 @@ export class AntigravityChatRuntime implements ChatRuntime {
       subprocess.start();
       turnState.markProcessActive();
 
-      // Outer watchdog: the CLI enforces its own --print-timeout; this bounds a
-      // hung process from the plugin side and is cleared on settlement/cancel.
-      active.watchdog = window.setTimeout(() => {
-        active.watchdog = null;
-        watchdogFired = true;
-        turnState.markTimedOut();
-        void subprocess.shutdown().catch(() => {});
-      }, settings.timeoutMs);
+      // Inactivity watchdog: bounds a hung process from the plugin side.
+      // Resets on each parsed stream record so active multi-step turns are not aborted mid-stream.
+      const armWatchdog = (): void => {
+        if (active.watchdog !== null) {
+          window.clearTimeout(active.watchdog);
+          active.watchdog = null;
+        }
+        if (active.cancelled || turnState.settlement) {
+          return;
+        }
+        active.watchdog = window.setTimeout(() => {
+          active.watchdog = null;
+          watchdogFired = true;
+          turnState.markTimedOut();
+          void subprocess.shutdown().catch(() => {});
+        }, settings.timeoutMs);
+      };
+      armWatchdog();
 
       const drainPromise = (async () => {
         try {
           for await (const record of parseAntigravityJsonlStream(subprocess.stdout)) {
             sawRecords = true;
+            armWatchdog();
             if (record.kind === 'parsed') {
               this.ingestTurnRecord(active, record.parsed);
             } else {
@@ -668,8 +724,24 @@ export class AntigravityChatRuntime implements ChatRuntime {
         }
       })();
 
-      await exitPromise;
       await drainPromise;
+
+      // Once stdout has drained (or settlement was reached), wait briefly for the
+      // subprocess to exit. Escalate to shutdown after a 5-second grace period so
+      // lingering background handles (e.g. language server shutdown delay) never hang the turn.
+      const exitGracePromise = new Promise<void>((resolve) => {
+        const timer = window.setTimeout(() => {
+          if (subprocess.isAlive()) {
+            void subprocess.shutdown().catch(() => {});
+          }
+          resolve();
+        }, 5000);
+        void exitPromise.finally(() => {
+          window.clearTimeout(timer);
+          resolve();
+        });
+      });
+      await Promise.race([exitPromise, exitGracePromise]);
       this.clearWatchdog(active);
       unregisterClose();
 
@@ -1081,5 +1153,16 @@ function describeAntigravitySettlement(settlement: AntigravityTurnSettlement, st
       break;
   }
   const stderr = stderrSnapshot.trim();
-  return stderr ? `${message}\nCLI stderr: ${stderr}` : message;
+  if (stderr) {
+    if (
+      stderr.includes('Eligibility check failed')
+      || stderr.includes('daily-cloudcode-pa.googleapis.com')
+      || stderr.includes('connectex')
+      || stderr.includes('EOF')
+    ) {
+      return `${message}\nNetwork error: Unable to connect to Google Cloud Code API (daily-cloudcode-pa.googleapis.com). If you are using a proxy or VPN, check your proxy routing rules.\nCLI stderr: ${stderr}`;
+    }
+    return `${message}\nCLI stderr: ${stderr}`;
+  }
+  return message;
 }

@@ -18,6 +18,8 @@ export const CLAUDE_MODEL_TIER_DEFINITIONS = [
     versionedOneMillionContextFrom: null,
     aliasSupportsXHigh: false,
     versionedXHighFrom: null,
+    aliasSupportsUltra: false,
+    versionedUltraFrom: null,
   },
   {
     id: 'sonnet',
@@ -33,6 +35,8 @@ export const CLAUDE_MODEL_TIER_DEFINITIONS = [
     versionedOneMillionContextFrom: { major: 4, minor: 6 },
     aliasSupportsXHigh: true,
     versionedXHighFrom: { major: 5, minor: 0 },
+    aliasSupportsUltra: false,
+    versionedUltraFrom: null,
   },
   {
     id: 'opus',
@@ -48,6 +52,8 @@ export const CLAUDE_MODEL_TIER_DEFINITIONS = [
     versionedOneMillionContextFrom: { major: 4, minor: 6 },
     aliasSupportsXHigh: true,
     versionedXHighFrom: { major: 4, minor: 7 },
+    aliasSupportsUltra: true,
+    versionedUltraFrom: { major: 4, minor: 8 },
   },
   {
     id: 'fable',
@@ -63,6 +69,8 @@ export const CLAUDE_MODEL_TIER_DEFINITIONS = [
     versionedOneMillionContextFrom: { major: 0, minor: 0 },
     aliasSupportsXHigh: true,
     versionedXHighFrom: { major: 0, minor: 0 },
+    aliasSupportsUltra: true,
+    versionedUltraFrom: { major: 0, minor: 0 },
   },
 ] as const;
 

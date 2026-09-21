@@ -1,3 +1,4 @@
+import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -462,4 +463,118 @@ export function formatContextLimit(tokens: number): string {
     return `${tokens / 1000}k`;
   }
   return tokens.toLocaleString();
+}
+let cachedSystemProxyResult: Record<string, string> | null = null;
+let cachedSystemProxyTime = 0;
+const PROXY_CACHE_TTL_MS = 30_000;
+
+export interface ResolveSystemProxyOptions {
+  queryRegistry?: () => string;
+  forceRefresh?: boolean;
+}
+
+export function parseWindowsProxyServerString(rawServer: string): { httpProxy?: string; httpsProxy?: string } {
+  const trimmed = rawServer.trim();
+  if (!trimmed) return {};
+
+  if (trimmed.includes('=')) {
+    let httpProxy: string | undefined;
+    let httpsProxy: string | undefined;
+    const parts = trimmed.split(';');
+    for (const part of parts) {
+      const eqIndex = part.indexOf('=');
+      if (eqIndex > 0) {
+        const proto = part.slice(0, eqIndex).trim().toLowerCase();
+        const addr = part.slice(eqIndex + 1).trim();
+        if (addr) {
+          const formatted = addr.startsWith('http://') || addr.startsWith('https://') || addr.startsWith('socks5://')
+            ? addr
+            : `http://${addr}`;
+          if (proto === 'http') httpProxy = formatted;
+          if (proto === 'https') httpsProxy = formatted;
+        }
+      }
+    }
+    return { httpProxy, httpsProxy };
+  }
+
+  const formatted = trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('socks5://')
+    ? trimmed
+    : `http://${trimmed}`;
+  return { httpProxy: formatted, httpsProxy: formatted };
+}
+
+export function resolveSystemProxyEnvironment(
+  baseEnv: Record<string, string | undefined> = process.env,
+  options?: ResolveSystemProxyOptions,
+): Record<string, string> {
+  const hasExplicitProxy = Boolean(
+    baseEnv.HTTP_PROXY ||
+    baseEnv.http_proxy ||
+    baseEnv.HTTPS_PROXY ||
+    baseEnv.https_proxy ||
+    baseEnv.ALL_PROXY ||
+    baseEnv.all_proxy
+  );
+
+  if (hasExplicitProxy) {
+    return {};
+  }
+
+  if (process.platform !== 'win32' && !options?.queryRegistry) {
+    return {};
+  }
+
+  const now = Date.now();
+  if (!options?.forceRefresh && cachedSystemProxyResult !== null && (now - cachedSystemProxyTime < PROXY_CACHE_TTL_MS)) {
+    return { ...cachedSystemProxyResult };
+  }
+
+  try {
+    const queryFn = options?.queryRegistry ?? (() => {
+      return execSync(
+        'reg query "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyEnable && reg query "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyServer',
+        { encoding: 'utf-8', timeout: 1500, stdio: ['pipe', 'pipe', 'ignore'] }
+      );
+    });
+
+    const stdout = queryFn();
+    const enableMatch = stdout.match(/ProxyEnable\s+REG_DWORD\s+0x([0-9a-fA-F]+)/i);
+    const isProxyEnabled = enableMatch && parseInt(enableMatch[1], 16) === 1;
+
+    if (!isProxyEnabled) {
+      cachedSystemProxyResult = {};
+      cachedSystemProxyTime = now;
+      return {};
+    }
+
+    const serverMatch = stdout.match(/ProxyServer\s+REG_SZ\s+([^\r\n]+)/i);
+    if (!serverMatch) {
+      cachedSystemProxyResult = {};
+      cachedSystemProxyTime = now;
+      return {};
+    }
+
+    const { httpProxy, httpsProxy } = parseWindowsProxyServerString(serverMatch[1]);
+    const proxyEnv: Record<string, string> = {};
+
+    if (httpProxy) {
+      proxyEnv.HTTP_PROXY = httpProxy;
+      proxyEnv.http_proxy = httpProxy;
+    }
+    if (httpsProxy) {
+      proxyEnv.HTTPS_PROXY = httpsProxy;
+      proxyEnv.https_proxy = httpsProxy;
+      proxyEnv.ALL_PROXY = httpsProxy;
+      proxyEnv.all_proxy = httpsProxy;
+    }
+
+    cachedSystemProxyResult = proxyEnv;
+    cachedSystemProxyTime = now;
+    return { ...proxyEnv };
+  } catch {
+    cachedSystemProxyResult = {};
+    cachedSystemProxyTime = now;
+    return {};
+  }
 }

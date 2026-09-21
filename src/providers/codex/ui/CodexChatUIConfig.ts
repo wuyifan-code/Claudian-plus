@@ -16,6 +16,7 @@ import {
   getCodexDefaultReasoningEffort,
   getCodexFastServiceTier,
   getDefaultCodexModel,
+  supportsCodexUltraEffort,
 } from '../models';
 import {
   isCodexModelSelectionId,
@@ -35,6 +36,12 @@ const EFFORT_LEVELS: ProviderReasoningOption[] = [
   'xhigh',
   'max',
 ].map(value => ({ value, label: formatReasoningValueLabel(value) }));
+
+const CODEX_ULTRA_OPTION: ProviderReasoningOption = {
+  value: 'ultra',
+  label: 'Ultra',
+  description: 'Deep proactive reasoning & multi-agent task delegation',
+};
 
 const CODEX_PERMISSION_MODE_TOGGLE: ProviderPermissionModeToggleConfig = {
   inactiveValue: 'normal',
@@ -93,7 +100,9 @@ export const codexChatUIConfig: ProviderChatUIConfig = {
       modelId,
     );
     if (!model) {
-      return [...EFFORT_LEVELS];
+      return supportsCodexUltraEffort(modelId)
+        ? [...EFFORT_LEVELS, CODEX_ULTRA_OPTION]
+        : [...EFFORT_LEVELS];
     }
 
     return model.supportedReasoningEfforts.map(option => ({

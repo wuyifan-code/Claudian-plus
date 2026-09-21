@@ -22,6 +22,10 @@
     "rewind": "回退"
   },
   "chat": {
+    "interrupt": {
+      "label": "中斷",
+      "tooltip": "中斷生成 (Esc)"
+    },
     "rewind": {
       "confirmMessage": "回退到此處？此訊息之後的檔案變更將被還原。回退不會影響手動或透過 bash 編輯的檔案。",
       "confirmMessageConversationOnly": "將對話回退到此處？檔案變更將保留。",
@@ -81,6 +85,14 @@
       "on": "開啟閱讀模式",
       "off": "關閉閱讀模式"
     },
+    "toolGroup": {
+      "calls": "{count} 次工具調用",
+      "callSingle": "1 次工具調用",
+      "ariaLabel": "工具調用群組",
+      "statusAllSuccess": "所有工具調用已完成",
+      "statusHasErrors": "部分工具調用出錯",
+      "statusBlocked": "部分工具調用被攔截"
+    },
     "view": {
       "chat": "對話",
       "sessions": "會話列表"
@@ -99,11 +111,11 @@
     "category": {
       "general": "通用",
       "appearance": "外觀",
-      "memory": "記憶與意識",
+      "memory": "記憶",
       "providers": "提供商",
-      "agentsSkills": "智能體與技能",
+      "agentsSkills": "智能體",
       "workspace": "工作區",
-      "advanced": "進階設定"
+      "advanced": "進階"
     },
     "tabs": {
       "general": "一般",
@@ -117,6 +129,28 @@
     "setup": "設定",
     "models": "模型",
     "experimental": "實驗性功能",
+    "security": {
+      "title": "安全與權限協議",
+      "desc": "配置工具執行安全規則、授權協議與永久批准的放行規則。",
+      "permissionMode": {
+        "name": "預設權限模式",
+        "desc": "控制工具調用（修改檔案、執行系統命令等）是否需要使用者明確確認。",
+        "normal": "標準安全模式（每次操作需確認）",
+        "yolo": "YOLO 模式（自動放行無需確認）"
+      },
+      "approvedActions": {
+        "title": "已批准的放行規則",
+        "desc": "永久批准的工具與命令規則（透過「始終允許」記錄）。在會話過程中將自動放行，無需重複彈窗。",
+        "empty": "尚無已批准的放行規則。當您在操作授權彈窗中點擊「始終允許」時，規則將顯示在此處。",
+        "clearAll": "清空全部規則",
+        "clearAllConfirm": "確定要清空所有已批准的權限規則嗎？",
+        "remove": "移除"
+      },
+      "notice": {
+        "title": "安全協議與沙箱邊界說明",
+        "desc": "工具調用以本機系統權限運行。在打開不受信任的儲存庫、指令碼或外部提示詞時，請務必保持標準安全模式。"
+      }
+    },
     "userName": {
       "name": "Claudian Plus 應該如何稱呼您？",
       "desc": "用於個人化問候的使用者名稱（留空使用通用問候）"

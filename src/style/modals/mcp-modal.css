@@ -1,14 +1,13 @@
 /* MCP Server Modal */
-.claudian-plus-mcp-modal .modal-content {
-  width: 480px;
-  max-width: 90vw;
+.modal.claudian-plus-mcp-modal {
+  width: min(520px, 92vw);
 }
 
 .claudian-plus-mcp-type-fields {
-  margin: 12px 0;
-  padding: 12px;
-  background: var(--background-secondary);
-  border-radius: var(--claudian-plus-radius-sm);
+  margin: 16px 0;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--background-modifier-border);
+  background: transparent;
 }
 
 .claudian-plus-mcp-type-fields .setting-item {
@@ -39,15 +38,18 @@
   resize: vertical;
   font-family: var(--font-monospace);
   font-size: 12px;
-  padding: 8px;
-  border-radius: var(--claudian-plus-radius-xs);
+  padding: 8px 10px;
+  border-radius: var(--claudian-plus-radius-sm);
   border: 1px solid var(--background-modifier-border);
-  background: var(--background-primary);
+  background: var(--background-modifier-form-field);
+  color: var(--text-normal);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .claudian-plus-mcp-cmd-textarea:focus,
 .claudian-plus-mcp-env-textarea:focus {
   border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 1px var(--interactive-accent);
   outline: none;
 }
 
@@ -55,13 +57,15 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--background-modifier-border);
 }
 
 /* MCP Test Modal */
+.modal.claudian-plus-mcp-test-modal,
 .claudian-plus-mcp-test-modal {
-  width: 500px;
-  max-width: 90vw;
+  width: min(520px, 92vw);
 }
 
 .claudian-plus-mcp-test-modal .modal-content {
@@ -97,7 +101,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px;
+  padding: 8px 10px;
   background: var(--background-secondary);
   border-radius: var(--claudian-plus-radius-sm);
   margin-bottom: 12px;
@@ -109,8 +113,8 @@
 }
 
 .claudian-plus-mcp-test-icon svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .claudian-plus-mcp-test-icon.success {
@@ -123,12 +127,13 @@
 
 .claudian-plus-mcp-test-text {
   font-weight: 500;
+  font-size: 13px;
 }
 
 .claudian-plus-mcp-test-error {
   padding: 10px 12px;
-  background: rgba(var(--color-red-rgb), 0.1);
-  border: 1px solid var(--text-error);
+  background: rgba(var(--claudian-plus-error-rgb), 0.08);
+  border: 1px solid rgba(var(--claudian-plus-error-rgb), 0.25);
   border-radius: var(--claudian-plus-radius-sm);
   color: var(--text-error);
   font-size: 12px;
@@ -149,15 +154,21 @@
 .claudian-plus-mcp-test-tools-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 2px;
   max-height: 300px;
   overflow-y: auto;
 }
 
 .claudian-plus-mcp-test-tool {
-  padding: 10px 12px;
-  background: var(--background-secondary);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: transparent;
   border-radius: var(--claudian-plus-radius-sm);
+  transition: background 0.15s ease;
+}
+
+.claudian-plus-mcp-test-tool:hover {
+  background: var(--background-modifier-hover);
 }
 
 .claudian-plus-mcp-test-tool-header {
@@ -205,13 +216,13 @@
 }
 
 .claudian-plus-mcp-toggle-all-btn.is-destructive {
-  background: rgba(var(--color-red-rgb), 0.1);
-  border-color: rgba(var(--color-red-rgb), 0.3);
+  background: rgba(var(--claudian-plus-error-rgb), 0.08);
+  border-color: rgba(var(--claudian-plus-error-rgb), 0.25);
   color: var(--text-error);
 }
 
 .claudian-plus-mcp-toggle-all-btn.is-destructive:hover {
-  background: rgba(var(--color-red-rgb), 0.2);
+  background: rgba(var(--claudian-plus-error-rgb), 0.15);
 }
 
 .claudian-plus-mcp-test-tool-desc {

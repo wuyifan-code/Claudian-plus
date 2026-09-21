@@ -1,0 +1,49 @@
+/* Interrupt / Stop Generation Button */
+.claudian-plus-interrupt-btn-wrapper {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  order: 99;
+  flex-shrink: 0;
+}
+
+.claudian-plus-interrupt-btn-wrapper.claudian-plus-hidden {
+  display: none !important;
+}
+
+.claudian-plus-interrupt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border-radius: var(--claudian-plus-radius-full);
+  cursor: pointer;
+  background: var(--claudian-plus-stop-btn-bg);
+  color: var(--claudian-plus-stop-btn-fg);
+  border: none;
+  box-shadow: var(--claudian-plus-shadow-sm);
+  transition: transform var(--claudian-plus-transition-fast), opacity var(--claudian-plus-transition-fast), box-shadow var(--claudian-plus-transition-fast);
+  user-select: none;
+}
+
+.claudian-plus-interrupt-btn:hover {
+  opacity: 0.9;
+  transform: scale(1.06);
+  box-shadow: var(--claudian-plus-shadow-md);
+}
+
+.claudian-plus-interrupt-btn:active {
+  transform: scale(0.94);
+  opacity: 0.8;
+}
+
+.claudian-plus-interrupt-icon {
+  display: block;
+  flex-shrink: 0;
+  pointer-events: none;
+}

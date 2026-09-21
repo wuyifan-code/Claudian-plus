@@ -1,31 +1,32 @@
-/* Settings Horizontal Category Nav Bar & Search */
+/* Native settings navigation shell - Linear / Apple Tiered Segmented Controls */
 
 .claudian-plus-settings {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+  container-type: inline-size;
   width: 100%;
+  height: 100%;
+  font-family: var(--font-interface);
 }
 
 .claudian-plus-settings-shell {
   display: flex;
   flex-direction: column;
   width: 100%;
-  gap: 14px;
-  flex: 1 1 auto;
+  min-height: 100%;
+  gap: 12px;
 }
 
+.claudian-plus-settings-header,
 .claudian-plus-settings-sidebar {
-  width: 100%;
-  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  border-right: none;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding-bottom: 6px;
   border-bottom: 1px solid var(--background-modifier-border);
-  padding-bottom: 12px;
 }
 
+/* ── Search header ── */
 .claudian-plus-settings-search-wrapper {
   position: relative;
   display: flex;
@@ -35,110 +36,199 @@
 
 .claudian-plus-settings-search-icon {
   position: absolute;
-  left: 8px;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
-  pointer-events: none;
+  justify-content: center;
   color: var(--text-faint);
+  pointer-events: none;
 }
 
 .claudian-plus-settings-search-icon svg {
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
 }
 
-.claudian-plus-settings-search-input {
+.claudian-plus-settings input.claudian-plus-settings-search-input[type="text"] {
   width: 100%;
-  padding-left: 28px;
-  padding-right: 8px;
-  height: 28px;
-  font-size: var(--font-ui-small, 12px);
-  border-radius: var(--claudian-plus-radius-sm, 6px);
+  height: 32px;
+  padding: 0 12px 0 32px !important;
   border: 1px solid var(--background-modifier-border);
-  background: var(--background-secondary);
+  border-radius: 8px;
+  background: var(--background-modifier-form-field);
   color: var(--text-normal);
+  font-family: var(--font-interface);
+  font-size: var(--font-ui-small);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .claudian-plus-settings-search-input:focus {
-  border-color: var(--interactive-accent);
+  border-color: var(--interactive-accent) !important;
+  box-shadow: 0 0 0 1px var(--interactive-accent) !important;
+  outline: none;
 }
 
+/* ── Primary Tier: Segmented Control Bar ── */
+.claudian-plus-settings-nav,
 .claudian-plus-settings-tree {
   display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
+  width: 100% !important;
+  padding: 3px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 9px;
+  box-sizing: border-box;
   overflow-x: auto;
+  scrollbar-width: none;
+  flex-wrap: nowrap;
 }
 
+.claudian-plus-settings-nav::-webkit-scrollbar,
+.claudian-plus-settings-tree::-webkit-scrollbar {
+  display: none;
+}
+
+/* Ensure segmented button overrides any theme default button styling */
+.claudian-plus-settings .claudian-plus-settings-tree button.claudian-plus-settings-nav-item,
+.claudian-plus-settings .claudian-plus-settings-tree button.claudian-plus-settings-tree-item,
+.claudian-plus-settings button.claudian-plus-settings-nav-item,
+.claudian-plus-settings button.claudian-plus-settings-tree-item,
+button.claudian-plus-settings-nav-item,
+button.claudian-plus-settings-tree-item {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 28px;
+  min-height: 28px;
+  max-height: 28px;
+  padding: 0 6px;
+  border: 0 !important;
+  border-radius: 6px;
+  background-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-muted) !important;
+  font-family: var(--font-interface);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin: 0;
+  line-height: 1;
+}
+
+.claudian-plus-settings .claudian-plus-settings-tree button.claudian-plus-settings-nav-item:hover,
+.claudian-plus-settings .claudian-plus-settings-tree button.claudian-plus-settings-tree-item:hover {
+  background-color: var(--background-modifier-hover) !important;
+  box-shadow: none !important;
+  color: var(--text-normal) !important;
+}
+
+.claudian-plus-settings .claudian-plus-settings-tree button.claudian-plus-settings-nav-item:focus-visible,
+.claudian-plus-settings .claudian-plus-settings-tree button.claudian-plus-settings-tree-item:focus-visible {
+  outline: 2px solid var(--background-modifier-border-focus);
+  outline-offset: -1px;
+}
+
+.claudian-plus-settings .claudian-plus-settings-tree button.claudian-plus-settings-nav-item.is-active,
+.claudian-plus-settings .claudian-plus-settings-tree button.claudian-plus-settings-tree-item.is-active:not(.claudian-plus-settings-subnav-item) {
+  background-color: var(--background-primary) !important;
+  background: var(--background-primary) !important;
+  color: var(--text-normal) !important;
+  font-weight: 600;
+  box-shadow: var(--claudian-plus-shadow-sm) !important;
+}
+
+.claudian-plus-settings-nav-icon svg,
+.claudian-plus-settings-tree-item svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  color: inherit;
+  opacity: 0.85;
+}
+
+/* ── Secondary Tier: Sub-Segmented Pill Bar (Providers) ── */
 .claudian-plus-settings-subnav {
   display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  padding-top: 6px;
-  border-top: 1px dashed var(--background-modifier-border);
+  padding: 4px 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-wrap: nowrap;
 }
 
-.claudian-plus-settings-tree-item {
-  position: relative;
+.claudian-plus-settings-subnav::-webkit-scrollbar {
+  display: none;
+}
+
+.claudian-plus-settings .claudian-plus-settings-subnav button.claudian-plus-settings-subnav-item,
+.claudian-plus-settings button.claudian-plus-settings-subnav-item,
+button.claudian-plus-settings-subnav-item {
+  flex: 0 0 auto !important;
+  height: 25px !important;
+  min-height: 25px !important;
+  max-height: 25px !important;
+  padding: 0 12px !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--background-modifier-border) !important;
+  background-color: var(--background-secondary) !important;
+  background: var(--background-secondary) !important;
+  box-shadow: none !important;
+  color: var(--text-muted) !important;
+  font-family: var(--font-interface);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  font-size: var(--font-ui-small, 12px);
-  border-radius: var(--claudian-plus-radius-sm, 6px);
-  cursor: pointer;
-  color: var(--text-muted);
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  transition: all 0.15s ease;
-  user-select: none;
-  white-space: nowrap;
+  justify-content: center;
+  margin: 0;
+  line-height: 1;
 }
 
-.claudian-plus-settings-tree-item:hover {
-  background: var(--background-modifier-hover);
-  color: var(--text-normal);
-  border-color: var(--background-modifier-border-hover);
+.claudian-plus-settings .claudian-plus-settings-subnav button.claudian-plus-settings-subnav-item:hover {
+  background-color: var(--background-modifier-hover) !important;
+  color: var(--text-normal) !important;
+  border-color: var(--background-modifier-border-hover) !important;
+  box-shadow: none !important;
 }
 
-.claudian-plus-settings-tree-item.is-active {
-  background: var(--interactive-accent);
-  color: var(--text-on-accent);
-  border-color: var(--interactive-accent);
-  font-weight: 550;
+.claudian-plus-settings .claudian-plus-settings-subnav button.claudian-plus-settings-subnav-item.is-active {
+  background-color: var(--interactive-accent) !important;
+  background: var(--interactive-accent) !important;
+  color: var(--text-on-accent) !important;
+  border-color: var(--interactive-accent) !important;
+  font-weight: 600;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--interactive-accent) 25%, transparent) !important;
 }
 
-.claudian-plus-settings-tree-item svg {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  color: var(--text-faint);
-}
-
-.claudian-plus-settings-tree-item.is-active svg {
-  color: var(--text-on-accent);
-}
-
-.claudian-plus-settings-tree-child {
-  font-size: 11.5px;
-  padding: 4px 10px;
-  background: var(--background-primary);
-}
-
+/* ── Search Results Overlay ── */
 .claudian-plus-settings-search-results {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  max-height: 200px;
+  max-height: 240px;
   overflow-y: auto;
+  padding: 4px;
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--claudian-plus-radius-sm, 6px);
-  background: var(--background-secondary);
-  padding: 4px;
+  background: var(--background-primary);
 }
 
 .claudian-plus-settings-search-result-item {
@@ -146,10 +236,9 @@
   flex-direction: column;
   gap: 2px;
   padding: 6px 8px;
-  border-radius: var(--claudian-plus-radius-xs);
-  cursor: pointer;
+  border-radius: var(--claudian-plus-radius-xs, 4px);
   background: transparent;
-  transition: background 0.12s ease;
+  cursor: pointer;
 }
 
 .claudian-plus-settings-search-result-item:hover {
@@ -157,22 +246,22 @@
 }
 
 .claudian-plus-settings-search-result-name {
-  font-size: 12px;
-  font-weight: 500;
   color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-medium);
 }
 
 .claudian-plus-settings-search-result-crumb {
-  font-size: 10px;
   color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
 }
 
+/* ── Content Pane ── */
 .claudian-plus-settings-content-pane {
   flex: 1 1 auto;
-  width: 100%;
   min-width: 0;
   overflow-y: auto;
-  padding: 0;
+  padding: 2px 2px 32px 2px;
 }
 
 @keyframes claudian-plus-flash-highlight {
@@ -188,4 +277,10 @@
 
 .claudian-plus-settings-highlight-flash {
   animation: claudian-plus-flash-highlight 1.6s ease forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .claudian-plus-settings-highlight-flash {
+    animation: none;
+  }
 }

@@ -165,10 +165,10 @@ describe('claudeChatUIConfig', () => {
       expect(options.find(option => option.value === 'xhigh')?.label).toBe('xHigh');
     });
 
-    it('keeps xhigh on fable models', () => {
+    it('keeps xhigh and ultra on fable models', () => {
       const options = claudeChatUIConfig.getReasoningOptions('fable', {});
 
-      expect(options.map(option => option.value)).toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
+      expect(options.map(option => option.value)).toEqual(['low', 'medium', 'high', 'xhigh', 'max', 'ultra']);
     });
 
     it('uses effort options for custom model ids', () => {
@@ -281,6 +281,48 @@ describe('claudeChatUIConfig', () => {
       claudeChatUIConfig.applyModelProjectionDefaults?.('haiku', settings);
 
       expect(settings.effortLevel).toBe('high');
+    });
+
+    it('preserves ultra on the opus alias that supports it', () => {
+      const settings: Record<string, unknown> = { effortLevel: 'ultra' };
+
+      claudeChatUIConfig.applyModelProjectionDefaults?.('opus', settings);
+
+      expect(settings.effortLevel).toBe('ultra');
+    });
+
+    it('clamps ultra on sonnet which does not support it', () => {
+      const settings: Record<string, unknown> = { effortLevel: 'ultra' };
+
+      claudeChatUIConfig.applyModelProjectionDefaults?.('sonnet', settings);
+
+      expect(settings.effortLevel).toBe('high');
+    });
+  });
+
+  describe('getReasoningOptions ultra support', () => {
+    it('includes Ultra for Opus and Fable models', () => {
+      const opusOptions = claudeChatUIConfig.getReasoningOptions('opus', {});
+      expect(opusOptions.some(o => o.value === 'ultra')).toBe(true);
+
+      const fableOptions = claudeChatUIConfig.getReasoningOptions('fable', {});
+      expect(fableOptions.some(o => o.value === 'ultra')).toBe(true);
+    });
+
+    it('does not include Ultra for Haiku or Sonnet models', () => {
+      const haikuOptions = claudeChatUIConfig.getReasoningOptions('haiku', {});
+      expect(haikuOptions.some(o => o.value === 'ultra')).toBe(false);
+
+      const sonnetOptions = claudeChatUIConfig.getReasoningOptions('sonnet', {});
+      expect(sonnetOptions.some(o => o.value === 'ultra')).toBe(false);
+    });
+
+    it('includes Ultra for versioned Opus >= 4.8', () => {
+      const opus48Options = claudeChatUIConfig.getReasoningOptions('claude-opus-4-8', {});
+      expect(opus48Options.some(o => o.value === 'ultra')).toBe(true);
+
+      const opus46Options = claudeChatUIConfig.getReasoningOptions('claude-opus-4-6', {});
+      expect(opus46Options.some(o => o.value === 'ultra')).toBe(false);
     });
   });
 });

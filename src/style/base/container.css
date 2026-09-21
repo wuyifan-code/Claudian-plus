@@ -6,7 +6,9 @@
   height: 100%;
   padding: 0;
   overflow: hidden;
-  font-family: var(--font-text);
+  font-family: var(--font-interface);
+  container-name: claudian-plus-chat;
+  container-type: inline-size;
 }
 
 .claudian-plus-provider-icon-variant--dark {

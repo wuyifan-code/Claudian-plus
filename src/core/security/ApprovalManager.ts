@@ -140,3 +140,96 @@ function matchesBashPrefix(action: string, prefix: string): boolean {
 
   return action.startsWith(`${prefix} `);
 }
+
+export interface ApprovedActionRule {
+  raw: string;
+  toolName: string;
+  pattern: string;
+}
+
+export function parseApprovedActionRule(rule: string): ApprovedActionRule {
+  const trimmed = rule.trim();
+  const match = trimmed.match(/^([A-Za-z0-9_-]+)\s*\((.+)\)$/);
+  if (match) {
+    return {
+      raw: trimmed,
+      toolName: match[1],
+      pattern: match[2],
+    };
+  }
+  if (trimmed.includes(':')) {
+    const idx = trimmed.indexOf(':');
+    return {
+      raw: trimmed,
+      toolName: trimmed.slice(0, idx),
+      pattern: trimmed.slice(idx + 1),
+    };
+  }
+  return {
+    raw: trimmed,
+    toolName: trimmed,
+    pattern: '*',
+  };
+}
+
+export const CLAUDE_SETTINGS_PATH = '.claude/settings.json';
+
+export interface StorageAdapterLike {
+  exists(path: string): Promise<boolean>;
+  read(path: string): Promise<string>;
+  write(path: string, content: string): Promise<void>;
+}
+
+export async function getApprovedActionRules(adapter: StorageAdapterLike): Promise<ApprovedActionRule[]> {
+  if (!(await adapter.exists(CLAUDE_SETTINGS_PATH))) {
+    return [];
+  }
+  try {
+    const raw = await adapter.read(CLAUDE_SETTINGS_PATH);
+    const parsed = JSON.parse(raw) as { permissions?: { allow?: unknown[] } };
+    const allow = Array.isArray(parsed?.permissions?.allow) ? parsed.permissions.allow : [];
+    return allow
+      .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      .map(parseApprovedActionRule);
+  } catch {
+    return [];
+  }
+}
+
+export async function removeApprovedActionRule(adapter: StorageAdapterLike, ruleRaw: string): Promise<void> {
+  if (!(await adapter.exists(CLAUDE_SETTINGS_PATH))) {
+    return;
+  }
+  try {
+    const raw = await adapter.read(CLAUDE_SETTINGS_PATH);
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const permissions = (parsed.permissions && typeof parsed.permissions === 'object')
+      ? (parsed.permissions as Record<string, unknown>)
+      : {};
+    const allow = Array.isArray(permissions.allow) ? permissions.allow : [];
+    permissions.allow = allow.filter((item) => item !== ruleRaw);
+    parsed.permissions = permissions;
+    await adapter.write(CLAUDE_SETTINGS_PATH, JSON.stringify(parsed, null, 2));
+  } catch {
+    // Ignore write failure
+  }
+}
+
+export async function clearAllApprovedActionRules(adapter: StorageAdapterLike): Promise<void> {
+  if (!(await adapter.exists(CLAUDE_SETTINGS_PATH))) {
+    return;
+  }
+  try {
+    const raw = await adapter.read(CLAUDE_SETTINGS_PATH);
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const permissions = (parsed.permissions && typeof parsed.permissions === 'object')
+      ? (parsed.permissions as Record<string, unknown>)
+      : {};
+    permissions.allow = [];
+    parsed.permissions = permissions;
+    await adapter.write(CLAUDE_SETTINGS_PATH, JSON.stringify(parsed, null, 2));
+  } catch {
+    // Ignore write failure
+  }
+}
+

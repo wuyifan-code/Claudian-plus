@@ -26,6 +26,7 @@ describe('getAntigravityProviderSettings', () => {
   it('defaults to disabled with an empty manual model id', () => {
     const settings = getAntigravityProviderSettings({ providerConfigs: {} });
     expect(settings.enabled).toBe(false);
+    expect(settings.autoApproveTools).toBe(true);
     expect(settings.cliPath).toBe('');
     expect(settings.cliPathsByHost).toEqual({});
     expect(settings.manualModelId).toBe('');
@@ -132,6 +133,7 @@ describe('updateAntigravityProviderSettings', () => {
   it('round-trips every persisted field without inventing new ones', () => {
     const bag = createSettingsBag({});
     const updated = updateAntigravityProviderSettings(bag, {
+      autoApproveTools: false,
       cliPath: 'C:\\agy\\agy.EXE',
       diagnosticsRefreshToken: 3,
       enabled: true,
@@ -144,6 +146,7 @@ describe('updateAntigravityProviderSettings', () => {
       Object.keys(DEFAULT_ANTIGRAVITY_PROVIDER_SETTINGS).sort(),
     );
     expect(getAntigravityProviderSettings(bag)).toMatchObject({
+      autoApproveTools: false,
       enabled: true,
       manualModelId: 'gemini-3.1-pro-low',
       timeoutMs: 60_000,

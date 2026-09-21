@@ -2,6 +2,7 @@ import {
   findCodexModel,
   getDefaultCodexModel,
   normalizeCodexDiscoveredModels,
+  supportsCodexUltraEffort,
 } from '@/providers/codex/models';
 
 describe('Codex models', () => {
@@ -45,7 +46,7 @@ describe('Codex models', () => {
     },
   ];
 
-  it('normalizes app-server model metadata while excluding ultra', () => {
+  it('normalizes app-server model metadata while preserving ultra', () => {
     expect(normalizeCodexDiscoveredModels(rawModels)).toEqual([
       {
         model: 'gpt-5.6-sol',
@@ -54,6 +55,7 @@ describe('Codex models', () => {
         supportedReasoningEfforts: [
           { value: 'low', description: 'Fast responses' },
           { value: 'max', description: 'Maximum reasoning' },
+          { value: 'ultra', description: 'Automatic task delegation' },
         ],
         defaultReasoningEffort: 'low',
         serviceTiers: [
@@ -80,7 +82,7 @@ describe('Codex models', () => {
     ]);
   });
 
-  it('keeps a model when its excluded app-server default is ultra', () => {
+  it('preserves ultra as default reasoning effort when supported by model', () => {
     expect(normalizeCodexDiscoveredModels([{
       ...rawModels[0],
       defaultReasoningEffort: 'ultra',
@@ -92,13 +94,21 @@ describe('Codex models', () => {
     }])).toEqual([
       expect.objectContaining({
         model: 'gpt-5.6-sol',
-        defaultReasoningEffort: 'high',
+        defaultReasoningEffort: 'ultra',
         supportedReasoningEfforts: [
           { value: 'low', description: 'Fast responses' },
           { value: 'high', description: 'Deep reasoning' },
+          { value: 'ultra', description: 'Automatic task delegation' },
         ],
       }),
     ]);
+  });
+
+  it('identifies models that support ultra effort', () => {
+    expect(supportsCodexUltraEffort('gpt-5.6-sol')).toBe(true);
+    expect(supportsCodexUltraEffort('custom-sol-model')).toBe(true);
+    expect(supportsCodexUltraEffort('gpt-5.6-luna')).toBe(false);
+    expect(supportsCodexUltraEffort(undefined)).toBe(false);
   });
 
   it('keeps a catalog default service tier that is not an optional tier', () => {

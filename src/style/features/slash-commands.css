@@ -6,12 +6,11 @@
   left: 0;
   right: 0;
   margin-bottom: 4px;
-  background: var(--background-secondary);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  padding: 4px;
+  background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--claudian-plus-radius-sm);
-  box-shadow: var(--claudian-plus-shadow-md);
+  box-shadow: var(--shadow-s);
   z-index: 1000;
   max-height: 300px;
   overflow-y: auto;
@@ -32,14 +31,11 @@
 }
 
 .claudian-plus-slash-item {
-  padding: 8px 12px;
+  padding: 6px 8px;
   cursor: pointer;
   transition: background 0.1s ease;
-  border-bottom: 1px solid var(--background-modifier-border);
-}
-
-.claudian-plus-slash-item:last-child {
-  border-bottom: none;
+  border: 0;
+  border-radius: var(--claudian-plus-radius-xs);
 }
 
 .claudian-plus-slash-item:hover,

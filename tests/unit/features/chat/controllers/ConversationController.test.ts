@@ -1479,6 +1479,12 @@ describe('ConversationController', () => {
   });
 
   describe('Greeting Time Branches', () => {
+    it('never uses an agreement statement as an empty conversation greeting', () => {
+      jest.spyOn(Math, 'random').mockReturnValue(0.999);
+      expect(controller.getGreeting()).not.toContain('absolutely right');
+      jest.restoreAllMocks();
+    });
+
     it.each([
       { name: 'morning (5-12)', hour: 9, day: 1, patterns: ['morning', 'Coffee'] },
       { name: 'afternoon (12-18)', hour: 14, day: 2, patterns: ['afternoon'] },

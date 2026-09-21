@@ -6,12 +6,10 @@
   left: 0;
   right: 0;
   margin-bottom: 4px;
-  background: var(--background-secondary);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--claudian-plus-radius-sm);
-  box-shadow: var(--claudian-plus-shadow-md);
+  box-shadow: var(--shadow-s);
   z-index: 1000;
   max-height: 400px;
   overflow: hidden;
@@ -49,12 +47,8 @@
   gap: 10px;
   padding: 8px 12px;
   cursor: pointer;
-  border-bottom: 1px solid var(--background-modifier-border);
+  border: 0;
   transition: background 0.1s ease;
-}
-
-.claudian-plus-resume-item:last-child {
-  border-bottom: none;
 }
 
 .claudian-plus-resume-item:hover,
@@ -63,9 +57,7 @@
 }
 
 .claudian-plus-resume-item.current {
-  background: var(--background-secondary);
-  border-inline-start: 2px solid var(--interactive-accent);
-  padding-inline-start: 10px;
+  background: var(--background-modifier-hover);
 }
 
 .claudian-plus-resume-item-icon {

@@ -7,7 +7,9 @@ import {
   requireAntigravityCliPath,
 } from './AntigravityLaunchSpec';
 
-export type AntigravitySubprocessLaunchSpec = SubprocessLaunchSpec;
+export interface AntigravitySubprocessLaunchSpec extends SubprocessLaunchSpec {
+  allowDangerouslySkipPermissions?: boolean;
+}
 
 /**
  * Antigravity CLI process wrapper. Process management (windowsHide, Windows
@@ -17,7 +19,9 @@ export type AntigravitySubprocessLaunchSpec = SubprocessLaunchSpec;
  */
 export class AntigravitySubprocess extends SubprocessRunner {
   constructor(launchSpec: AntigravitySubprocessLaunchSpec) {
-    assertNoForbiddenAntigravityFlags(launchSpec.args);
+    assertNoForbiddenAntigravityFlags(launchSpec.args, {
+      allowDangerouslySkipPermissions: launchSpec.allowDangerouslySkipPermissions,
+    });
     requireAntigravityCliPath(launchSpec.command);
     super(launchSpec, { providerName: 'Antigravity', enhancePath: true });
   }

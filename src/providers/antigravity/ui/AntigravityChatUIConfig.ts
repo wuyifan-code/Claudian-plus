@@ -1,11 +1,16 @@
 import type {
   ProviderChatUIConfig,
+  ProviderIconSvg,
   ProviderReasoningOption,
   ProviderUIOption,
 } from '../../../core/providers/types';
+import { ANTIGRAVITY_PROVIDER_ICON } from '../../../shared/icons';
 import {
+  DEFAULT_ANTIGRAVITY_MODEL_ID,
+  DEFAULT_ANTIGRAVITY_MODELS,
   encodeAntigravityModelSelectionId,
   isAntigravityModelSelectionId,
+  looksLikeAntigravityModel,
   toAntigravityRuntimeModelId,
 } from '../models';
 import { getAntigravityProviderSettings } from '../settings';
@@ -31,11 +36,8 @@ function getSavedAntigravityModelSelection(settings: Record<string, unknown>): s
 }
 
 /**
- * Chat UI projection for Antigravity. The provider exposes no discovery, no
- * reasoning control, and no permission surface (A0/A5a findings), so every
- * entry point it cannot honestly serve is omitted rather than rendered
- * disabled: models come from the manual model id only, and no permission-mode,
- * plan-mode, service-tier, or bang-bash control exists.
+ * Chat UI projection for Antigravity. Models are offered from manual model id
+ * when set, plus the official verified Gemini models supported by agy.
  */
 export const antigravityChatUIConfig: ProviderChatUIConfig = {
   getModelOptions(settings): ProviderUIOption[] {
@@ -51,10 +53,17 @@ export const antigravityChatUIConfig: ProviderChatUIConfig = {
       });
     }
 
+    // Offer verified Gemini models
+    for (const model of DEFAULT_ANTIGRAVITY_MODELS) {
+      pushOption(options, seenValues, {
+        description: model.description,
+        label: model.label,
+        value: encodeAntigravityModelSelectionId(model.rawId),
+      });
+    }
+
     // Pin selections existing conversations already use so a changed manual id
-    // never strands them. Deliberately no synthetic fallback: without a manual
-    // model id there is no model to offer, and a fabricated entry would present
-    // the CLI's account-side default as a selectable, verified option.
+    // never strands them.
     const pinnedSelections = [
       typeof settings.model === 'string' ? settings.model : '',
       getSavedAntigravityModelSelection(settings),
@@ -76,11 +85,33 @@ export const antigravityChatUIConfig: ProviderChatUIConfig = {
 
   getDefaultModel(settings): string | null {
     const manualModelId = getAntigravityProviderSettings(settings).manualModelId;
-    return manualModelId ? encodeAntigravityModelSelectionId(manualModelId) : null;
+    return manualModelId
+      ? encodeAntigravityModelSelectionId(manualModelId)
+      : encodeAntigravityModelSelectionId(DEFAULT_ANTIGRAVITY_MODEL_ID);
   },
 
-  ownsModel(model: string): boolean {
-    return isAntigravityModelSelectionId(model);
+  ownsModel(model: string, settings?: Record<string, unknown>): boolean {
+    if (!model || !model.trim()) {
+      return false;
+    }
+    if (isAntigravityModelSelectionId(model)) {
+      return true;
+    }
+    const runtimeModel = toAntigravityRuntimeModelId(model);
+    if (looksLikeAntigravityModel(runtimeModel)) {
+      return true;
+    }
+    if (settings) {
+      const options = this.getModelOptions(settings);
+      if (options.some(opt =>
+        opt.value === model
+        || toAntigravityRuntimeModelId(opt.value) === runtimeModel
+        || opt.label.toLowerCase() === model.toLowerCase()
+      )) {
+        return true;
+      }
+    }
+    return false;
   },
 
   isAdaptiveReasoningModel(): boolean {
@@ -100,7 +131,7 @@ export const antigravityChatUIConfig: ProviderChatUIConfig = {
   },
 
   isDefaultModel(model: string): boolean {
-    return isAntigravityModelSelectionId(model);
+    return isAntigravityModelSelectionId(model) || looksLikeAntigravityModel(model);
   },
 
   applyModelDefaults(model: string, settings: unknown): void {
@@ -109,15 +140,18 @@ export const antigravityChatUIConfig: ProviderChatUIConfig = {
     }
 
     const settingsBag = settings as Record<string, unknown>;
-    // Foreign ids are cleared, never adopted: the manual model id is the only
-    // honest model source.
-    settingsBag.model = isAntigravityModelSelectionId(model) ? model : '';
+    if (isAntigravityModelSelectionId(model) || looksLikeAntigravityModel(model)) {
+      settingsBag.model = encodeAntigravityModelSelectionId(toAntigravityRuntimeModelId(model));
+    } else {
+      settingsBag.model = '';
+    }
   },
 
   normalizeModelVariant(model: string): string {
-    return isAntigravityModelSelectionId(model)
-      ? encodeAntigravityModelSelectionId(toAntigravityRuntimeModelId(model))
-      : model;
+    if (isAntigravityModelSelectionId(model) || looksLikeAntigravityModel(model)) {
+      return encodeAntigravityModelSelectionId(toAntigravityRuntimeModelId(model));
+    }
+    return model;
   },
 
   getCustomModelIds(): Set<string> {
@@ -128,7 +162,7 @@ export const antigravityChatUIConfig: ProviderChatUIConfig = {
     return null;
   },
 
-  getProviderIcon(): null {
-    return null;
+  getProviderIcon(): ProviderIconSvg {
+    return ANTIGRAVITY_PROVIDER_ICON;
   },
 };

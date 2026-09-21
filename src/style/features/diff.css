@@ -17,30 +17,37 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 0;
+  min-height: 28px;
+  padding: 3px 6px;
+  border-radius: var(--claudian-plus-radius-sm);
   cursor: pointer;
   user-select: none;
   background: transparent;
   overflow: hidden;
+  transition: background 0.12s ease;
+}
+
+.claudian-plus-write-edit-header:hover {
+  background: var(--background-modifier-hover);
 }
 
 .claudian-plus-write-edit-icon {
-  width: 16px;
-  height: 16px;
-  color: var(--text-accent);
+  width: 15px;
+  height: 15px;
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
 .claudian-plus-write-edit-icon svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
 }
 
 /* Two-part header: name (fixed) + summary (flexible) */
 .claudian-plus-write-edit-name {
-  font-family: var(--font-monospace);
+  font-family: var(--font-interface);
   font-size: 13px;
-  font-weight: 400;
+  font-weight: 500;
   color: var(--text-normal);
   white-space: nowrap;
   flex-shrink: 0;
@@ -48,7 +55,7 @@
 
 .claudian-plus-write-edit-summary {
   font-family: var(--font-monospace);
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -73,8 +80,8 @@
 }
 
 .claudian-plus-write-edit-status {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   flex-shrink: 0;
 }
 
@@ -84,8 +91,8 @@
 }
 
 .claudian-plus-write-edit-status svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
 }
 
 .claudian-plus-write-edit-status.status-completed {
@@ -113,9 +120,10 @@
   font-size: 12px;
   line-height: 1.5;
   background: transparent;
-  max-height: 300px;
+  max-height: 320px;
   overflow-y: auto;
   overflow-x: auto;
+  padding: 4px 6px;
 }
 
 .claudian-plus-write-edit-loading,
@@ -140,6 +148,8 @@
   display: flex;
   white-space: pre-wrap;
   word-break: break-all;
+  padding: 1px 0;
+  border-radius: var(--claudian-plus-radius-xs);
 }
 
 .claudian-plus-diff-prefix {
@@ -161,7 +171,7 @@
 }
 
 .claudian-plus-diff-delete {
-  background: rgba(var(--claudian-plus-error-rgb), 0.25);
+  background: rgba(var(--claudian-plus-error-rgb), 0.08);
   color: var(--text-normal);
 }
 
@@ -170,7 +180,7 @@
 }
 
 .claudian-plus-diff-insert {
-  background: rgba(var(--claudian-plus-success-rgb), 0.25);
+  background: rgba(var(--claudian-plus-success-rgb), 0.08);
   color: var(--text-normal);
 }
 

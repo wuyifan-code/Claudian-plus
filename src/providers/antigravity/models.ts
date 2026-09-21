@@ -80,14 +80,137 @@ export function decodeAntigravityModelSelectionId(value: string): string | null 
   return modelId || null;
 }
 
+/**
+ * Default runtime model ID used when none is specified.
+ */
+export const DEFAULT_ANTIGRAVITY_MODEL_ID = 'gemini-3.8-flash-high';
+
+export interface AntigravityModelDefinition {
+  rawId: string;
+  label: string;
+  description: string;
+  isDefault?: boolean;
+}
+
+/**
+ * Shipped verified default models for Antigravity (agy CLI).
+ */
+export const DEFAULT_ANTIGRAVITY_MODELS: readonly AntigravityModelDefinition[] = Object.freeze([
+  {
+    rawId: 'gemini-3.8-flash-high',
+    label: 'Gemini 3.8 Flash (High)',
+    description: 'Fast, high-capability model with deep reasoning',
+    isDefault: true,
+  },
+  {
+    rawId: 'gemini-3.8-flash-medium',
+    label: 'Gemini 3.8 Flash (Medium)',
+    description: 'Balanced speed and reasoning depth for everyday tasks',
+  },
+  {
+    rawId: 'gemini-3.8-flash-low',
+    label: 'Gemini 3.8 Flash (Low)',
+    description: 'Fast responses with lighter reasoning',
+  },
+  {
+    rawId: 'gemini-3.7-flash-high',
+    label: 'Gemini 3.7 Flash (High)',
+    description: 'High-capability reasoning model',
+  },
+  {
+    rawId: 'gemini-3.7-flash-medium',
+    label: 'Gemini 3.7 Flash (Medium)',
+    description: 'Balanced reasoning model',
+  },
+  {
+    rawId: 'gemini-3.7-flash-low',
+    label: 'Gemini 3.7 Flash (Low)',
+    description: 'Fast responses with light reasoning',
+  },
+  {
+    rawId: 'gemini-3.6-flash-high',
+    label: 'Gemini 3.6 Flash (High)',
+    description: 'Previous-generation flash model (high)',
+  },
+  {
+    rawId: 'gemini-3.6-flash-medium',
+    label: 'Gemini 3.6 Flash (Medium)',
+    description: 'Previous-generation flash model (medium)',
+  },
+  {
+    rawId: 'gemini-3.6-flash-low',
+    label: 'Gemini 3.6 Flash (Low)',
+    description: 'Previous-generation flash model (low)',
+  },
+  {
+    rawId: 'gemini-3.1-pro-high',
+    label: 'Gemini 3.1 Pro (High)',
+    description: 'Pro model with extended reasoning depth',
+  },
+  {
+    rawId: 'gemini-3.1-pro-low',
+    label: 'Gemini 3.1 Pro (Low)',
+    description: 'Fast responses from pro model',
+  },
+  {
+    rawId: 'claude-sonnet-4-6',
+    label: 'Claude Sonnet 4.6 (Thinking)',
+    description: 'Claude model hosted in Antigravity',
+  },
+  {
+    rawId: 'claude-opus-4-6-thinking',
+    label: 'Claude Opus 4.6 (Thinking)',
+    description: 'Opus model with thinking in Antigravity',
+  },
+  {
+    rawId: 'gpt-oss-120b-medium',
+    label: 'GPT-OSS 120B (Medium)',
+    description: 'Open source 120B model in Antigravity',
+  },
+]);
+
+/**
+ * Checks whether a model identifier or name looks like an Antigravity model.
+ */
+export function looksLikeAntigravityModel(modelId: string): boolean {
+  const normalized = modelId.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+  if (normalized.startsWith('gemini-') || normalized.startsWith(ANTIGRAVITY_MODEL_PREFIX)) {
+    return true;
+  }
+  return DEFAULT_ANTIGRAVITY_MODELS.some(
+    m => m.rawId.toLowerCase() === normalized || m.label.toLowerCase() === normalized,
+  );
+}
+
 export function isAntigravityModelSelectionId(value: string): boolean {
   return decodeAntigravityModelSelectionId(value) !== null;
 }
 
 export function toAntigravityRuntimeModelId(value: string): string {
-  return decodeAntigravityModelSelectionId(value) ?? value;
+  const decoded = decodeAntigravityModelSelectionId(value);
+  if (decoded) {
+    const matched = DEFAULT_ANTIGRAVITY_MODELS.find(
+      m => m.label.toLowerCase() === decoded.toLowerCase() || m.rawId.toLowerCase() === decoded.toLowerCase(),
+    );
+    return matched ? matched.rawId : decoded;
+  }
+
+  const trimmed = value.trim();
+  const otherDecoded = decodeProviderModelSelectionId(trimmed);
+  if (otherDecoded && otherDecoded.providerId !== ANTIGRAVITY_PROVIDER_ID) {
+    return trimmed;
+  }
+
+  const matched = DEFAULT_ANTIGRAVITY_MODELS.find(
+    m => m.label.toLowerCase() === trimmed.toLowerCase() || m.rawId.toLowerCase() === trimmed.toLowerCase(),
+  );
+  return matched ? matched.rawId : trimmed;
 }
 
 export function normalizeAntigravityManualModelId(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
+

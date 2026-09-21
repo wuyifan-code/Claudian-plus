@@ -20,6 +20,16 @@ import { appendEditorContext } from '../../../utils/editor';
  * capability (`supportsImageAttachments: false`), and the feature layer keeps
  * the attachment path disabled for this provider.
  */
+export const ANTIGRAVITY_SYSTEM_GUIDANCE = `
+[System Guidance: Headless Execution Environment]
+You are running non-interactively via \`agy --print\` inside Obsidian Claudian Plus.
+- Synchronous Completion: There is no background task daemon. Do not spawn background tasks, cron schedules, or subagents. Ending your turn with active background tasks terminates them immediately.
+- No Interim Placeholders: Never output interim placeholder messages (such as "I am analyzing...", "正在为你检索，稍候...") and end your turn without the actual complete answer.
+- Efficient File Operations: Prefer native built-in tools (\`find_by_name\`, \`grep_search\`, \`list_dir\`, \`view_file\`) over shell scripts or custom python scripts. They execute instantly, return structured data, and never time out.
+- Command Limits: If using \`run_command\`, always set \`WaitMsBeforeAsync: 10000\` and keep commands targeted so they complete synchronously within 10 seconds.
+- Output: Deliver your full, comprehensive analysis, results, or changes directly before ending the turn.
+`.trim();
+
 export function buildAntigravityPrompt(
   request: ChatTurnRequest,
   _conversationHistory: ChatMessage[] = [],
@@ -47,6 +57,10 @@ export function buildAntigravityPrompt(
     if (ambientXml) {
       prompt = `${prompt}\n\n${ambientXml}`;
     }
+  }
+
+  if (prompt) {
+    prompt = `${prompt}\n\n${ANTIGRAVITY_SYSTEM_GUIDANCE}`;
   }
 
   return prompt;

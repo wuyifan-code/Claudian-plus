@@ -1242,3 +1242,91 @@ describe('Obsidian CLI path integration', () => {
     expect(segments).toContain(path.join('/home/test', '.local', 'bin'));
   });
 });
+describe('resolveSystemProxyEnvironment & parseWindowsProxyServerString', () => {
+  describe('parseWindowsProxyServerString', () => {
+    it('parses host:port into http and https proxy URLs', () => {
+      const result = env.parseWindowsProxyServerString('127.0.0.1:7897');
+      expect(result).toEqual({
+        httpProxy: 'http://127.0.0.1:7897',
+        httpsProxy: 'http://127.0.0.1:7897',
+      });
+    });
+
+    it('handles prefixed urls', () => {
+      const result = env.parseWindowsProxyServerString('http://127.0.0.1:7890');
+      expect(result).toEqual({
+        httpProxy: 'http://127.0.0.1:7890',
+        httpsProxy: 'http://127.0.0.1:7890',
+      });
+    });
+
+    it('parses protocol-specific proxy strings', () => {
+      const result = env.parseWindowsProxyServerString('http=127.0.0.1:8080;https=127.0.0.1:8443');
+      expect(result).toEqual({
+        httpProxy: 'http://127.0.0.1:8080',
+        httpsProxy: 'http://127.0.0.1:8443',
+      });
+    });
+
+    it('returns empty object for empty or whitespace string', () => {
+      expect(env.parseWindowsProxyServerString('')).toEqual({});
+      expect(env.parseWindowsProxyServerString('   ')).toEqual({});
+    });
+  });
+
+  describe('resolveSystemProxyEnvironment', () => {
+    it('returns empty when explicit proxy is already present in baseEnv', () => {
+      const result = env.resolveSystemProxyEnvironment({ HTTP_PROXY: 'http://custom:1234' });
+      expect(result).toEqual({});
+    });
+
+    it('resolves system proxy from registry when enabled', () => {
+      const mockQuery = () => `
+HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings
+    ProxyEnable    REG_DWORD    0x1
+HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings
+    ProxyServer    REG_SZ    127.0.0.1:7897
+`;
+      const result = env.resolveSystemProxyEnvironment({}, {
+        queryRegistry: mockQuery,
+        forceRefresh: true,
+      });
+
+      expect(result).toEqual({
+        HTTP_PROXY: 'http://127.0.0.1:7897',
+        http_proxy: 'http://127.0.0.1:7897',
+        HTTPS_PROXY: 'http://127.0.0.1:7897',
+        https_proxy: 'http://127.0.0.1:7897',
+        ALL_PROXY: 'http://127.0.0.1:7897',
+        all_proxy: 'http://127.0.0.1:7897',
+      });
+    });
+
+    it('returns empty when ProxyEnable is 0', () => {
+      const mockQuery = () => `
+HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings
+    ProxyEnable    REG_DWORD    0x0
+HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings
+    ProxyServer    REG_SZ    127.0.0.1:7897
+`;
+      const result = env.resolveSystemProxyEnvironment({}, {
+        queryRegistry: mockQuery,
+        forceRefresh: true,
+      });
+
+      expect(result).toEqual({});
+    });
+
+    it('returns empty when registry query throws', () => {
+      const mockQuery = () => {
+        throw new Error('Command failed');
+      };
+      const result = env.resolveSystemProxyEnvironment({}, {
+        queryRegistry: mockQuery,
+        forceRefresh: true,
+      });
+
+      expect(result).toEqual({});
+    });
+  });
+});
