@@ -52,7 +52,7 @@ async function writeCacheFileRaw(vaultPath: string, conversationId: string, cont
 
 describe('AntigravityHistoryStore path resolution', () => {
   it('resolves the cache file inside the vault-relative antigravity sessions root', () => {
-    const vaultPath = path.join('D:', 'vaults', 'demo');
+    const vaultPath = path.resolve('vaults', 'demo');
     const root = resolveAntigravityCacheRoot(vaultPath);
     expect(root).toBe(path.join(vaultPath, '.claudian-plus', 'providers', 'antigravity', 'sessions'));
 
@@ -81,7 +81,7 @@ describe('AntigravityHistoryStore path resolution', () => {
     'id with space',
   ])('rejects the hostile conversation id %j', (conversationId) => {
     expect(() => buildAntigravityCacheFileName(conversationId)).toThrow(AntigravityHistoryPathError);
-    expect(() => resolveAntigravityCacheFile('D:\\vaults\\demo', conversationId)).toThrow(
+    expect(() => resolveAntigravityCacheFile(path.resolve('vaults', 'demo'), conversationId)).toThrow(
       AntigravityHistoryPathError,
     );
   });
