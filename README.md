@@ -229,7 +229,7 @@ Claudian Plus is built upon two upstream open-source projects:
 
 ## 💡 Community & Follow
 
-> **致力于探索解决问题的极简方式 (Committed to exploring minimalist ways to solve problems)**
+> **在递归中遇见更深的自己 (Discovering a deeper self within recursion)**
 
 If you encounter any issues, have questions, or want to explore feature ideas:
 

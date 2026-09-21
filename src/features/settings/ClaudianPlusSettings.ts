@@ -1820,8 +1820,8 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
     const quoteBox = aboutCard.createDiv({ cls: 'claudian-plus-about-quote' });
     quoteBox.setText(featureCopy(
       this.plugin.settings.locale,
-      '致力于探索解决问题的极简方式',
-      'Committed to exploring minimalist ways to solve problems.'
+      '在递归中遇见更深的自己',
+      'Discovering a deeper self within recursion.'
     ));
 
     const followSection = aboutCard.createDiv({ cls: 'claudian-plus-about-follow' });
