@@ -37,6 +37,7 @@
 @import "./toolbar/service-tier-toggle.css";
 @import "./toolbar/external-context.css";
 @import "./toolbar/mcp-selector.css";
+@import "./toolbar/interrupt-button.css";
 
 /* Features */
 @import "./features/file-context.css";
@@ -60,8 +61,8 @@
 @import "./modals/canvas-neighbors.css";
 
 /* Settings */
-@import "./settings/tree-shell.css";
 @import "./settings/base.css";
+@import "./settings/tree-shell.css";
 @import "./settings/env-snippets.css";
 @import "./settings/slash-settings.css";
 @import "./settings/mcp-settings.css";
@@ -72,6 +73,7 @@
 @import "./settings/claude-services.css";
 @import "./settings/provider-model-picker.css";
 @import "./settings/mind-settings.css";
+@import "./settings/security.css";
 
 
 /* Accessibility */

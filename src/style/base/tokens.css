@@ -1,7 +1,8 @@
 /* Semantic tokens mapped to Obsidian theme variables.
    Modules must reference these instead of hard-coded values, so community
    themes re-skin the plugin automatically. Scoped like variables.css. */
-.claudian-plus-container {
+.claudian-plus-container,
+.claudian-plus-settings {
   /* Surfaces */
   --claudian-plus-surface-primary: var(--background-primary);
   --claudian-plus-surface-secondary: var(--background-secondary);

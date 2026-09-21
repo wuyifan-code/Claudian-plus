@@ -134,6 +134,27 @@ describe('ClaudianPlusSettingTab Shell', () => {
     expect(plugin.settings.settingsLastCategory).toBe('appearance');
   });
 
+  it('renders provider pages inside the tiered segmented subnav with active items', () => {
+    plugin.settings.settingsLastCategory = 'providers:codex';
+    (plugin.settings as any).codexEnabled = true;
+    const container = createMockEl();
+    Object.defineProperty(tab, 'containerEl', { value: container });
+
+    tab.display();
+
+    const subnav = container.querySelector('.claudian-plus-settings-subnav');
+    const providerPage = container.querySelector('[data-category-id="providers:codex"]');
+    const providerGroup = container.querySelector('[data-category-id="providers"]');
+
+    expect(subnav).not.toBeNull();
+    expect(subnav?.contains(providerPage)).toBe(true);
+    expect(providerPage?.tagName).toBe('BUTTON');
+    expect(providerPage?.hasClass('claudian-plus-settings-subnav-item')).toBe(true);
+    expect(providerPage?.hasClass('is-active')).toBe(true);
+    expect(providerPage?.getAttribute('aria-current')).toBe('page');
+    expect(providerGroup?.hasClass('is-active')).toBe(true);
+  });
+
   it('filters tree with search input and resets on Escape', () => {
     const container = createMockEl();
     Object.defineProperty(tab, 'containerEl', { value: container });

@@ -24,9 +24,12 @@
 
 .claudian-plus-sessions-search-icon {
   position: absolute;
-  left: 8px;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
+  justify-content: center;
   pointer-events: none;
   color: var(--text-faint);
 }
@@ -38,8 +41,7 @@
 
 .claudian-plus-sessions-search-input {
   width: 100%;
-  padding-left: 28px;
-  padding-right: 8px;
+  padding: 0 10px 0 30px !important;
   height: 28px;
   font-size: 12px;
   border-radius: var(--claudian-plus-radius-xs);

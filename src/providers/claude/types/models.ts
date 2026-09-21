@@ -27,9 +27,9 @@ export const DEFAULT_CLAUDE_MODELS: { value: ClaudeModel; label: string; descrip
   }));
 
 /** Effort levels for adaptive thinking models. */
-export type EffortLevel = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+export type EffortLevel = 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra';
 
-const EFFORT_LEVEL_VALUES: EffortLevel[] = ['low', 'medium', 'high', 'xhigh', 'max'];
+const EFFORT_LEVEL_VALUES: EffortLevel[] = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'];
 
 export const EFFORT_LEVELS: { value: EffortLevel; label: string }[] =
   EFFORT_LEVEL_VALUES.map(value => ({
@@ -131,14 +131,43 @@ export function supportsXHighEffort(model: string): boolean {
   );
 }
 
+/**
+ * Whether the model supports the `ultra` effort level. Known Claude models use
+ * their versioned capability boundary (Opus 4.8+, Fable).
+ */
+export function supportsUltraEffort(model: string): boolean {
+  const normalized = normalizeModelId(model);
+  const aliasTier = resolveClaudeModelTierAlias(normalized);
+  if (aliasTier) {
+    return getClaudeModelTierDefinition(aliasTier).aliasSupportsUltra;
+  }
+
+  const versionedModel = parseVersionedClaudeModel(normalized);
+  if (!versionedModel) {
+    return false;
+  }
+  const definition = getClaudeModelTierDefinition(versionedModel.tier);
+  if (!definition.versionedUltraFrom) {
+    return false;
+  }
+  return isVersionAtLeast(
+    versionedModel.major,
+    versionedModel.minor,
+    definition.versionedUltraFrom,
+  );
+}
+
 /** Clamp stored effort values to what the selected model actually supports. */
 export function normalizeEffortLevel(
   model: string,
   effortLevel: unknown,
 ): EffortLevel {
   const allowsXHigh = supportsXHighEffort(model);
+  const allowsUltra = supportsUltraEffort(model);
   const isSupported = EFFORT_LEVELS.some((level) =>
-    level.value === effortLevel && (allowsXHigh || level.value !== 'xhigh')
+    level.value === effortLevel
+    && (allowsXHigh || level.value !== 'xhigh')
+    && (allowsUltra || level.value !== 'ultra')
   );
 
   if (isSupported) {

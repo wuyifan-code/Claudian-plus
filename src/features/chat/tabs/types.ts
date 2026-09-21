@@ -22,6 +22,7 @@ import type { ImageContextManager } from '../ui/ImageContext';
 import type {
   ContextUsageMeter,
   ExternalContextSelector,
+  InterruptButton,
   McpServerSelector,
   ModelSelector,
   ModeSelector,
@@ -142,6 +143,7 @@ export interface TabUIComponents {
   contextUsageMeter: ContextUsageMeter | null;
   statusPanel: StatusPanel | null;
   navigationSidebar: NavigationSidebar | null;
+  interruptButton: InterruptButton | null;
 }
 
 /**

@@ -382,6 +382,38 @@ describe('normalizeAntigravityEvent — tools', () => {
       { type: 'notice', content: 'Antigravity sent a tool step without a usable tool_info payload.', level: 'warning' },
     ]);
   });
+
+  it('emits an error tool_result when a tool step reports state ERROR', () => {
+    const state = createAntigravityEventNormalizationState({ turnIndex: 1 });
+    const chunks = normalizeAntigravityEvent(
+      {
+        event: 'step_update',
+        step_update: {
+          conversation_id: 'c1',
+          step_index: 3,
+          state: 'ERROR',
+          step_type: 'tool',
+          tool_info: { name: 'view_file', parameters: { file_path: 'secret.txt' } },
+        },
+      },
+      state,
+    );
+    expect(chunks).toEqual([
+      {
+        type: 'tool_use',
+        id: 'agy:c1:turn1:step3',
+        name: 'view_file',
+        input: { file_path: 'secret.txt' },
+      },
+      {
+        type: 'tool_result',
+        id: 'agy:c1:turn1:step3',
+        content: 'Tool execution failed or was denied',
+        isError: true,
+        toolUseResult: { name: 'view_file', parameters: { file_path: 'secret.txt' } },
+      },
+    ]);
+  });
 });
 
 describe('normalizeAntigravityEvent — terminal handling and usage', () => {
@@ -529,4 +561,80 @@ describe('normalizeAntigravityEvent — terminal handling and usage', () => {
     ).toEqual([]);
     expect(getAntigravityAccumulatedText(state)).toBe('');
   });
+
+  it('emits a warning notice when result is empty and actions were denied', () => {
+    const state = createAntigravityEventNormalizationState({ turnIndex: 0 });
+    const chunks = normalizeAntigravityEvent(
+      {
+        event: 'result',
+        result: {
+          conversation_id: 'c1',
+          status: 'SUCCESS',
+          response: '',
+          denied_actions: [{ tool_name: 'view_file' }],
+        },
+      },
+      state,
+    );
+    expect(chunks).toEqual([
+      {
+        type: 'notice',
+        content: 'Antigravity finished with no output because 1 tool call(s) were auto-denied by permission policy. Enable auto-approve tools in settings to allow tool execution.',
+        level: 'warning',
+      },
+    ]);
+  });
+
+  it('emits a warning notice when tool output indicates a background task was spawned', () => {
+    const state = createAntigravityEventNormalizationState({ turnIndex: 0 });
+    const chunks = normalizeAntigravityEvent(
+      {
+        event: 'step_update',
+        step_update: {
+          conversation_id: 'c1',
+          step_index: 2,
+          state: 'DONE',
+          step_type: 'tool',
+          tool_info: {
+            name: 'run_command',
+            parameters: { CommandLine: 'python slow.py' },
+            output: 'Tool is running as a background task with task id: c1/task-36',
+          },
+        },
+      },
+      state,
+    );
+    expect(chunks).toHaveLength(3);
+    expect(chunks[0]).toMatchObject({ type: 'tool_use' });
+    expect(chunks[1]).toMatchObject({ type: 'tool_result' });
+    expect(chunks[2]).toMatchObject({
+      type: 'notice',
+      content: expect.stringContaining('background'),
+      level: 'warning',
+    });
+  });
+
+  it('formats actionable advice when an error result indicates network or proxy failure', () => {
+    const state = createAntigravityEventNormalizationState({ turnIndex: 0 });
+    const chunks = normalizeAntigravityEvent(
+      {
+        event: 'result',
+        result: {
+          conversation_id: 'c1',
+          status: 'ERROR',
+          response: '',
+          error: 'Eligibility check failed: Post "https://daily-cloudcode-pa.googleapis.com/v1internal:loadCodeAssist": EOF',
+        },
+      },
+      state,
+    );
+    expect(chunks).toEqual([
+      {
+        type: 'error',
+        content: expect.stringContaining('daily-cloudcode-pa.googleapis.com'),
+      },
+    ]);
+    expect((chunks[0] as { content: string }).content).toContain('proxy');
+  });
 });
+

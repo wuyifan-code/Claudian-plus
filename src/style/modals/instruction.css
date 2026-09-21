@@ -2,7 +2,7 @@
 
 /* Instruction Confirm Modal */
 .claudian-plus-instruction-modal {
-  max-width: 500px;
+  width: min(520px, 92vw);
 }
 
 .claudian-plus-instruction-section {
@@ -17,109 +17,126 @@
 }
 
 .claudian-plus-instruction-original {
-  padding: 10px 12px;
+  padding: 8px 10px;
   background: var(--background-secondary);
   border-radius: var(--claudian-plus-radius-sm);
   font-size: 13px;
   color: var(--text-muted);
-  font-style: italic;
+  font-style: normal;
   white-space: pre-wrap;
 }
 
 .claudian-plus-instruction-refined {
-  padding: 12px;
-  background: var(--background-primary-alt);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--claudian-plus-radius-sm);
+  padding: 12px 0;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--background-modifier-border);
+  border-radius: 0;
+  font-family: var(--font-text);
   font-size: 14px;
   color: var(--text-normal);
-  line-height: 1.5;
+  line-height: 1.6;
   white-space: pre-wrap;
 }
 
 .claudian-plus-instruction-clarification {
-  padding: 12px;
-  background: var(--background-primary-alt);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--claudian-plus-radius-sm);
+  padding: 12px 0;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--background-modifier-border);
+  border-radius: 0;
+  font-family: var(--font-text);
   font-size: 14px;
   color: var(--text-normal);
-  line-height: 1.5;
+  line-height: 1.6;
   white-space: pre-wrap;
 }
 
 .claudian-plus-instruction-edit-container {
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .claudian-plus-instruction-edit-textarea {
   width: 100%;
   padding: 10px 12px;
+  font-family: var(--font-text);
   font-size: 14px;
   line-height: 1.5;
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--claudian-plus-radius-sm);
-  background: var(--background-primary);
+  background: var(--background-modifier-form-field);
   color: var(--text-normal);
   resize: vertical;
   min-height: 80px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .claudian-plus-instruction-edit-textarea:focus {
   outline: none;
   border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 1px var(--interactive-accent);
 }
 
 .claudian-plus-instruction-response-textarea {
   width: 100%;
   padding: 10px 12px;
+  font-family: var(--font-text);
   font-size: 14px;
   line-height: 1.5;
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--claudian-plus-radius-sm);
-  background: var(--background-primary);
+  background: var(--background-modifier-form-field);
   color: var(--text-normal);
   resize: vertical;
   min-height: 60px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .claudian-plus-instruction-response-textarea:focus {
   outline: none;
   border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 1px var(--interactive-accent);
 }
 
 .claudian-plus-instruction-buttons {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
-  margin-top: 16px;
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--background-modifier-border);
 }
 
 .claudian-plus-instruction-btn {
-  padding: 8px 16px;
+  padding: 6px 14px;
   font-size: 13px;
-  border: none;
+  border: 1px solid transparent;
   border-radius: var(--claudian-plus-radius-sm);
   cursor: pointer;
   font-weight: 500;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
 }
 
 .claudian-plus-instruction-reject-btn {
-  background: var(--background-modifier-border);
-  color: var(--text-normal);
+  background: transparent;
+  border-color: var(--background-modifier-border);
+  color: var(--text-muted);
 }
 
 .claudian-plus-instruction-reject-btn:hover {
-  background: var(--background-modifier-border-hover);
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
 }
 
 .claudian-plus-instruction-edit-btn {
-  background: var(--background-modifier-border);
+  background: transparent;
+  border-color: var(--background-modifier-border);
   color: var(--text-normal);
 }
 
 .claudian-plus-instruction-edit-btn:hover {
-  background: var(--background-modifier-border-hover);
+  background: var(--background-modifier-hover);
+  border-color: var(--background-modifier-border-hover);
 }
 
 .claudian-plus-instruction-accept-btn {

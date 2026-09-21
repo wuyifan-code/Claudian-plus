@@ -57,6 +57,10 @@ export interface BuildAntigravityLaunchSpecParams {
   printTimeout?: string | null;
   mode?: AntigravityLaunchMode;
   env?: NodeJS.ProcessEnv;
+  /** Workspace directories added to the CLI via --add-dir. */
+  addDirs?: string[];
+  /** When true, allows --dangerously-skip-permissions for headless tool execution. */
+  allowDangerouslySkipPermissions?: boolean;
 }
 
 export interface AntigravityLaunchSpec {
@@ -67,6 +71,7 @@ export interface AntigravityLaunchSpec {
   mode: AntigravityLaunchMode;
   /** Conversation bound via `--conversation`, or null for a fresh session. */
   conversationId: string | null;
+  allowDangerouslySkipPermissions?: boolean;
 }
 
 /**
@@ -74,10 +79,16 @@ export interface AntigravityLaunchSpec {
  * array (fail-closed: even a prompt whose entire value equals a forbidden
  * token is rejected) before any spawn happens.
  */
-export function assertNoForbiddenAntigravityFlags(args: readonly string[]): void {
+export function assertNoForbiddenAntigravityFlags(
+  args: readonly string[],
+  options?: { allowDangerouslySkipPermissions?: boolean },
+): void {
   for (const arg of args) {
     const name = arg.split('=', 1)[0] ?? arg;
-    if (ANTIGRAVITY_FORBIDDEN_FLAGS.includes(name)) {
+    if (name === '-c' || name === '--continue') {
+      throw new AntigravityLaunchSpecError(`forbidden Antigravity flag in launch arguments: ${name}`);
+    }
+    if (name === '--dangerously-skip-permissions' && !options?.allowDangerouslySkipPermissions) {
       throw new AntigravityLaunchSpecError(`forbidden Antigravity flag in launch arguments: ${name}`);
     }
   }
@@ -160,8 +171,24 @@ export function buildAntigravityLaunchSpec(
   if (model) {
     args.push('--model', model);
   }
+  if (params.allowDangerouslySkipPermissions) {
+    args.push('--dangerously-skip-permissions');
+  }
+  if (params.addDirs && params.addDirs.length > 0) {
+    for (const dir of params.addDirs) {
+      const trimmed = dir?.trim();
+      if (trimmed) {
+        if (trimmed.startsWith('-')) {
+          throw new AntigravityLaunchSpecError(`Antigravity launch spec: add-dir must not start with '-'`);
+        }
+        args.push('--add-dir', trimmed);
+      }
+    }
+  }
 
-  assertNoForbiddenAntigravityFlags(args);
+  assertNoForbiddenAntigravityFlags(args, {
+    allowDangerouslySkipPermissions: params.allowDangerouslySkipPermissions,
+  });
 
   return {
     args,
@@ -170,5 +197,6 @@ export function buildAntigravityLaunchSpec(
     env: params.env ?? process.env,
     mode,
     conversationId,
+    allowDangerouslySkipPermissions: params.allowDangerouslySkipPermissions,
   };
 }

@@ -2,6 +2,7 @@ export interface MockElement {
   tagName: string;
   children: MockElement[];
   parentNode: MockElement | null;
+  parentElement: MockElement | null;
   style: Record<string, string>;
   dataset: Record<string, string>;
   scrollTop: number;
@@ -317,6 +318,8 @@ export function createMockEl(tag = 'div'): any {
       return el;
     },
     get firstChild() { return children[0] || null; },
+    get parentElement() { return element.parentNode; },
+    set parentElement(val: any) { element.parentNode = val; },
     remove() {
       const parent = element.parentNode;
       if (!parent) return;

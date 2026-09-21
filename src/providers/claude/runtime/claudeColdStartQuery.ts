@@ -122,9 +122,9 @@ export async function runColdStartQuery(
   if (!config.thinking?.disabled) {
     const effortLevel = resolveEffortLevel(selectedModel, settings.effortLevel);
     options.thinking = { type: 'adaptive' };
-    // SDK runtime accepts `xhigh` on Opus 4.7+, Sonnet 5+, and Fable, and silently
-    // falls back to `high` elsewhere, but its type definition lags our local EffortLevel.
-    options.effort = effortLevel;
+    // SDK runtime accepts `xhigh` on Opus 4.7+, Sonnet 5+, and Fable, and `ultra`
+    // on Opus 4.8+ and Fable, but its type definition lags our local EffortLevel.
+    options.effort = effortLevel as unknown as typeof options.effort;
   }
 
   const agentQuery = await loadClaudeAgentQuery();

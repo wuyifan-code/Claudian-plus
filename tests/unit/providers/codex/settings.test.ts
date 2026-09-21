@@ -139,6 +139,7 @@ describe('codex settings', () => {
       defaultReasoningEffort: 'low',
       supportedReasoningEfforts: [
         { value: 'low', description: 'Fast' },
+        { value: 'ultra', description: 'Automatic task delegation' },
       ],
     });
 

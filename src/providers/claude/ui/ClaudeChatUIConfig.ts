@@ -22,6 +22,7 @@ import {
   getContextWindowSize,
   normalizeEffortLevel,
   normalizeLegacyClaudeModelAlias,
+  supportsUltraEffort,
   supportsXHighEffort,
 } from '../types/models';
 
@@ -52,9 +53,13 @@ export const claudeChatUIConfig: ProviderChatUIConfig = {
 
   getReasoningOptions(model: string, _settings: Record<string, unknown>): ProviderReasoningOption[] {
     const runtimeModel = toClaudeRuntimeModelId(model);
-    const levels = supportsXHighEffort(runtimeModel)
-      ? EFFORT_LEVELS
-      : EFFORT_LEVELS.filter(e => e.value !== 'xhigh');
+    const allowsXHigh = supportsXHighEffort(runtimeModel);
+    const allowsUltra = supportsUltraEffort(runtimeModel);
+    const levels = EFFORT_LEVELS.filter(e => {
+      if (e.value === 'xhigh' && !allowsXHigh) return false;
+      if (e.value === 'ultra' && !allowsUltra) return false;
+      return true;
+    });
     return levels.map(e => ({ value: e.value, label: e.label }));
   },
 

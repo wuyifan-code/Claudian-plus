@@ -209,6 +209,13 @@ export class ClaudianPlusView extends ItemView {
     }
   }
 
+  /** Refreshes permission toggle status on all tabs. */
+  refreshPermissionToggle(): void {
+    for (const tab of this.tabManager?.getAllTabs() ?? []) {
+      tab.ui.permissionToggle?.updateDisplay();
+    }
+  }
+
   async onOpen() {
     const span = StartupProfiler.start('view-open');
     try {

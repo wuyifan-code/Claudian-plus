@@ -308,6 +308,11 @@ jest.mock('@/features/chat/ui/InputToolbar', () => ({
       mcpServerSelector: mockMcpServerSelector,
       permissionToggle: mockPermissionToggle,
       serviceTierToggle: mockServiceTierToggle,
+      interruptButton: {
+        updateDisplay: jest.fn(),
+        setVisible: jest.fn(),
+        destroy: jest.fn(),
+      },
     };
   }),
 }));
@@ -1398,7 +1403,7 @@ describe('Tab - Event Wiring', () => {
 
       wireTabInputEvents(tab, options.plugin);
 
-      expect(tab.dom.eventCleanups.length).toBe(4); // keydown, input, drag/drop, scroll
+      expect(tab.dom.eventCleanups.length).toBe(5); // keydown, content keydown, input, drag/drop, scroll
     });
 
     it('owns auto-scroll debounce timers with the messages window and cancels handle zero', () => {

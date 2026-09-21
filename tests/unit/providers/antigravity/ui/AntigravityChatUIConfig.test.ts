@@ -14,24 +14,26 @@ function createSettingsBag(overrides: Record<string, unknown> = {}): Record<stri
 }
 
 describe('AntigravityChatUIConfig', () => {
-  describe('model options (manual model id is the only source)', () => {
-    it('offers no model options until a manual model id is configured', () => {
-      expect(antigravityChatUIConfig.getModelOptions(createSettingsBag())).toEqual([]);
-      expect(antigravityChatUIConfig.getModelOptions({})).toEqual([]);
+  describe('model options', () => {
+    it('offers verified default Gemini models when no manual model id is configured', () => {
+      const options = antigravityChatUIConfig.getModelOptions(createSettingsBag());
+      expect(options.length).toBeGreaterThan(0);
+      expect(options.some(opt => opt.value === 'antigravity/gemini-3.8-flash-high')).toBe(true);
+      expect(options.some(opt => opt.value === 'antigravity/gemini-3.8-flash-low')).toBe(true);
     });
 
-    it('offers the encoded manual model id when configured', () => {
+    it('offers the encoded manual model id at the top when configured', () => {
+      const customId = 'custom-gemini-experimental';
       const options = antigravityChatUIConfig.getModelOptions(
-        createSettingsBag({ manualModelId: MANUAL_MODEL_ID }),
+        createSettingsBag({ manualModelId: customId }),
       );
 
-      expect(options).toEqual([
-        {
-          description: 'Manual model id from provider settings',
-          label: MANUAL_MODEL_ID,
-          value: ENCODED_MANUAL_MODEL_ID,
-        },
-      ]);
+      expect(options[0]).toEqual({
+        description: 'Manual model id from provider settings',
+        label: customId,
+        value: `antigravity/${customId}`,
+      });
+      expect(options.some(opt => opt.value === 'antigravity/gemini-3.8-flash-high')).toBe(true);
     });
 
     it('pins selections that existing sessions already use', () => {
@@ -43,10 +45,9 @@ describe('AntigravityChatUIConfig', () => {
         ...createSettingsBag({ manualModelId: MANUAL_MODEL_ID }),
       });
 
-      expect(options.map(option => option.value)).toEqual([
-        ENCODED_MANUAL_MODEL_ID,
-        OTHER_ANTIGRAVITY_MODEL_ID,
-      ]);
+      const values = options.map(option => option.value);
+      expect(values).toContain(ENCODED_MANUAL_MODEL_ID);
+      expect(values).toContain(OTHER_ANTIGRAVITY_MODEL_ID);
     });
 
     it('never claims models owned by other providers', () => {
@@ -56,15 +57,18 @@ describe('AntigravityChatUIConfig', () => {
         ...createSettingsBag(),
       });
 
-      expect(options).toEqual([]);
+      const values = options.map(option => option.value);
+      expect(values).not.toContain('openai-codex/gpt-5');
+      expect(values).not.toContain('claude-code/claude-sonnet-4');
     });
   });
 
   describe('model ownership', () => {
-    it('owns only antigravity-namespaced selections', () => {
+    it('owns antigravity-namespaced and gemini selections', () => {
       expect(antigravityChatUIConfig.ownsModel(ENCODED_MANUAL_MODEL_ID, createSettingsBag())).toBe(true);
       expect(antigravityChatUIConfig.ownsModel(OTHER_ANTIGRAVITY_MODEL_ID, createSettingsBag())).toBe(true);
-      expect(antigravityChatUIConfig.ownsModel(MANUAL_MODEL_ID, createSettingsBag())).toBe(false);
+      expect(antigravityChatUIConfig.ownsModel(MANUAL_MODEL_ID, createSettingsBag())).toBe(true);
+      expect(antigravityChatUIConfig.ownsModel('Gemini 3.8 Flash (High)', createSettingsBag())).toBe(true);
       expect(antigravityChatUIConfig.ownsModel('openai-codex/gpt-5', createSettingsBag())).toBe(false);
       expect(antigravityChatUIConfig.ownsModel('claude-code/claude-sonnet-4', createSettingsBag())).toBe(false);
       expect(antigravityChatUIConfig.ownsModel('', createSettingsBag())).toBe(false);
@@ -72,15 +76,17 @@ describe('AntigravityChatUIConfig', () => {
 
     it('treats every antigravity selection as a provider default model', () => {
       expect(antigravityChatUIConfig.isDefaultModel(ENCODED_MANUAL_MODEL_ID)).toBe(true);
-      expect(antigravityChatUIConfig.isDefaultModel(MANUAL_MODEL_ID)).toBe(false);
+      expect(antigravityChatUIConfig.isDefaultModel(MANUAL_MODEL_ID)).toBe(true);
       expect(antigravityChatUIConfig.isDefaultModel('openai-codex/gpt-5')).toBe(false);
     });
   });
 
   describe('default model', () => {
-    it('has no default model until a manual model id is configured', () => {
-      expect(antigravityChatUIConfig.getDefaultModel?.(createSettingsBag()) ?? null).toBeNull();
-      expect(antigravityChatUIConfig.getDefaultModel?.({} as Record<string, unknown>) ?? null).toBeNull();
+    it('defaults to gemini-3.8-flash-high when no manual model is configured', () => {
+      expect(antigravityChatUIConfig.getDefaultModel?.(createSettingsBag()) ?? null)
+        .toBe('antigravity/gemini-3.8-flash-high');
+      expect(antigravityChatUIConfig.getDefaultModel?.({} as Record<string, unknown>) ?? null)
+        .toBe('antigravity/gemini-3.8-flash-high');
     });
 
     it('defaults to the encoded manual model id once configured', () => {
@@ -161,7 +167,7 @@ describe('AntigravityChatUIConfig', () => {
       expect(antigravityChatUIConfig.normalizeModelVariant(ENCODED_MANUAL_MODEL_ID, createSettingsBag()))
         .toBe(ENCODED_MANUAL_MODEL_ID);
       expect(antigravityChatUIConfig.normalizeModelVariant(MANUAL_MODEL_ID, createSettingsBag()))
-        .toBe(MANUAL_MODEL_ID);
+        .toBe(ENCODED_MANUAL_MODEL_ID);
       expect(antigravityChatUIConfig.normalizeModelVariant('openai-codex/gpt-5', createSettingsBag()))
         .toBe('openai-codex/gpt-5');
     });
@@ -181,5 +187,12 @@ describe('AntigravityChatUIConfig', () => {
   it('round-trips the manual model id through the shared selection encoding', () => {
     // Guards against encoding drift with the core selection map.
     expect(encodeAntigravityModelSelectionId(MANUAL_MODEL_ID)).toBe(ENCODED_MANUAL_MODEL_ID);
+  });
+
+  it('provides the official Gemini / Antigravity SVG icon', () => {
+    const icon = antigravityChatUIConfig.getProviderIcon?.();
+    expect(icon).toBeDefined();
+    expect(icon).toHaveProperty('path');
+    expect(icon?.viewBox).toBe('0 0 24 24');
   });
 });

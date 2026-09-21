@@ -1,18 +1,37 @@
 /* Quick Agent Input Modal */
 .claudian-plus-quick-input-hint {
-  font-size: var(--font-smallest);
+  font-size: var(--font-ui-smaller);
   color: var(--text-muted);
   margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.claudian-plus-quick-input-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 10px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--claudian-plus-radius-sm);
+  background: var(--background-modifier-form-field);
+  color: var(--text-normal);
+  resize: vertical;
+  font-family: var(--font-text);
+  font-size: 14px;
+  line-height: 1.5;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.claudian-plus-quick-input-textarea:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 1px var(--interactive-accent);
 }
 
 .claudian-plus-quick-input-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 12px;
-}
-
-.claudian-plus-quick-input-textarea {
-  width: 100%;
-  font-family: var(--font-monospace);
+  margin-top: 16px;
+  padding-top: 10px;
+  border-top: 1px solid var(--background-modifier-border);
 }

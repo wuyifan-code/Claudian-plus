@@ -22,6 +22,10 @@
     "rewind": "되감기"
   },
   "chat": {
+    "interrupt": {
+      "label": "중지",
+      "tooltip": "생성 중지 (Esc)"
+    },
     "rewind": {
       "confirmMessage": "이 시점으로 되감으시겠습니까? 이 메시지 이후의 파일 변경 사항이 되돌려집니다. 수동으로 또는 bash를 통해 편집된 파일에는 영향을 미치지 않습니다.",
       "confirmMessageConversationOnly": "대화를 이 시점으로 되감으시겠습니까? 파일 변경 사항은 유지됩니다.",
@@ -80,6 +84,14 @@
     "readingMode": {
       "on": "읽기 모드 켜기",
       "off": "읽기 모드 끄기"
+    },
+    "toolGroup": {
+      "calls": "{count}개 도구 호출",
+      "callSingle": "1개 도구 호출",
+      "ariaLabel": "도구 호출 그룹",
+      "statusAllSuccess": "모든 도구가 성공적으로 완료되었습니다",
+      "statusHasErrors": "일부 도구에서 오류가 발생했습니다",
+      "statusBlocked": "일부 도구가 차단되었습니다"
     },
     "view": {
       "chat": "대화",
@@ -689,6 +701,28 @@
       },
       "header": "Codex 하위 에이전트",
       "noAgents": "Vault에 Codex 하위 에이전트가 없습니다. +를 클릭해 만드세요."
+    },
+    "security": {
+      "title": "보안 및 권한",
+      "desc": "도구 실행 보안 규칙, 승인 프로토콜 및 영구 승인된 권한을 구성합니다.",
+      "permissionMode": {
+        "name": "기본 권한 모드",
+        "desc": "도구 호출(파일 수정, bash 명령 실행)에 확인이 필요한지 제어합니다.",
+        "normal": "일반 / 안전 모드 (확인 요청)",
+        "yolo": "YOLO 모드 (확인 없이 자동 승인)"
+      },
+      "approvedActions": {
+        "title": "승인된 권한",
+        "desc": "영구적으로 승인된 작업 및 도구. 세션 중 확인을 요청하지 않습니다.",
+        "empty": "아직 승인된 작업이 없습니다. 항상 허용을 클릭하면 규칙이 여기에 표시됩니다.",
+        "clearAll": "모두 지우기",
+        "clearAllConfirm": "영구적으로 승인된 모든 권한을 지우시겠습니까?",
+        "remove": "제거"
+      },
+      "notice": {
+        "title": "보안 프로토콜 및 샌드박스 경계",
+        "desc": "에이전트 도구 작업은 로컬 사용자 환경 권한으로 실행됩니다. 신뢰할 수 없는 볼트, 스크립트 또는 미확인 프롬프트를 열 때는 일반/안전 모드를 활성화된 상태로 유지하세요."
+      }
     }
   }
 }

@@ -575,4 +575,44 @@ describe('CodexChatUIConfig', () => {
       expect(codexChatUIConfig.getServiceTierToggle!(settings)).toBeNull();
     });
   });
+
+  describe('getReasoningOptions ultra support', () => {
+    it('includes Ultra for Sol models from discovered catalog when supported', () => {
+      const settings = withDiscoveredModels({ model: 'gpt-5.6-sol' });
+      const config = settings.providerConfigs as { codex: { discoveredModels: any[] } };
+      config.codex.discoveredModels = [{
+        model: 'gpt-5.6-sol',
+        displayName: 'GPT-5.6-Sol',
+        description: 'Latest',
+        supportedReasoningEfforts: [
+          { value: 'low', description: 'Fast responses' },
+          { value: 'max', description: 'Maximum reasoning' },
+          { value: 'ultra', description: 'Automatic task delegation' },
+        ],
+        defaultReasoningEffort: 'low',
+        serviceTiers: [],
+        defaultServiceTier: null,
+        inputModalities: ['text', 'image'],
+        isDefault: true,
+      }];
+      const options = codexChatUIConfig.getReasoningOptions('gpt-5.6-sol', settings);
+      expect(options.some(o => o.value === 'ultra')).toBe(true);
+    });
+
+    it('does not include Ultra for Luna models from discovered catalog', () => {
+      const settings = withDiscoveredModels({ model: 'gpt-5.6-luna' });
+      const options = codexChatUIConfig.getReasoningOptions('gpt-5.6-luna', settings);
+      expect(options.some(o => o.value === 'ultra')).toBe(false);
+    });
+
+    it('includes Ultra for undiscovered Sol fallback models', () => {
+      const options = codexChatUIConfig.getReasoningOptions('gpt-5.6-sol', {});
+      expect(options.some(o => o.value === 'ultra')).toBe(true);
+    });
+
+    it('does not include Ultra for undiscovered general fallback models', () => {
+      const options = codexChatUIConfig.getReasoningOptions('gpt-5.6-terra', {});
+      expect(options.some(o => o.value === 'ultra')).toBe(false);
+    });
+  });
 });

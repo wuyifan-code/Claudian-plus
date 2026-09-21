@@ -34,7 +34,7 @@ interface DragState {
 }
 
 /**
- * TabBar renders minimal numbered badge navigation with drag reorder,
+ * TabBar renders titled conversation navigation with drag reorder,
  * middle-click close, and overflow dropdown.
  */
 export class TabBar {
@@ -56,6 +56,7 @@ export class TabBar {
   /** Builds the tab bar UI. */
   private build(): void {
     this.containerEl.addClass('claudian-plus-tab-badges');
+    this.containerEl.setAttribute('role', 'tablist');
     this.containerEl.addEventListener('scroll', this.handleScroll);
   }
 
@@ -100,20 +101,22 @@ export class TabBar {
       stateClass = 'claudian-plus-tab-badge-streaming';
     }
 
-    const isTitleExpanded = this.expandedTitleTabIds.has(item.id);
-    const badgeEl = this.containerEl.createDiv({
+    const badgeEl = this.containerEl.createEl('button', {
       cls: [
         'claudian-plus-tab-badge',
         stateClass,
-        isTitleExpanded ? 'claudian-plus-tab-badge-expanded' : '',
       ].filter(Boolean).join(' '),
       text: this.getBadgeLabel(item),
+      attr: {
+        type: 'button',
+        role: 'tab',
+        'aria-selected': String(item.isActive),
+      },
     });
 
     // Obsidian uses aria-label for hover tooltips here; adding title causes duplicate tooltip text.
     badgeEl.setAttribute('aria-label', item.title);
     badgeEl.setAttribute('data-provider', item.providerId);
-    badgeEl.setAttribute('data-title-expanded', isTitleExpanded ? 'true' : 'false');
     badgeEl.setAttribute('data-tab-id', item.id);
 
     // Click handler to switch tab
@@ -132,20 +135,6 @@ export class TabBar {
         this.callbacks.onTabClose(item.id);
       }
     });
-
-    badgeEl.addEventListener('dblclick', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.toggleBadgeTitle(item, badgeEl);
-    });
-
-    // Right-click to close (if allowed)
-    if (item.canClose) {
-      badgeEl.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        this.callbacks.onTabClose(item.id);
-      });
-    }
 
     // Pointer events for drag-to-reorder
     let dragState: DragState | null = null;
@@ -229,11 +218,10 @@ export class TabBar {
     const isOverflowing = this.containerEl.scrollWidth > this.containerEl.clientWidth || items.length > 5;
     if (!isOverflowing || items.length <= 1) return;
 
-    const overflowBtn = this.containerEl.createDiv({
+    const overflowBtn = this.containerEl.createEl('button', {
       cls: 'claudian-plus-tab-overflow-btn',
+      attr: { type: 'button' },
     });
-    overflowBtn.setAttribute('role', 'button');
-    overflowBtn.setAttribute('tabindex', '0');
     overflowBtn.setAttribute('aria-label', 'All tabs');
     setIcon(overflowBtn, 'chevron-down');
 
@@ -295,25 +283,7 @@ export class TabBar {
     }
   }
 
-  private toggleBadgeTitle(item: TabBarItem, badgeEl: HTMLElement): void {
-    if (this.expandedTitleTabIds.has(item.id)) {
-      this.expandedTitleTabIds.delete(item.id);
-    } else {
-      this.expandedTitleTabIds.add(item.id);
-    }
-
-    const isTitleExpanded = this.expandedTitleTabIds.has(item.id);
-    badgeEl.textContent = this.getBadgeLabel(item);
-    badgeEl.toggleClass('claudian-plus-tab-badge-expanded', isTitleExpanded);
-    badgeEl.setAttribute('data-title-expanded', isTitleExpanded ? 'true' : 'false');
-    this.callbacks.onTitleExpansionChanged?.(this.getExpandedTitleTabIds());
-  }
-
   private getBadgeLabel(item: TabBarItem): string {
-    if (!this.expandedTitleTabIds.has(item.id)) {
-      return String(item.index);
-    }
-
     return this.truncateExpandedTitle(item.title);
   }
 

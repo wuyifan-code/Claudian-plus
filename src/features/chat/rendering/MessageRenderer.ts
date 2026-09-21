@@ -48,6 +48,7 @@ import {
 } from './SubagentRenderer';
 import { renderStoredThinkingBlock } from './ThinkingBlockRenderer';
 import { renderStoredToolCall } from './ToolCallRenderer';
+import { renderStoredToolGroup } from './ToolGroupRenderer';
 import { renderStoredWriteEdit } from './WriteEditRenderer';
 
 export interface RenderContentOptions {
@@ -808,7 +809,8 @@ export class MessageRenderer {
 
     if (msg.contentBlocks && msg.contentBlocks.length > 0) {
       const renderedToolIds = new Set<string>();
-      for (const block of msg.contentBlocks) {
+      for (let i = 0; i < msg.contentBlocks.length; i++) {
+        const block = msg.contentBlocks[i];
         if (block.type === 'thinking') {
           renderStoredThinkingBlock(
             contentEl,
@@ -829,10 +831,32 @@ export class MessageRenderer {
           this.addTextCopyButton(textEl, normalized.content);
           this.addActionableResponseBar(textEl, normalized.content);
         } else if (block.type === 'tool_use') {
-          const toolCall = msg.toolCalls?.find(tc => tc.id === block.toolId);
-          if (toolCall) {
-            this.renderToolCall(contentEl, toolCall, msg);
-            renderedToolIds.add(toolCall.id);
+          const contiguousTools: ToolCallInfo[] = [];
+          let j = i;
+          while (j < msg.contentBlocks.length && msg.contentBlocks[j].type === 'tool_use') {
+            const blockToolId = (msg.contentBlocks[j] as { toolId: string }).toolId;
+            const tc = msg.toolCalls?.find(t => t.id === blockToolId);
+            if (tc && this.shouldRenderToolCall(tc)) {
+              contiguousTools.push(tc);
+            }
+            j++;
+          }
+          i = j - 1;
+
+          if (contiguousTools.length >= 2) {
+            renderStoredToolGroup(
+              contentEl,
+              contiguousTools,
+              (container, tc) => this.renderToolCall(container, tc, msg),
+              { collapsedByDefault: true }
+            );
+            for (const tc of contiguousTools) {
+              renderedToolIds.add(tc.id);
+            }
+          } else if (contiguousTools.length === 1) {
+            const tc = contiguousTools[0];
+            this.renderToolCall(contentEl, tc, msg);
+            renderedToolIds.add(tc.id);
           }
         } else if (block.type === 'context_compacted') {
           const boundaryEl = contentEl.createDiv({ cls: 'claudian-plus-compact-boundary' });
@@ -850,10 +874,22 @@ export class MessageRenderer {
 
       // Defensive fallback: preserve tool visibility when contentBlocks/toolCalls drift on reload.
       if (msg.toolCalls && msg.toolCalls.length > 0) {
-        for (const toolCall of msg.toolCalls) {
-          if (renderedToolIds.has(toolCall.id)) continue;
-          this.renderToolCall(contentEl, toolCall, msg);
-          renderedToolIds.add(toolCall.id);
+        const remainingTools = msg.toolCalls.filter(
+          tc => !renderedToolIds.has(tc.id) && this.shouldRenderToolCall(tc)
+        );
+        if (remainingTools.length >= 2) {
+          renderStoredToolGroup(
+            contentEl,
+            remainingTools,
+            (container, tc) => this.renderToolCall(container, tc, msg),
+            { collapsedByDefault: true }
+          );
+          for (const tc of remainingTools) {
+            renderedToolIds.add(tc.id);
+          }
+        } else if (remainingTools.length === 1) {
+          this.renderToolCall(contentEl, remainingTools[0], msg);
+          renderedToolIds.add(remainingTools[0].id);
         }
       }
     } else {
@@ -868,9 +904,17 @@ export class MessageRenderer {
           this.addActionableResponseBar(textEl, normalized.content);
         }
       }
-      if (msg.toolCalls) {
-        for (const toolCall of msg.toolCalls) {
-          this.renderToolCall(contentEl, toolCall, msg);
+      if (msg.toolCalls && msg.toolCalls.length > 0) {
+        const renderableTools = msg.toolCalls.filter(tc => this.shouldRenderToolCall(tc));
+        if (renderableTools.length >= 2) {
+          renderStoredToolGroup(
+            contentEl,
+            renderableTools,
+            (container, tc) => this.renderToolCall(container, tc, msg),
+            { collapsedByDefault: true }
+          );
+        } else if (renderableTools.length === 1) {
+          this.renderToolCall(contentEl, renderableTools[0], msg);
         }
       }
     }

@@ -54,7 +54,11 @@ describe('StartupProfiler', () => {
 
   it('copies report to clipboard', async () => {
     const writeText = jest.fn().mockResolvedValue(undefined);
-    Object.assign(global.navigator, { clipboard: { writeText } });
+    Object.defineProperty(global.navigator, 'clipboard', {
+      value: { writeText },
+      writable: true,
+      configurable: true,
+    });
 
     StartupProfiler.recordCount('session-metadata-count', 5);
     const copied = await StartupProfiler.copyToClipboard();
@@ -66,8 +70,10 @@ describe('StartupProfiler', () => {
   });
 
   it('returns false when clipboard write fails', async () => {
-    Object.assign(global.navigator, {
-      clipboard: { writeText: jest.fn().mockRejectedValue(new Error('denied')) },
+    Object.defineProperty(global.navigator, 'clipboard', {
+      value: { writeText: jest.fn().mockRejectedValue(new Error('denied')) },
+      writable: true,
+      configurable: true,
     });
 
     const copied = await StartupProfiler.copyToClipboard();

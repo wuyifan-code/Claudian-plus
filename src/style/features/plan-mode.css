@@ -1,15 +1,16 @@
 /* Plan Mode - inline cards for EnterPlanMode / ExitPlanMode */
 
 .claudian-plus-plan-approval-inline {
-  font-family: var(--font-monospace);
-  font-size: 12px;
+  font-family: var(--font-interface);
+  font-size: var(--font-ui-small);
   outline: none;
 }
 
 .claudian-plus-plan-inline-title {
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-muted);
-  padding: 6px 10px 0;
+  padding: 6px 8px 0;
+  font-size: var(--font-ui-smaller);
 }
 
 /* ── Plan content preview ────────────────────────── */
@@ -17,13 +18,14 @@
 .claudian-plus-plan-content-preview {
   max-height: 300px;
   overflow-y: auto;
-  margin: 6px 10px 8px;
-  padding: 8px 10px;
+  margin: 6px 8px 8px;
+  padding: 10px 12px;
   border: 1px solid var(--background-modifier-border);
-  border-radius: var(--claudian-plus-radius-xs);
+  border-radius: var(--claudian-plus-radius-sm);
   background: var(--background-primary);
-  font-size: 12px;
-  line-height: 1.5;
+  font-family: var(--font-text);
+  font-size: 13px;
+  line-height: 1.6;
   color: var(--text-normal);
 }
 
@@ -50,6 +52,7 @@
 .claudian-plus-plan-content-preview h4 {
   margin: 8px 0 4px;
   font-size: 13px;
+  font-weight: 600;
 }
 
 .claudian-plus-plan-content-preview ul,
@@ -63,24 +66,33 @@
 }
 
 .claudian-plus-plan-content-preview code {
+  font-family: var(--font-monospace);
   font-size: 11px;
+  padding: 1px 4px;
+  border-radius: var(--claudian-plus-radius-xs);
+  background: var(--background-secondary);
 }
 
 .claudian-plus-plan-content-text {
   white-space: pre-wrap;
   word-break: break-word;
+  font-family: var(--font-text);
+}
+
+.claudian-plus-plan-content-text code {
   font-family: var(--font-monospace);
 }
 
 /* ── Permissions list ──────────────────────────── */
 
 .claudian-plus-plan-permissions {
-  padding: 4px 10px 8px;
+  padding: 4px 8px 8px;
 }
 
 .claudian-plus-plan-permissions-label {
   color: var(--text-muted);
-  font-weight: 600;
+  font-weight: 500;
+  font-size: var(--font-ui-smaller);
   margin-bottom: 4px;
 }
 
@@ -98,6 +110,6 @@
 /* ── Plan mode input border ──────────────────────── */
 
 .claudian-plus-input-wrapper.claudian-plus-input-plan-mode {
-  --claudian-plus-input-wrapper-border-color: var(--claudian-plus-success);
-  --claudian-plus-input-wrapper-box-shadow: 0 0 0 1px var(--claudian-plus-success);
+  --claudian-plus-input-wrapper-border-color: var(--background-modifier-border);
+  --claudian-plus-input-wrapper-box-shadow: none;
 }

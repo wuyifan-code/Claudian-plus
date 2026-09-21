@@ -7,21 +7,29 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 30px 20px;
-  gap: 18px;
-  min-height: 280px;
+  padding: 32px 20px;
+  gap: 16px;
+  min-height: 200px;
   user-select: none;
 }
 
 .claudian-plus-welcome-cube-wrapper {
   position: relative;
-  width: 200px;
-  height: 200px;
+  width: 180px;
+  height: 180px;
+  flex: 0 0 180px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: grab;
   touch-action: none;
+  order: 1;
+  opacity: 0.9;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.claudian-plus-welcome-cube-wrapper:hover {
+  opacity: 1;
 }
 
 .claudian-plus-welcome-cube-wrapper:active {
@@ -45,10 +53,14 @@
 }
 
 .claudian-plus-welcome-greeting {
-  font-family: 'Cormorant Garamond', 'Songti SC', Georgia, serif;
-  font-size: 30px;
-  font-weight: 400;
+  font-family: var(--font-interface);
+  font-size: 16px;
+  font-weight: var(--font-medium, 500);
   color: var(--text-normal);
   letter-spacing: -0.01em;
-  opacity: 0.9;
+  line-height: 1.5;
+  max-width: 280px;
+  overflow-wrap: break-word;
+  order: 2;
+  opacity: 0.92;
 }

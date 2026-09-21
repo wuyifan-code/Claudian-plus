@@ -1,5 +1,6 @@
 /* Brand & semantic color tokens & design system variables */
-.claudian-plus-container {
+.claudian-plus-container,
+.claudian-plus-settings {
   /* Provider Brands */
   --claudian-plus-brand: #D97757;
   --claudian-plus-brand-rgb: 217, 119, 87;
@@ -11,6 +12,10 @@
   --claudian-plus-brand-opencode-rgb: 99, 102, 241;
   --claudian-plus-brand-pi: #8b5cf6;
   --claudian-plus-brand-pi-rgb: 139, 92, 246;
+  --claudian-plus-brand-antigravity: #1a73e8;
+  --claudian-plus-brand-antigravity-rgb: 26, 115, 232;
+  --claudian-plus-brand-kimi: #2563eb;
+  --claudian-plus-brand-kimi-rgb: 37, 99, 235;
 
   /* Status Colors: Obsidian semantics with fallback to the previous palette.
      The -rgb triplets stay literal (Obsidian exposes no rgb status vars) for
@@ -23,6 +28,10 @@
   --claudian-plus-warning-rgb: 245, 158, 11;
   --claudian-plus-compact: var(--color-blue, #3b82f6);
   --claudian-plus-compact-rgb: 59, 130, 246;
+
+  /* Stop / Interrupt Button (Minimalist Modern Round Icon) */
+  --claudian-plus-stop-btn-bg: #ffffff;
+  --claudian-plus-stop-btn-fg: #111111;
 
   /* Design System Radii */
   --claudian-plus-radius-xs: 4px;
@@ -44,18 +53,29 @@
   --claudian-plus-transition-bounce: 240ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-body.theme-light .claudian-plus-container {
+body.theme-light .claudian-plus-container,
+body.theme-light .claudian-plus-settings,
+.theme-light.claudian-plus-container,
+.theme-light .claudian-plus-container,
+.theme-light .claudian-plus-settings {
   --claudian-plus-brand-codex: #059669;
   --claudian-plus-brand-codex-rgb: 5, 150, 105;
   --claudian-plus-brand-opencode: #4f46e5;
   --claudian-plus-brand-opencode-rgb: 79, 70, 229;
   --claudian-plus-brand-pi: #7c3aed;
   --claudian-plus-brand-pi-rgb: 124, 58, 237;
+  --claudian-plus-brand-antigravity: #1a73e8;
+  --claudian-plus-brand-antigravity-rgb: 26, 115, 232;
+  --claudian-plus-brand-kimi: #2563eb;
+  --claudian-plus-brand-kimi-rgb: 37, 99, 235;
 
   --claudian-plus-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
   --claudian-plus-shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
   --claudian-plus-shadow-lg: 0 10px 24px -4px rgba(0, 0, 0, 0.12), 0 4px 8px -2px rgba(0, 0, 0, 0.06);
   --claudian-plus-shadow-glass: 0 8px 24px 0 rgba(0, 0, 0, 0.08);
+
+  --claudian-plus-stop-btn-bg: #111111;
+  --claudian-plus-stop-btn-fg: #ffffff;
 }
 
 /* Active-provider alias for single-provider surfaces. */
@@ -77,4 +97,14 @@ body.theme-light .claudian-plus-container {
 .claudian-plus-container[data-provider="pi"] {
   --claudian-plus-brand: var(--claudian-plus-brand-pi);
   --claudian-plus-brand-rgb: var(--claudian-plus-brand-pi-rgb);
+}
+
+.claudian-plus-container[data-provider="antigravity"] {
+  --claudian-plus-brand: var(--claudian-plus-brand-antigravity);
+  --claudian-plus-brand-rgb: var(--claudian-plus-brand-antigravity-rgb);
+}
+
+.claudian-plus-container[data-provider="kimi"] {
+  --claudian-plus-brand: var(--claudian-plus-brand-kimi);
+  --claudian-plus-brand-rgb: var(--claudian-plus-brand-kimi-rgb);
 }

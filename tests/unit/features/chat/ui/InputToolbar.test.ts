@@ -4,11 +4,13 @@ import {
 } from '@test/helpers/codexModels';
 import { createMockEl } from '@test/helpers/mockElement';
 
+import { ProviderRegistry } from '@/core/providers/ProviderRegistry';
 import type { UsageInfo } from '@/core/types';
 import {
   ContextUsageMeter,
   createInputToolbar,
   ExternalContextSelector,
+  InterruptButton,
   McpServerSelector,
   ModelSelector,
   ModeSelector,
@@ -160,6 +162,7 @@ function createMockUIConfig() {
 
 function createMockCallbacks(overrides: Record<string, any> = {}) {
   return {
+    onInterrupt: jest.fn(),
     onModelChange: jest.fn().mockResolvedValue(undefined),
     onModeChange: jest.fn().mockResolvedValue(undefined),
     onThinkingBudgetChange: jest.fn().mockResolvedValue(undefined),
@@ -387,6 +390,44 @@ describe('ModelSelector', () => {
     expect(options.find((o: any) => o.querySelector('.claudian-plus-model-option-label')?.textContent === 'Sonnet')).toBeUndefined();
     expect(parentEl.querySelector('.claudian-plus-model-label')?.textContent).toBe('Opus 1M');
   });
+
+  it('should not inject synthetic Reasoning badge into models', () => {
+    const uiConfig = createMockUIConfig();
+    uiConfig.isAdaptiveReasoningModel.mockReturnValue(true);
+    callbacks.getUIConfig.mockReturnValue(uiConfig);
+    selector.renderOptions();
+
+    const badges = parentEl.querySelectorAll('.claudian-plus-model-badge');
+    expect(Array.from(badges).some((b: any) => (b as any).textContent === 'Reasoning')).toBe(false);
+  });
+
+  it('should not fall back to active provider icon for models in a different provider group', () => {
+    jest.spyOn(ProviderRegistry, 'getProviderDisplayName').mockReturnValue('Claude');
+    const activeProviderIcon = { viewBox: '0 0 24 24', path: 'M0 0' };
+    const customProviderIcon = { viewBox: '0 0 24 24', path: 'M1 1' };
+    const mixedModels = [
+      { value: 'active-m1', label: 'Active M1', group: 'Claude' },
+      { value: 'other-m1', label: 'Other M1', group: 'OtherProvider' },
+      { value: 'other-m2', label: 'Other M2', group: 'OtherProvider', providerIcon: customProviderIcon },
+    ];
+
+    const uiConfig = createMockUIConfig();
+    (uiConfig as any).getProviderIcon = jest.fn().mockReturnValue(activeProviderIcon);
+    uiConfig.getModelOptions.mockReturnValue(mixedModels);
+    callbacks.getUIConfig.mockReturnValue(uiConfig);
+    callbacks.getSettings.mockReturnValue({
+      model: 'active-m1',
+      thinkingBudget: 'low',
+      permissionMode: 'normal',
+    });
+
+    selector.renderOptions();
+
+    const options = parentEl.querySelectorAll('.claudian-plus-model-option');
+    expect(options[0].querySelector('.claudian-plus-model-provider-icon')).not.toBeNull();
+    expect(options[1].querySelector('.claudian-plus-model-provider-icon')).toBeNull();
+    expect(options[2].querySelector('.claudian-plus-model-provider-icon')).not.toBeNull();
+  });
 });
 
 describe('ModeSelector', () => {
@@ -506,6 +547,53 @@ describe('ThinkingBudgetSelector', () => {
     it('should display current effort level for Claude models', () => {
       const current = parentEl.querySelector('.claudian-plus-thinking-current');
       expect(current?.textContent).toBe('High');
+    });
+
+    it('should toggle is-open class on current element click', () => {
+      const current = parentEl.querySelector('.claudian-plus-thinking-current');
+      const gears = parentEl.querySelector('.claudian-plus-thinking-gears');
+      expect(gears?.hasClass('is-open')).toBe(false);
+
+      current?.dispatchEvent('click');
+      expect(gears?.hasClass('is-open')).toBe(true);
+
+      current?.dispatchEvent('click');
+      expect(gears?.hasClass('is-open')).toBe(false);
+    });
+
+    it('should close on option click', async () => {
+      const current = parentEl.querySelector('.claudian-plus-thinking-current');
+      const gears = parentEl.querySelector('.claudian-plus-thinking-gears');
+      current?.dispatchEvent('click');
+      expect(gears?.hasClass('is-open')).toBe(true);
+
+      const options = parentEl.querySelector('.claudian-plus-thinking-options');
+      const lowOption = options?.children?.find((c: any) => c.textContent === 'Low');
+      expect(lowOption).toBeDefined();
+
+      lowOption?.dispatchEvent('click');
+      expect(gears?.hasClass('is-open')).toBe(false);
+      expect(callbacks.onEffortLevelChange).toHaveBeenCalledWith('low');
+    });
+
+    it('should render ultra option with dedicated class and allow selection', async () => {
+      const uiConfig = createMockUIConfig();
+      uiConfig.isAdaptiveReasoningModel.mockReturnValue(true);
+      uiConfig.getReasoningOptions.mockReturnValue([
+        { value: 'low', label: 'Low' },
+        { value: 'high', label: 'High' },
+        { value: 'ultra', label: 'Ultra' },
+      ]);
+      callbacks.getUIConfig.mockReturnValue(uiConfig);
+      selector.updateDisplay();
+
+      const options = parentEl.querySelector('.claudian-plus-thinking-options');
+      const ultraOption = options?.children?.find((c: any) => c.textContent === 'Ultra');
+      expect(ultraOption).toBeDefined();
+      expect(ultraOption?.hasClass('claudian-plus-thinking-gear--ultra')).toBe(true);
+
+      ultraOption?.dispatchEvent('click');
+      expect(callbacks.onEffortLevelChange).toHaveBeenCalledWith('ultra');
     });
   });
 
@@ -1242,6 +1330,7 @@ describe('createInputToolbar', () => {
     expect(toolbar.mcpServerSelector).toBeInstanceOf(McpServerSelector);
     expect(toolbar.permissionToggle).toBeInstanceOf(PermissionToggle);
     expect(toolbar.serviceTierToggle).toBeInstanceOf(ServiceTierToggle);
+    expect(toolbar.interruptButton).toBeInstanceOf(InterruptButton);
   });
 
   it('should place the mode selector after the permission toggle in toolbar order', () => {
@@ -1254,6 +1343,81 @@ describe('createInputToolbar', () => {
     const modeIndex = parentEl.children.findIndex((child: any) => child.hasClass('claudian-plus-mode-selector'));
     expect(permissionIndex).toBeGreaterThanOrEqual(0);
     expect(modeIndex).toBeGreaterThan(permissionIndex);
-    expect(modeIndex).toBe(parentEl.children.length - 1);
+    expect(modeIndex).toBe(parentEl.children.length - 2);
+    const interruptIndex = parentEl.children.findIndex((child: any) => child.hasClass('claudian-plus-interrupt-btn-wrapper'));
+    expect(interruptIndex).toBe(parentEl.children.length - 1);
+  });
+
+  it('should close thinkingBudgetSelector when modelSelector opens and vice-versa', () => {
+    const parentEl = createMockEl();
+    const callbacks = createMockCallbacks();
+    const toolbar = createInputToolbar(parentEl, callbacks);
+
+    toolbar.thinkingBudgetSelector.open();
+    expect(parentEl.querySelector('.claudian-plus-thinking-selector')?.hasClass('is-open')).toBe(true);
+
+    toolbar.modelSelector.open();
+    expect(parentEl.querySelector('.claudian-plus-thinking-selector')?.hasClass('is-open')).toBe(false);
+    expect(parentEl.querySelector('.claudian-plus-model-selector')?.hasClass('is-open')).toBe(true);
+
+    toolbar.thinkingBudgetSelector.open();
+    expect(parentEl.querySelector('.claudian-plus-model-selector')?.hasClass('is-open')).toBe(false);
+    expect(parentEl.querySelector('.claudian-plus-thinking-selector')?.hasClass('is-open')).toBe(true);
+  });
+
+  describe('InterruptButton', () => {
+    it('should render button with stop icon and tooltip', () => {
+      const parentEl = createMockEl();
+      const callbacks = createMockCallbacks();
+      new InterruptButton(parentEl, callbacks);
+
+      const btn = parentEl.querySelector('.claudian-plus-interrupt-btn');
+      expect(btn).toBeTruthy();
+      expect(btn?.getAttribute('type')).toBe('button');
+      expect(btn?.getAttribute('title')).toBe('Stop generation (Esc)');
+      expect(parentEl.querySelector('.claudian-plus-interrupt-icon')).toBeTruthy();
+    });
+
+    it('should call onInterrupt when clicked', () => {
+      const parentEl = createMockEl();
+      const callbacks = createMockCallbacks();
+      new InterruptButton(parentEl, callbacks);
+
+      const btn = parentEl.querySelector('.claudian-plus-interrupt-btn');
+      const preventDefault = jest.fn();
+      const stopPropagation = jest.fn();
+      btn?.dispatchEvent({ type: 'click', preventDefault, stopPropagation });
+      expect(preventDefault).toHaveBeenCalled();
+      expect(stopPropagation).toHaveBeenCalled();
+      expect(callbacks.onInterrupt).toHaveBeenCalled();
+    });
+
+    it('should toggle visibility with setVisible and updateDisplay', () => {
+      const parentEl = createMockEl();
+      let isStreaming = false;
+      const callbacks = {
+        ...createMockCallbacks(),
+        isStreaming: () => isStreaming,
+      };
+      const btn = new InterruptButton(parentEl, callbacks);
+
+      const wrapper = parentEl.querySelector('.claudian-plus-interrupt-btn-wrapper');
+      expect(wrapper?.hasClass('claudian-plus-hidden')).toBe(true);
+
+      btn.setVisible(true);
+      expect(wrapper?.hasClass('claudian-plus-hidden')).toBe(false);
+
+      btn.setVisible(false);
+      expect(wrapper?.hasClass('claudian-plus-hidden')).toBe(true);
+
+      isStreaming = true;
+      btn.updateDisplay();
+      expect(wrapper?.hasClass('claudian-plus-hidden')).toBe(false);
+
+      isStreaming = false;
+      btn.updateDisplay();
+      expect(wrapper?.hasClass('claudian-plus-hidden')).toBe(true);
+    });
   });
 });
+

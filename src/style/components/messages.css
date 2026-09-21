@@ -14,7 +14,7 @@
   padding: 12px 0 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 18px;
 }
 
 /* Floating outline — reserve a gutter so text never overlaps the rail. The
@@ -60,17 +60,20 @@
 }
 
 .claudian-plus-message {
-  padding: 10px 14px;
-  border-radius: var(--claudian-plus-radius-md);
-  max-width: 95%;
+  max-width: 100%;
+  padding: 0;
   word-wrap: break-word;
 }
 
 .claudian-plus-message-user {
   position: relative;
-  background: var(--claudian-plus-surface-secondary);
   align-self: flex-end;
-  border-end-end-radius: 4px;
+  width: fit-content;
+  max-width: min(85%, 560px);
+  margin-inline-start: auto;
+  padding: 8px 11px;
+  border-radius: var(--claudian-plus-radius-md);
+  background: var(--claudian-plus-surface-secondary);
 }
 
 /* Text selection in user messages - visible highlight */
@@ -80,16 +83,15 @@
 }
 
 .claudian-plus-message-assistant {
-  background: transparent;
   align-self: stretch;
-  width: 100%;
-  max-width: 100%;
-  border-end-start-radius: 4px;
+  width: min(100%, 760px);
+  margin-inline: auto;
+  background: transparent;
   text-align: start;
 }
 
 .claudian-plus-message-content {
-  line-height: 1.5;
+  line-height: 1.62;
   user-select: text;
   -webkit-user-select: text;
   unicode-bidi: plaintext; /* Proper BiDi text handling for mixed RTL/LTR */

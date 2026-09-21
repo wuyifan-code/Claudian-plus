@@ -22,6 +22,10 @@
     "rewind": "Retroceder"
   },
   "chat": {
+    "interrupt": {
+      "label": "Parar",
+      "tooltip": "Parar geração (Esc)"
+    },
     "rewind": {
       "confirmMessage": "Retroceder até este ponto? As alterações de arquivos após esta mensagem serão revertidas. O retrocesso não afeta arquivos editados manualmente ou via bash.",
       "confirmMessageConversationOnly": "Retroceder a conversa até este ponto? As alterações de arquivos serão mantidas.",
@@ -80,6 +84,14 @@
     "readingMode": {
       "on": "Ativar modo de leitura",
       "off": "Desactivar modo de leitura"
+    },
+    "toolGroup": {
+      "calls": "{count} chamadas de ferramentas",
+      "callSingle": "1 chamada de ferramenta",
+      "ariaLabel": "Grupo de chamadas de ferramentas",
+      "statusAllSuccess": "Todas as ferramentas concluídas com sucesso",
+      "statusHasErrors": "Algumas ferramentas tiveram erros",
+      "statusBlocked": "Algumas ferramentas foram bloqueadas"
     },
     "view": {
       "chat": "Chat",
@@ -689,6 +701,28 @@
       },
       "header": "Subagentes Codex",
       "noAgents": "Não há subagentes Codex no vault. Clique em + para criar um."
+    },
+    "security": {
+      "title": "Segurança e Permissões",
+      "desc": "Configure regras de segurança de execução de ferramentas, protocolos de aprovação e permissões aprovadas permanentemente.",
+      "permissionMode": {
+        "name": "Modo de Permissão Padrão",
+        "desc": "Controla se chamadas de ferramentas (modificar arquivos, executar comandos bash) requerem confirmação.",
+        "normal": "Normal / Modo Seguro (Solicitar confirmação)",
+        "yolo": "Modo YOLO (Aprovar automaticamente sem confirmação)"
+      },
+      "approvedActions": {
+        "title": "Permissões Aprovadas",
+        "desc": "Ações e ferramentas aprovadas permanentemente. Não exigirão confirmação durante as sessões.",
+        "empty": "Nenhuma ação aprovada ainda. Clique em Sempre Permitir para que as regras apareçam aqui.",
+        "clearAll": "Limpar Tudo",
+        "clearAllConfirm": "Tem certeza de que deseja limpar todas as permissões aprovadas permanentemente?",
+        "remove": "Remover"
+      },
+      "notice": {
+        "title": "Protocolos de Segurança e Limite do Sandbox",
+        "desc": "As ações de ferramentas do agente são executadas com os privilégios do seu ambiente de usuário local. Mantenha o Modo Normal / Seguro ativado ao abrir vaults, scripts ou prompts não verificados."
+      }
     }
   }
 }

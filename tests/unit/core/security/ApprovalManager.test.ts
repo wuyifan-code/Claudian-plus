@@ -1,8 +1,12 @@
 
 import {
+  clearAllApprovedActionRules,
   getActionDescription,
   getActionPattern,
+  getApprovedActionRules,
   matchesRulePattern,
+  parseApprovedActionRule,
+  removeApprovedActionRule,
 } from '../../../../src/core/security/ApprovalManager';
 
 describe('getActionPattern', () => {
@@ -150,3 +154,62 @@ describe('matchesRulePattern', () => {
     expect(matchesRulePattern('Read', null, undefined)).toBe(true);
   });
 });
+
+describe('ApprovedActionRule helpers', () => {
+  it('parses parenthesized rules', () => {
+    const parsed = parseApprovedActionRule('Bash (npm run test)');
+    expect(parsed).toEqual({
+      raw: 'Bash (npm run test)',
+      toolName: 'Bash',
+      pattern: 'npm run test',
+    });
+  });
+
+  it('parses colon separated rules', () => {
+    const parsed = parseApprovedActionRule('npm:*');
+    expect(parsed).toEqual({
+      raw: 'npm:*',
+      toolName: 'npm',
+      pattern: '*',
+    });
+  });
+
+  it('parses bare tool rules', () => {
+    const parsed = parseApprovedActionRule('WebFetch');
+    expect(parsed).toEqual({
+      raw: 'WebFetch',
+      toolName: 'WebFetch',
+      pattern: '*',
+    });
+  });
+
+  it('loads and manages approved rules with adapter', async () => {
+    let fileContent = JSON.stringify({
+      permissions: {
+        allow: ['Bash (git status)', 'Read (src/**)'],
+      },
+    });
+
+    const mockAdapter = {
+      exists: jest.fn().mockResolvedValue(true),
+      read: jest.fn().mockImplementation(async () => fileContent),
+      write: jest.fn().mockImplementation(async (_path: string, content: string) => {
+        fileContent = content;
+      }),
+    };
+
+    const rules = await getApprovedActionRules(mockAdapter);
+    expect(rules).toHaveLength(2);
+    expect(rules[0].toolName).toBe('Bash');
+    expect(rules[1].pattern).toBe('src/**');
+
+    await removeApprovedActionRule(mockAdapter, 'Bash (git status)');
+    const parsed = JSON.parse(fileContent) as { permissions: { allow: string[] } };
+    expect(parsed.permissions.allow).toEqual(['Read (src/**)']);
+
+    await clearAllApprovedActionRules(mockAdapter);
+    const cleared = JSON.parse(fileContent) as { permissions: { allow: string[] } };
+    expect(cleared.permissions.allow).toEqual([]);
+  });
+});
+

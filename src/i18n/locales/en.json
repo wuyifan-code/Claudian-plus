@@ -22,6 +22,10 @@
     "rewind": "Rewind"
   },
   "chat": {
+    "interrupt": {
+      "label": "Stop",
+      "tooltip": "Stop generation (Esc)"
+    },
     "rewind": {
       "confirmMessage": "Rewind to this point? File changes after this message will be reverted. Rewinding does not affect files edited manually or via bash.",
       "confirmMessageConversationOnly": "Rewind conversation to this point? File changes will be kept.",
@@ -81,6 +85,14 @@
       "on": "Turn on reading mode",
       "off": "Turn off reading mode"
     },
+    "toolGroup": {
+      "calls": "{count} tool calls",
+      "callSingle": "1 tool call",
+      "ariaLabel": "Tool calls group",
+      "statusAllSuccess": "All tools completed successfully",
+      "statusHasErrors": "Some tools encountered errors",
+      "statusBlocked": "Some tools were blocked"
+    },
     "view": {
       "chat": "Chat",
       "sessions": "Sessions"
@@ -99,9 +111,9 @@
     "category": {
       "general": "General",
       "appearance": "Appearance",
-      "memory": "Memory & Consciousness",
+      "memory": "Memory",
       "providers": "Providers",
-      "agentsSkills": "Agents & Skills",
+      "agentsSkills": "Agents",
       "workspace": "Workspace",
       "advanced": "Advanced"
     },
@@ -117,6 +129,28 @@
     "setup": "Setup",
     "models": "Models",
     "experimental": "Experimental",
+    "security": {
+      "title": "Security & Permissions",
+      "desc": "Configure tool execution safety rules, approval protocols, and permanently approved permissions.",
+      "permissionMode": {
+        "name": "Default Permission Mode",
+        "desc": "Controls whether tool calls (modifying files, running bash commands) require confirmation.",
+        "normal": "Normal / Safe Mode (Prompt for confirmation)",
+        "yolo": "YOLO Mode (Auto-approve without confirmation)"
+      },
+      "approvedActions": {
+        "title": "Approved Permissions",
+        "desc": "Actions and tools that have been permanently approved (via \"Always Allow\"). These will not require prompt confirmation during sessions.",
+        "empty": "No approved actions yet. When you click \"Always Allow\" in an approval dialog, rules will appear here.",
+        "clearAll": "Clear All",
+        "clearAllConfirm": "Are you sure you want to clear all permanently approved permissions?",
+        "remove": "Remove"
+      },
+      "notice": {
+        "title": "Security Protocols & Sandbox Boundary",
+        "desc": "Agent tool actions execute with your local user environment privileges. Keep Normal / Safe Mode enabled when opening untrusted vaults, scripts, or unverified prompts."
+      }
+    },
     "userName": {
       "name": "What should Claudian Plus call you?",
       "desc": "Your name for personalized greetings (leave empty for generic greetings)"
@@ -317,7 +351,7 @@
     "safety": "Safety",
     "loadUserSettings": {
       "name": "Load user Claude settings",
-      "desc": "Load ~/.claude/settings.json. When enabled, user's Claude Code permission rules may bypass Safe mode."
+      "desc": "Load `~/.claude/settings.json`. When enabled, user's Claude Code permission rules may bypass Safe mode."
     },
     "claudeSafeMode": {
       "name": "Safe mode",
@@ -547,8 +581,8 @@
     "cliPath": {
       "name": "Claude CLI path",
       "desc": "Custom path to Claude Code CLI. Leave empty for auto-detection.",
-      "descWindows": "For the native installer, use claude.exe. For npm/pnpm/yarn or other package manager installs, use the cli-wrapper.cjs path (not claude.cmd).",
-      "descUnix": "Paste the output of \"which claude\" — works for both native and npm/pnpm/yarn installs.",
+      "descWindows": "For the native installer, use `claude.exe`. For npm/pnpm/yarn or other package manager installs, use the `cli-wrapper.cjs` path (not `claude.cmd`).",
+      "descUnix": "Paste the output of `which claude` — works for both native and npm/pnpm/yarn installs.",
       "validation": {
         "notExist": "Path does not exist",
         "isDirectory": "Path is a directory, not a file"

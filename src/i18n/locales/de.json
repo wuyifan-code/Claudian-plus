@@ -22,6 +22,10 @@
     "rewind": "Zurückspulen"
   },
   "chat": {
+    "interrupt": {
+      "label": "Stopp",
+      "tooltip": "Generierung stoppen (Esc)"
+    },
     "rewind": {
       "confirmMessage": "Zu diesem Punkt zurückspulen? Dateiänderungen nach dieser Nachricht werden rückgängig gemacht. Das Zurückspulen betrifft keine manuell oder über Bash bearbeiteten Dateien.",
       "confirmMessageConversationOnly": "Konversation zu diesem Punkt zurückspulen? Dateiänderungen bleiben erhalten.",
@@ -80,6 +84,14 @@
     "readingMode": {
       "on": "Lesemodus aktivieren",
       "off": "Lesemodus deaktivieren"
+    },
+    "toolGroup": {
+      "calls": "{count} Werkzeugaufrufe",
+      "callSingle": "1 Werkzeugaufruf",
+      "ariaLabel": "Werkzeugaufruf-Gruppe",
+      "statusAllSuccess": "Alle Werkzeuge erfolgreich ausgeführt",
+      "statusHasErrors": "Einige Werkzeuge mit Fehlern",
+      "statusBlocked": "Einige Werkzeuge blockiert"
     },
     "view": {
       "chat": "Chat",
@@ -689,6 +701,28 @@
       },
       "header": "Codex-Sub-Agenten",
       "noAgents": "Keine Codex-Sub-Agenten im Vault. Klicke auf +, um einen zu erstellen."
+    },
+    "security": {
+      "title": "Sicherheit & Berechtigungen",
+      "desc": "Werkzeugausführungs-Sicherheitsregeln, Genehmigungsprotokolle und dauerhaft genehmigte Berechtigungen konfigurieren.",
+      "permissionMode": {
+        "name": "Standard-Berechtigungsmodus",
+        "desc": "Steuert, ob Werkzeugaufrufe (Dateien ändern, Bash-Befehle ausführen) eine Bestätigung erfordern.",
+        "normal": "Normal / Sicherer Modus (Bestätigung anfordern)",
+        "yolo": "YOLO-Modus (Automatisch genehmigen ohne Bestätigung)"
+      },
+      "approvedActions": {
+        "title": "Genehmigte Berechtigungen",
+        "desc": "Dauerhaft genehmigte Aktionen und Werkzeuge. Diese erfordern keine Bestätigung während Sitzungen.",
+        "empty": "Noch keine genehmigten Aktionen. Klicken Sie auf Immer erlauben, damit Regeln hier erscheinen.",
+        "clearAll": "Alle löschen",
+        "clearAllConfirm": "Sind Sie sicher, dass Sie alle dauerhaft genehmigten Berechtigungen löschen möchten?",
+        "remove": "Entfernen"
+      },
+      "notice": {
+        "title": "Sicherheitsprotokolle & Sandbox-Grenze",
+        "desc": "Werkzeugaktionen werden mit Ihren lokalen Benutzerumgebungsrechten ausgeführt. Lassen Sie den normalen/sicheren Modus aktiviert, wenn Sie nicht vertrauenswürdige Vaults, Skripte oder ungeprüfte Prompts öffnen."
+      }
     }
   }
 }

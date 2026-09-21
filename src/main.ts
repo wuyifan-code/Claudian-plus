@@ -730,6 +730,7 @@ export default class ClaudianPlusPlugin extends Plugin {
       ...DEFAULT_CLAUDIAN_PLUS_SETTINGS,
       ...claudianPlus,
     };
+    setLocale((this.settings.locale || 'en') as Locale);
     // The memory read cache is created with the storage service, before settings
     // exist. Resolve the (user configurable) memory file path lazily so a custom
     // path is cacheable without recreating the adapter.

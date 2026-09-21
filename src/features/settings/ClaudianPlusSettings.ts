@@ -11,6 +11,12 @@ import { ProviderRegistry } from '../../core/providers/ProviderRegistry';
 import { ProviderSettingsCoordinator } from '../../core/providers/ProviderSettingsCoordinator';
 import { ProviderWorkspaceRegistry } from '../../core/providers/ProviderWorkspaceRegistry';
 import type { ProviderId } from '../../core/providers/types';
+import {
+  clearAllApprovedActionRules,
+  getApprovedActionRules,
+  removeApprovedActionRule,
+} from '../../core/security/ApprovalManager';
+import { VaultFileAdapter } from '../../core/storage/VaultFileAdapter';
 import type { ChatViewPlacement } from '../../core/types/settings';
 import { getAvailableLocales, getLocaleDisplayName, setLocale, t } from '../../i18n/i18n';
 import type { Locale, TranslationKey } from '../../i18n/types';
@@ -221,29 +227,61 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
 
   private renderTreeNode(container: HTMLElement, node: SettingsCategoryNode, isChild = false): void {
     const targetContainer = isChild && this.treeSubnavContainerEl ? this.treeSubnavContainerEl : container;
-    const isNodeActive = node.id === this.selectedCategory || (this.selectedCategory.startsWith('providers') && node.id === 'providers');
+    const isNodeActive = isChild
+      ? node.id === this.selectedCategory
+      : (node.id === this.selectedCategory || (this.selectedCategory.startsWith('providers') && node.id === 'providers'));
 
-    const itemEl = targetContainer.createDiv({
+    const itemEl = targetContainer.createEl('button', {
       cls: [
         'claudian-plus-settings-tree-item',
-        isChild ? 'claudian-plus-settings-tree-child' : '',
+        isChild ? 'claudian-plus-settings-subnav-item' : 'claudian-plus-settings-nav-item',
         isNodeActive ? 'is-active' : '',
       ].filter(Boolean).join(' '),
-      attr: { 'data-category-id': node.id },
+      attr: {
+        type: 'button',
+        'data-category-id': node.id,
+        ...(isNodeActive ? { 'aria-current': 'page' } : {}),
+      },
     });
 
-    if (node.icon) {
-      const iconEl = itemEl.createSpan();
+    if (node.icon && !isChild) {
+      const iconEl = itemEl.createSpan({ cls: 'claudian-plus-settings-nav-icon' });
       setIcon(iconEl, node.icon);
     }
 
     itemEl.createSpan({ text: node.label });
 
     itemEl.addEventListener('click', () => {
-      this.selectCategory(node.id);
+      if (node.id === 'providers' && !this.selectedCategory.startsWith('providers')) {
+        const firstChild = node.children?.[0]?.id;
+        this.selectCategory(firstChild || 'providers');
+      } else {
+        this.selectCategory(node.id);
+      }
     });
 
     this.treeItemEls.set(node.id, itemEl);
+
+    if (node.id === 'providers' && node.children && this.treeSubnavContainerEl) {
+      const isOverviewActive = this.selectedCategory === 'providers';
+      const overviewEl = this.treeSubnavContainerEl.createEl('button', {
+        cls: [
+          'claudian-plus-settings-tree-item',
+          'claudian-plus-settings-subnav-item',
+          isOverviewActive ? 'is-active' : '',
+        ].filter(Boolean).join(' '),
+        attr: {
+          type: 'button',
+          'data-category-id': 'providers',
+          ...(isOverviewActive ? { 'aria-current': 'page' } : {}),
+        },
+      });
+      overviewEl.createSpan({ text: featureCopy(this.plugin.settings.locale, '概览', 'Overview') });
+      overviewEl.addEventListener('click', () => {
+        this.selectCategory('providers');
+      });
+      this.treeItemEls.set('providers:overview', overviewEl);
+    }
 
     if (node.children) {
       for (const child of node.children) {
@@ -263,8 +301,17 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
     this.treeSubnavContainerEl?.toggleClass('claudian-plus-hidden', !isProviderCategory);
 
     for (const [id, el] of this.treeItemEls.entries()) {
-      const isActive = id === categoryId || (isProviderCategory && id === 'providers');
+      const isActive = id === 'providers:overview'
+        ? categoryId === 'providers'
+        : el.classList.contains('claudian-plus-settings-subnav-item')
+          ? id === categoryId
+          : id === categoryId || (isProviderCategory && id === 'providers');
       el.toggleClass('is-active', isActive);
+      if (isActive) {
+        el.setAttribute('aria-current', 'page');
+      } else {
+        el.removeAttribute('aria-current');
+      }
     }
 
     this.renderSelectedCategory(this.displayGeneration);
@@ -342,34 +389,58 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
     if (this.selectedCategory.startsWith('providers:')) {
       const providerId = this.selectedCategory.slice('providers:'.length);
       this.renderProviderSubpage(this.contentPaneEl, providerId, displayGeneration);
-      return;
+    } else {
+      switch (this.selectedCategory) {
+        case 'general':
+          this.renderGeneralCategory(this.contentPaneEl);
+          break;
+        case 'appearance':
+          this.renderAppearanceCategory(this.contentPaneEl);
+          break;
+        case 'memory':
+          this.renderMemoryCategory(this.contentPaneEl);
+          break;
+        case 'providers':
+          this.renderProvidersOverviewCategory(this.contentPaneEl);
+          break;
+        case 'agents-skills':
+          this.renderAgentsSkillsCategory(this.contentPaneEl);
+          break;
+        case 'workspace':
+          this.renderWorkspaceCategory(this.contentPaneEl);
+          break;
+        case 'advanced':
+          this.renderAdvancedCategory(this.contentPaneEl);
+          break;
+        default:
+          this.renderGeneralCategory(this.contentPaneEl);
+          break;
+      }
     }
 
-    switch (this.selectedCategory) {
-      case 'general':
-        this.renderGeneralCategory(this.contentPaneEl);
-        break;
-      case 'appearance':
-        this.renderAppearanceCategory(this.contentPaneEl);
-        break;
-      case 'memory':
-        this.renderMemoryCategory(this.contentPaneEl);
-        break;
-      case 'providers':
-        this.renderProvidersOverviewCategory(this.contentPaneEl);
-        break;
-      case 'agents-skills':
-        this.renderAgentsSkillsCategory(this.contentPaneEl);
-        break;
-      case 'workspace':
-        this.renderWorkspaceCategory(this.contentPaneEl);
-        break;
-      case 'advanced':
-        this.renderAdvancedCategory(this.contentPaneEl);
-        break;
-      default:
-        this.renderGeneralCategory(this.contentPaneEl);
-        break;
+    this.formatDescriptionCodeSnippets(this.contentPaneEl);
+  }
+
+  private formatDescriptionCodeSnippets(container: HTMLElement): void {
+    const descs = container.querySelectorAll('.setting-item-description');
+    for (const desc of Array.from(descs)) {
+      const text = desc.textContent || '';
+      if (text.includes('`') && !desc.querySelector('code')) {
+        const parts = text.split(/(`[^`]+`)/g);
+        if (parts.length > 1) {
+          desc.empty();
+          for (const part of parts) {
+            if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+              desc.createEl('code', {
+                cls: 'claudian-plus-inline-code',
+                text: part.slice(1, -1),
+              });
+            } else if (part) {
+              desc.appendText(part);
+            }
+          }
+        }
+      }
     }
   }
 
@@ -630,6 +701,119 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
       desc: t('settings.backgroundRequestsToday.desc'),
       targetEl: requestsTodaySetting.settingEl,
     });
+
+    this.renderSecuritySection(container);
+  }
+
+  // --- Section: Security & Permissions Protocols ---
+  private renderSecuritySection(container: HTMLElement): void {
+    const card = this.createCard(container, t('settings.security.title') || 'Security & Permissions');
+    card.addClass('claudian-plus-security-card');
+
+    const noticeEl = card.createDiv({ cls: 'claudian-plus-security-notice' });
+    noticeEl.createEl('strong', { text: t('settings.security.notice.title') || 'Security Protocols & Sandbox Boundary' });
+    noticeEl.createSpan({
+      text: t('settings.security.notice.desc')
+        || 'Agent tool actions execute with your local user environment privileges. Keep Normal / Safe Mode enabled when opening untrusted vaults, scripts, or unverified prompts.',
+    });
+
+    const permissionModeSetting = new Setting(card)
+      .setName(t('settings.security.permissionMode.name') || 'Default Permission Mode')
+      .setDesc(t('settings.security.permissionMode.desc') || 'Controls whether tool calls (modifying files, running bash commands) require confirmation.')
+      .addDropdown((dropdown) => {
+        dropdown.addOption('normal', t('settings.security.permissionMode.normal') || 'Normal / Safe Mode (Prompt for confirmation)');
+        dropdown.addOption('yolo', t('settings.security.permissionMode.yolo') || 'YOLO Mode (Auto-approve without confirmation)');
+        dropdown.setValue(this.plugin.settings.permissionMode || 'normal');
+        dropdown.onChange(async (value) => {
+          await this.plugin.mutateSettings((settings) => {
+            settings.permissionMode = value as 'normal' | 'yolo';
+          });
+          for (const view of this.plugin.getAllViews()) {
+            view.refreshPermissionToggle?.();
+          }
+        });
+      });
+
+    this.registerSearchEntry({
+      categoryId: 'general',
+      categoryLabel: 'General',
+      settingKey: 'permission-mode',
+      name: t('settings.security.permissionMode.name') || 'Default Permission Mode',
+      desc: t('settings.security.permissionMode.desc') || 'Controls whether tool calls require confirmation',
+      targetEl: permissionModeSetting.settingEl,
+    });
+
+    new Setting(card)
+      .setName(t('settings.security.approvedActions.title') || 'Approved Permissions')
+      .setDesc(t('settings.security.approvedActions.desc') || 'Actions and tools that have been permanently approved (via "Always Allow"). These will not require prompt confirmation during sessions.')
+      .setHeading();
+
+    const listContainerEl = card.createDiv({ cls: 'claudian-approved-container' });
+    listContainerEl.setText(t('common.loading') || 'Loading…');
+
+    void (async () => {
+      try {
+        const adapter = new VaultFileAdapter(this.app);
+        const allowRules = await getApprovedActionRules(adapter);
+
+        listContainerEl.empty();
+
+        if (allowRules.length === 0) {
+          const emptyEl = listContainerEl.createDiv({ cls: 'claudian-approved-empty' });
+          emptyEl.setText(
+            t('settings.security.approvedActions.empty')
+              || 'No approved actions yet. When you click "Always Allow" in an approval dialog, rules will appear here.'
+          );
+        } else {
+          const listEl = listContainerEl.createDiv({ cls: 'claudian-approved-list' });
+
+          for (const rule of allowRules) {
+            const itemEl = listEl.createDiv({ cls: 'claudian-approved-item' });
+            const infoEl = itemEl.createDiv({ cls: 'claudian-approved-item-info' });
+
+            const headerEl = infoEl.createDiv({ cls: 'claudian-approved-item-header' });
+            const toolEl = headerEl.createSpan({ cls: 'claudian-approved-item-tool' });
+            toolEl.setText(rule.toolName);
+
+            const patternEl = infoEl.createDiv({ cls: 'claudian-approved-item-pattern' });
+            patternEl.setText(rule.pattern);
+
+            const removeBtn = itemEl.createEl('button', {
+              cls: 'claudian-approved-remove-btn',
+              text: t('settings.security.approvedActions.remove') || 'Remove',
+            });
+            removeBtn.addEventListener('click', () => {
+              void (async () => {
+                await removeApprovedActionRule(adapter, rule.raw);
+                new Notice(`Removed approval rule: ${rule.raw}`);
+                this.display();
+              })();
+            });
+          }
+
+          new Setting(listContainerEl)
+            .setName(t('settings.security.approvedActions.clearAll') || 'Clear All')
+            .setDesc(t('settings.security.approvedActions.clearAllConfirm') || 'Remove all permanently approved permissions')
+            .addButton((button) =>
+              button
+                .setButtonText(t('settings.security.approvedActions.clearAll') || 'Clear All')
+                .setWarning()
+                .onClick(async () => {
+                  await clearAllApprovedActionRules(adapter);
+                  new Notice('Cleared all approved actions.');
+                  this.display();
+                })
+            );
+        }
+      } catch {
+        listContainerEl.empty();
+        const emptyEl = listContainerEl.createDiv({ cls: 'claudian-approved-empty' });
+        emptyEl.setText(
+          t('settings.security.approvedActions.empty')
+            || 'No approved actions yet. When you click "Always Allow" in an approval dialog, rules will appear here.'
+        );
+      }
+    })();
   }
 
   // --- Category: Appearance ---
@@ -1361,10 +1545,7 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
 
   // --- Category: Provider Subpage ---
   private renderProviderSubpage(container: HTMLElement, providerId: ProviderId, displayGeneration: number): void {
-    const providerName = ProviderRegistry.getProviderDisplayName(providerId);
-    const card = this.createCard(container, `${providerName} Settings`);
-    const contentArea = card.createDiv({ cls: 'claudian-plus-provider-settings-content' });
-
+    const contentArea = container.createDiv({ cls: 'claudian-plus-provider-settings-content' });
     void this.renderProviderTabContent(providerId, contentArea, displayGeneration);
   }
 
@@ -1417,6 +1598,7 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
         renderCustomContextLimits: (target, targetProviderId) =>
           this.renderCustomContextLimits(target, targetProviderId),
       });
+      this.formatDescriptionCodeSnippets(targetEl);
     } catch (error) {
       if (displayGeneration !== this.displayGeneration) return;
       targetEl.empty();
@@ -1628,13 +1810,57 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
     aboutCard.createDiv({ cls: 'claudian-plus-about-version', text: `v${this.plugin.manifest.version}` });
     aboutCard.createDiv({
       cls: 'claudian-plus-about-desc',
-      text: '以 Codex / Claude 为核心的 Obsidian 本地 AI 智能工作区与代理平台。支持多 Provider 驱动、内存与意识网络、内联代码编辑及模态控制。',
+      text: featureCopy(
+        this.plugin.settings.locale,
+        '以 Codex / Claude 为核心的 Obsidian 本地 AI 智能工作区与代理平台。支持多 Provider 驱动、内存与意识网络、内联代码编辑及模态控制。',
+        'A local AI agent and coding assistant workspace for Obsidian powered by Codex, Claude, and modern AI providers. Features provider orchestration, long-term memory, inline editing, and modal controls.'
+      ),
     });
 
-    const btnRow = aboutCard.createDiv({ cls: 'claudian-plus-sp-modal-buttons' });
-    const repoBtn = btnRow.createEl('button', { text: 'GitHub 仓库' });
+    const quoteBox = aboutCard.createDiv({ cls: 'claudian-plus-about-quote' });
+    quoteBox.setText(featureCopy(
+      this.plugin.settings.locale,
+      '致力于探索解决问题的极简方式',
+      'Committed to exploring minimalist ways to solve problems.'
+    ));
+
+    const followSection = aboutCard.createDiv({ cls: 'claudian-plus-about-follow' });
+    const followHeader = followSection.createDiv({ cls: 'claudian-plus-about-follow-title' });
+    followHeader.setText(featureCopy(this.plugin.settings.locale, '关注递归识海', 'Follow 递归识海 (Recursive Sea of Knowledge)'));
+
+    const followDesc = followSection.createDiv({ cls: 'claudian-plus-about-follow-desc' });
+    followDesc.appendText(featureCopy(this.plugin.settings.locale, '有问题欢迎提 ', 'Have questions or feedback? Open an '));
+    const issueLink = followDesc.createEl('a', {
+      text: featureCopy(this.plugin.settings.locale, 'issue', 'Issue'),
+      href: 'https://github.com/wuyifan-code/Claudian-plus/issues',
+      cls: 'claudian-plus-about-link',
+    });
+    issueLink.setAttribute('target', '_blank');
+    issueLink.setAttribute('rel', 'noopener noreferrer');
+    followDesc.appendText(featureCopy(this.plugin.settings.locale, ' 或者关注微信公众号 ', ' or follow the WeChat official account '));
+    const wxLink = followDesc.createEl('a', {
+      text: '「递归识海」',
+      href: 'https://mp.weixin.qq.com/s/m2AVQl2PdXERGmIrx4jiuA',
+      cls: 'claudian-plus-about-link',
+    });
+    wxLink.setAttribute('target', '_blank');
+    wxLink.setAttribute('rel', 'noopener noreferrer');
+    followDesc.appendText(featureCopy(this.plugin.settings.locale, ' 反馈', ' for updates and feedback.'));
+
+    const btnRow = aboutCard.createDiv({ cls: 'claudian-plus-sp-modal-buttons', attr: { style: 'margin-top: 18px; justify-content: center;' } });
+    const repoBtn = btnRow.createEl('button', {
+      text: featureCopy(this.plugin.settings.locale, 'GitHub 仓库', 'GitHub Repository'),
+    });
     repoBtn.addEventListener('click', () => {
       window.open('https://github.com/wuyifan-code/Claudian-plus', '_blank');
+    });
+
+    const wxBtn = btnRow.createEl('button', {
+      cls: 'mod-cta',
+      text: featureCopy(this.plugin.settings.locale, '公众号：递归识海', 'WeChat: 递归识海'),
+    });
+    wxBtn.addEventListener('click', () => {
+      window.open('https://mp.weixin.qq.com/s/m2AVQl2PdXERGmIrx4jiuA', '_blank');
     });
   }
 

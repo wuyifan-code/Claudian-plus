@@ -11,6 +11,11 @@ import { createAntigravityLastFailure, normalizeAntigravityLastFailure } from '.
 import { normalizeAntigravityManualModelId } from './models';
 
 export interface PersistedAntigravityProviderSettings {
+  /**
+   * Whether to automatically approve tool calls via `--dangerously-skip-permissions`
+   * in headless print mode. Default: true.
+   */
+  autoApproveTools: boolean;
   /** CLI path for the current host; empty means "use CLI resolution". */
   cliPath: string;
   /** Per-host CLI overrides. A host with no entry (or an empty one) resolves. */
@@ -47,6 +52,7 @@ export type AntigravityProviderSettings = PersistedAntigravityProviderSettings;
 export const ANTIGRAVITY_DEFAULT_TIMEOUT_MS = 120_000;
 
 export const DEFAULT_ANTIGRAVITY_PROVIDER_SETTINGS: Readonly<PersistedAntigravityProviderSettings> = Object.freeze({
+  autoApproveTools: true,
   cliPath: '',
   cliPathsByHost: {},
   diagnosticsRefreshToken: 0,
@@ -93,6 +99,7 @@ export function getAntigravityProviderSettings(
     : normalizedCliPathsByHost;
 
   return {
+    autoApproveTools: config.autoApproveTools === false ? false : true,
     cliPath: (config.cliPath as string | undefined)
       ?? DEFAULT_ANTIGRAVITY_PROVIDER_SETTINGS.cliPath,
     cliPathsByHost,
@@ -148,6 +155,9 @@ export function updateAntigravityProviderSettings(
   const next: AntigravityProviderSettings = {
     ...current,
     ...updates,
+    autoApproveTools: typeof updates.autoApproveTools === 'boolean'
+      ? updates.autoApproveTools
+      : current.autoApproveTools,
     cliPath: nextCliPath,
     cliPathsByHost: nextCliPathsByHost,
     diagnosticsRefreshToken: normalizeAntigravityDiagnosticsRefreshToken(
@@ -171,6 +181,7 @@ export function updateAntigravityProviderSettings(
   // The provider config bag is provider-owned and rewritten whole; other
   // providers' configs and unrelated top-level settings are never touched.
   setProviderConfig(settings, 'antigravity', {
+    autoApproveTools: next.autoApproveTools,
     cliPath: next.cliPath,
     cliPathsByHost: next.cliPathsByHost,
     diagnosticsRefreshToken: next.diagnosticsRefreshToken,

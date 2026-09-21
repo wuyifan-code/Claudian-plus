@@ -12,6 +12,10 @@ import {
 } from '@/features/chat/ui/textareaResize';
 
 describe('textareaResize', () => {
+  it('uses a compact base height for an empty composer', () => {
+    expect(TEXTAREA_BASE_MIN_HEIGHT).toBe(42);
+  });
+
   it('returns the base height when content exactly matches base flex allocation', () => {
     expect(calculateTextareaMinHeight({
       contentHeight: 102,
@@ -45,7 +49,8 @@ describe('textareaResize', () => {
 
     autoResizeTextarea(textarea);
 
-    expect(textarea.style.getPropertyValue('--claudian-plus-textarea-min-height')).toBe('60px');
+    expect(textarea.style.getPropertyValue('--claudian-plus-textarea-min-height'))
+      .toBe(`${TEXTAREA_BASE_MIN_HEIGHT}px`);
   });
 
   it('measures from base height so long content does not bounce', () => {

@@ -3,6 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 import type { McpServerManager } from '../../../core/mcp/McpServerManager';
+import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import type {
   ProviderCapabilities,
   ProviderChatUIConfig,
@@ -16,6 +17,7 @@ import type {
   ManagedMcpServer,
   UsageInfo,
 } from '../../../core/types';
+import { t } from '../../../i18n/i18n';
 import { appendCheckIcon, appendMcpIcon, createProviderIconSvg } from '../../../shared/icons';
 import { filterValidPaths, findConflictingPath, isDuplicatePath, isValidDirectoryPath, validateDirectoryPath } from '../../../utils/externalContext';
 import { expandHomePath, normalizePathForFilesystem } from '../../../utils/path';
@@ -53,6 +55,8 @@ export interface ToolbarCallbacks {
   onEffortLevelChange: (effort: string) => Promise<void>;
   onServiceTierChange: (serviceTier: string) => Promise<void>;
   onPermissionModeChange: (mode: string) => Promise<void>;
+  onInterrupt?: () => void;
+  isStreaming?: () => boolean;
   getSettings: () => ToolbarSettings;
   getEnvironmentVariables?: () => string;
   getUIConfig: () => ProviderChatUIConfig;
@@ -71,12 +75,17 @@ export class ModelSelector {
   private highlightedIndex = 0;
   private filteredOptions: ProviderUIOption[] = [];
   private documentClickListener: ((e: MouseEvent) => void) | null = null;
+  private onOpenCallback: (() => void) | null = null;
 
   constructor(parentEl: HTMLElement, callbacks: ToolbarCallbacks) {
     this.callbacks = callbacks;
     this.container = parentEl.createDiv({ cls: 'claudian-plus-model-selector' });
     this.render();
     this.setupGlobalListeners();
+  }
+
+  onOpen(cb: () => void) {
+    this.onOpenCallback = cb;
   }
 
   private setupGlobalListeners() {
@@ -145,6 +154,7 @@ export class ModelSelector {
   open() {
     if (this.isOpen) return;
     this.isOpen = true;
+    this.onOpenCallback?.();
     this.searchQuery = '';
     this.container.addClass('is-open');
     this.dropdownEl?.addClass('is-open');
@@ -279,7 +289,21 @@ export class ModelSelector {
         attr: { role: 'option', 'aria-selected': isSelected ? 'true' : 'false' },
       });
 
-      const icon = model.providerIcon ?? this.callbacks.getUIConfig().getProviderIcon?.();
+      const activeProviderId = this.callbacks.getCapabilities?.()?.providerId;
+      let activeProviderName = '';
+      if (activeProviderId) {
+        try {
+          activeProviderName = ProviderRegistry.getProviderDisplayName(activeProviderId);
+        } catch {
+          activeProviderName = '';
+        }
+      }
+      const isCrossProviderGroup = Boolean(
+        model.group
+          && activeProviderName
+          && model.group !== activeProviderName,
+      );
+      const icon = model.providerIcon ?? (isCrossProviderGroup ? null : this.callbacks.getUIConfig().getProviderIcon?.());
       if (icon) {
         createProviderIconSvg(icon, {
           className: 'claudian-plus-model-provider-icon',
@@ -319,14 +343,7 @@ export class ModelSelector {
   }
 
   private resolveBadges(model: ProviderUIOption): string[] {
-    const badges: string[] = [...(model.badges ?? [])];
-    const settings = this.callbacks.getSettings();
-    const uiConfig = this.callbacks.getUIConfig();
-
-    if (uiConfig.isAdaptiveReasoningModel?.(model.value, settings) && !badges.some(b => b.includes('Reasoning') || b.includes('Thinking'))) {
-      badges.push('Reasoning');
-    }
-    return badges;
+    return [...(model.badges ?? [])];
   }
 
   private getBadgeClass(badge: string): string {
@@ -495,11 +512,64 @@ export class ThinkingBudgetSelector {
   private budgetEl: HTMLElement | null = null;
   private budgetGearsEl: HTMLElement | null = null;
   private callbacks: ToolbarCallbacks;
+  private isOpen = false;
+  private onOpenCallback: (() => void) | null = null;
+  private documentClickListener: ((e: MouseEvent) => void) | null = null;
 
   constructor(parentEl: HTMLElement, callbacks: ToolbarCallbacks) {
     this.callbacks = callbacks;
     this.container = parentEl.createDiv({ cls: 'claudian-plus-thinking-selector' });
     this.render();
+    this.setupGlobalListeners();
+  }
+
+  onOpen(cb: () => void) {
+    this.onOpenCallback = cb;
+  }
+
+  open() {
+    if (this.isOpen) return;
+    this.isOpen = true;
+    this.onOpenCallback?.();
+    this.container.addClass('is-open');
+    this.effortGearsEl?.addClass('is-open');
+    this.budgetGearsEl?.addClass('is-open');
+  }
+
+  close() {
+    if (!this.isOpen) return;
+    this.isOpen = false;
+    this.container.removeClass('is-open');
+    this.effortGearsEl?.removeClass('is-open');
+    this.budgetGearsEl?.removeClass('is-open');
+  }
+
+  toggle() {
+    if (this.isOpen) {
+      this.close();
+    } else {
+      this.open();
+    }
+  }
+
+  private setupGlobalListeners() {
+    this.documentClickListener = (e: MouseEvent) => {
+      if (!this.isOpen) return;
+      const target = e.target as Node | null;
+      if (target && !this.container.contains(target)) {
+        this.close();
+      }
+    };
+    const doc = this.container.ownerDocument ?? activeDocument;
+    doc.addEventListener?.('click', this.documentClickListener);
+  }
+
+  destroy() {
+    const doc = this.container.ownerDocument ?? activeDocument;
+    if (this.documentClickListener) {
+      doc.removeEventListener?.('click', this.documentClickListener);
+      this.documentClickListener = null;
+    }
   }
 
   private render() {
@@ -523,6 +593,9 @@ export class ThinkingBudgetSelector {
   private renderEffortGears() {
     if (!this.effortGearsEl) return;
     this.effortGearsEl.empty();
+    if (this.isOpen) {
+      this.effortGearsEl.addClass('is-open');
+    }
 
     const currentEffort = this.callbacks.getSettings().effortLevel;
     const uiConfig = this.callbacks.getUIConfig();
@@ -533,11 +606,23 @@ export class ThinkingBudgetSelector {
 
     const currentEl = this.effortGearsEl.createDiv({ cls: 'claudian-plus-thinking-current' });
     currentEl.setText(currentInfo?.label || options[0]?.label || 'High');
+    if (currentEffort?.toLowerCase() === 'ultra') {
+      currentEl.addClass('is-ultra');
+    }
+    currentEl.addEventListener('click', (e) => {
+      e?.stopPropagation?.();
+      this.toggle();
+    });
 
     const optionsEl = this.effortGearsEl.createDiv({ cls: 'claudian-plus-thinking-options' });
 
     for (const effort of [...options].reverse()) {
-      const gearEl = optionsEl.createDiv({ cls: 'claudian-plus-thinking-gear' });
+      const isUltra = effort.value.toLowerCase() === 'ultra';
+      const gearEl = optionsEl.createDiv({
+        cls: isUltra
+          ? 'claudian-plus-thinking-gear claudian-plus-thinking-gear--ultra'
+          : 'claudian-plus-thinking-gear',
+      });
       gearEl.setText(effort.label);
       if (effort.description) {
         gearEl.setAttribute('title', effort.description);
@@ -548,7 +633,8 @@ export class ThinkingBudgetSelector {
       }
 
       gearEl.addEventListener('click', (e) => {
-        e.stopPropagation();
+        e?.stopPropagation?.();
+        this.close();
         runToolbarAction(async () => {
           await this.callbacks.onEffortLevelChange(effort.value);
           this.updateDisplay();
@@ -560,6 +646,9 @@ export class ThinkingBudgetSelector {
   private renderBudgetGears() {
     if (!this.budgetGearsEl) return;
     this.budgetGearsEl.empty();
+    if (this.isOpen) {
+      this.budgetGearsEl.addClass('is-open');
+    }
 
     const currentBudget = this.callbacks.getSettings().thinkingBudget;
     const uiConfig = this.callbacks.getUIConfig();
@@ -570,6 +659,10 @@ export class ThinkingBudgetSelector {
 
     const currentEl = this.budgetGearsEl.createDiv({ cls: 'claudian-plus-thinking-current' });
     currentEl.setText(currentBudgetInfo?.label || options[0]?.label || 'Off');
+    currentEl.addEventListener('click', (e) => {
+      e?.stopPropagation?.();
+      this.toggle();
+    });
 
     const optionsEl = this.budgetGearsEl.createDiv({ cls: 'claudian-plus-thinking-options' });
 
@@ -584,7 +677,8 @@ export class ThinkingBudgetSelector {
       }
 
       gearEl.addEventListener('click', (e) => {
-        e.stopPropagation();
+        e?.stopPropagation?.();
+        this.close();
         runToolbarAction(async () => {
           await this.callbacks.onThinkingBudgetChange(budget.value);
           this.updateDisplay();
@@ -1518,6 +1612,69 @@ export class ContextUsageMeter {
   }
 }
 
+export class InterruptButton {
+  private container: HTMLElement;
+  private buttonEl: HTMLElement | null = null;
+  private callbacks: ToolbarCallbacks;
+  private visible = false;
+
+  constructor(parentEl: HTMLElement, callbacks: ToolbarCallbacks) {
+    this.callbacks = callbacks;
+    this.container = parentEl.createDiv({ cls: 'claudian-plus-interrupt-btn-wrapper claudian-plus-hidden' });
+    this.render();
+  }
+
+  private render() {
+    this.container.empty();
+    const tooltip = t('chat.interrupt.tooltip') || 'Stop generation (Esc)';
+    this.buttonEl = this.container.createEl('button', {
+      cls: 'claudian-plus-interrupt-btn',
+      attr: {
+        type: 'button',
+        'aria-label': tooltip,
+        title: tooltip,
+      },
+    });
+
+    const svg = this.buttonEl.createSvg('svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('width', '18');
+    svg.setAttribute('height', '18');
+    svg.setAttribute('fill', 'currentColor');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.addClass('claudian-plus-interrupt-icon');
+
+    const rect = svg.createSvg('rect');
+    rect.setAttribute('x', '4.5');
+    rect.setAttribute('y', '4.5');
+    rect.setAttribute('width', '15');
+    rect.setAttribute('height', '15');
+    rect.setAttribute('rx', '4');
+    rect.setAttribute('ry', '4');
+
+    this.buttonEl.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.callbacks.onInterrupt?.();
+    });
+  }
+
+  updateDisplay(isStreaming?: boolean): void {
+    const streaming = isStreaming ?? this.callbacks.isStreaming?.() ?? false;
+    this.visible = streaming;
+    this.container.toggleClass('claudian-plus-hidden', !streaming);
+  }
+
+  setVisible(visible: boolean): void {
+    this.visible = visible;
+    this.container.toggleClass('claudian-plus-hidden', !visible);
+  }
+
+  destroy(): void {
+    this.container.remove();
+  }
+}
+
 export function createInputToolbar(
   parentEl: HTMLElement,
   callbacks: ToolbarCallbacks
@@ -1530,15 +1687,19 @@ export function createInputToolbar(
   mcpServerSelector: McpServerSelector;
   permissionToggle: PermissionToggle;
   serviceTierToggle: ServiceTierToggle;
+  interruptButton: InterruptButton;
 } {
   const modelSelector = new ModelSelector(parentEl, callbacks);
   const thinkingBudgetSelector = new ThinkingBudgetSelector(parentEl, callbacks);
+  modelSelector.onOpen(() => thinkingBudgetSelector.close());
+  thinkingBudgetSelector.onOpen(() => modelSelector.close());
   const serviceTierToggle = new ServiceTierToggle(parentEl, callbacks);
   const contextUsageMeter = new ContextUsageMeter(parentEl);
   const externalContextSelector = new ExternalContextSelector(parentEl, callbacks);
   const mcpServerSelector = new McpServerSelector(parentEl);
   const permissionToggle = new PermissionToggle(parentEl, callbacks);
   const modeSelector = new ModeSelector(parentEl, callbacks);
+  const interruptButton = new InterruptButton(parentEl, callbacks);
 
   return {
     modelSelector,
@@ -1549,5 +1710,6 @@ export function createInputToolbar(
     externalContextSelector,
     mcpServerSelector,
     permissionToggle,
+    interruptButton,
   };
 }

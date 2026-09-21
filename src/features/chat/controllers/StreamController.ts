@@ -56,6 +56,10 @@ import {
   updateToolCallResult,
 } from '../rendering/ToolCallRenderer';
 import {
+  createLiveToolGroup,
+  type LiveToolGroupState,
+} from '../rendering/ToolGroupRenderer';
+import {
   createWriteEditBlock,
   finalizeWriteEditBlock,
   updateWriteEditWithDiff,
@@ -117,6 +121,10 @@ export class StreamController {
   private lifecycleSubagentStates = new Map<string, SubagentState>(); // spawn callId → SubagentState
   private lifecycleAgentIdToSpawnId = new Map<string, string>();      // agentId → spawn callId
 
+  // Tool grouping state for consecutive tool calls
+  private activeToolGroup: LiveToolGroupState | null = null;
+  private currentToolSequence: ToolCallInfo[] = [];
+
   constructor(deps: StreamControllerDeps) {
     this.deps = deps;
   }
@@ -144,6 +152,7 @@ export class StreamController {
       case 'thinking':
         // Flush pending tools before rendering new content type
         this.flushPendingTools();
+        this.finalizeActiveToolGroup();
         if (state.currentTextEl) {
           await this.finalizeCurrentTextBlock(msg);
         }
@@ -153,6 +162,7 @@ export class StreamController {
       case 'text':
         // Flush pending tools before rendering new content type
         this.flushPendingTools();
+        this.finalizeActiveToolGroup();
         if (state.currentThinkingState) {
           await this.finalizeCurrentThinkingBlock(msg);
         }
@@ -169,6 +179,7 @@ export class StreamController {
         if (isSubagentToolName(chunk.name)) {
           // Flush pending tools before Agent
           this.flushPendingTools();
+          this.finalizeActiveToolGroup();
           this.handleTaskToolUseViaManager(chunk, msg);
           break;
         }
@@ -180,6 +191,8 @@ export class StreamController {
 
         const subagentLifecycleAdapter = this.getSubagentLifecycleAdapter(chunk.name);
         if (subagentLifecycleAdapter?.isSpawnTool(chunk.name)) {
+          this.flushPendingTools();
+          this.finalizeActiveToolGroup();
           this.handleProviderSubagentSpawn(chunk, msg, subagentLifecycleAdapter);
           break;
         }
@@ -208,18 +221,21 @@ export class StreamController {
 
       case 'notice':
         this.flushPendingTools();
+        this.finalizeActiveToolGroup();
         await this.appendText(`\n\n**${chunk.level === 'warning' ? 'Blocked' : 'Notice'}:** ${chunk.content}`);
         break;
 
       case 'error':
         // Flush pending tools before rendering error message
         this.flushPendingTools();
+        this.finalizeActiveToolGroup();
         await this.appendText(`\n\n**Error:** ${chunk.content}`);
         break;
 
       case 'done':
         // Flush any remaining pending tools
         this.flushPendingTools();
+        this.finalizeActiveToolGroup();
         // Completion must paint everything the render interval still holds,
         // including the final chunk.
         await this.flushPendingTextRender();
@@ -228,6 +244,7 @@ export class StreamController {
 
       case 'context_compacted': {
         this.flushPendingTools();
+        this.finalizeActiveToolGroup();
         if (state.currentThinkingState) {
           await this.finalizeCurrentThinkingBlock(msg);
         }
@@ -341,6 +358,7 @@ export class StreamController {
             summaryEl.setText(getToolSummary(existingToolCall.name, existingToolCall.input));
           }
         }
+        this.activeToolGroup?.updateStatus();
         // If still pending, the updated input is already in the toolCall object
       }
       return;
@@ -348,6 +366,7 @@ export class StreamController {
 
     // Create new tool call and record it for render ordering
     const toolCall = this.pushToolCall(msg, chunk, true);
+    this.currentToolSequence.push(toolCall);
 
     // TodoWrite: update panel state immediately (side effect), but still buffer render
     if (chunk.name === TOOL_TODO_WRITE) {
@@ -364,9 +383,34 @@ export class StreamController {
 
     // Buffer the tool call instead of rendering immediately
     if (state.currentContentEl) {
+      let parentEl: HTMLElement = state.currentContentEl;
+
+      if (this.currentToolSequence.length >= 2) {
+        if (!this.activeToolGroup) {
+          const firstTool = this.currentToolSequence[0];
+          const firstToolEl = state.toolCallElements.get(firstTool.id);
+          this.activeToolGroup = createLiveToolGroup(state.currentContentEl, { initiallyExpanded: true });
+
+          if (firstToolEl && firstToolEl.parentElement === state.currentContentEl) {
+            state.currentContentEl.insertBefore(this.activeToolGroup.containerEl, firstToolEl);
+            this.activeToolGroup.listEl.appendChild(firstToolEl);
+            this.activeToolGroup.addToolCall(firstTool, firstToolEl);
+          } else {
+            const pendingFirst = state.pendingTools.get(firstTool.id);
+            if (pendingFirst) {
+              pendingFirst.parentEl = this.activeToolGroup.listEl;
+            }
+            this.activeToolGroup.addToolCall(firstTool);
+          }
+        }
+
+        parentEl = this.activeToolGroup.listEl;
+        this.activeToolGroup.addToolCall(toolCall);
+      }
+
       state.pendingTools.set(chunk.id, {
         toolCall,
-        parentEl: state.currentContentEl,
+        parentEl,
       });
       this.showThinkingIndicator();
     }
@@ -426,6 +470,14 @@ export class StreamController {
     }
   }
 
+  private finalizeActiveToolGroup(): void {
+    if (this.activeToolGroup) {
+      this.activeToolGroup.finalize();
+      this.activeToolGroup = null;
+    }
+    this.currentToolSequence = [];
+  }
+
   /**
    * Flushes all pending tool calls by rendering them.
    * Called when a different content type arrives or stream ends.
@@ -455,16 +507,21 @@ export class StreamController {
 
     const { toolCall, parentEl } = pending;
     if (!parentEl) return;
+    let toolEl: HTMLElement;
     if (isWriteEditTool(toolCall.name)) {
       const writeEditState = createWriteEditBlock(parentEl, toolCall, {
         initiallyExpanded: this.shouldExpandFileEditsByDefault(),
       });
       state.writeEditStates.set(toolId, writeEditState);
       state.toolCallElements.set(toolId, writeEditState.wrapperEl);
+      toolEl = writeEditState.wrapperEl;
     } else {
-      renderToolCall(parentEl, toolCall, state.toolCallElements, {
+      toolEl = renderToolCall(parentEl, toolCall, state.toolCallElements, {
         initiallyExpanded: toolCall.name === TOOL_APPLY_PATCH && this.shouldExpandFileEditsByDefault(),
       });
+    }
+    if (toolEl) {
+      this.activeToolGroup?.registerRenderedTool(toolId, toolEl);
     }
     state.pendingTools.delete(toolId);
   }
@@ -692,6 +749,8 @@ export class StreamController {
       if (!chunk.isError && !isBlocked && existingToolCall.name === TOOL_APPLY_PATCH) {
         this.notifyApplyPatchFileChanges(existingToolCall.input);
       }
+
+      this.activeToolGroup?.updateStatus();
     }
 
     this.showThinkingIndicator();
@@ -1719,6 +1778,7 @@ export class StreamController {
     this.cancelPendingScroll();
     this.cancelPendingAsyncSubagentRetries();
     this.hideThinkingIndicator();
+    this.finalizeActiveToolGroup();
     state.currentContentEl = null;
     state.currentTextEl = null;
     state.currentTextContent = '';

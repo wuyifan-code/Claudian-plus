@@ -7,6 +7,8 @@
 .claudian-plus-input-footer {
   position: relative;
   flex-shrink: 0;
+  width: min(100%, 780px);
+  margin-inline: auto;
   padding: 6px 0 0 0;
 }
 
@@ -17,20 +19,25 @@
 /* Input wrapper (border container) - flex column so textarea expands when no chips */
 .claudian-plus-input-wrapper {
   --claudian-plus-input-wrapper-border-color: var(--background-modifier-border);
-  --claudian-plus-input-wrapper-box-shadow: none;
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 140px;
+  min-height: 78px;
   border: 1px solid var(--claudian-plus-input-wrapper-border-color);
-  border-radius: var(--claudian-plus-radius-sm);
+  border-radius: var(--radius-m, 8px);
   background: var(--background-primary);
-  box-shadow: var(--claudian-plus-input-wrapper-box-shadow);
+  box-shadow: var(--claudian-plus-shadow-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.claudian-plus-input-wrapper:focus-within {
+  --claudian-plus-input-wrapper-border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 1px var(--interactive-accent);
 }
 
 .claudian-plus-input-wrapper.claudian-plus-drop-target-active {
   border-color: var(--interactive-accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--interactive-accent) 18%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--interactive-accent) 25%, transparent);
 }
 
 /* Nav row (tab badges start, action icons end) - above input wrapper */
@@ -52,68 +59,72 @@
   justify-content: space-between;
   width: 100%;
   min-width: 0;
+  gap: 8px;
 }
 
 .claudian-plus-input-nav-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 2px;
   flex-shrink: 0;
   margin-inline-start: auto;
 }
 
 .claudian-plus-input-nav-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 24px;
   height: 24px;
   padding: 0;
-  border: 0;
-  border-radius: var(--claudian-plus-radius-xs);
-  background: transparent;
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: var(--radius-s, 4px);
   cursor: pointer;
-  color: var(--text-faint);
-  transition: color 0.15s ease, background 0.15s ease;
+  color: var(--text-muted);
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
 
 .claudian-plus-input-nav-btn:hover {
   color: var(--text-normal);
-  background: var(--background-modifier-hover);
+  background: var(--background-modifier-hover) !important;
 }
 
 .claudian-plus-input-nav-btn.is-active {
-  color: var(--claudian-plus-brand);
-  background: var(--background-modifier-hover);
+  color: var(--interactive-accent);
+  background: var(--background-modifier-hover) !important;
 }
 
 .claudian-plus-input-nav-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
 }
 
 .claudian-plus-new-tab-btn svg {
-  width: 16.8px;
-  height: 16.8px;
+  width: 15px;
+  height: 15px;
 }
 
 .claudian-plus-input-wrapper textarea.claudian-plus-input {
+  order: 1;
   width: 100%;
   flex: 1 1 0;
-  min-height: var(--claudian-plus-textarea-min-height, 60px);
+  min-height: var(--claudian-plus-textarea-min-height, 46px);
   max-height: var(--claudian-plus-textarea-max-height, none);
   resize: none;
-  padding: 8px 10px 10px 10px;
+  padding: 10px 12px 6px 12px;
   border: none;
-  border-radius: var(--claudian-plus-radius-sm);
+  border-radius: var(--radius-m, 8px) var(--radius-m, 8px) 0 0;
   background: transparent;
   color: var(--text-normal);
-  font-family: inherit;
-  font-size: 14px;
-  line-height: 1.4;
+  font-family: var(--font-text, var(--font-interface));
+  font-size: 13.5px;
+  line-height: 1.5;
   box-shadow: none;
   overflow-y: auto;
-  unicode-bidi: plaintext; /* Proper BiDi text handling for mixed RTL/LTR */
+  unicode-bidi: plaintext;
 }
 
 .claudian-plus-input-wrapper textarea.claudian-plus-input:hover,
@@ -133,10 +144,11 @@
 }
 
 .claudian-plus-live-preview-host {
+  order: 1;
   display: flex;
   flex: 1 1 0;
-  min-height: var(--claudian-plus-textarea-min-height, 60px);
-  max-height: var(--claudian-plus-textarea-max-height, 50vh);
+  min-height: var(--claudian-plus-textarea-min-height, 42px);
+  max-height: var(--claudian-plus-textarea-max-height, min(240px, 40vh));
   min-width: 0;
   overflow: hidden;
 }
@@ -146,9 +158,9 @@
   min-width: 0;
   background: transparent;
   color: var(--text-normal);
-  font-family: inherit;
-  font-size: 14px;
-  line-height: 1.4;
+  font-family: var(--font-text, var(--font-interface));
+  font-size: 13.5px;
+  line-height: 1.5;
 }
 
 .claudian-plus-live-preview-composer.cm-editor.cm-focused {
@@ -157,18 +169,12 @@
 
 .claudian-plus-live-preview-composer .cm-scroller {
   overflow: auto;
-  font-family: inherit;
+  font-family: var(--font-text, var(--font-interface));
 }
 
 .claudian-plus-live-preview-composer .cm-content {
-  min-height: 60px;
-  padding: 8px 10px 10px 10px;
-  caret-color: var(--text-normal);
-  unicode-bidi: plaintext;
-}
-
-.claudian-plus-live-preview-composer .cm-line {
-  padding: 0;
+  min-height: 42px;
+  padding: 6px 10px;
 }
 
 .claudian-plus-live-preview-composer .cm-placeholder {
@@ -184,10 +190,6 @@
   color: var(--code-normal);
   font-family: var(--font-monospace);
   font-size: 0.92em;
-}
-
-.claudian-plus-live-preview-reference--selected {
-  box-shadow: 0 0 0 1px var(--interactive-accent);
 }
 
 .claudian-plus-live-preview-reference {
@@ -228,13 +230,15 @@
 
 /* Input toolbar */
 .claudian-plus-input-toolbar {
+  order: 2;
   display: flex;
   align-items: center;
   justify-content: flex-start;
   flex-shrink: 0;
   flex-wrap: wrap;
   row-gap: 4px;
-  padding: 4px 6px 6px 6px;
+  min-height: 32px;
+  padding: 2px 6px 6px;
 }
 
 /* Composer queue status row (queued follow-up preview + steer action) */

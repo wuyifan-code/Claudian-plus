@@ -1,8 +1,9 @@
 /* Thinking selector (effort for adaptive models, token budget for custom) */
 .claudian-plus-thinking-selector {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 /* Effort / budget container (shared layout) */
@@ -10,11 +11,13 @@
 .claudian-plus-thinking-budget {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .claudian-plus-thinking-label-text {
-  font-size: 11px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter Variable", Inter, system-ui, sans-serif;
+  font-size: 11.5px;
+  font-weight: 500;
   color: var(--text-muted);
 }
 
@@ -22,51 +25,88 @@
   position: relative;
   display: flex;
   align-items: center;
-  border-radius: var(--claudian-plus-radius-xs);
+  border-radius: 6px;
 }
 
 /* Current selection (visible when collapsed) */
 .claudian-plus-thinking-current {
-  padding: 3px 8px;
-  font-size: 11px;
-  color: var(--claudian-plus-brand);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 7px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter Variable", Inter, system-ui, sans-serif;
+  font-size: 11.5px;
+  color: var(--text-muted);
   font-weight: 500;
   cursor: pointer;
-  border-radius: 3px;
+  border-radius: 6px;
   white-space: nowrap;
   background: transparent;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  user-select: none;
 }
 
-/* Options container - expands vertically upward */
+.claudian-plus-thinking-current::after {
+  content: '▾';
+  display: inline-block;
+  font-size: 10px;
+  opacity: 0.7;
+  transition: transform 0.15s ease;
+}
+
+.claudian-plus-thinking-current:hover,
+.claudian-plus-thinking-gears.is-open .claudian-plus-thinking-current {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+  border-color: var(--background-modifier-border);
+}
+
+.claudian-plus-thinking-gears.is-open .claudian-plus-thinking-current::after {
+  transform: rotate(180deg);
+}
+
+/* Options container - elevated popover */
 .claudian-plus-thinking-options {
   position: absolute;
   left: 0;
-  bottom: 100%;
+  bottom: calc(100% + 6px);
   margin-bottom: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  background: var(--background-secondary);
+  background-color: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
-  border-radius: var(--claudian-plus-radius-xs);
+  border-radius: 8px;
+  box-shadow: var(--claudian-plus-shadow-lg);
   padding: 4px;
+  min-width: 104px;
+  z-index: 1001;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.15s ease, visibility 0.15s ease;
+  transform: translateY(4px) scale(0.98);
+  transform-origin: bottom left;
+  transition: opacity 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 0.15s ease;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter Variable", Inter, system-ui, sans-serif;
 }
 
-/* Expand on hover */
+/* Expand on hover or when is-open */
+.claudian-plus-thinking-gears.is-open .claudian-plus-thinking-options,
 .claudian-plus-thinking-gears:hover .claudian-plus-thinking-options {
   opacity: 1;
   visibility: visible;
+  transform: translateY(0) scale(1);
 }
 
 .claudian-plus-thinking-gear {
-  padding: 3px 8px;
-  font-size: 11px;
+  padding: 4px 8px;
+  font-size: 11.5px;
   color: var(--text-muted);
   cursor: pointer;
-  border-radius: 3px;
+  border-radius: 5px;
   transition: background 0.1s ease, color 0.1s ease;
   white-space: nowrap;
 }
@@ -77,7 +117,43 @@
 }
 
 .claudian-plus-thinking-gear.selected {
-  background: rgba(var(--claudian-plus-brand-rgb), 0.15);
-  color: var(--claudian-plus-brand);
+  background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+  color: var(--interactive-accent);
   font-weight: 500;
 }
+
+.claudian-plus-thinking-current.is-ultra {
+  color: var(--interactive-accent);
+  font-weight: 600;
+}
+
+/* Dedicated Ultra thinking effort badge styling */
+.claudian-plus-thinking-gear--ultra {
+  position: relative;
+  font-weight: 600;
+  color: var(--interactive-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--interactive-accent) 25%, transparent);
+}
+
+.claudian-plus-thinking-gear--ultra::after {
+  content: '✦';
+  display: inline-block;
+  margin-left: 5px;
+  font-size: 10px;
+  color: var(--interactive-accent);
+  vertical-align: middle;
+}
+
+.claudian-plus-thinking-gear--ultra:hover {
+  background: color-mix(in srgb, var(--interactive-accent) 15%, transparent);
+  color: var(--interactive-accent);
+  border-color: color-mix(in srgb, var(--interactive-accent) 45%, transparent);
+}
+
+.claudian-plus-thinking-gear--ultra.selected {
+  background: color-mix(in srgb, var(--interactive-accent) 22%, transparent);
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--interactive-accent) 30%, transparent);
+}
+

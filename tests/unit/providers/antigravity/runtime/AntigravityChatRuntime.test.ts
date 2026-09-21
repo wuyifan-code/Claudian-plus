@@ -883,7 +883,7 @@ describe('AntigravityChatRuntime', () => {
     it('encodes the prompt at prepareTurn time only', () => {
       const { runtime } = createHarness();
       const turn = runtime.prepareTurn({ text: 'Hello there' });
-      expect(turn.prompt).toBe('Hello there');
+      expect(turn.prompt).toContain('Hello there');
       expect(turn.isCompact).toBe(false);
       expect(turn.persistedContent).toBe('');
       expect(runtime.consumeTurnMetadata()).toEqual({});

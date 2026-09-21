@@ -3,8 +3,11 @@ import {
   ANTIGRAVITY_MODEL_PREFIX,
   ANTIGRAVITY_REASONING_EFFORT_SUPPORT,
   decodeAntigravityModelSelectionId,
+  DEFAULT_ANTIGRAVITY_MODEL_ID,
+  DEFAULT_ANTIGRAVITY_MODELS,
   encodeAntigravityModelSelectionId,
   isAntigravityModelSelectionId,
+  looksLikeAntigravityModel,
   normalizeAntigravityManualModelId,
   toAntigravityRuntimeModelId,
 } from '@/providers/antigravity/models';
@@ -58,9 +61,33 @@ describe('antigravity model selection encoding', () => {
       .toBe('opencode/gemini-3.1-pro-low');
   });
 
+  it('maps display labels to valid CLI model slugs', () => {
+    expect(toAntigravityRuntimeModelId('Gemini 3.8 Flash (High)')).toBe('gemini-3.8-flash-high');
+    expect(toAntigravityRuntimeModelId('Gemini 3.1 Pro (Low)')).toBe('gemini-3.1-pro-low');
+  });
+
   it('keeps the provider namespace constant aligned with the encoding', () => {
     expect(ANTIGRAVITY_MODEL_PREFIX).toBe('antigravity/');
     expect(encodeAntigravityModelSelectionId('x').startsWith(ANTIGRAVITY_MODEL_PREFIX)).toBe(true);
+  });
+});
+
+describe('DEFAULT_ANTIGRAVITY_MODELS', () => {
+  it('includes default Gemini models verified against AGY CLI', () => {
+    expect(DEFAULT_ANTIGRAVITY_MODELS.length).toBeGreaterThan(0);
+    expect(DEFAULT_ANTIGRAVITY_MODELS.some(m => m.rawId === DEFAULT_ANTIGRAVITY_MODEL_ID)).toBe(true);
+    expect(DEFAULT_ANTIGRAVITY_MODEL_ID).toBe('gemini-3.8-flash-high');
+  });
+});
+
+describe('looksLikeAntigravityModel', () => {
+  it('identifies gemini and antigravity namespaced models', () => {
+    expect(looksLikeAntigravityModel('gemini-3.8-flash-high')).toBe(true);
+    expect(looksLikeAntigravityModel('antigravity/gemini-3.8-flash-low')).toBe(true);
+    expect(looksLikeAntigravityModel('Gemini 3.8 Flash (High)')).toBe(true);
+    expect(looksLikeAntigravityModel('claude-3-5-sonnet')).toBe(false);
+    expect(looksLikeAntigravityModel('gpt-4o')).toBe(false);
+    expect(looksLikeAntigravityModel('')).toBe(false);
   });
 });
 

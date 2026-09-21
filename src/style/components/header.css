@@ -1,50 +1,97 @@
-/* Header - logo and title */
+/* Quiet, Obsidian-native view navigation */
 .claudian-plus-header {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px 12px 12px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0 10px;
   border-bottom: 1px solid var(--background-modifier-border);
-  margin-bottom: 4px;
+  background: transparent;
+  user-select: none;
 }
 
+/* View Switcher: Segmented Control */
 .claudian-plus-view-switcher {
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  padding: 2px;
   gap: 2px;
-  flex-shrink: 0;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s, 6px);
 }
 
+.claudian-plus-container button.claudian-plus-view-switcher-btn,
+button.claudian-plus-view-switcher-btn,
 .claudian-plus-view-switcher-btn {
-  display: flex;
+  position: relative;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border-radius: var(--claudian-plus-radius-xs);
-  cursor: pointer;
-  color: var(--text-faint);
-  background: transparent;
-  transition: color 0.15s ease, background 0.15s ease;
-}
-
-.claudian-plus-view-switcher-btn:hover {
-  color: var(--text-normal);
-  background: var(--background-modifier-hover);
-}
-
-.claudian-plus-view-switcher-btn.is-active {
-  color: var(--interactive-accent);
-  background: var(--background-modifier-hover);
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 28px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  border-radius: calc(var(--radius-s, 6px) - 2px) !important;
+  color: var(--text-muted) !important;
+  cursor: pointer !important;
+  transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease !important;
 }
 
 .claudian-plus-view-switcher-btn svg {
-  width: 15px;
-  height: 15px;
+  width: 14px !important;
+  height: 14px !important;
+  stroke-width: 1.75 !important;
+  color: currentColor;
+  flex-shrink: 0;
 }
 
+.claudian-plus-view-switcher-label {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.claudian-plus-container button.claudian-plus-view-switcher-btn:hover,
+button.claudian-plus-view-switcher-btn:hover {
+  color: var(--text-normal) !important;
+  background: var(--background-modifier-hover) !important;
+}
+
+.claudian-plus-container button.claudian-plus-view-switcher-btn:focus-visible,
+button.claudian-plus-view-switcher-btn:focus-visible {
+  outline: 2px solid var(--background-modifier-border-focus) !important;
+  outline-offset: 1px !important;
+}
+
+.claudian-plus-container button.claudian-plus-view-switcher-btn.is-active,
+button.claudian-plus-view-switcher-btn.is-active {
+  background: var(--background-primary) !important;
+  color: var(--text-normal) !important;
+  font-weight: var(--font-medium, 500) !important;
+  box-shadow: var(--claudian-plus-shadow-sm) !important;
+}
+
+.claudian-plus-view-switcher-btn.is-active::after {
+  display: none !important;
+}
+
+/* Header Title & Model Logo */
 .claudian-plus-title {
   display: flex;
   align-items: center;
@@ -58,19 +105,27 @@
 .claudian-plus-title-text {
   margin: 0;
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: 0.2px;
   text-align: center;
   color: var(--text-normal);
-  transition: color var(--claudian-plus-transition-normal);
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .claudian-plus-logo {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--claudian-plus-brand);
   transition: transform var(--claudian-plus-transition-bounce), color var(--claudian-plus-transition-normal);
+  flex-shrink: 0;
+}
+
+.claudian-plus-logo svg {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 .claudian-plus-header:hover .claudian-plus-logo {
@@ -85,33 +140,42 @@
 }
 
 .claudian-plus-header-action-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   padding: 0;
-  border-radius: var(--claudian-plus-radius-xs);
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: var(--radius-s, 4px);
+  color: var(--text-muted);
   cursor: pointer;
-  color: var(--text-faint);
-  background: transparent;
-  transition: color 0.15s ease, background 0.15s ease;
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
 
-.claudian-plus-header-action-btn:hover {
+.claudian-plus-header-action-btn:hover,
+.claudian-plus-header-action-btn:focus-visible {
+  background: var(--background-modifier-hover) !important;
   color: var(--text-normal);
-  background: var(--background-modifier-hover);
+}
+
+.claudian-plus-header-action-btn:focus-visible {
+  outline: 2px solid var(--background-modifier-border-focus) !important;
+  outline-offset: 1px !important;
 }
 
 .claudian-plus-header-action-btn svg {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
 }
 
 .claudian-plus-sessions-view-host {
   display: flex;
-  flex-direction: column;
   flex: 1 1 auto;
+  flex-direction: column;
   min-height: 0;
   overflow: hidden;
 }

@@ -240,7 +240,7 @@ function normalizeStepUpdate(
     }
     return [];
   }
-  if (info.state !== 'ACTIVE' && info.state !== 'DONE') {
+  if (info.state !== 'ACTIVE' && info.state !== 'DONE' && info.state !== 'ERROR') {
     return [{
       type: 'notice',
       content: `Antigravity step ${info.stepIndex} reported unknown state "${info.state}".`,
@@ -269,19 +269,36 @@ function normalizeToolStep(
     state.emittedToolUseIds.add(key);
     chunks.push({ type: 'tool_use', id: key, name: toolInfo.name, input: toolInfo.parameters });
   }
-  if (info.state === 'DONE') {
+  if (info.state === 'DONE' || info.state === 'ERROR') {
     if (state.settledToolIds.has(key)) {
       state.duplicateToolResultCount += 1;
     } else {
       state.settledToolIds.add(key);
+      const isError = toolInfo.error !== null || info.state === 'ERROR';
+      const content = toolInfo.error
+        ? toolInfo.error.message
+        : (toolInfo.output || (info.state === 'ERROR' ? 'Tool execution failed or was denied' : ''));
       chunks.push({
         type: 'tool_result',
         id: key,
-        content: toolInfo.error ? toolInfo.error.message : toolInfo.output,
-        isError: toolInfo.error !== null,
+        content,
+        isError,
         toolUseResult: isRecord(info.payload.tool_info) ? info.payload.tool_info : {},
       });
+      if (typeof content === 'string' && content.includes('Tool is running as a background task with task id:')) {
+        chunks.push({
+          type: 'notice',
+          content: 'Antigravity CLI moved a long command to the background. In headless print mode, background tasks are terminated when the turn finishes.',
+          level: 'warning',
+        });
+      }
     }
+  } else if (info.state !== 'ACTIVE') {
+    chunks.push({
+      type: 'notice',
+      content: `Antigravity step ${info.stepIndex} reported unknown state "${info.state}".`,
+      level: 'warning',
+    });
   }
   return chunks;
 }
@@ -310,12 +327,33 @@ function normalizeResult(
       if (extra) {
         state.accumulatedText += extra;
         chunks.push({ type: 'text', content: extra });
+      } else if (!state.accumulatedText && !info.response) {
+        const deniedCount = isRecord(record.result) && Array.isArray(record.result.denied_actions)
+          ? record.result.denied_actions.length
+          : 0;
+        if (deniedCount > 0) {
+          chunks.push({
+            type: 'notice',
+            content: `Antigravity finished with no output because ${deniedCount} tool call(s) were auto-denied by permission policy. Enable auto-approve tools in settings to allow tool execution.`,
+            level: 'warning',
+          });
+        }
       }
       break;
     }
-    case 'error':
-      chunks.push({ type: 'error', content: info.error ?? 'Antigravity turn failed.' });
+    case 'error': {
+      let errorMessage = info.error ?? 'Antigravity turn failed.';
+      if (
+        errorMessage.includes('Eligibility check failed')
+        || errorMessage.includes('daily-cloudcode-pa.googleapis.com')
+        || errorMessage.includes('connectex')
+        || errorMessage.includes('EOF')
+      ) {
+        errorMessage = `Antigravity connection error: Unable to connect to Google Cloud Code API (daily-cloudcode-pa.googleapis.com). If you are using a proxy or VPN (such as Clash, v2ray, or TUN mode), please verify your proxy route rules for Google services. Details: ${errorMessage}`;
+      }
+      chunks.push({ type: 'error', content: errorMessage });
       break;
+    }
     case 'cancelled':
       chunks.push({ type: 'notice', content: 'Antigravity turn was cancelled.', level: 'warning' });
       break;
