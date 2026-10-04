@@ -274,8 +274,6 @@ export default class ClaudianPlusPlugin extends Plugin {
       this.addCommand({
         id: 'inline-edit',
         name: 'Inline edit with AI',
-        // eslint-disable-next-line obsidianmd/commands/no-default-hotkeys
-        hotkeys: [{ modifiers: ['Mod'], key: 'k' }],
         editorCheckCallback: (checking: boolean, editor: Editor, ctx: unknown) => {
           if (!(ctx instanceof MarkdownView)) return false;
           if (!checking) {
