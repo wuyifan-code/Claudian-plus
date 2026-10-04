@@ -3677,4 +3677,87 @@ describe('InputController - Message Queue', () => {
       expect(mockNotice).toHaveBeenCalledWith(expect.stringContaining('Forgot rule'));
     });
   });
+  describe('Memory V2 Integration', () => {
+    it('handles explicit remember via MemoryCoordinator.handleExplicitCommand', async () => {
+      const deps = createSendableDeps();
+      const mockCoordinator = {
+        handleExplicitCommand: jest.fn().mockResolvedValue(true),
+        recordTurnCompleted: jest.fn().mockResolvedValue(undefined),
+        processPendingJobs: jest.fn().mockResolvedValue({ processed: 0, deferred: 0, failed: 0 }),
+      };
+      (deps.plugin as any).getMemoryCoordinator = jest.fn().mockReturnValue(mockCoordinator);
+      (deps.plugin as any).settings = { ...(deps.plugin as any).settings, memoryEnabled: true };
+
+      const controller = new InputController(deps);
+      const inputEl = deps.getInputEl();
+      inputEl.value = '记住：以后写代码请使用 TypeScript';
+
+      await controller.sendMessage();
+
+      expect(mockCoordinator.handleExplicitCommand).toHaveBeenCalledWith(
+        '记住：以后写代码请使用 TypeScript',
+        expect.objectContaining({ vaultId: expect.any(String) }),
+      );
+      expect(mockNotice).toHaveBeenCalled();
+    });
+
+    it('handles explicit forget via MemoryCoordinator.handleExplicitCommand', async () => {
+      const deps = createSendableDeps();
+      const mockCoordinator = {
+        handleExplicitCommand: jest.fn().mockResolvedValue(true),
+        recordTurnCompleted: jest.fn().mockResolvedValue(undefined),
+        processPendingJobs: jest.fn().mockResolvedValue({ processed: 0, deferred: 0, failed: 0 }),
+      };
+      (deps.plugin as any).getMemoryCoordinator = jest.fn().mockReturnValue(mockCoordinator);
+      (deps.plugin as any).settings = { ...(deps.plugin as any).settings, memoryEnabled: true };
+
+      const controller = new InputController(deps);
+      const inputEl = deps.getInputEl();
+      inputEl.value = '忘记：关于旧框架的偏好';
+
+      await controller.sendMessage();
+
+      expect(mockCoordinator.handleExplicitCommand).toHaveBeenCalledWith(
+        '忘记：关于旧框架的偏好',
+        expect.objectContaining({ vaultId: expect.any(String) }),
+      );
+    });
+
+    it('records complete episode on response end via MemoryCoordinator.recordTurnCompleted', async () => {
+      const deps = createSendableDeps();
+      const mockCoordinator = {
+        handleExplicitCommand: jest.fn().mockResolvedValue(false),
+        recordTurnCompleted: jest.fn().mockResolvedValue(undefined),
+        processPendingJobs: jest.fn().mockResolvedValue({ processed: 0, deferred: 0, failed: 0 }),
+      };
+      (deps.plugin as any).getMemoryCoordinator = jest.fn().mockReturnValue(mockCoordinator);
+      (deps.plugin as any).settings = { ...(deps.plugin as any).settings, memoryEnabled: true };
+
+      (deps.streamController.handleStreamChunk as jest.Mock).mockImplementation(async (chunk, msg) => {
+        if (chunk.type === 'text') msg.content = (msg.content || '') + chunk.content;
+      });
+
+      const mockAgentService = deps.getAgentService!() as any;
+      mockAgentService.query.mockReturnValue(
+        createMockStream([
+          { type: 'text', content: 'Here is the full response to your request.' },
+          { type: 'done' },
+        ]),
+      );
+
+      const controller = new InputController(deps);
+      const inputEl = deps.getInputEl();
+      inputEl.value = 'Please refactor the memory system';
+
+      await controller.sendMessage();
+
+      expect(mockCoordinator.recordTurnCompleted).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userContent: 'Please refactor the memory system',
+          assistantContent: expect.stringContaining('Here is the full response'),
+          scope: expect.objectContaining({ vaultId: expect.any(String) }),
+        }),
+      );
+    });
+  });
 });

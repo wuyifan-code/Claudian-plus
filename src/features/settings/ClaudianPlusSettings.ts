@@ -1047,6 +1047,8 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
     const mindTab = new MindSettingsTab({
       containerEl: mindTabContainer,
       mindStore: this.plugin.getMindStore(),
+      memoryRepository: this.plugin.getMemoryRepository?.(),
+      memoryCoordinator: this.plugin.getMemoryCoordinator?.(),
       locale,
     });
     void mindTab.render();

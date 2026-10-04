@@ -303,12 +303,9 @@ export class CodexChatRuntime implements ChatRuntime {
   ): Promise<boolean> {
     this.assertLifecycleCurrent(generation);
     const promptSettings = this.getSystemPromptSettings();
-    const [memoryAppendix, consciousnessAppendix] = await Promise.all([
-      this.plugin.getMemoryInjectionText(),
-      this.plugin.getConsciousnessInjectionText(),
-    ]);
-    const combinedAppendix = [memoryAppendix, consciousnessAppendix].filter(Boolean).join('\n\n') || undefined;
-    const promptKey = computeSystemPromptKey(promptSettings, { memoryAppendix: combinedAppendix });
+    // Exclude dynamic memory from the app-server launch promptKey so per-turn memory updates
+    // do not trigger unnecessary app-server restarts. Dynamic memory is injected per-turn in query().
+    const promptKey = computeSystemPromptKey(promptSettings);
     const launchSpec = await resolveCodexAppServerLaunchSpec(this.plugin, this.providerId);
     const clientConfigKey = [promptKey, JSON.stringify({
       command: launchSpec.command,

@@ -9,6 +9,11 @@ import type {
   MindStore,
   VaultKnowledgeEngine,
 } from '../core/memory';
+import type {
+  MemoryCoordinator,
+  MemoryRepository,
+  MemoryRetriever,
+} from '../core/memory/v2';
 import type { ProviderHost } from '../core/providers/ProviderHost';
 import type { AppTabManagerState, ProviderId } from '../core/providers/types';
 import type { ChatRuntime } from '../core/runtime/ChatRuntime';
@@ -64,6 +69,18 @@ export interface FeatureHost extends ProviderHost {
 
   /** Get the dream memory consolidation service. */
   getDreamService(): DreamService;
+
+  /** Get the unified memory repository (V2). */
+  getMemoryRepository?(): MemoryRepository;
+
+  /** Get the memory coordinator for turn ingestion and background dreams (V2). */
+  getMemoryCoordinator?(): MemoryCoordinator;
+
+  /** Get the memory retriever for task-focused context packet generation (V2). */
+  getMemoryRetriever?(): MemoryRetriever;
+
+  /** Get active chat context including current provider, model, and active file. */
+  getActiveChatContext?(): { providerId: ProviderId; model: string | null; activeFilePath?: string } | null;
 
   /** Get the vault knowledge index for awareness reset and retrieval features. */
   getVaultKnowledgeEngine(): VaultKnowledgeEngine;

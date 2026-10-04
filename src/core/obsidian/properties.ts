@@ -91,7 +91,7 @@ export async function writeProperties(
     throw new Error(`Not a markdown file: ${filePath}`);
   }
 
-  await app.fileManager.processFrontMatter(tFile, (fm) => {
+  await app.fileManager.processFrontMatter(tFile, (fm: Record<string, unknown>) => {
     if (operation.set) {
       for (const [key, value] of Object.entries(operation.set)) {
         fm[key] = value;

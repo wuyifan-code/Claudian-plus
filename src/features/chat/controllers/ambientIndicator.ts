@@ -68,8 +68,8 @@ export function updateAmbientIndicator(
       icon,
       title: localeText('点击切换环境感知模式或锁定上下文', 'Click to change ambient focus mode or pin snapshot'),
       ariaLabel: label,
-      onActivate: () => {
-        showAmbientModeMenu(observer, snapshot);
+      onActivate: (event?: MouseEvent) => {
+        showAmbientModeMenu(observer, snapshot, event);
       },
       onRemove: () => {
         observer.setMode('ignored');
@@ -80,7 +80,11 @@ export function updateAmbientIndicator(
   onVisibilityChange?.();
 }
 
-function showAmbientModeMenu(observer: ActiveContextObserver, snapshot: AmbientContextSnapshot): void {
+function showAmbientModeMenu(
+  observer: ActiveContextObserver,
+  snapshot: AmbientContextSnapshot,
+  mouseEvent?: MouseEvent,
+): void {
   const menu = new Menu();
 
   menu.addItem((item) => {
@@ -121,8 +125,7 @@ function showAmbientModeMenu(observer: ActiveContextObserver, snapshot: AmbientC
       });
   });
 
-  const mouseEvent = window.event as MouseEvent | undefined;
-  if (mouseEvent && 'clientX' in mouseEvent) {
+  if (mouseEvent && typeof mouseEvent.clientX === 'number') {
     menu.showAtMouseEvent(mouseEvent);
   } else {
     menu.showAtPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });

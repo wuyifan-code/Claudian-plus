@@ -1,6 +1,8 @@
 import { createMockEl, type MockElement } from '@test/helpers/mockElement';
 
 import { MindStore } from '@/core/memory/MindStore';
+import type { MemoryCoordinator } from '@/core/memory/v2/MemoryCoordinator';
+import type { MemoryRepository } from '@/core/memory/v2/MemoryRepository';
 import type { VaultFileAdapter } from '@/core/storage/VaultFileAdapter';
 import { MindSettingsTab } from '@/features/settings/MindSettingsTab';
 
@@ -102,5 +104,59 @@ describe('MindSettingsTab', () => {
 
     await new Promise((r) => setTimeout(r, 20));
     expect(await mindStore.listDurable()).toHaveLength(0);
+  });
+
+  it('renders V2 records and handles forget and correct actions', async () => {
+    const mockRepo = {
+      listRecords: jest.fn().mockResolvedValue([
+        {
+          id: 'mem-1',
+          revision: 1,
+          kind: 'profile',
+          claimKey: 'pref_lang',
+          content: 'Always reply in Chinese',
+          status: 'active',
+          basis: 'explicit',
+          evidence: [],
+          observedAt: Date.now(),
+          supersedes: [],
+          scope: { vaultId: 'default' },
+        },
+      ]),
+      getCurrentGeneration: jest.fn().mockResolvedValue('gen_000001'),
+      listJobs: jest.fn().mockResolvedValue([]),
+      commitExplicit: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<MemoryRepository>;
+
+    const mockCoordinator = {
+      processPendingJobs: jest.fn().mockResolvedValue({ processed: 1, deferred: 0, failed: 0 }),
+    } as unknown as jest.Mocked<MemoryCoordinator>;
+
+    const tab = new MindSettingsTab({
+      containerEl: containerEl as unknown as HTMLElement,
+      mindStore,
+      memoryRepository: mockRepo,
+      memoryCoordinator: mockCoordinator,
+      locale: 'en',
+    });
+
+    await tab.render();
+
+    const headers = containerEl.querySelectorAll('.claudian-plus-settings-card-header');
+    const v2Header = Array.from(headers).find((h) => h.textContent?.includes('Memory Repository V2'));
+    expect(v2Header).toBeDefined();
+
+    const deleteBtns = containerEl.querySelectorAll('.claudian-plus-mind-btn-delete');
+    const v2DeleteBtn = deleteBtns[deleteBtns.length - 1];
+    expect(v2DeleteBtn).toBeDefined();
+    v2DeleteBtn.click();
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(mockRepo.commitExplicit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'forget',
+        claimKey: 'pref_lang',
+      }),
+    );
   });
 });

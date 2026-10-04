@@ -29,7 +29,6 @@
 }
 
 .claudian-plus-file-viewer-tab-btn.active {
-  color: var(--text-normal);
   background: var(--interactive-accent);
   color: var(--text-on-accent);
   font-weight: 500;

@@ -235,6 +235,26 @@ export class InputController {
         return;
       }
 
+      const coordinator = plugin.getMemoryCoordinator?.();
+      if (coordinator) {
+        const vaultId = plugin.app?.vault?.getName() || 'default-vault';
+        const handled = await coordinator.handleExplicitCommand(message, {
+          vaultId,
+        });
+        if (handled) {
+          const isForget = /^(?:请?忘记|forget)/i.test(message.trim());
+          if (isForget) {
+            new Notice(t('settings.memory.removed'));
+          } else {
+            new Notice(t('settings.memory.saved'));
+          }
+          return;
+        }
+        // V2 explicitly avoids regex-based implicit extraction at user input time.
+        // Complete episodes and background dreaming handle automated learning.
+        return;
+      }
+
       const memoryStore = plugin.getMemoryStore();
 
       // Check for list request
@@ -698,8 +718,40 @@ export class InputController {
         await streamController.finalizeCurrentTextBlock(finalAssistantMsg);
         this.deps.getSubagentManager().resetStreamingState();
 
-        // Save short-term memory if consciousness is enabled
-        if (plugin.settings.consciousnessEnabled && plugin.settings.consciousnessAutoMemory) {
+        // Save turn episode to Memory V2 if enabled
+        if (plugin.settings.memoryEnabled) {
+          const coordinator = plugin.getMemoryCoordinator?.();
+          if (coordinator) {
+            const vaultId = plugin.app?.vault?.getName() || 'default-vault';
+            const convId = state.currentConversationId || 'unknown-conv';
+            const episodeToolCalls = finalAssistantMsg.toolCalls?.map((tc) => ({
+              name: tc.name,
+              input: tc.input,
+              output: typeof tc.result === 'string' ? tc.result : tc.result ? JSON.stringify(tc.result) : undefined,
+              status: tc.status === 'completed' ? 'succeeded' : tc.status === 'error' ? 'failed' : 'unknown',
+            }));
+
+            void coordinator.recordTurnCompleted({
+              providerId: this.getActiveProviderId(),
+              conversationId: convId,
+              messageId: finalAssistantMsg.id,
+              userContent: displayContent,
+              assistantContent: finalAssistantMsg.content || '',
+              toolCalls: episodeToolCalls,
+              scope: {
+                vaultId,
+                activeFilePath: plugin.getActiveChatContext?.()?.activeFilePath,
+              },
+            }).catch(() => {});
+
+            if (plugin.settings.consciousnessAutoMemory) {
+              void coordinator.processPendingJobs().catch(() => {});
+            }
+          }
+        }
+
+        // Save short-term memory if consciousness is enabled (legacy fallback)
+        if (plugin.settings.consciousnessEnabled && plugin.settings.consciousnessAutoMemory && !plugin.getMemoryCoordinator) {
           const userContent = displayContent.slice(0, 200);
           const assistantContent = finalAssistantMsg.content?.slice(0, 200) || '';
           const summary = `User: ${userContent}\nAssistant: ${assistantContent}`;
@@ -1970,6 +2022,11 @@ export class InputController {
           return;
         }
         try {
+          const coordinator = this.deps.plugin.getMemoryCoordinator?.();
+          if (coordinator) {
+            const vaultId = this.deps.plugin.app?.vault?.getName() || 'default-vault';
+            await coordinator.handleExplicitCommand(`remember: ${ruleContent}`, { vaultId });
+          }
           const entry = await this.deps.plugin.getMindStore().addDurable({
             category: 'user_preference',
             scope: 'project',
@@ -1997,6 +2054,11 @@ export class InputController {
           return;
         }
         try {
+          const coordinator = this.deps.plugin.getMemoryCoordinator?.();
+          if (coordinator) {
+            const vaultId = this.deps.plugin.app?.vault?.getName() || 'default-vault';
+            await coordinator.handleExplicitCommand(`forget: ${keyword}`, { vaultId });
+          }
           const forgotten = this.deps.plugin.getMindStore ? await this.deps.plugin.getMindStore().forgetRule(keyword) : null;
           const removedFromMemory = this.deps.plugin.getMemoryStore ? await this.deps.plugin.getMemoryStore().remove(keyword) : 0;
           if (forgotten || removedFromMemory > 0) {

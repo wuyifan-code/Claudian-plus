@@ -216,7 +216,6 @@
 .claudian-plus-live-preview-link {
   color: var(--link-color);
   text-decoration: underline;
-  text-decoration-color: var(--link-color);
   text-underline-offset: 2px;
 }
 

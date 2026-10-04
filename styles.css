@@ -1494,7 +1494,10 @@ button.claudian-plus-tab-badge-active,
 }
 
 .claudian-plus-nav-outline-chip {
-  all: unset;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1553,7 +1556,10 @@ button.claudian-plus-tab-badge-active,
 /* ── Tick markers ── */
 
 button.claudian-plus-nav-outline-marker {
-  all: unset;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
   box-sizing: border-box;
   position: relative;
   flex: 0 0 3px;
@@ -3140,7 +3146,6 @@ body.theme-light .claudian-plus-message-content pre {
 .claudian-plus-live-preview-link {
   color: var(--link-color);
   text-decoration: underline;
-  text-decoration-color: var(--link-color);
   text-underline-offset: 2px;
 }
 
@@ -6639,7 +6644,6 @@ code .claudian-plus-file-link:hover {
 }
 
 .claudian-plus-file-viewer-tab-btn.active {
-  color: var(--text-normal);
   background: var(--interactive-accent);
   color: var(--text-on-accent);
   font-weight: 500;

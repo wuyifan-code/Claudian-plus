@@ -17,7 +17,7 @@ export class QuickAgentInputModal extends Modal {
     super(app);
     this.setTitle(localeText('快速 Agent 输入', 'Quick Agent Input'));
     this.scope.register(['Mod'], 'Enter', () => {
-      this.submit();
+      void this.submit();
       return false;
     });
     this.scope.register([], 'Escape', () => {

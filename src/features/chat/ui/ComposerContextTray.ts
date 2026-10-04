@@ -24,7 +24,7 @@ export interface ComposerContextItem {
   icon?: string;
   title?: string;
   ariaLabel?: string;
-  onActivate?: () => void;
+  onActivate?: (event?: MouseEvent) => void;
   onRemove?: () => void;
 }
 

@@ -47,7 +47,10 @@
 }
 
 .claudian-plus-nav-outline-chip {
-  all: unset;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -106,7 +109,10 @@
 /* ── Tick markers ── */
 
 button.claudian-plus-nav-outline-marker {
-  all: unset;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
   box-sizing: border-box;
   position: relative;
   flex: 0 0 3px;

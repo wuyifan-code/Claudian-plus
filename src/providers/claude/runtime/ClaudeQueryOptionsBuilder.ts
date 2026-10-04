@@ -123,7 +123,8 @@ export class QueryOptionsBuilder {
       effortLevel: resolveEffortLevel(runtimeModel, ctx.settings.effortLevel),
       permissionMode: ctx.settings.permissionMode,
       sdkPermissionMode,
-      systemPromptKey: computeSystemPromptKey(systemPromptSettings, { memoryAppendix: ctx.memoryAppendix }),
+      // Exclude dynamic memory from systemPromptKey so memory changes do not trigger restart
+      systemPromptKey: computeSystemPromptKey(systemPromptSettings),
       disallowedToolsKey,
       mcpServersKey: '', // Dynamic via setMcpServers, not tracked for restart
       pluginsKey,

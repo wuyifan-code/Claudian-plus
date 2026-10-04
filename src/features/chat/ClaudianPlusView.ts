@@ -658,7 +658,7 @@ export class ClaudianPlusView extends ItemView {
     const nextMode = !activeTab.state.getReadingMode();
     activeTab.state.setReadingMode(nextMode);
     this.syncReadingModeButton();
-    activeTab.controllers.conversationController?.save();
+    void activeTab.controllers.conversationController?.save();
     const controller = activeTab.controllers.conversationController;
     activeTab.renderer?.renderMessages(activeTab.state.messages, () =>
       controller ? (controller.getGreeting() ?? '') : ''
@@ -735,7 +735,7 @@ export class ClaudianPlusView extends ItemView {
       const nextMode = !activeTab.state.getReadingMode();
       activeTab.state.setReadingMode(nextMode);
       this.syncReadingModeButton();
-      activeTab.controllers.conversationController?.save();
+      void activeTab.controllers.conversationController?.save();
       const controller = activeTab.controllers.conversationController;
       activeTab.renderer?.renderMessages(activeTab.state.messages, () =>
         controller ? (controller.getGreeting() ?? '') : ''

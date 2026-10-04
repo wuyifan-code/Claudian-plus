@@ -10,6 +10,9 @@ patchSetMaxListenersForElectron();
 
 StartupProfiler.finishModuleEvaluation();
 
+import * as os from 'node:os';
+import * as path from 'node:path';
+
 import type { Editor, WorkspaceLeaf } from 'obsidian';
 import { MarkdownView, Notice, Plugin } from 'obsidian';
 
@@ -40,6 +43,14 @@ import {
   MindStore,
   VaultKnowledgeEngine,
 } from './core/memory';
+import {
+  DreamRunner,
+  FsMemoryStorageAdapter,
+  LegacyMemoryMigrator,
+  MemoryCoordinator,
+  MemoryRepository,
+  MemoryRetriever,
+} from './core/memory/v2';
 import {
   ObsidianToolBridge,
   type ObsidianToolBridgeHandle,
@@ -156,6 +167,11 @@ export default class ClaudianPlusPlugin extends Plugin {
   private _vaultKnowledgeEngine: VaultKnowledgeEngine | null = null;
   private _dreamService: DreamService | null = null;
   private _auxiliaryRequestGate: AuxiliaryRequestGate | null = null;
+  private _memoryRepository: MemoryRepository | null = null;
+  private _memoryRetriever: MemoryRetriever | null = null;
+  private _dreamRunner: DreamRunner | null = null;
+  private _memoryCoordinator: MemoryCoordinator | null = null;
+  private _legacyMigrator: LegacyMemoryMigrator | null = null;
 
   private agentSkillRepository: AgentSkillRepository | null = null;
   private agentSkillRegistry: AgentSkillRegistry | null = null;
@@ -1339,23 +1355,115 @@ export default class ClaudianPlusPlugin extends Plugin {
     return this._memoryStore;
   }
 
+  /** Get or create the unified MemoryRepository (V2). */
+  getMemoryRepository(): MemoryRepository {
+    if (!this._memoryRepository) {
+      const vaultId = this.app.vault.getName() || 'default-vault';
+      let storageDir: string;
+      try {
+        const home = os.homedir();
+        storageDir = path.join(home, '.claudian-plus', 'memory', 'v2');
+      } catch {
+        storageDir = path.join('.claudian-plus', 'memory', 'v2');
+      }
+      const storageAdapter = new FsMemoryStorageAdapter(storageDir);
+      this._memoryRepository = new MemoryRepository({
+        storage: storageAdapter,
+        vaultId,
+      });
+    }
+    return this._memoryRepository;
+  }
+
+  /** Get or create the MemoryRetriever instance (V2). */
+  getMemoryRetriever(): MemoryRetriever {
+    if (!this._memoryRetriever) {
+      this._memoryRetriever = new MemoryRetriever({
+        repository: this.getMemoryRepository(),
+      });
+    }
+    return this._memoryRetriever;
+  }
+
+  /** Get or create the DreamRunner instance (V2). */
+  getDreamRunner(): DreamRunner {
+    if (!this._dreamRunner) {
+      const vaultId = this.app.vault.getName() || 'default-vault';
+      this._dreamRunner = new DreamRunner({
+        repository: this.getMemoryRepository(),
+        vaultId,
+        createRunner: (providerId) => ProviderRegistry.createAuxQueryRunner(this, providerId),
+      });
+    }
+    return this._dreamRunner;
+  }
+
+  /** Get or create the MemoryCoordinator instance (V2). */
+  getMemoryCoordinator(): MemoryCoordinator {
+    if (!this._memoryCoordinator) {
+      const vaultId = this.app.vault.getName() || 'default-vault';
+      this._memoryCoordinator = new MemoryCoordinator({
+        repository: this.getMemoryRepository(),
+        dreamRunner: this.getDreamRunner(),
+        backgroundRequestGate: this.getAuxiliaryRequestGate(),
+        vaultId,
+        getConversationContext: () => this.getActiveChatContext(),
+        isForegroundBusy: () => {
+          const tab = this.getView()?.getActiveTab();
+          return tab?.state.isStreaming === true;
+        },
+        onNotification: (msg) => {
+          new Notice(msg);
+        },
+      });
+    }
+    return this._memoryCoordinator;
+  }
+
+  /** Get or create the LegacyMemoryMigrator instance (V2). */
+  getLegacyMemoryMigrator(): LegacyMemoryMigrator {
+    if (!this._legacyMigrator) {
+      const vaultId = this.app.vault.getName() || 'default-vault';
+      this._legacyMigrator = new LegacyMemoryMigrator({
+        repository: this.getMemoryRepository(),
+        memoryStore: this.getMemoryStore(),
+        mindStore: this.getMindStore(),
+        consciousness: this.getConsciousnessEngine(),
+        vaultId,
+      });
+    }
+    return this._legacyMigrator;
+  }
+
   /** Get the memory injection text for system prompt, or null if disabled/empty. */
-  async getMemoryInjectionText(): Promise<string | null> {
-    // memoryEnabled is the Tier-1 master switch for the whole Mind + memory.md
-    // injection, not just the vault markdown layer.
+  async getMemoryInjectionText(userPromptOverride?: string): Promise<string | null> {
     if (!this.settings.memoryEnabled) {
       return null;
     }
 
     try {
+      const repo = this.getMemoryRepository();
+      await repo.initialize();
+      const retriever = this.getMemoryRetriever();
       const context = this.getActiveChatContext();
+      const vaultId = this.app.vault.getName() || 'default-vault';
+      const prompt = userPromptOverride || (context?.activeFilePath ? `File: ${context.activeFilePath}` : '');
+      const packet = await retriever.retrieveContext({
+        vaultId,
+        userPrompt: prompt,
+        activeFilePaths: context?.activeFilePath ? [context.activeFilePath] : [],
+        now: Date.now(),
+        maxTokens: this.settings.memoryMaxInjectionChars || 1200,
+      });
+      if (packet.text) {
+        return packet.text;
+      }
       const mindInjector = this.getHybridMindPromptInjector();
-      const text = await mindInjector.buildPromptInjection({
+      const legacyText = await mindInjector.buildPromptInjection({
         activeFilePath: context?.activeFilePath,
       });
-      return text || null;
+      return legacyText || null;
     } catch {
-      // Memory is an enhancement and must never prevent a provider from starting.
       return null;
     }
   }
@@ -1519,6 +1627,7 @@ export default class ClaudianPlusPlugin extends Plugin {
    * retried on the next launch.
    */
   private async runStartupDream(): Promise<void> {
+    void this.getLegacyMemoryMigrator().migrate().catch(() => undefined);
     // The startup scan is an automatic dream: saving mode skips its model request.
     if (!this.getAuxiliaryRequestGate().allowsAutomaticTask('auto-dream')) {
       return;

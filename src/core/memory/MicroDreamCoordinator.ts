@@ -12,7 +12,7 @@ import type { MindStore } from './MindStore';
 
 export interface SessionMessageInput {
   role: string;
-  content?: string | unknown[] | unknown;
+  content?: unknown;
 }
 
 export interface SessionEvaluationInput {
