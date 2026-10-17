@@ -11,6 +11,7 @@ import {
   rmSync,
 } from 'fs';
 import rendererSafeUnrefHelpers from './scripts/rendererSafeUnref.js';
+import { bundleNodeWebSocket } from './scripts/nodeWebSocket.mjs';
 
 const {
   findUnsafeTimerUnrefSites,
@@ -218,6 +219,7 @@ const mainContext = await esbuild.context({
   entryPoints: ['src/main.ts'],
   bundle: true,
   plugins: [
+    bundleNodeWebSocket(),
     patchSdkImportMeta,
     createPatchRendererUnsafeUnref(['main.js']),
     copyToObsidian,
