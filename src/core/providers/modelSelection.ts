@@ -4,6 +4,7 @@ const PROVIDER_MODEL_SELECTION_PREFIXES: Partial<Record<ProviderId, string>> = {
   antigravity: 'antigravity/',
   claude: 'claude-code/',
   codex: 'openai-codex/',
+  dsh: 'dsh/',
   kimi: 'kimi/',
   opencode: 'opencode/',
   pi: 'pi/',

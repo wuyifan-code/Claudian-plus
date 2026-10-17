@@ -14,6 +14,7 @@ describe('model selection namespacing', () => {
       expect(getProviderModelSelectionPrefix('opencode')).toBe('opencode/');
       expect(getProviderModelSelectionPrefix('pi')).toBe('pi/');
       expect(getProviderModelSelectionPrefix('antigravity')).toBe('antigravity/');
+      expect(getProviderModelSelectionPrefix('dsh')).toBe('dsh/');
     });
 
     it('returns null for a provider with no registered prefix', () => {
@@ -153,6 +154,7 @@ describe('model selection namespacing', () => {
       ['opencode', 'opencode/', 'qwen-max'],
       ['pi', 'pi/', 'assistant-1'],
       ['antigravity', 'antigravity/', 'gemini-3.1-pro-high'],
+      ['dsh', 'dsh/', 'deepseek/deepseek-v4-pro'],
     ] as const)('round-trips a %s model id through encode and toRuntimeModelId', (providerId, prefix, modelId) => {
       const encoded = encodeProviderModelSelectionId(providerId, modelId);
       expect(encoded).toBe(`${prefix}${modelId}`);
