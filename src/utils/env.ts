@@ -534,7 +534,7 @@ export function resolveSystemProxyEnvironment(
     const queryFn = options?.queryRegistry ?? (() => {
       return execSync(
         'reg query "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyEnable && reg query "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyServer',
-        { encoding: 'utf-8', timeout: 1500, stdio: ['pipe', 'pipe', 'ignore'] }
+        { encoding: 'utf-8', timeout: 1500, stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true }
       );
     });
 

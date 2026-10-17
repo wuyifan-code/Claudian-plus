@@ -3049,6 +3049,7 @@ body.theme-light .claudian-plus-message-content pre {
   border-radius: var(--radius-m, 8px) var(--radius-m, 8px) 0 0;
   background: transparent;
   color: var(--text-normal);
+  caret-color: var(--text-normal);
   font-family: var(--font-text, var(--font-interface));
   font-size: 13.5px;
   line-height: 1.5;
@@ -3102,9 +3103,10 @@ body.theme-light .claudian-plus-message-content pre {
   font-family: var(--font-text, var(--font-interface));
 }
 
-.claudian-plus-live-preview-composer .cm-content {
+.claudian-plus-live-preview-composer.cm-editor .cm-content {
   min-height: 42px;
   padding: 6px 10px;
+  caret-color: var(--text-normal);
 }
 
 .claudian-plus-live-preview-composer .cm-placeholder {
