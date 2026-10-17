@@ -27,4 +27,5 @@ run([
   path.join(__dirname, 'check-architecture-boundaries.test.mjs'),
   path.join(__dirname, 'check-eslint-config.test.mjs'),
   path.join(__dirname, 'check-release-version.test.mjs'),
+  path.join(__dirname, 'nodeWebSocket.test.mjs'),
 ]);
