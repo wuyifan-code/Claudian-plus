@@ -22,7 +22,7 @@
 - `CodexSkillListingService` uses a separate short-lived app-server process for `skills/list`. Do not couple skill discovery to the active chat runtime.
 - Environment hash changes for `OPENAI_MODEL`, `OPENAI_BASE_URL`, and `OPENAI_API_KEY` invalidate existing Codex sessions.
 - Existing threads require `thread/resume` before operations in a new app-server process.
-- For forks, resume the new fork thread before `thread/rollback`.
+- For forks, pass the inclusive `lastTurnId` checkpoint to `thread/fork`, then resume the new fork before `turn/start`. Paginated threads reject `thread/rollback`.
 - Notifications can arrive before `turn/start` returns; preserve pending-turn buffering.
 - Compact turns get their ID from `turn/started`, not from the `thread/compact/start` response.
 
