@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 440" width="100%" height="100%" role="img" aria-labelledby="cpArchTitle cpArchDesc">
   <title id="cpArchTitle">Claudian Plus system boundaries</title>
-  <desc id="cpArchDesc">Three layers with a single dependency direction: vault context flows into a provider-neutral core runtime, which dispatches to provider adaptors. Vault context covers note and folder references, canvas and link graph, and frontmatter properties. The core runtime holds Dreaming V3, the session bus, and the vault write guard. Providers covers Codex as the default, Claude Code, and the opt-in Kimi, OpenCode, Pi and Antigravity adaptors.</desc>
+  <desc id="cpArchDesc">Three layers with a single dependency direction: vault context flows into a provider-neutral core runtime, which dispatches to provider adaptors. Vault context covers note and folder references, canvas and link graph, and frontmatter properties. The core runtime holds Dreaming V3, the session bus, and the vault write guard. Providers covers Codex as the default, Claude Code, and the opt-in Kimi, OpenCode, Pi, Antigravity and DeepSeek Harness adaptors.</desc>
   <defs>
     <style>
       .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Noto Sans", sans-serif; }
@@ -17,7 +17,7 @@
 
   <!-- Layer 01: Vault context -->
   <g transform="translate(64, 124)">
-    <rect x="0" y="0" width="341" height="268" rx="10" fill="#F4EFE6" stroke="#E2DBD0" stroke-width="1" />
+    <rect x="0" y="0" width="341" height="288" rx="10" fill="#F4EFE6" stroke="#E2DBD0" stroke-width="1" />
     <text x="20" y="32" class="mono" font-size="18" font-weight="600" fill="#C85023">01</text>
     <text x="20" y="64" class="sans" font-size="20" font-weight="700" fill="#1C1B19">Vault context</text>
     <line x1="20" y1="82" x2="321" y2="82" stroke="#E2DBD0" stroke-width="1" />
@@ -34,13 +34,13 @@
 
   <!-- Dependency arrow 1 -->
   <g stroke="#C85023" stroke-width="2" fill="none">
-    <line x1="410" y1="258" x2="421" y2="258" />
-    <polyline points="417,252 424,258 417,264" />
+    <line x1="410" y1="268" x2="421" y2="268" />
+    <polyline points="417,262 424,268 417,274" />
   </g>
 
   <!-- Layer 02: Core runtime -->
   <g transform="translate(429, 124)">
-    <rect x="0" y="0" width="341" height="268" rx="10" fill="#F4EFE6" stroke="#D9D0C3" stroke-width="1.4" />
+    <rect x="0" y="0" width="341" height="288" rx="10" fill="#F4EFE6" stroke="#D9D0C3" stroke-width="1.4" />
     <text x="20" y="32" class="mono" font-size="18" font-weight="600" fill="#9C3A16">02</text>
     <text x="20" y="64" class="sans" font-size="20" font-weight="700" fill="#1C1B19">Core runtime</text>
     <line x1="20" y1="82" x2="321" y2="82" stroke="#E2DBD0" stroke-width="1" />
@@ -57,13 +57,13 @@
 
   <!-- Dependency arrow 2 -->
   <g stroke="#C85023" stroke-width="2" fill="none">
-    <line x1="775" y1="258" x2="786" y2="258" />
-    <polyline points="782,252 789,258 782,264" />
+    <line x1="775" y1="268" x2="786" y2="268" />
+    <polyline points="782,262 789,268 782,274" />
   </g>
 
   <!-- Layer 03: Providers -->
   <g transform="translate(794, 124)">
-    <rect x="0" y="0" width="341" height="268" rx="10" fill="#F4EFE6" stroke="#E2DBD0" stroke-width="1" />
+    <rect x="0" y="0" width="341" height="288" rx="10" fill="#F4EFE6" stroke="#E2DBD0" stroke-width="1" />
     <text x="20" y="32" class="mono" font-size="18" font-weight="600" fill="#C85023">03</text>
     <text x="20" y="64" class="sans" font-size="20" font-weight="700" fill="#1C1B19">Providers</text>
     <line x1="20" y1="82" x2="321" y2="82" stroke="#E2DBD0" stroke-width="1" />
@@ -75,6 +75,7 @@
     <text x="20" y="198" class="sans" font-size="18" fill="#736D64">Thinking chains, session replay</text>
 
     <text x="20" y="236" class="mono" font-size="18" font-weight="600" fill="#1C1B19">Opt-in providers</text>
-    <text x="20" y="260" class="sans" font-size="18" fill="#736D64">Kimi, OpenCode, Pi, Antigravity</text>
+    <text x="20" y="258" class="sans" font-size="18" fill="#736D64">Kimi, OpenCode, Pi, Antigravity,</text>
+    <text x="20" y="280" class="sans" font-size="18" fill="#736D64">DeepSeek Harness</text>
   </g>
 </svg>

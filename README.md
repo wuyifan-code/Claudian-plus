@@ -16,10 +16,26 @@
 
 <p align="center">
   <strong>Your notes remember. Now your AI does too.</strong><br>
-  Six coding agents in one Obsidian vault, with a memory file you own.
+  Seven coding agents in one Obsidian vault, with a memory file you own.
 </p>
 
-Claudian Plus embeds provider-backed coding agents directly into your Obsidian sidebar. Codex is the default; Claude, Kimi, OpenCode, Pi, and Antigravity plug into the same conversation model. When a session ends, its decisions do not evaporate — they are distilled into `.claudian-plus/memory.md`, a plain Markdown file inside your vault that you can read, edit, or delete.
+Claudian Plus embeds provider-backed coding agents directly into your Obsidian sidebar. Codex is the default; Claude, Kimi, OpenCode, Pi, Antigravity, and DeepSeek Harness plug into the same conversation model. When a session ends, its decisions do not evaporate — they are distilled into `.claudian-plus/memory.md`, a plain Markdown file inside your vault that you can read, edit, or delete.
+
+---
+
+## 🐋 DeepSeek Harness
+
+DeepSeek Harness (`dsh`) is now a first-class provider, implemented directly against the official Harness HTTP Remote and WebSocket mux contracts rather than by adapting another agent's protocol.
+
+- **Sessions bind to native Harness history.** A conversation survives a plugin reload and resumes after the harness process restarts, because replay reads the harness's own session files instead of a copy.
+- **What streams is what the harness sends.** Text and reasoning streams, tool calls and results, one-shot tool approval, and an explicit Stop.
+- **Models come from the harness, not from a hardcoded list.** Refresh the native catalog in Settings and the picker lists the provider/model pairs Harness actually advertises, plus the reasoning efforts it declares. The native default keeps following the native default instead of pinning a model. Local title generation spends no model credits.
+- **One harness process per workspace.** Tabs claim separate native sessions against a single Web-profile process.
+- **Off by default, and quiet until asked.** Rendering provider settings never starts Harness. First launch can take tens of seconds.
+
+**Requirements:** the official npm CLI [`@deepseek-ai/dsh`](https://github.com/deepseek-ai/deepseek-harness) (`npm install -g @deepseek-ai/dsh`), with Node.js on `PATH`. The Desktop executable is not supported. In Settings, leave the CLI path empty to let discovery find the `dsh` shim, or point it at `dsh.cmd`/`dsh.ps1` or its JavaScript entry. Set `DSH_HOME` in the provider environment if your profiles live outside the default location.
+
+**What it deliberately does not do:** images, fork, rewind, steering, provider slash commands, shared MCP/skill management, and autonomous background subagents are not exposed. Unknown context capacity is reported as unknown rather than invented as a token count. The full boundary is in [`src/providers/dsh/README.md`](src/providers/dsh/README.md).
 
 ---
 
@@ -63,7 +79,7 @@ A 30-second animated overview of how the pieces fit together:
 
 - **Context arrives as references, not pasted text.** `@note`, `@folder`, and drag-and-drop resolve against the vault you already have open.
 - **Memory lands in a file you can open.** No database, no sync service — just `memory.md` sitting in your file list next to your notes.
-- **The provider switches without the conversation breaking.** Each provider keeps its own session history, so a session can move between Codex, Claude, Kimi, OpenCode, and Antigravity.
+- **The provider switches without the conversation breaking.** Each provider keeps its own session history, so a session can move between Codex, Claude, Kimi, OpenCode, Antigravity, and DeepSeek Harness.
 
 ---
 
@@ -74,7 +90,7 @@ Most AI plugins treat conversation history as disposable text. Claudian Plus tre
 | What you need | Typical AI extension | Claudian Plus |
 | :--- | :--- | :--- |
 | **Continuity across sessions** | Erased when the window closes | Memory distilled into `memory.md`, injected into later prompts |
-| **Provider choice** | Locked to one vendor's web assumptions | Codex by default, plus Claude, Kimi, OpenCode, Pi, and Antigravity |
+| **Provider choice** | Locked to one vendor's web assumptions | Codex by default, plus Claude, Kimi, OpenCode, Pi, Antigravity, and DeepSeek Harness |
 | **Vault context** | Manual copy-paste into a chat box | `@note`, `@folder`, drag-and-drop, Canvas, frontmatter queries |
 | **Data sovereignty** | Sessions indexed on someone else's server | Every prompt, session, and memory stays under `.claudian-plus/` |
 | **Long-session focus** | A wall of tool calls and reasoning noise | Smart Tool Grouping & auto-collapse keeps the stream clean and readable |
@@ -118,6 +134,7 @@ Three layers, one direction of dependency: vault context feeds a provider-neutra
 - **Codex CLI — enabled by default.** Default model `gpt-5.6-sol`, with native streaming output over `codex app-server`.
 - **Claude Code — enabled by default.** Thinking-chain folding, permission modes, and native project history replay.
 - **Antigravity (Gemini) — opt in.** Deep integration with automatic system proxy tunneling, multi-model selection, and official brand assets.
+- **DeepSeek Harness — opt in.** Native HTTP Remote + WebSocket mux integration with durable history, provider-advertised models and reasoning efforts, one-shot tool approval, and one shared process per workspace. Needs Node.js on `PATH`; the Desktop build is not supported. Setup and the exact capability boundary live in [`src/providers/dsh/README.md`](src/providers/dsh/README.md).
 - **Kimi — opt in.** ACP integration with dynamic model and command discovery, per-tool approval dialogs, and multimodal image attachments.
 - **OpenCode — opt in.** ACP agent over a sandboxed sidecar process.
 - **Pi — opt in.** RPC-mode sidecar that runs on Node built-ins and a bundled TypeBox, so it still works when external tool dependencies are missing.
@@ -137,7 +154,7 @@ Three layers, one direction of dependency: vault context feeds a provider-neutra
 
 ### Method 2: Build from source
 
-Requires **Node.js 24**, plus at least one provider CLI installed locally: [Codex](https://github.com/openai/codex), [Claude Code](https://claude.ai/claude-code), [Antigravity](https://github.com/google/antigravity), [Kimi](https://github.com/MoonshotAI/kimi-cli), [OpenCode](https://opencode.ai/), or [Pi](https://github.com/badlogic/pi-mono).
+Requires **Node.js 24**, plus at least one provider CLI installed locally: [Codex](https://github.com/openai/codex), [Claude Code](https://claude.ai/claude-code), [Antigravity](https://github.com/google/antigravity), [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), [Kimi](https://github.com/MoonshotAI/kimi-cli), [OpenCode](https://opencode.ai/), or [Pi](https://github.com/badlogic/pi-mono).
 
 ```bash
 git clone https://github.com/wuyifan-code/Claudian-plus.git
