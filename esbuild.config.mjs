@@ -43,6 +43,22 @@ if (existsSync('.env.local')) {
 const prod = process.argv[2] === 'production';
 const pluginManifest = JSON.parse(readFileSync('manifest.json', 'utf8'));
 
+// The distributed plugin ships only main.js, manifest.json, and styles.css, so a
+// LICENSE file next to the bundle is never downloaded by Obsidian. The MIT notice
+// therefore has to travel inside main.js. LICENSE stays the single source of truth.
+const licenseText = readFileSync('LICENSE', 'utf8').trim().replace(/\*\//g, '* /');
+const licenseBanner = [
+  '/*',
+  ' * Claudian Plus — https://github.com/wuyifan-code/Claudian-plus',
+  ' *',
+  ' * This bundle contains code derived from Claudian',
+  ' * (https://github.com/YishenTu/claudian). The upstream copyright notice and the',
+  ' * full MIT permission notice are reproduced below, as the license requires.',
+  ' *',
+  ...licenseText.split(/\r?\n/).map((line) => (line.trim().length > 0 ? ` * ${line}` : ' *')),
+  ' */',
+].join('\n');
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -209,6 +225,7 @@ const mainContext = await esbuild.context({
   external,
   format: 'cjs',
   target: 'es2018',
+  banner: { js: licenseBanner },
   logLevel: 'info',
   minify: prod,
   sourcemap: prod ? false : 'inline',
