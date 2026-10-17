@@ -39,7 +39,27 @@ DeepSeek Harness (`dsh`) is now a first-class provider, implemented directly aga
 
 ---
 
-## 🌟 What's New in V3.0.2
+## 🌟 What's New in V3.1.0
+
+**DeepSeek Harness returns, rebuilt on the current architecture.** It is joined by three fixes reported on the issue tracker.
+
+### 1. DeepSeek Harness Provider
+- **Layered transport, not an adapter.** `DshHost` owns the `dsh serve` process, `DshSubprocess` owns its stdio, `DshNativeConnection` speaks the harness' WebSocket mux and HTTP remote contract, and `DshRemoteClient` puts a typed surface on both. Nothing is translated through another agent's protocol.
+- **Sessions bind to the harness' own history.** A reload, a tab switch, or a process restart resumes the same conversation with its full turn history.
+- **Models come from the harness.** The model list is read from the native catalog and refreshed on demand from the settings tab — no hard-coded snapshot — and reasoning effort is exposed per model.
+- **One process per workspace.** Every tab in the same vault shares one host, so a second conversation does not pay for a second cold start.
+- **Off until you turn it on.** Selecting the provider does not spawn anything by itself; a host starts on the first turn.
+- **Boundaries stated up front.** Images, fork, rewind, steering, slash commands, shared MCP/skill management, and background subagents are not exposed. Unknown context capacity is reported as unknown rather than invented as a token count.
+
+### 2. Fixes
+- **Caret colour in dark themes (#9).** The composer and the live-preview editor now inherit `--text-normal` for `caret-color`, so the caret inverts with the theme instead of staying dark.
+- **Scrambled history layout (#10).** Opening a session from the conversation list no longer creates a second tab for the same id, and consecutive Antigravity assistant messages merge into one content block instead of one block each.
+- **Terminal flash on every turn (#11).** Registry probing for the system proxy now passes `windowsHide`, so no console window appears behind the vault.
+- **Codex fork on long threads.** Forking passes an inclusive `lastTurnId` checkpoint to `thread/fork` instead of forking the whole thread and rolling back, which paginated threads reject.
+
+---
+
+## 🌟 V3.0.2
 
 In **V3.0.2**, we introduced major architectural improvements, network resilience, and modern design enhancements:
 

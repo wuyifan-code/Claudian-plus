@@ -39,6 +39,26 @@ DeepSeek Harness（`dsh`）现在是一等 Provider。它直接对着官方 Harn
 
 ---
 
+## 🌟 V3.1.0 更新
+
+**DeepSeek Harness 回归，基于当前架构重写。** 同时修复了 issue 中反馈的三个缺陷。
+
+### 1. DeepSeek Harness Provider
+- **分层传输，而非协议适配。** `DshHost` 持有 `dsh serve` 进程，`DshSubprocess` 管理其 stdio，`DshNativeConnection` 直接实现 Harness 的 WebSocket mux 与 HTTP remote 契约，`DshRemoteClient` 在其上提供类型化接口。中间没有经过另一个 Agent 协议的转译。
+- **会话绑定 Harness 自己的历史。** 重载插件、切换标签页或重启进程后，都能带着完整轮次记录续接同一段对话。
+- **模型来自 Harness 本身。** 模型列表读取原生目录，可在设置页按需刷新，不是写死的快照；推理强度按模型单独暴露。
+- **每个工作空间一个进程。** 同一笔记库下的所有标签页共用一个 host，开第二段对话不必再等一次冷启动。
+- **默认关闭。** 仅选中该 Provider 不会拉起任何进程，host 在第一次发送消息时才启动。
+- **能力边界写在明面上。** 图片、fork、rewind、steering、斜杠命令、共享 MCP/Skill 与后台子代理均未开放；未知的上下文容量如实报告为未知，不换算成 token 数字。
+
+### 2. 缺陷修复
+- **深色主题下光标不反色（#9）。** 输入框与实时预览编辑器改用 `--text-normal` 作为 `caret-color`，光标随主题正常反色。
+- **历史记录排版错乱（#10）。** 从会话列表打开对话时，不再为同一 id 重复创建标签页；Antigravity 连续的多条 assistant 消息合并为同一个内容块，不再一条一块。
+- **每轮对话闪现终端黑框（#11）。** 探测系统代理的注册表查询加上了 `windowsHide`，笔记库后面不再弹出控制台窗口。
+- **长会话下 Codex fork 失败。** fork 改为把包含式 `lastTurnId` 检查点传给 `thread/fork`，不再走「fork 全量再回滚」——分页线程会拒绝回滚。
+
+---
+
 ## 🌟 V3.0.2 重大更新与核心体验优化
 
 在 **V3.0.2** 中，我们针对长任务交互痛点、网络通信稳定性与视觉体验带来了跨越式升级：
