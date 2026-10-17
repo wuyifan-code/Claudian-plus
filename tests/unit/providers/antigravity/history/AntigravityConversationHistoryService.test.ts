@@ -63,6 +63,37 @@ describe('AntigravityConversationHistoryService replay', () => {
     await fsp.rm(vaultPath, { recursive: true, force: true });
   });
 
+  it('reassembles streamed markdown across deltas without merging across tools', async () => {
+    const writer = new AntigravityConversationHistoryService();
+    const conversation = createConversation(CONVERSATION_ID);
+    bindSession(conversation, CONVERSATION_ID, 1);
+    const toolId = 'markdown-tool';
+    const beforeTool = '## Heading\n\nA **complete** paragraph.\n\n```ts\nconst x = 1;\n```';
+    const afterTool = '\n\n- First item\n- Second item';
+    await writer.recordTurnSettled(conversation, vaultPath, {
+      turnIndex: 0,
+      timestamp: 1100,
+      chunks: [
+        ...Array.from(beforeTool, textChunk),
+        { type: 'tool_use', id: toolId, name: 'Bash', input: { command: 'pwd' } },
+        { type: 'tool_result', id: toolId, content: '/vault', isError: false },
+        ...Array.from(afterTool, textChunk),
+      ],
+    });
+
+    const reopened = createConversation(CONVERSATION_ID);
+    bindSession(reopened, CONVERSATION_ID, 1);
+    await new AntigravityConversationHistoryService().hydrateConversationHistory(reopened, vaultPath);
+
+    expect(reopened.messages).toHaveLength(1);
+    expect(reopened.messages[0].content).toBe(beforeTool + afterTool);
+    expect(reopened.messages[0].contentBlocks).toEqual([
+      { type: 'text', content: beforeTool },
+      { type: 'tool_use', toolId },
+      { type: 'text', content: afterTool },
+    ]);
+  });
+
   it('replays user text, assistant text and tool activity in order after a restart', async () => {
     const writer = new AntigravityConversationHistoryService();
     const conversation = createConversation(CONVERSATION_ID);

@@ -366,7 +366,12 @@ export function mapAntigravityRecordsToMessages(records: AntigravityHistoryRecor
 
     if (record.kind === 'assistant_text') {
       current.textParts.push(record.text);
-      current.contentBlocks.push({ type: 'text', content: record.text });
+      const previous = current.contentBlocks[current.contentBlocks.length - 1];
+      if (previous?.type === 'text') {
+        previous.content += record.text;
+      } else {
+        current.contentBlocks.push({ type: 'text', content: record.text });
+      }
       continue;
     }
     if (record.kind === 'tool_use') {

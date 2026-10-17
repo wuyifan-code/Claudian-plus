@@ -264,6 +264,42 @@ describe('TabManager - Tab Lifecycle', () => {
   });
 
   describe('createTab', () => {
+    it('reuses an existing tab ID during deferred restoration without replacing its live state', async () => {
+      const manager = createManager({ callbacks, tabFactory: () => createMockTabData({ id: 'same-tab' }) });
+      const original = await manager.createTab(null, 'same-tab');
+      original!.state.messages.push({ id: 'local-draft', role: 'user', content: 'Keep local state', timestamp: 1 });
+      const persisted = manager.getPersistedState();
+
+      await manager.restoreState(persisted);
+
+      expect(manager.getTab('same-tab')).toBe(original);
+      expect(mockCreateTab).toHaveBeenCalledTimes(1);
+      expect(callbacks.onTabCreated).toHaveBeenCalledTimes(1);
+      expect(original!.state.messages).toHaveLength(1);
+      expect(mockDestroyTab).not.toHaveBeenCalled();
+    });
+
+    it('reuses an existing tab at capacity without allocating another page', async () => {
+      const manager = createManager({ callbacks });
+      const original = await manager.createTab();
+      for (let index = 1; index < DEFAULT_MAX_TABS; index++) await manager.createTab();
+
+      expect(await manager.createTab(null, original!.id, { activate: false })).toBe(original);
+      expect(manager.getTabCount()).toBe(DEFAULT_MAX_TABS);
+      expect(mockCreateTab).toHaveBeenCalledTimes(DEFAULT_MAX_TABS);
+    });
+
+    it('does not replace or reactivate a closing tab when its ID is restored', async () => {
+      const manager = createManager({ callbacks, tabFactory: () => createMockTabData({ id: 'closing-tab' }) });
+      const original = await manager.createTab(null, 'closing-tab');
+      original!.lifecycleState = 'closing';
+      mockActivateTab.mockClear();
+
+      expect(await manager.createTab(null, 'closing-tab')).toBeNull();
+      expect(mockCreateTab).toHaveBeenCalledTimes(1);
+      expect(mockActivateTab).not.toHaveBeenCalled();
+    });
+
     it('should create a new tab', async () => {
       const manager = createManager({ callbacks });
 

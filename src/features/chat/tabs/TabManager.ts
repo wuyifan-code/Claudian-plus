@@ -177,6 +177,15 @@ export class TabManager implements TabManagerInterface {
     tabId?: TabId,
     options: CreateTabOptions = {},
   ): Promise<TabData | null> {
+    const existing = tabId ? this.tabs.get(tabId) : undefined;
+    if (existing) {
+      if (!this.isTabAlive(existing)) return null;
+      if (!this.isRestoringState && (options.activate !== false || !this.activeTabId)) {
+        await this.switchToTab(existing.id);
+      }
+      return existing;
+    }
+
     const maxTabs = this.getMaxTabs();
     if (this.tabs.size + this.pendingTabCreations >= maxTabs) {
       return null;
