@@ -16,10 +16,26 @@
 
 <p align="center">
   <strong>你的笔记记得，你的 AI 也该记得。</strong><br>
-  六个编码 Agent，一个笔记库，一份属于你自己的记忆文件。
+  七个编码 Agent，一个笔记库，一份属于你自己的记忆文件。
 </p>
 
-Claudian Plus 把编码 Agent 深度整合进 Obsidian 侧边栏。默认使用 Codex，Claude、Kimi、OpenCode、Pi 与 Antigravity 接入同一套会话模型。一次对话结束后，它的结论不会蒸发——而是被蒸馏进笔记库里的 `.claudian-plus/memory.md`，一份你可以随时打开、修改、删除的纯 Markdown 文件。
+Claudian Plus 把编码 Agent 深度整合进 Obsidian 侧边栏。默认使用 Codex，Claude、Kimi、OpenCode、Pi、Antigravity 与 DeepSeek Harness 接入同一套会话模型。一次对话结束后，它的结论不会蒸发——而是被蒸馏进笔记库里的 `.claudian-plus/memory.md`，一份你可以随时打开、修改、删除的纯 Markdown 文件。
+
+---
+
+## 🐋 DeepSeek Harness
+
+DeepSeek Harness（`dsh`）现在是一等 Provider。它直接对着官方 Harness 的 HTTP Remote 与 WebSocket mux 契约实现，而不是去适配另一个 Agent 的协议。
+
+- **会话绑定在原生 Harness 历史上。** 重载插件不会丢对话，Harness 进程重启后也能续上——回放读的是 Harness 自己的会话文件，不是副本。
+- **流出来的就是 Harness 发出的。** 文本与推理流、工具调用与结果、一次性工具审批、显式 Stop。
+- **模型来自 Harness，不是写死的列表。** 在设置里刷新原生目录，选择器列出的是 Harness 真正通告的 provider/model 组合，以及它声明的推理强度。原生默认项继续跟随原生默认，而不是锁定某个模型。本地生成标题不消耗模型额度。
+- **一个工作空间只有一个 Harness 进程。** 多个标签页共享同一个 Web-profile 进程，各自 claim 独立的原生会话。
+- **默认关闭，不主动启动。** 渲染 Provider 设置不会拉起 Harness。首次启动可能需要几十秒。
+
+**环境要求：** 官方 npm CLI [`@deepseek-ai/dsh`](https://github.com/deepseek-ai/deepseek-harness)（`npm install -g @deepseek-ai/dsh`），且 Node.js 在 `PATH` 上。不支持 Desktop 版可执行文件。在设置里，CLI 路径留空即可自动发现 `dsh` shim，也可以直接指向 `dsh.cmd`/`dsh.ps1` 或其 JavaScript 入口。若 profile 不在默认位置，在 Provider 环境变量里设置 `DSH_HOME`。
+
+**它刻意不做的事：** 图片、fork、rewind、steering、Provider 斜杠命令、共享 MCP/Skill 管理、后台自主子 Agent 均未开放。未知的上下文容量如实报告为未知，不会编成一个 token 数字。完整能力边界见 [`src/providers/dsh/README.md`](src/providers/dsh/README.md)。
 
 ---
 
@@ -63,7 +79,7 @@ Claudian Plus 把编码 Agent 深度整合进 Obsidian 侧边栏。默认使用 
 
 - **上下文以引用形式进来，不是粘贴进来的文本。** `@note`、`@folder` 与拖拽文件都解析自你已经打开的那个笔记库。
 - **记忆落在你可以打开的文件里。** 没有数据库，没有同步服务——`memory.md` 就躺在你的文件列表中，和笔记排在一起。
-- **切换 Provider 不会打断会话。** 每个 Provider 各自保留自己的历史，同一段会话可以在 Codex、Claude、Kimi、OpenCode 与 Antigravity 之间无缝流转。
+- **切换 Provider 不会打断会话。** 每个 Provider 各自保留自己的历史，同一段会话可以在 Codex、Claude、Kimi、OpenCode、Antigravity 与 DeepSeek Harness 之间无缝流转。
 
 ---
 
@@ -74,7 +90,7 @@ Claudian Plus 把编码 Agent 深度整合进 Obsidian 侧边栏。默认使用 
 | 你的需求 | 常见的 AI 插件 | Claudian Plus |
 | :--- | :--- | :--- |
 | **跨会话的连续性** | 关掉窗口就没了 | 蒸馏进 `memory.md`，注入到后续 Prompt |
-| **选择 Provider 的自由** | 被绑死在单一厂商的网页假设上 | 默认 Codex，另有 Claude、Kimi、OpenCode、Pi、Antigravity |
+| **选择 Provider 的自由** | 被绑死在单一厂商的网页假设上 | 默认 Codex，另有 Claude、Kimi、OpenCode、Pi、Antigravity、DeepSeek Harness |
 | **笔记库上下文** | 手动复制粘贴进输入框 | `@note`、`@folder`、拖拽、Canvas、Frontmatter 查询 |
 | **数据主权** | 会话被索引到别人的服务器上 | 所有 Prompt、会话与记忆都留在 `.claudian-plus/` 下 |
 | **长对话专注度** | 满屏的工具调用与思考噪音 | 智能聚合自动折叠 + 悬浮大纲，把噪音收纳于无形 |
@@ -118,6 +134,7 @@ Claudian Plus 把编码 Agent 深度整合进 Obsidian 侧边栏。默认使用 
 - **Codex CLI —— 默认启用。** 默认模型 `gpt-5.6-sol`，通过 `codex app-server` 原生流式输出。
 - **Claude Code —— 默认启用。** 支持思维链折叠、权限模式与原生项目历史回放。
 - **Antigravity (Gemini) —— 需手动开启。** 深度封装 `agy` CLI，支持全自动系统代理探测与注入、多模型切换与原生品牌图标。
+- **DeepSeek Harness —— 需手动开启。** 直接对接官方 HTTP Remote 与 WebSocket mux 契约，支持持久历史、由 Harness 通告的模型与推理强度、一次性工具审批，以及每个工作空间共享一个原生进程。需要 Node.js 在 `PATH` 上，不支持 Desktop 版可执行文件。安装步骤与能力边界见 [`src/providers/dsh/README.md`](src/providers/dsh/README.md)。
 - **Kimi —— 需手动开启。** 基于 ACP 协议接入，具备模型与命令自动发现、按工具审批以及多模态图片附件。
 - **OpenCode —— 需手动开启。** 运行在隔离 sidecar 进程上的 ACP Agent。
 - **Pi —— 需手动开启。** RPC 模式的 sidecar，外部工具依赖缺失时依然可用。
@@ -137,7 +154,7 @@ Claudian Plus 把编码 Agent 深度整合进 Obsidian 侧边栏。默认使用 
 
 ### 方式二：从源码构建
 
-需要 **Node.js 24**，以及至少一个 Provider CLI：[Codex](https://github.com/openai/codex)、[Claude Code](https://claude.ai/claude-code)、[Antigravity](https://github.com/google/antigravity)、[Kimi](https://github.com/MoonshotAI/kimi-cli)、[OpenCode](https://opencode.ai/) 或 [Pi](https://github.com/badlogic/pi-mono)。
+需要 **Node.js 24**，以及至少一个 Provider CLI：[Codex](https://github.com/openai/codex)、[Claude Code](https://claude.ai/claude-code)、[Antigravity](https://github.com/google/antigravity)、[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)、[Kimi](https://github.com/MoonshotAI/kimi-cli)、[OpenCode](https://opencode.ai/) 或 [Pi](https://github.com/badlogic/pi-mono)。
 
 ```bash
 git clone https://github.com/wuyifan-code/Claudian-plus.git
