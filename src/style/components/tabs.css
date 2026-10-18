@@ -1,14 +1,13 @@
 /*
- * Visibility is owned by ClaudianPlusView.updateTabBarVisibility(): the bar is
- * hidden below two tabs and shown above, via .claudian-plus-hidden.
- * Do not force `display: none` here; it would make open tabs unreachable and
- * strand users at the tab limit with no way to close an idle tab.
+ * The tab bar is never rendered. The container still needs to exist because
+ * TabBar mounts into it, and its children drive the layout of the badges and
+ * overflow control whenever the bar is shown again; only its own display is
+ * suppressed. Tab-limit protection lives in the new-tab button state,
+ * blank-tab reuse, and refusing to overwrite the live conversation, so a
+ * hidden bar costs no capability.
  */
 .claudian-plus-tab-bar-container {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  min-width: 0;
+  display: none;
 }
 
 .claudian-plus-tab-badges {

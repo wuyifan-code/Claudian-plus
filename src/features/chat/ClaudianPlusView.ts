@@ -882,10 +882,11 @@ export class ClaudianPlusView extends ItemView {
   private updateTabBarVisibility(): void {
     if (!this.tabBarContainerEl || !this.tabManager) return;
 
-    const tabCount = this.tabManager.getTabCount();
-    const showTabBar = tabCount >= 2;
-
-    this.tabBarContainerEl.toggleClass('claudian-plus-hidden', !showTabBar);
+    // The bar is intentionally never shown. The tab-limit affordances (the
+    // new-tab button staying clickable with an explanation, blank-tab reuse,
+    // and refusing to overwrite the live conversation) carry the same
+    // protection without a persistent badge row.
+    this.tabBarContainerEl.toggleClass('claudian-plus-hidden', true);
 
     this.updateNewTabButtonVisibility();
   }

@@ -20,7 +20,7 @@ describe('DeepSeek Harness model projection', () => {
   });
 
   it('exposes the shared Safe/YOLO permission toggle', () => {
-    expect(dshChatUIConfig.getPermissionModeToggle()).toEqual({
+    expect(dshChatUIConfig.getPermissionModeToggle!()).toEqual({
       inactiveValue: 'normal',
       inactiveLabel: expect.any(String),
       activeValue: 'yolo',
