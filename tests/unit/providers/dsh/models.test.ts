@@ -1,5 +1,6 @@
 import { decodeDshModelId, encodeDshModelId } from '@/providers/dsh/models';
 import { dshChatUIConfig } from '@/providers/dsh/ui/DshChatUIConfig';
+import { DEEPSEEK_PROVIDER_ICON } from '@/shared/icons';
 
 describe('DeepSeek Harness model projection', () => {
   it('round-trips namespaced identifiers with reserved characters', () => {
@@ -26,6 +27,16 @@ describe('DeepSeek Harness model projection', () => {
       activeValue: 'yolo',
       activeLabel: 'YOLO',
     });
+  });
+
+  it('exposes the official DeepSeek mark so the header follows the provider', () => {
+    const icon = dshChatUIConfig.getProviderIcon?.();
+    expect(icon).toBe(DEEPSEEK_PROVIDER_ICON);
+    expect(icon?.viewBox).toBe('0 0 50 50');
+    // A plain path icon is filled with currentColor by createProviderIconSvg, so
+    // the mark inherits the brand tint and both Obsidian themes without a
+    // hardcoded fill.
+    expect(icon && 'path' in icon ? icon.path.length : 0).toBeGreaterThan(1000);
   });
 
   it('projects only native catalog metadata and preserves the pinned missing selection', () => {
