@@ -1,6 +1,14 @@
-/* Clean, Obsidian-native tab bar - hidden per user request to eliminate ugly stray text row in chat view */
+/*
+ * Visibility is owned by ClaudianPlusView.updateTabBarVisibility(): the bar is
+ * hidden below two tabs and shown above, via .claudian-plus-hidden.
+ * Do not force `display: none` here; it would make open tabs unreachable and
+ * strand users at the tab limit with no way to close an idle tab.
+ */
 .claudian-plus-tab-bar-container {
-  display: none !important;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
 }
 
 .claudian-plus-tab-badges {
@@ -157,6 +165,24 @@ button.claudian-plus-tab-badge-active,
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
+}
+
+/*
+ * Capacity-disabled "new tab" action: stays visible so the limit is
+ * discoverable, but reads as unactionable. Clicking still surfaces a Notice,
+ * because a dead control with no explanation is what this replaced.
+ */
+.claudian-plus-new-tab-btn.is-disabled,
+.claudian-plus-new-tab-btn[aria-disabled="true"] {
+  color: var(--text-faint);
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.claudian-plus-new-tab-btn.is-disabled:hover,
+.claudian-plus-new-tab-btn[aria-disabled="true"]:hover {
+  color: var(--text-faint);
+  background: transparent !important;
 }
 
 @container claudian-plus-chat (max-width: 339px) {

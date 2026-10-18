@@ -85,6 +85,11 @@
       "on": "Activar modo de lectura",
       "off": "Desactivar modo de lectura"
     },
+    "tabLimit": {
+      "newTabLabel": "Nueva pestaña",
+      "newTabNotice": "No se puede abrir una pestaña nueva: se alcanzó el límite de {count} pestañas. Cierra una pestaña sin usar o aumenta «Máximo de pestañas de chat» en los ajustes.",
+      "newTabDisabledHint": "Límite de pestañas alcanzado ({count}). Cierra una pestaña sin usar o aumenta el límite en los ajustes."
+    },
     "toolGroup": {
       "calls": "{count} llamadas a herramientas",
       "callSingle": "1 llamada a herramienta",

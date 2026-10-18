@@ -85,6 +85,11 @@
       "on": "읽기 모드 켜기",
       "off": "읽기 모드 끄기"
     },
+    "tabLimit": {
+      "newTabLabel": "새 탭",
+      "newTabNotice": "새 탭을 열 수 없습니다: 최대 {count}개 탭에 도달했습니다. 사용하지 않는 탭을 닫거나 설정에서 \"최대 채팅 탭 수\"를 늘리세요.",
+      "newTabDisabledHint": "탭 한도({count})에 도달했습니다. 사용하지 않는 탭을 닫거나 설정에서 한도를 늘리세요."
+    },
     "toolGroup": {
       "calls": "{count}개 도구 호출",
       "callSingle": "1개 도구 호출",

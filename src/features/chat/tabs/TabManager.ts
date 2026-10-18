@@ -33,9 +33,7 @@ import {
   wireTabInputEvents,
 } from './Tab';
 import {
-  DEFAULT_MAX_TABS,
-  MAX_TABS,
-  MIN_TABS,
+  clampMaxTabs,
   type PersistedTabManagerState,
   type PersistedTabState,
   type TabBarItem,
@@ -57,6 +55,12 @@ type CreateTabOptions = {
   draftModel?: string;
   /** Build only the lightweight tab shell; mount controls on first activation. */
   deferInitialization?: boolean;
+  /**
+   * Reuse an existing unused blank draft instead of allocating a new page.
+   * Only user-initiated "new tab" gestures set this: fork, restore, and
+   * replacement-tab paths must always allocate their own page.
+   */
+  reuseBlank?: boolean;
 };
 
 type SwitchTabOptions = {
@@ -120,11 +124,10 @@ export class TabManager implements TabManagerInterface {
 
   /**
    * Gets the current max tabs limit from settings.
-   * Clamps to MIN_TABS and MAX_TABS bounds.
+   * Clamped through clampMaxTabs().
    */
   private getMaxTabs(): number {
-    const settingsValue = this.plugin.settings.maxTabs ?? DEFAULT_MAX_TABS;
-    return Math.max(MIN_TABS, Math.min(MAX_TABS, settingsValue));
+    return clampMaxTabs(this.plugin.settings.maxTabs);
   }
 
   constructor(
@@ -184,6 +187,16 @@ export class TabManager implements TabManagerInterface {
         await this.switchToTab(existing.id);
       }
       return existing;
+    }
+
+    if (options.reuseBlank && !this.isRestoringState) {
+      const blankTab = this.findReusableBlankTab();
+      if (blankTab) {
+        if (options.activate !== false || !this.activeTabId) {
+          await this.switchToTab(blankTab.id);
+        }
+        return blankTab;
+      }
     }
 
     const maxTabs = this.getMaxTabs();
@@ -598,6 +611,26 @@ export class TabManager implements TabManagerInterface {
     return this.tabs.size < this.getMaxTabs();
   }
 
+  /**
+   * Finds an unused blank draft: no conversation, no messages, still `blank`.
+   * Such a tab occupies a slot without holding any user context.
+   */
+  private findReusableBlankTab(): TabData | null {
+    for (const tab of this.tabs.values()) {
+      if (tab.lifecycleState !== 'blank') continue;
+      if (tab.conversationId) continue;
+      if (tab.state.messages.length > 0) continue;
+      if (!this.isTabAlive(tab)) continue;
+      return tab;
+    }
+    return null;
+  }
+
+  /** Whether an unused blank draft exists that "new tab" can claim instead of allocating. */
+  hasReusableBlankTab(): boolean {
+    return !this.isRestoringState && this.findReusableBlankTab() !== null;
+  }
+
   // ============================================
   // Tab Bar Data
   // ============================================
@@ -674,8 +707,21 @@ export class TabManager implements TabManagerInterface {
 
     // Open in current tab or new tab
     let targetTab: TabData | null = null;
-    if (preferNewTab && this.canCreateTab()) {
+    if (preferNewTab) {
+      // An explicit "open in new tab" request must never degrade into replacing
+      // the conversation the user is currently reading.
+      if (!this.canCreateTab()) {
+        new Notice(t('chat.tabLimit.newTabNotice', { count: String(this.getMaxTabs()) }));
+        return;
+      }
       targetTab = await this.createTab(conversationId, undefined, { activate });
+      if (!targetTab) {
+        // Only reachable when a pending creation reserved the last slot between
+        // the canCreateTab check and createTab. Kept so the no-degrade
+        // guarantee above holds unconditionally.
+        new Notice(t('chat.tabLimit.newTabNotice', { count: String(this.getMaxTabs()) }));
+        return;
+      }
     } else {
       // Open in current tab
       const activeTab = this.getActiveTab();

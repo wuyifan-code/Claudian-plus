@@ -32,7 +32,7 @@ import {
 } from './tabs/Tab';
 import { TabBar } from './tabs/TabBar';
 import { TabManager } from './tabs/TabManager';
-import type { TabData, TabId } from './tabs/types';
+import { clampMaxTabs, type TabData, type TabId } from './tabs/types';
 import { SessionsView } from './ui/SessionsView';
 import { recalculateUsageForModel } from './utils/usageInfo';
 
@@ -846,14 +846,19 @@ export class ClaudianPlusView extends ItemView {
 
   async createNewTab(): Promise<void> {
     await this.whenReady();
-    const tab = await this.tabManager?.createTab();
+    // Claim an idle blank draft before spending a slot; a fresh page is only
+    // allocated when nothing can be reused.
+    const tab = await this.tabManager?.createTab(undefined, undefined, { reuseBlank: true });
     if (!tab) {
-      const maxTabs = this.plugin.settings.maxTabs ?? 3;
-      new Notice(`Maximum ${maxTabs} tabs allowed`);
+      new Notice(t('chat.tabLimit.newTabNotice', { count: String(this.getMaxTabs()) }));
       this.updateTabBarVisibility();
       return;
     }
     this.updateTabBarVisibility();
+  }
+
+  private getMaxTabs(): number {
+    return clampMaxTabs(this.plugin.settings.maxTabs);
   }
 
   private updateTabBar(): void {
@@ -888,16 +893,24 @@ export class ClaudianPlusView extends ItemView {
   private updateNewTabButtonVisibility(): void {
     if (!this.newTabButtonEl || !this.tabManager) return;
 
-    const canCreateTab = this.tabManager.canCreateTab();
-    this.newTabButtonEl.toggleClass('claudian-plus-hidden', !canCreateTab);
+    // Stay visible when full so the limit is discoverable: a hidden button is
+    // indistinguishable from a broken one.
+    const canCreateTab = this.tabManager.canCreateTab()
+      || this.tabManager.hasReusableBlankTab();
+    this.newTabButtonEl.removeClass('claudian-plus-hidden');
+    this.newTabButtonEl.toggleClass('is-disabled', !canCreateTab);
     if (canCreateTab) {
       this.newTabButtonEl.removeAttribute('aria-disabled');
-      this.newTabButtonEl.removeAttribute('aria-hidden');
-      return;
+    } else {
+      this.newTabButtonEl.setAttribute('aria-disabled', 'true');
     }
+    this.newTabButtonEl.removeAttribute('aria-hidden');
 
-    this.newTabButtonEl.setAttribute('aria-disabled', 'true');
-    this.newTabButtonEl.setAttribute('aria-hidden', 'true');
+    const label = canCreateTab
+      ? t('chat.tabLimit.newTabLabel')
+      : t('chat.tabLimit.newTabDisabledHint', { count: String(this.getMaxTabs()) });
+    this.newTabButtonEl.setAttribute('aria-label', label);
+    this.newTabButtonEl.setAttribute('title', label);
   }
 
   /** Sets `data-provider` on the root container so CSS brand color follows the active provider. */

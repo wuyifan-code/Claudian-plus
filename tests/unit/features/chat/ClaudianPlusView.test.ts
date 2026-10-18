@@ -1,5 +1,5 @@
 import { createMockEl } from '@test/helpers/mockElement';
-import { Platform, Scope } from 'obsidian';
+import { Notice, Platform, Scope } from 'obsidian';
 
 import { ClaudianPlusView } from '@/features/chat/ClaudianPlusView';
 
@@ -8,6 +8,7 @@ const MockScope = Scope as typeof Scope & { instances: Scope[] };
 function createViewHarness(options: {
   canCreateTab: boolean;
   tabCount?: number;
+  hasReusableBlankTab?: boolean;
 }): {
   newTabButtonEl: ReturnType<typeof createMockEl>;
   view: any;
@@ -21,6 +22,7 @@ function createViewHarness(options: {
   view.tabManager = {
     canCreateTab: jest.fn().mockReturnValue(options.canCreateTab),
     getTabCount: jest.fn().mockReturnValue(options.tabCount ?? 1),
+    hasReusableBlankTab: jest.fn().mockReturnValue(options.hasReusableBlankTab ?? false),
   };
   view.tabBarContainerEl = createMockEl();
   view.logoEl = createMockEl();
@@ -59,14 +61,47 @@ describe('ClaudianPlusView tab controls', () => {
     expect(view.restoreOrCreateTabs).toHaveBeenCalledTimes(1);
   });
 
-  it('hides the new-tab button when the tab manager is at capacity', () => {
+  it('keeps the new-tab button visible but disabled when the tab manager is at capacity', () => {
     const { newTabButtonEl, view } = createViewHarness({ canCreateTab: false });
 
     view.refreshTabControls();
 
-    expect(newTabButtonEl.hasClass('claudian-plus-hidden')).toBe(true);
+    // Hidden buttons are unreachable: the user must still be able to click and
+    // learn why no tab was created.
+    expect(newTabButtonEl.hasClass('claudian-plus-hidden')).toBe(false);
     expect(newTabButtonEl.getAttribute('aria-disabled')).toBe('true');
-    expect(newTabButtonEl.getAttribute('aria-hidden')).toBe('true');
+    expect(newTabButtonEl.getAttribute('aria-hidden')).toBeNull();
+    expect(newTabButtonEl.getAttribute('title')).toBeTruthy();
+  });
+
+  it('hides the tab bar container while a single tab is open', () => {
+    const { view } = createViewHarness({ canCreateTab: true, tabCount: 1 });
+
+    view.refreshTabControls();
+
+    expect(view.tabBarContainerEl.hasClass('claudian-plus-hidden')).toBe(true);
+  });
+
+  it('shows the tab bar container once at least two tabs are open', () => {
+    const { view } = createViewHarness({ canCreateTab: true, tabCount: 2 });
+    view.tabBarContainerEl.addClass('claudian-plus-hidden');
+
+    view.refreshTabControls();
+
+    expect(view.tabBarContainerEl.hasClass('claudian-plus-hidden')).toBe(false);
+  });
+
+  it('does not create a tab and warns through a Notice when at capacity', async () => {
+    const { view } = createViewHarness({ canCreateTab: false });
+    view.whenReady = jest.fn().mockResolvedValue(undefined);
+    view.tabManager.createTab = jest.fn().mockResolvedValue(null);
+    view.tabManager.getMaxTabs = jest.fn().mockReturnValue(3);
+
+    await view.createNewTab();
+
+    expect(view.tabManager.createTab).toHaveBeenCalled();
+    expect(Notice).toHaveBeenCalledTimes(1);
+    expect(String((Notice as unknown as jest.Mock).mock.calls[0][0])).toContain('3');
   });
 
   it('shows the new-tab button when another tab can be created', () => {
