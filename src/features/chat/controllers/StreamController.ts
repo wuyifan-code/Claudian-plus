@@ -1,6 +1,7 @@
 import { TFile } from 'obsidian';
 
 import { resolveConversationModel } from '../../../core/providers/conversationModel';
+import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import {
   DEFAULT_CHAT_PROVIDER_ID,
@@ -24,7 +25,7 @@ import {
   TOOL_WRITE,
 } from '../../../core/tools/toolNames';
 import { extractToolResultContent } from '../../../core/tools/toolResultContent';
-import type { ChatMessage, StreamChunk, SubagentInfo, ToolCallInfo } from '../../../core/types';
+import type { ChatMessage, StreamChunk, SubagentInfo, ToolCallInfo, UsageInfo } from '../../../core/types';
 import type { SDKToolUseResult } from '../../../core/types/diff';
 import {
   cancelScheduledAnimationFrame,
@@ -67,6 +68,7 @@ import {
 import type { SubagentManager } from '../services/SubagentManager';
 import type { ChatState } from '../state/ChatState';
 import type { FileContextManager } from '../ui/FileContext';
+import { recalculateUsageForModel } from '../utils/usageInfo';
 
 export interface StreamControllerDeps {
   plugin: FeatureHost;
@@ -271,9 +273,10 @@ export class StreamController {
         }
         if (!state.ignoreUsageUpdates) {
           const activeModel = this.getActiveProviderModel();
-          state.usage = activeModel && !chunk.usage.model
+          const usage = activeModel && !chunk.usage.model
             ? { ...chunk.usage, model: activeModel }
             : chunk.usage;
+          state.usage = this.normalizeUsageContextWindow(usage);
         }
         break;
       }
@@ -416,6 +419,18 @@ export class StreamController {
     }
   }
 
+  /** Provider owning the current stream, resolved the same way the active model is. */
+  private getActiveUsageProviderId(): ProviderId | null {
+    const conversation = this.deps.state.currentConversationId
+      ? this.deps.plugin.getConversationSync(this.deps.state.currentConversationId)
+      : null;
+    if (conversation) {
+      return conversation.providerId;
+    }
+
+    return this.deps.getAgentService?.()?.providerId ?? null;
+  }
+
   private getActiveProviderModel(): string | undefined {
     const conversation = this.deps.state.currentConversationId
       ? this.deps.plugin.getConversationSync(this.deps.state.currentConversationId)
@@ -444,6 +459,38 @@ export class StreamController {
       providerId,
     );
     return typeof settings.model === 'string' ? settings.model : undefined;
+  }
+
+  /**
+   * Providers that report their own window (Codex, Claude runtime, ACP) are authoritative and
+   * keep it. A provider that reports token counts without a window (Antigravity) gets the window
+   * its ChatUIConfig declares, the same fallback the model-switch path already applies. An
+   * unknown window (0) stays unknown rather than being invented.
+   */
+  private normalizeUsageContextWindow(usage: UsageInfo): UsageInfo {
+    if (usage.contextWindowIsAuthoritative === true && usage.contextWindow > 0) {
+      return usage;
+    }
+    const model = usage.model;
+    const providerId = this.getActiveUsageProviderId();
+    if (!model || !providerId) {
+      return usage;
+    }
+
+    const providerSettings = ProviderSettingsCoordinator.getProviderSettingsSnapshot(
+      this.deps.plugin.settings,
+      providerId,
+    );
+    const contextWindow = ProviderRegistry.getChatUIConfig(providerId).getContextWindowSize(
+      model,
+      providerSettings.customContextLimits,
+      providerSettings,
+    );
+    if (!Number.isFinite(contextWindow) || contextWindow <= 0) {
+      return usage;
+    }
+
+    return recalculateUsageForModel(usage, model, contextWindow);
   }
 
   private shouldDeferMathRendering(): boolean {

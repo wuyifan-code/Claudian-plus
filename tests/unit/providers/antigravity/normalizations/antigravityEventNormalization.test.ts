@@ -1,4 +1,5 @@
 import {
+  buildAntigravityUsageInfo,
   classifyAntigravityEvent,
   createAntigravityEventNormalizationState,
   getAntigravityAccumulatedText,
@@ -431,6 +432,22 @@ describe('normalizeAntigravityEvent — terminal handling and usage', () => {
         sessionId: TURN1_SESSION,
       }),
     ]);
+  });
+
+  it('keeps the provider-side window unknown rather than inventing one', () => {
+    // The feature layer supplies the declared window from ChatUIConfig; the provider
+    // boundary must keep reporting "no window reported by agy" so that fallback stays
+    // the single source of the denominator.
+    expect(buildAntigravityUsageInfo({ input_tokens: 50000 }, 'gemini-3.8-flash-low')).toEqual({
+      cacheCreationInputTokens: 0,
+      cacheReadInputTokens: 0,
+      contextTokens: 50000,
+      contextWindow: 0,
+      contextWindowIsAuthoritative: false,
+      inputTokens: 50000,
+      model: 'gemini-3.8-flash-low',
+      percentage: 0,
+    });
   });
 
   it('never emits a usage chunk from step completion events', () => {
