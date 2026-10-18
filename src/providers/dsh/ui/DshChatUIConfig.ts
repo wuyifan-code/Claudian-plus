@@ -1,5 +1,11 @@
-import type { ProviderChatUIConfig, ProviderPermissionModeToggleConfig, ProviderUIOption } from '../../../core/providers/types';
+import type {
+  ProviderChatUIConfig,
+  ProviderIconSvg,
+  ProviderPermissionModeToggleConfig,
+  ProviderUIOption,
+} from '../../../core/providers/types';
 import { localeText } from '../../../i18n/i18n';
+import { DEEPSEEK_PROVIDER_ICON } from '../../../shared/icons';
 import { decodeDshModelId, DSH_DEFAULT_MODEL_ID, encodeDshModelId, isDshModelId } from '../models';
 import { getDshProviderSettings, updateDshProviderSettings } from '../settings';
 
@@ -65,4 +71,5 @@ export const dshChatUIConfig: ProviderChatUIConfig = {
   getCustomModelIds() { return new Set<string>(); },
   getPermissionModeToggle() { return DSH_PERMISSION_MODE_TOGGLE; },
   getModeSelector() { return null; },
+  getProviderIcon(): ProviderIconSvg { return DEEPSEEK_PROVIDER_ICON; },
 };
