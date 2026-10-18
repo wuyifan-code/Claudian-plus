@@ -1,7 +1,14 @@
-import type { ProviderChatUIConfig, ProviderUIOption } from '../../../core/providers/types';
+import type { ProviderChatUIConfig, ProviderPermissionModeToggleConfig, ProviderUIOption } from '../../../core/providers/types';
 import { localeText } from '../../../i18n/i18n';
 import { decodeDshModelId, DSH_DEFAULT_MODEL_ID, encodeDshModelId, isDshModelId } from '../models';
 import { getDshProviderSettings, updateDshProviderSettings } from '../settings';
+
+const DSH_PERMISSION_MODE_TOGGLE: ProviderPermissionModeToggleConfig = {
+  inactiveValue: 'normal',
+  inactiveLabel: localeText('安全', 'Safe'),
+  activeValue: 'yolo',
+  activeLabel: 'YOLO',
+};
 
 function getModel(model: string, settings: Record<string, unknown>) {
   return getDshProviderSettings(settings).models.find(entry => encodeDshModelId(entry.provider, entry.model) === model);
@@ -56,6 +63,6 @@ export const dshChatUIConfig: ProviderChatUIConfig = {
   applyModelDefaults: applyDefaults,
   normalizeModelVariant(model) { return model; },
   getCustomModelIds() { return new Set<string>(); },
-  getPermissionModeToggle() { return null; },
+  getPermissionModeToggle() { return DSH_PERMISSION_MODE_TOGGLE; },
   getModeSelector() { return null; },
 };
