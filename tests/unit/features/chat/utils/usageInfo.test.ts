@@ -33,6 +33,48 @@ describe('usageInfo', () => {
       });
     });
 
+    it('falls back to the declared context window when the provider reports none', () => {
+      // Antigravity (agy) reports token counts but no context window, so the
+      // provider-owned window has to supply the denominator.
+      const usage = {
+        model: 'gemini-3.8-flash-low',
+        inputTokens: 50000,
+        cacheCreationInputTokens: 0,
+        cacheReadInputTokens: 0,
+        contextWindow: 0,
+        contextWindowIsAuthoritative: false,
+        contextTokens: 50000,
+        percentage: 0,
+      };
+
+      expect(recalculateUsageForModel(usage, 'gemini-3.8-flash-low', 200000)).toEqual({
+        ...usage,
+        contextWindow: 200000,
+        contextWindowIsAuthoritative: false,
+        percentage: 25,
+      });
+    });
+
+    it('keeps the usage untouched when no context window is known', () => {
+      const usage = {
+        model: 'gemini-3.8-flash-low',
+        inputTokens: 50000,
+        cacheCreationInputTokens: 0,
+        cacheReadInputTokens: 0,
+        contextWindow: 0,
+        contextWindowIsAuthoritative: false,
+        contextTokens: 50000,
+        percentage: 0,
+      };
+
+      expect(recalculateUsageForModel(usage, 'gemini-3.8-flash-low', 0)).toEqual({
+        ...usage,
+        contextWindow: 0,
+        contextWindowIsAuthoritative: false,
+        percentage: 0,
+      });
+    });
+
     it('falls back to the UI context window when the model changes', () => {
       const usage = {
         model: TEST_CODEX_MODEL,

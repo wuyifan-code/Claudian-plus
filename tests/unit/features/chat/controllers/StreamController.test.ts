@@ -181,12 +181,15 @@ function createTestMessage(): ChatMessage {
 }
 
 function createMockUsage(overrides: Record<string, any> = {}) {
+  // Providers that report the window themselves mark it authoritative; the
+  // stream controller must leave such chunks untouched.
   return {
     model: 'model-a',
     inputTokens: 10,
     cacheCreationInputTokens: 0,
     cacheReadInputTokens: 0,
     contextWindow: 100,
+    contextWindowIsAuthoritative: true,
     contextTokens: 10,
     percentage: 10,
     ...overrides,
@@ -506,6 +509,59 @@ describe('StreamController - Text Content', () => {
       await controller.handleStreamChunk({ type: 'usage', usage, sessionId: 'session-2' }, msg);
 
       expect(deps.state.usage).toBeNull();
+    });
+
+    it('fills in the provider-declared window for a usage chunk that reports none', async () => {
+      const msg = createTestMessage();
+      (deps.plugin as any).getConversationSync = jest.fn().mockReturnValue({
+        id: 'conv-1',
+        providerId: 'antigravity',
+        selectedModel: 'antigravity/gemini-3.8-flash-low',
+        messages: [],
+      });
+      deps.state.currentConversationId = 'conv-1';
+
+      // Shape emitted by agy: token counts only, window deliberately unknown.
+      const usage = createMockUsage({
+        model: 'gemini-3.8-flash-low',
+        inputTokens: 50000,
+        contextTokens: 50000,
+        contextWindow: 0,
+        contextWindowIsAuthoritative: false,
+        percentage: 0,
+      });
+
+      await controller.handleStreamChunk({ type: 'usage', usage, sessionId: 'session-1' }, msg);
+
+      expect(deps.state.usage).toEqual(expect.objectContaining({
+        contextTokens: 50000,
+        contextWindow: 200000,
+        contextWindowIsAuthoritative: false,
+        percentage: 25,
+      }));
+    });
+
+    it('does not overwrite a provider-reported authoritative window', async () => {
+      const msg = createTestMessage();
+      (deps.plugin as any).getConversationSync = jest.fn().mockReturnValue({
+        id: 'conv-1',
+        providerId: 'codex',
+        selectedModel: 'openai-codex/gpt-5.5',
+        messages: [],
+      });
+      deps.state.currentConversationId = 'conv-1';
+
+      const usage = createMockUsage({
+        model: TEST_CODEX_MODEL,
+        contextWindow: 258400,
+        contextWindowIsAuthoritative: true,
+        contextTokens: 129200,
+        percentage: 50,
+      });
+
+      await controller.handleStreamChunk({ type: 'usage', usage, sessionId: 'session-1' }, msg);
+
+      expect(deps.state.usage).toEqual(usage);
     });
   });
 
