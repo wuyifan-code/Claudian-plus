@@ -85,6 +85,11 @@
       "on": "Turn on reading mode",
       "off": "Turn off reading mode"
     },
+    "tabLimit": {
+      "newTabLabel": "New tab",
+      "newTabNotice": "Cannot open a new tab: the limit is {count} tabs. Close an unused tab or raise \"Maximum chat tabs\" in settings.",
+      "newTabDisabledHint": "Tab limit reached ({count}). Close an unused tab or raise the limit in settings."
+    },
     "toolGroup": {
       "calls": "{count} tool calls",
       "callSingle": "1 tool call",

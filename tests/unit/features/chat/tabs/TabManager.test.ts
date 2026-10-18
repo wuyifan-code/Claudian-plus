@@ -1,5 +1,6 @@
 import { TEST_CODEX_MODEL } from '@test/helpers/codexModels';
 import { createMockEl } from '@test/helpers/mockElement';
+import { Notice } from 'obsidian';
 
 import { ProviderWorkspaceRegistry } from '@/core/providers/ProviderWorkspaceRegistry';
 import { TabManager } from '@/features/chat/tabs/TabManager';
@@ -2545,7 +2546,7 @@ describe('TabManager - openConversation Current Tab Path', () => {
     expect(activeTab!.conversationId).toBeNull();
   });
 
-  it('should not open in current tab if at max tabs and preferNewTab is true', async () => {
+  it('should not replace the active conversation when preferNewTab is requested at max tabs', async () => {
     for (let i = 0; i < DEFAULT_MAX_TABS - 1; i++) {
       await manager.createTab();
     }
@@ -2554,13 +2555,105 @@ describe('TabManager - openConversation Current Tab Path', () => {
     const activeTab = manager.getActiveTab();
     const switchTo = jest.fn().mockResolvedValue(undefined);
     activeTab!.controllers.conversationController = { switchTo } as any;
+    activeTab!.conversationId = 'conv-live';
+    const tabsBefore = manager.getTabCount();
+    (Notice as unknown as jest.Mock).mockClear();
 
-    plugin.getConversationById.mockResolvedValue({ id: 'conv-max' });
-
-    // preferNewTab=true but at max, so should open in current tab
     await manager.openConversation('conv-max', true);
 
-    expect(switchTo).toHaveBeenCalledWith('conv-max');
+    // Explicit "open in new tab" must never silently overwrite the live tab.
+    expect(switchTo).not.toHaveBeenCalled();
+    expect(manager.getTabCount()).toBe(tabsBefore);
+    expect(manager.getActiveTab()).toBe(activeTab);
+    expect(Notice).toHaveBeenCalledTimes(1);
+  });
+
+  it('should still open in the current tab at max tabs when preferNewTab is false', async () => {
+    for (let i = 0; i < DEFAULT_MAX_TABS - 1; i++) {
+      await manager.createTab();
+    }
+    expect(manager.getTabCount()).toBe(DEFAULT_MAX_TABS);
+
+    const activeTab = manager.getActiveTab();
+    const switchTo = jest.fn().mockResolvedValue(undefined);
+    activeTab!.controllers.conversationController = { switchTo } as any;
+    (Notice as unknown as jest.Mock).mockClear();
+
+    await manager.openConversation('conv-max-current', { preferNewTab: false });
+
+    expect(switchTo).toHaveBeenCalledWith('conv-max-current');
+    expect(Notice).not.toHaveBeenCalled();
+  });
+});
+
+describe('TabManager - blank tab reuse', () => {
+  it('reuses an unused blank tab instead of consuming another slot when reuse is requested', async () => {
+    const manager = createManager();
+    const first = await manager.createTab();
+    const second = await manager.createTab();
+    expect(manager.getTabCount()).toBe(2);
+    // Make the first tab a live conversation and the second an unused draft.
+    first!.conversationId = 'conv-live';
+    await manager.switchToTab(second!.id);
+    second!.lifecycleState = 'blank';
+    second!.conversationId = null;
+    second!.state.messages = [];
+
+    const reused = await manager.createTab(undefined, undefined, { reuseBlank: true });
+
+    expect(reused).toBe(second);
+    expect(manager.getTabCount()).toBe(2);
+    expect(manager.getActiveTab()?.id).toBe(second!.id);
+  });
+
+  it('still allocates a fresh tab by default so fork and restore keep their semantics', async () => {
+    const manager = createManager();
+    const first = await manager.createTab();
+    first!.lifecycleState = 'blank';
+    first!.conversationId = null;
+    first!.state.messages = [];
+
+    const created = await manager.createTab();
+
+    expect(created).not.toBe(first);
+    expect(manager.getTabCount()).toBe(2);
+  });
+
+  it('does not reuse a blank tab while restoring state', async () => {
+    const manager = createManager();
+    const original = await manager.createTab();
+    original!.lifecycleState = 'blank';
+    original!.conversationId = null;
+    original!.state.messages = [];
+    (manager as any).isRestoringState = true;
+
+    const created = await manager.createTab(undefined, undefined, { reuseBlank: true });
+
+    expect(created).not.toBe(original);
+    expect(manager.getTabCount()).toBe(2);
+  });
+
+  it('does not reuse a blank tab that already owns a conversation', async () => {
+    const manager = createManager();
+    const first = await manager.createTab();
+    first!.conversationId = 'conv-existing';
+    first!.lifecycleState = 'blank';
+
+    const created = await manager.createTab(undefined, undefined, { reuseBlank: true });
+
+    expect(created).not.toBe(first);
+  });
+
+  it('does not reuse a blank tab that has messages', async () => {
+    const manager = createManager();
+    const first = await manager.createTab();
+    first!.conversationId = null;
+    first!.lifecycleState = 'blank';
+    first!.state.messages = [{ id: 'm1', role: 'user', content: 'draft', timestamp: 1 } as any];
+
+    const created = await manager.createTab(undefined, undefined, { reuseBlank: true });
+
+    expect(created).not.toBe(first);
   });
 });
 

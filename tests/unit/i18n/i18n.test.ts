@@ -115,6 +115,33 @@ describe('i18n', () => {
     });
   });
 
+  describe('tab limit notices', () => {
+    // `t()` falls back to English silently, so a locale that misses these keys
+    // would ship English copy with no failing test. Guard them explicitly.
+    const tabLimitKeys = [
+      'chat.tabLimit.newTabNotice',
+      'chat.tabLimit.newTabDisabledHint',
+    ] as const;
+
+    it('translates the tab limit notices in every locale', () => {
+      const englishValues = new Map<string, string>();
+      setLocale('en');
+      for (const key of tabLimitKeys) {
+        englishValues.set(key, t(key));
+      }
+
+      for (const locale of getAvailableLocales()) {
+        if (locale === 'en') continue;
+        setLocale(locale);
+        for (const key of tabLimitKeys) {
+          const translated = t(key);
+          expect(translated).not.toBe(key);
+          expect(translated).not.toBe(englishValues.get(key));
+        }
+      }
+    });
+  });
+
   describe('getAvailableLocales', () => {
     it('returns all supported locales', () => {
       const locales = getAvailableLocales();

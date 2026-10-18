@@ -85,6 +85,11 @@
       "on": "開啟閱讀模式",
       "off": "關閉閱讀模式"
     },
+    "tabLimit": {
+      "newTabLabel": "新增分頁",
+      "newTabNotice": "無法開啟新分頁：已達到 {count} 個上限。請關閉閒置分頁，或在設定中調高「最大聊天分頁數」。",
+      "newTabDisabledHint": "已達分頁上限（{count}）。請關閉閒置分頁，或在設定中調高上限。"
+    },
     "toolGroup": {
       "calls": "{count} 次工具調用",
       "callSingle": "1 次工具調用",

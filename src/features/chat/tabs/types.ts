@@ -57,6 +57,11 @@ export const MIN_TABS = 3;
  */
 export const MAX_TABS = 10;
 
+/** Clamps a persisted maxTabs value into the settings floor/ceiling range. */
+export function clampMaxTabs(value: number | null | undefined): number {
+  return Math.max(MIN_TABS, Math.min(MAX_TABS, value ?? DEFAULT_MAX_TABS));
+}
+
 /**
  * Minimal interface for the ClaudianPlusView methods used by TabManager and Tab.
  * Extends Component for Obsidian integration (event handling, cleanup).

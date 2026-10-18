@@ -85,6 +85,11 @@
       "on": "Lesemodus aktivieren",
       "off": "Lesemodus deaktivieren"
     },
+    "tabLimit": {
+      "newTabLabel": "Neuer Tab",
+      "newTabNotice": "Neuer Tab nicht möglich: Das Limit von {count} Tabs ist erreicht. Schließe einen ungenutzten Tab oder erhöhe „Maximale Chat-Tabs“ in den Einstellungen.",
+      "newTabDisabledHint": "Tab-Limit erreicht ({count}). Schließe einen ungenutzten Tab oder erhöhe das Limit in den Einstellungen."
+    },
     "toolGroup": {
       "calls": "{count} Werkzeugaufrufe",
       "callSingle": "1 Werkzeugaufruf",

@@ -85,6 +85,11 @@
       "on": "Activer le mode lecture",
       "off": "Désactiver le mode lecture"
     },
+    "tabLimit": {
+      "newTabLabel": "Nouvel onglet",
+      "newTabNotice": "Impossible d’ouvrir un nouvel onglet : la limite de {count} onglets est atteinte. Fermez un onglet inutilisé ou augmentez « Nombre maximal d’onglets de discussion » dans les paramètres.",
+      "newTabDisabledHint": "Limite d’onglets atteinte ({count}). Fermez un onglet inutilisé ou augmentez la limite dans les paramètres."
+    },
     "toolGroup": {
       "calls": "{count} appels d'outils",
       "callSingle": "1 appel d'outil",

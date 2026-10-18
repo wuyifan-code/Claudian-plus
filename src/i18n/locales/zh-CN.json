@@ -85,6 +85,11 @@
       "on": "开启阅读模式",
       "off": "关闭阅读模式"
     },
+    "tabLimit": {
+      "newTabLabel": "新建标签页",
+      "newTabNotice": "无法打开新标签页：已达到 {count} 个上限。请关闭闲置标签页，或在设置中调高「最大聊天标签页数」。",
+      "newTabDisabledHint": "已达标签页上限（{count}）。请关闭闲置标签页，或在设置中调高上限。"
+    },
     "toolGroup": {
       "calls": "{count} 次工具调用",
       "callSingle": "1 次工具调用",

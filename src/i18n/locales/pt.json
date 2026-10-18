@@ -85,6 +85,11 @@
       "on": "Ativar modo de leitura",
       "off": "Desactivar modo de leitura"
     },
+    "tabLimit": {
+      "newTabLabel": "Nova aba",
+      "newTabNotice": "Não é possível abrir uma nova aba: o limite de {count} abas foi atingido. Feche uma aba sem uso ou aumente «Máximo de abas de chat» nas configurações.",
+      "newTabDisabledHint": "Limite de abas atingido ({count}). Feche uma aba sem uso ou aumente o limite nas configurações."
+    },
     "toolGroup": {
       "calls": "{count} chamadas de ferramentas",
       "callSingle": "1 chamada de ferramenta",
