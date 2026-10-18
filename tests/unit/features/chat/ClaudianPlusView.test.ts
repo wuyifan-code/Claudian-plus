@@ -74,21 +74,20 @@ describe('ClaudianPlusView tab controls', () => {
     expect(newTabButtonEl.getAttribute('title')).toBeTruthy();
   });
 
-  it('hides the tab bar container while a single tab is open', () => {
+  it('keeps the tab bar container hidden at every tab count', () => {
     const { view } = createViewHarness({ canCreateTab: true, tabCount: 1 });
+    view.tabBarContainerEl.removeClass('claudian-plus-hidden');
 
     view.refreshTabControls();
 
     expect(view.tabBarContainerEl.hasClass('claudian-plus-hidden')).toBe(true);
-  });
 
-  it('shows the tab bar container once at least two tabs are open', () => {
-    const { view } = createViewHarness({ canCreateTab: true, tabCount: 2 });
-    view.tabBarContainerEl.addClass('claudian-plus-hidden');
+    const many = createViewHarness({ canCreateTab: true, tabCount: 5 });
+    many.view.tabBarContainerEl.removeClass('claudian-plus-hidden');
 
-    view.refreshTabControls();
+    many.view.refreshTabControls();
 
-    expect(view.tabBarContainerEl.hasClass('claudian-plus-hidden')).toBe(false);
+    expect(many.view.tabBarContainerEl.hasClass('claudian-plus-hidden')).toBe(true);
   });
 
   it('does not create a tab and warns through a Notice when at capacity', async () => {
