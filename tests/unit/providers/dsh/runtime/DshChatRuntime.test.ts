@@ -26,7 +26,7 @@ function fixture() {
   };
   const lease = { client, home: 'C:\\DSH', ready: jest.fn(async () => {}), claim: jest.fn((_id: string, handler: typeof interaction) => { interaction = handler; }), release: jest.fn() };
   const host = { acquire: jest.fn(async () => lease) };
-  const plugin = { app: {}, settings: { model: 'dsh/default', providerConfigs: { dsh: { enabled: true, models: [] } } }, getMemoryInjectionText: jest.fn(async () => null), getConsciousnessInjectionText: jest.fn(async () => null) };
+  const plugin = { app: {}, settings: { model: 'dsh/default', permissionMode: 'normal', providerConfigs: { dsh: { enabled: true, models: [] } } } as Record<string, unknown>, getMemoryInjectionText: jest.fn(async () => null), getConsciousnessInjectionText: jest.fn(async () => null) };
   const runtime = new DshChatRuntime(plugin as unknown as ProviderHost, host as unknown as DshHost, () => 'C:\\Vault');
   const collect = async () => {
     const chunks: StreamChunk[] = [];
@@ -94,7 +94,7 @@ describe('DshChatRuntime native lifecycle', () => {
     const f = fixture();
     const selected = encodeDshModelId('provider', 'model');
     Object.assign(f.plugin.settings, { model: selected, effortLevel: 'wrong' });
-    Object.assign(f.plugin.settings.providerConfigs.dsh, { models: [{ provider: 'provider', model: 'model', label: 'Model', reasoning: ['high'] }] });
+    Object.assign((f.plugin.settings.providerConfigs as Record<string, Record<string, unknown>>).dsh, { models: [{ provider: 'provider', model: 'model', label: 'Model', reasoning: ['high'] }] });
     expect(await f.collect()).toEqual([expect.objectContaining({ type: 'error', content: expect.stringContaining('reasoning') }), { type: 'done' }]);
     expect(f.client.call.mock.calls.filter(([method]) => method === 'session/prompt')).toHaveLength(0);
     Object.assign(f.plugin.settings, { effortLevel: 'high' });
@@ -117,10 +117,46 @@ describe('DshChatRuntime native lifecycle', () => {
     expect(await f.interaction(request)).toEqual({ kind: 'result', value: 'allowed-once' });
     controller.abort();
     expect(await f.interaction(request)).toEqual({ kind: 'result', value: 'rejected' });
-    f.runtime.setApprovalCallback(async () => 'cancel');
-    expect(await f.interaction({ ...request, signal: new AbortController().signal })).toEqual({ kind: 'result', value: 'rejected' });
+    f.runtime.setApprovalCallback(async () => 'cancel');    expect(await f.interaction({ ...request, signal: new AbortController().signal })).toEqual({ kind: 'result', value: 'rejected' });
     f.runtime.cancel();
     expect(await result).toEqual([{ type: 'done' }]);
+    f.runtime.cleanup();
+  });
+
+  test('YOLO mode auto-approves without consulting the approval UI', async () => {
+    const f = fixture();
+    f.plugin.settings.permissionMode = 'yolo';
+    const result = f.collect();
+    await f.untilPrompt();
+    const approval = jest.fn(async () => 'allow' as const);
+    f.runtime.setApprovalCallback(approval);
+    const outcome = await f.interaction({
+      event: 'approval/request',
+      request: { toolName: 'shell', reason: 'Run command', callId: 'call-1' },
+      signal: new AbortController().signal,
+    });
+    expect(outcome).toEqual({ kind: 'result', value: 'allowed-once' });
+    expect(approval).not.toHaveBeenCalled();
+    f.runtime.cancel();
+    await result;
+    f.runtime.cleanup();
+  });
+
+  test('normal mode still routes approvals through the UI callback', async () => {
+    const f = fixture();
+    f.plugin.settings.permissionMode = 'normal';
+    const result = f.collect();
+    await f.untilPrompt();
+    const approval = jest.fn(async () => 'allow' as const);
+    f.runtime.setApprovalCallback(approval);
+    expect(await f.interaction({
+      event: 'approval/request',
+      request: { toolName: 'shell' },
+      signal: new AbortController().signal,
+    })).toEqual({ kind: 'result', value: 'allowed-once' });
+    expect(approval).toHaveBeenCalledTimes(1);
+    f.runtime.cancel();
+    await result;
     f.runtime.cleanup();
   });
 

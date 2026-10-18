@@ -19,6 +19,15 @@ describe('DeepSeek Harness model projection', () => {
     expect(dshChatUIConfig.isAdaptiveReasoningModel('dsh/default', {})).toBe(false);
   });
 
+  it('exposes the shared Safe/YOLO permission toggle', () => {
+    expect(dshChatUIConfig.getPermissionModeToggle()).toEqual({
+      inactiveValue: 'normal',
+      inactiveLabel: expect.any(String),
+      activeValue: 'yolo',
+      activeLabel: 'YOLO',
+    });
+  });
+
   it('projects only native catalog metadata and preserves the pinned missing selection', () => {
     const id = encodeDshModelId('native', 'model');
     const pinned = encodeDshModelId('native', 'old');

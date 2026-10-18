@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { formatAmbientContextXml } from '../../../core/context/ambientFormatter';
 import type { ProviderHost } from '../../../core/providers/ProviderHost';
+import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import type { ChatRuntime } from '../../../core/runtime/ChatRuntime';
 import type {
   ApprovalCallback,
@@ -280,6 +281,12 @@ export class DshChatRuntime implements ChatRuntime {
   private async handleInteraction({ event, request, signal }: Parameters<DshEventHandler>[0]): Promise<DshEventOutcome> {
     if (event !== 'approval/request') return { kind: 'next' };
     const rejected = { kind: 'result', value: 'rejected' } as const;
+    // YOLO mirrors Codex's approvalPolicy: 'never' — the user explicitly opted
+    // this tab out of approval gates, so the request resolves before any UI
+    // exists to dismiss.
+    if (this.isYoloMode() && !signal.aborted && !this.disposed) {
+      return { kind: 'result', value: 'allowed-once' };
+    }
     const callback = this.approvalCallback;
     if (!callback || signal.aborted || this.disposed) return rejected;
     let resolveAborted!: (decision: 'cancel') => void;
@@ -293,6 +300,11 @@ export class DshChatRuntime implements ChatRuntime {
       return { kind: 'result', value: decision === 'allow' || decision === 'allow-always' ? 'allowed-once' : 'rejected' };
     } catch { return rejected; }
     finally { signal.removeEventListener('abort', aborted); }
+  }
+
+  private isYoloMode(): boolean {
+    const snapshot = ProviderSettingsCoordinator.getProviderSettingsSnapshot(this.plugin.settings, this.providerId);
+    return snapshot.permissionMode === 'yolo';
   }
 
   cancel(): void {
