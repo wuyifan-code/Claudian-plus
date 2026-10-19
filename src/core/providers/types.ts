@@ -316,6 +316,16 @@ export interface ProviderChatUIConfig {
     settings?: Record<string, unknown>,
   ): number;
 
+  /**
+   * Whether `customLimits` pins a window for this model.
+   *
+   * Providers own their model-id spelling, so only the provider can tell whether
+   * a map key written under one spelling applies to the id passed in elsewhere
+   * (a usage chunk reports the runtime id while the toolbar writes the selection
+   * id). Callers must not re-derive this from a bare key lookup.
+   */
+  hasContextWindowOverride?(model: string, customLimits?: Record<string, number>): boolean;
+
   /** Whether this is a built-in (default) model vs custom/env model. */
   isDefaultModel(model: string): boolean;
 

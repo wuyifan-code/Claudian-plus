@@ -1,3 +1,4 @@
+import { stripInjectedPromptContext } from '../../core/prompt/injectedContext';
 import type { SlashCommand, StreamChunk } from '../../core/types';
 import type {
   AcpAvailableCommand,
@@ -121,7 +122,7 @@ export class AcpSessionUpdateNormalizer {
 
     if (role === 'user' && this.claimMessageStart('user', update.messageId)) {
       streamChunks.push({
-        content: extractPrimaryText(update.content),
+        content: stripInjectedPromptContext(extractPrimaryText(update.content)),
         itemId: update.messageId ?? undefined,
         type: 'user_message_start',
       });

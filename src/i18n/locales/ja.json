@@ -109,6 +109,13 @@
         "tools": "ツール",
         "thinking": "思考"
       }
+    },
+    "contextCapacity": {
+      "label": "コンテキスト容量",
+      "title": "コンテキスト容量",
+      "hint": "パーセント計算に使うウィンドウのみを変更します。モデル本来の上限は変わりません。",
+      "providerDefault": "プロバイダーの既定値",
+      "saveFailed": "コンテキスト容量を保存できませんでした。"
     }
   },
   "settings": {

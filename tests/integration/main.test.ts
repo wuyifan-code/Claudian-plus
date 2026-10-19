@@ -1320,6 +1320,96 @@ describe('ClaudianPlusPlugin', () => {
     });
   });
 
+  describe('sendPromptToChat', () => {
+    /** A view whose single active tab already owns a live conversation. */
+    function createLiveConversationView(createNewTabResult: () => Promise<boolean>) {
+      const inputEl = {
+        value: '',
+        dispatchEvent: jest.fn(),
+        focus: jest.fn(),
+      };
+      const attachFilePath = jest.fn();
+      const liveTab = {
+        conversationId: 'live-conversation',
+        dom: { inputEl },
+        ui: { fileContextManager: { attachFilePath } },
+      };
+      const createNewTab = jest.fn().mockImplementation(createNewTabResult);
+      const view = {
+        whenReady: jest.fn().mockResolvedValue(undefined),
+        getActiveTab: jest.fn().mockReturnValue(liveTab),
+        createNewTab,
+      };
+
+      return { attachFilePath, createNewTab, inputEl, liveTab, view };
+    }
+
+    function send(pluginInstance: ClaudianPlusPlugin, prompt: string): Promise<void> {
+      return (pluginInstance as any).sendPromptToChat(prompt);
+    }
+
+    it('writes the prompt into the tab it just created', async () => {
+      await plugin.onload();
+
+      const newTabInputEl = { value: '', dispatchEvent: jest.fn(), focus: jest.fn() };
+      const newTab = {
+        conversationId: null,
+        dom: { inputEl: newTabInputEl },
+        ui: {},
+      };
+      const liveTab = {
+        conversationId: 'live-conversation',
+        dom: { inputEl: { value: '', dispatchEvent: jest.fn(), focus: jest.fn() } },
+        ui: {},
+      };
+      let activeTab = liveTab as typeof liveTab | typeof newTab;
+      const view = {
+        whenReady: jest.fn().mockResolvedValue(undefined),
+        getActiveTab: jest.fn().mockImplementation(() => activeTab),
+        createNewTab: jest.fn().mockImplementation(async () => {
+          activeTab = newTab;
+          return true;
+        }),
+      };
+      jest.spyOn(plugin, 'getView').mockReturnValue(view as any);
+
+      await send(plugin, 'summarize this note');
+
+      expect(view.createNewTab).toHaveBeenCalledTimes(1);
+      expect(newTabInputEl.value).toBe('summarize this note');
+      expect(liveTab.dom.inputEl.value).toBe('');
+    });
+
+    it('refuses to type into a live conversation when no tab could be created', async () => {
+      await plugin.onload();
+
+      const { createNewTab, inputEl, view } = createLiveConversationView(async () => false);
+      jest.spyOn(plugin, 'getView').mockReturnValue(view as any);
+
+      await send(plugin, 'summarize this note');
+
+      expect(createNewTab).toHaveBeenCalledTimes(1);
+      // The external prompt must never land in an unrelated live conversation.
+      // The limit itself is explained by the real createNewTab (covered in
+      // ClaudianPlusView.test.ts); here only the write must be withheld.
+      expect(inputEl.value).toBe('');
+      expect(inputEl.dispatchEvent).not.toHaveBeenCalled();
+    });
+
+    it('still writes into a blank active tab that has no conversation', async () => {
+      await plugin.onload();
+
+      const { createNewTab, inputEl, liveTab, view } = createLiveConversationView(async () => true);
+      liveTab.conversationId = null as unknown as string;
+      jest.spyOn(plugin, 'getView').mockReturnValue(view as any);
+
+      await send(plugin, 'draft prompt');
+
+      expect(createNewTab).not.toHaveBeenCalled();
+      expect(inputEl.value).toBe('draft prompt');
+    });
+  });
+
   describe('createConversation', () => {
     it('should create a new conversation with unique ID', async () => {
       await plugin.onload();

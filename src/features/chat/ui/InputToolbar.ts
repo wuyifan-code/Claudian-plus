@@ -39,6 +39,13 @@ function runToolbarAction(action: () => Promise<void>, failureMessage: string): 
   });
 }
 
+/** Narrows the settings bag's index signature into the context-limit record. */
+function resolveContextLimitBag(value: unknown): Record<string, number> | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, number>
+    : undefined;
+}
+
 export interface ToolbarSettings {
   model: string;
   thinkingBudget: string;
@@ -55,6 +62,8 @@ export interface ToolbarCallbacks {
   onEffortLevelChange: (effort: string) => Promise<void>;
   onServiceTierChange: (serviceTier: string) => Promise<void>;
   onPermissionModeChange: (mode: string) => Promise<void>;
+  /** Persists a context capacity for the active model; `null` clears the pin. Omit to keep the meter read-only. */
+  onContextWindowChange?: (tokens: number | null) => Promise<void>;
   onInterrupt?: () => void;
   isStreaming?: () => boolean;
   getSettings: () => ToolbarSettings;
@@ -1505,21 +1514,67 @@ export class McpServerSelector {
   }
 }
 
+/** Context capacities offered by the toolbar selector, in tokens. */
+export const CONTEXT_CAPACITY_OPTIONS = [300_000, 600_000, 1_000_000] as const;
+
+export interface ContextUsageMeterCallbacks {
+  /** Persists the chosen capacity for the active model; `null` clears the pin. */
+  onContextWindowChange: (tokens: number | null) => Promise<void>;
+  /** Window currently in effect, so the menu can mark the active entry. */
+  getContextWindow: () => number;
+  /** Whether the active model carries a user-pinned window. */
+  hasOverride?: () => boolean;
+}
+
 export class ContextUsageMeter {
   private container: HTMLElement;
+  private buttonEl: HTMLElement | null = null;
+  private menuEl: HTMLElement | null = null;
   private fillPath: SVGPathElement | null = null;
   private percentEl: HTMLElement | null = null;
   private circumference: number = 0;
+  private callbacks: ContextUsageMeterCallbacks | null;
+  private selectable = true;
+  private hasUsage = false;
+  private documentClickListener: ((event: MouseEvent) => void) | null = null;
 
-  constructor(parentEl: HTMLElement) {
+  constructor(parentEl: HTMLElement, callbacks?: ContextUsageMeterCallbacks) {
+    this.callbacks = callbacks ?? null;
+    this.selectable = this.callbacks !== null;
     this.container = parentEl.createDiv({ cls: 'claudian-plus-context-meter' });
     this.render();
+    if (!this.selectable) {
+      this.container.addClass('is-read-only');
+    }
     // Initially hidden
     this.container.addClass('claudian-plus-hidden');
   }
 
   setVisible(visible: boolean): void {
     this.container.toggleClass('claudian-plus-hidden', !visible);
+  }
+
+  /**
+   * Turns the ring into a plain read-only gauge for models whose window is not
+   * user-tunable (the GPT family), so the selector never offers a no-op choice.
+   */
+  setSelectable(selectable: boolean): void {
+    this.selectable = selectable && this.callbacks !== null;
+    this.container.toggleClass('is-read-only', !this.selectable);
+    if (!this.selectable) {
+      this.closeMenu();
+    }
+    if (this.buttonEl) {
+      if (this.selectable) {
+        this.buttonEl.setAttribute('role', 'button');
+        this.buttonEl.setAttribute('tabindex', '0');
+      } else {
+        this.buttonEl.removeAttribute('role');
+        this.buttonEl.removeAttribute('tabindex');
+      }
+    }
+    // Re-evaluate visibility: a read-only gauge with no usage must not linger.
+    this.setVisibilityState(this.hasUsage);
   }
 
   private render() {
@@ -1543,7 +1598,30 @@ export class ContextUsageMeter {
     const x2 = cx + radius * Math.cos(endRad);
     const y2 = cy + radius * Math.sin(endRad);
 
-    const gaugeEl = this.container.createDiv({ cls: 'claudian-plus-context-meter-gauge' });
+    this.buttonEl = this.container.createDiv({
+      cls: 'claudian-plus-context-meter-button',
+      attr: {
+        role: 'button',
+        tabindex: '0',
+        'aria-haspopup': 'menu',
+        'aria-expanded': 'false',
+        'aria-label': t('chat.contextCapacity.label'),
+      },
+    });
+    this.buttonEl.addEventListener('click', (event: MouseEvent) => {
+      event.stopPropagation();
+      this.toggleMenu();
+    });
+    this.buttonEl.addEventListener('keydown', (event: KeyboardEvent) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        this.toggleMenu();
+      } else if (event.key === 'Escape') {
+        this.closeMenu();
+      }
+    });
+
+    const gaugeEl = this.buttonEl.createDiv({ cls: 'claudian-plus-context-meter-gauge' });
     const svg = gaugeEl.createSvg('svg');
     svg.setAttribute('width', String(size));
     svg.setAttribute('height', String(size));
@@ -1571,15 +1649,142 @@ export class ContextUsageMeter {
     gaugeEl.appendChild(svg);
     this.fillPath = fillPath;
 
-    this.percentEl = this.container.createSpan({ cls: 'claudian-plus-context-meter-percent' });
+    this.percentEl = this.buttonEl.createSpan({ cls: 'claudian-plus-context-meter-percent' });
+  }
+
+  private toggleMenu(): void {
+    if (!this.selectable) {
+      return;
+    }
+    if (this.menuEl) {
+      this.closeMenu();
+      return;
+    }
+    this.renderMenu();
+  }
+
+  private closeMenu(): void {
+    this.menuEl?.remove();
+    this.menuEl = null;
+    this.container.removeClass('is-open');
+    this.buttonEl?.setAttribute('aria-expanded', 'false');
+    this.removeOutsideClickListener();
+  }
+
+  /**
+   * The menu is a popover, so a click anywhere else must dismiss it. The model
+   * selector works the same way; without this the menu stayed open until the
+   * trigger was clicked again.
+   */
+  private addOutsideClickListener(): void {
+    if (this.documentClickListener) {
+      return;
+    }
+    const doc = this.container.ownerDocument ?? activeDocument;
+    this.documentClickListener = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (target && this.container.contains(target)) {
+        return;
+      }
+      this.closeMenu();
+    };
+    doc.addEventListener?.('click', this.documentClickListener);
+  }
+
+  private removeOutsideClickListener(): void {
+    if (!this.documentClickListener) {
+      return;
+    }
+    const doc = this.container.ownerDocument ?? activeDocument;
+    doc.removeEventListener?.('click', this.documentClickListener);
+    this.documentClickListener = null;
+  }
+
+  private renderMenu(): void {
+    if (!this.buttonEl || !this.callbacks || !this.selectable) {
+      return;
+    }
+
+    this.closeMenu();
+    const menu = this.container.createDiv({
+      cls: 'claudian-plus-context-meter-menu',
+      attr: { role: 'menu', 'aria-label': t('chat.contextCapacity.title') },
+    });
+    menu.addEventListener('click', (event: MouseEvent) => event.stopPropagation());
+
+    menu.createDiv({
+      cls: 'claudian-plus-context-meter-menu-title',
+      text: t('chat.contextCapacity.title'),
+    });
+
+    const activeWindow = this.callbacks.getContextWindow();
+    const isPinned = this.callbacks.hasOverride?.() ?? false;
+    for (const tokens of CONTEXT_CAPACITY_OPTIONS) {
+      const option = menu.createDiv({ cls: 'claudian-plus-context-meter-option' });
+      option.setAttribute('data-context-window', String(tokens));
+      option.setAttribute('role', 'menuitem');
+      if (isPinned && tokens === activeWindow) {
+        option.addClass('is-active');
+      }
+      option.createSpan({
+        cls: 'claudian-plus-context-meter-option-label',
+        text: formatContextCapacity(tokens),
+      });
+      option.addEventListener('click', (event: MouseEvent) => {
+        event.stopPropagation();
+        void this.selectCapacity(tokens);
+      });
+    }
+
+    // Clearing the pin is the only way back to the provider's own window; the
+    // presets alone made a mistaken choice permanent.
+    const defaultOption = menu.createDiv({
+      cls: 'claudian-plus-context-meter-option is-default',
+      attr: { 'data-context-window': 'default', role: 'menuitem' },
+    });
+    if (!isPinned) {
+      defaultOption.addClass('is-active');
+    }
+    defaultOption.createSpan({
+      cls: 'claudian-plus-context-meter-option-label',
+      text: t('chat.contextCapacity.providerDefault'),
+    });
+    defaultOption.addEventListener('click', (event: MouseEvent) => {
+      event.stopPropagation();
+      void this.selectCapacity(null);
+    });
+
+    menu.createDiv({ cls: 'claudian-plus-context-meter-menu-hint', text: t('chat.contextCapacity.hint') });
+    this.menuEl = menu;
+    this.container.addClass('is-open');
+    this.buttonEl?.setAttribute('aria-expanded', 'true');
+    this.addOutsideClickListener();
+  }
+
+  private async selectCapacity(tokens: number | null): Promise<void> {
+    this.closeMenu();
+    if (!this.callbacks) {
+      return;
+    }
+    try {
+      await this.callbacks.onContextWindowChange(tokens);
+    } catch {
+      new Notice(t('chat.contextCapacity.saveFailed'));
+    }
   }
 
   update(usage: UsageInfo | null): void {
+    // The ring doubles as the capacity selector, so it stays mounted even with
+    // no usage yet (providers such as dsh never report token counts). Only the
+    // gauge is blanked; the menu remains reachable.
     if (!usage || usage.contextTokens <= 0) {
-      this.container.addClass('claudian-plus-hidden');
+      this.hasUsage = false;
+      this.setVisibilityState(false);
+      this.renderEmptyGauge();
       return;
     }
-    this.container.removeClass('claudian-plus-hidden');
+    this.hasUsage = true;
+    this.setVisibilityState(true);
     const fillLength = (usage.percentage / 100) * this.circumference;
     if (this.fillPath) {
       this.fillPath.setAttribute('stroke-dashoffset', String(this.circumference - fillLength));
@@ -1610,6 +1815,29 @@ export class ContextUsageMeter {
     }
     return String(tokens);
   }
+
+  /**
+   * A selectable meter is always reachable so the capacity can be chosen before
+   * the first turn. A read-only one is a pure gauge: with nothing to show, it
+   * stays hidden.
+   */
+  private setVisibilityState(hasUsage: boolean): void {
+    const visible = hasUsage || this.selectable;
+    this.container.toggleClass('claudian-plus-hidden', !visible);
+  }
+
+  private renderEmptyGauge(): void {
+    if (this.fillPath) {
+      this.fillPath.setAttribute('stroke-dashoffset', String(this.circumference));
+    }
+    this.percentEl?.setText('');
+    this.container.removeClass('warning');
+    this.container.removeAttribute('data-tooltip');
+  }
+}
+
+function formatContextCapacity(tokens: number): string {
+  return tokens >= 1_000_000 ? `${tokens / 1_000_000}M` : `${tokens / 1000}K`;
 }
 
 export class InterruptButton {
@@ -1694,7 +1922,31 @@ export function createInputToolbar(
   modelSelector.onOpen(() => thinkingBudgetSelector.close());
   thinkingBudgetSelector.onOpen(() => modelSelector.close());
   const serviceTierToggle = new ServiceTierToggle(parentEl, callbacks);
-  const contextUsageMeter = new ContextUsageMeter(parentEl);
+  const contextUsageMeter = new ContextUsageMeter(parentEl, callbacks.onContextWindowChange
+    ? {
+      getContextWindow: () => {
+        const settings = callbacks.getSettings();
+        const uiConfig = callbacks.getUIConfig();
+        return uiConfig.getContextWindowSize(
+          settings.model,
+          resolveContextLimitBag(settings.customContextLimits),
+          settings,
+        );
+      },
+      onContextWindowChange: callbacks.onContextWindowChange,
+      hasOverride: () => {
+        const settings = callbacks.getSettings();
+        const uiConfig = callbacks.getUIConfig();
+        const limits = resolveContextLimitBag(settings.customContextLimits);
+        if (!limits) {
+          return false;
+        }
+        return uiConfig.hasContextWindowOverride
+          ? uiConfig.hasContextWindowOverride(settings.model, limits)
+          : typeof limits[settings.model] === 'number';
+      },
+    }
+    : undefined);
   const externalContextSelector = new ExternalContextSelector(parentEl, callbacks);
   const mcpServerSelector = new McpServerSelector(parentEl);
   const permissionToggle = new PermissionToggle(parentEl, callbacks);

@@ -68,7 +68,7 @@ import {
 import type { SubagentManager } from '../services/SubagentManager';
 import type { ChatState } from '../state/ChatState';
 import type { FileContextManager } from '../ui/FileContext';
-import { recalculateUsageForModel } from '../utils/usageInfo';
+import { hasContextWindowOverride, recalculateUsageForModel } from '../utils/usageInfo';
 
 export interface StreamControllerDeps {
   plugin: FeatureHost;
@@ -158,6 +158,9 @@ export class StreamController {
         if (state.currentTextEl) {
           await this.finalizeCurrentTextBlock(msg);
         }
+        // Consecutive reasoning chunks belong to the same thinking block; only
+        // a change of contentType (text or a tool call) closes it. Finalizing
+        // here would emit one collapsed block per reasoning fragment.
         await this.appendThinking(chunk.content);
         break;
 
@@ -466,22 +469,43 @@ export class StreamController {
    * keep it. A provider that reports token counts without a window (Antigravity) gets the window
    * its ChatUIConfig declares, the same fallback the model-switch path already applies. An
    * unknown window (0) stays unknown rather than being invented.
+   *
+   * An explicit user pick wins over a provider-reported window: otherwise every new usage chunk
+   * would snap the percentage back to the provider's number.
    */
   private normalizeUsageContextWindow(usage: UsageInfo): UsageInfo {
-    if (usage.contextWindowIsAuthoritative === true && usage.contextWindow > 0) {
-      return usage;
-    }
     const model = usage.model;
     const providerId = this.getActiveUsageProviderId();
-    if (!model || !providerId) {
+    const providerSettings = model && providerId
+      ? ProviderSettingsCoordinator.getProviderSettingsSnapshot(
+        this.deps.plugin.settings,
+        providerId,
+      )
+      : null;
+    const customLimits = providerSettings?.customContextLimits;
+    const uiConfig = providerId ? ProviderRegistry.getChatUIConfig(providerId) : null;
+    // The provider owns its model-id spelling: a pin written under the selection
+    // id must still apply to the runtime id a usage chunk carries. Asking the
+    // provider avoids a bare key lookup that silently drops the user's choice.
+    const isPinned = Boolean(model && uiConfig && (
+      uiConfig.hasContextWindowOverride
+        ? uiConfig.hasContextWindowOverride(model, customLimits)
+        : hasContextWindowOverride(model, customLimits)
+    ));
+    const pinnedWindow = isPinned && model && uiConfig
+      ? uiConfig.getContextWindowSize(model, customLimits, providerSettings ?? undefined)
+      : null;
+
+    if (pinnedWindow === null
+      && usage.contextWindowIsAuthoritative === true
+      && usage.contextWindow > 0) {
+      return usage;
+    }
+    if (!model || !providerId || !providerSettings || !uiConfig) {
       return usage;
     }
 
-    const providerSettings = ProviderSettingsCoordinator.getProviderSettingsSnapshot(
-      this.deps.plugin.settings,
-      providerId,
-    );
-    const contextWindow = ProviderRegistry.getChatUIConfig(providerId).getContextWindowSize(
+    const contextWindow = pinnedWindow ?? uiConfig.getContextWindowSize(
       model,
       providerSettings.customContextLimits,
       providerSettings,
@@ -490,7 +514,9 @@ export class StreamController {
       return usage;
     }
 
-    return recalculateUsageForModel(usage, model, contextWindow);
+    return recalculateUsageForModel(usage, model, contextWindow, {
+      overrideContextWindow: pinnedWindow !== null,
+    });
   }
 
   private shouldDeferMathRendering(): boolean {

@@ -702,7 +702,13 @@ export default class ClaudianPlusPlugin extends Plugin {
     // Get or create a blank tab
     let tab = view.getActiveTab();
     if (!tab || tab.conversationId) {
-      await view.createNewTab();
+      const tabCreated = await view.createNewTab();
+      // At the tab limit the only remaining tab is a live conversation. Writing
+      // the external prompt there would silently hijack an unrelated turn, so
+      // stop; createNewTab has already explained the limit through a Notice.
+      if (!tabCreated) {
+        return;
+      }
       tab = view.getActiveTab();
     }
 

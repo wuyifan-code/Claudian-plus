@@ -4,6 +4,7 @@ import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
+import { stripInjectedPromptContext } from '../../../core/prompt/injectedContext';
 import { isWriteEditTool } from '../../../core/tools/toolNames';
 import type { ChatMessage, ContentBlock, ImageAttachment, ToolCallInfo } from '../../../core/types';
 import { extractDiffData } from '../../../utils/diff';
@@ -469,7 +470,9 @@ function mapPiSessionEntry(
   if (role === 'user') {
     const images = extractUserImages(message.content ?? message.parts ?? message.blocks, entry.id ?? `pi-user-${messages.length}`);
     return {
-      content: extractTextContent(message.content ?? message.text ?? message.message),
+      content: stripInjectedPromptContext(
+        extractTextContent(message.content ?? message.text ?? message.message),
+      ),
       id: entry.id ?? `pi-user-${messages.length}`,
       ...(images.length > 0 ? { images } : {}),
       role: 'user',

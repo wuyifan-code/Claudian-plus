@@ -109,6 +109,13 @@
         "tools": "Herramientas",
         "thinking": "Pensamiento"
       }
+    },
+    "contextCapacity": {
+      "label": "Capacidad de contexto",
+      "title": "Capacidad de contexto",
+      "hint": "Solo cambia la ventana usada para el porcentaje, no el límite real del modelo.",
+      "providerDefault": "Valor predeterminado del proveedor",
+      "saveFailed": "No se pudo guardar la capacidad de contexto."
     }
   },
   "settings": {

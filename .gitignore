@@ -94,6 +94,9 @@ CLAUDE.local.md
 # Agent tooling state
 .mimosa/
 .workbuddy/
+# zcode plugin cache pointers
+.v2c/
+.video_agent/
 
 # Lock files (uncomment based on package manager)
 # yarn.lock

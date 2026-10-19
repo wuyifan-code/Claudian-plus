@@ -59,7 +59,7 @@ import { InstructionModeManager as InstructionModeManagerClass } from '../ui/Ins
 import { NavigationSidebar } from '../ui/NavigationSidebar';
 import { StatusPanel } from '../ui/StatusPanel';
 import { autoResizeTextarea } from '../ui/textareaResize';
-import { recalculateUsageForModel } from '../utils/usageInfo';
+import { isContextWindowPinned, isGptFamilyModelId, recalculateUsageForModel } from '../utils/usageInfo';
 import { getTabProviderId } from './providerResolution';
 import { TabSession } from './TabSession';
 import type { TabData, TabDOMElements, TabId, TabManagerViewHost, TabProviderContext } from './types';
@@ -435,7 +435,17 @@ function applyProviderUIGating(tab: TabData, plugin: FeatureHost): void {
   );
 
   tab.ui.imageContextManager?.setEnabled(capabilities.supportsImageAttachments);
+  syncContextMeterSelectability(tab, plugin);
   tab.ui.contextUsageMeter?.update(tab.state.usage);
+}
+
+/**
+ * The capacity selector is offered for every provider, except the GPT family:
+ * those windows are provider-owned and not user-tunable here.
+ */
+function syncContextMeterSelectability(tab: TabData, plugin: FeatureHost): void {
+  const model = getTabSelectedModel(tab, plugin);
+  tab.ui.contextUsageMeter?.setSelectable(!isGptFamilyModelId(model));
 }
 
 export function refreshTabWorkspaceServices(tab: TabData, plugin: FeatureHost): void {
@@ -1157,8 +1167,21 @@ function initializeInputToolbar(
           providerSettings.customContextLimits,
           providerSettings,
         );
-        tab.state.usage = recalculateUsageForModel(currentUsage, normalizedModel, newContextWindow);
+        tab.state.usage = recalculateUsageForModel(
+          currentUsage,
+          normalizedModel,
+          newContextWindow,
+          {
+            overrideContextWindow: isContextWindowPinned(
+              uiConfig,
+              normalizedModel,
+              providerSettings.customContextLimits,
+            ),
+          },
+        );
       }
+      syncContextMeterSelectability(tab, plugin);
+      tab.ui.contextUsageMeter?.update(tab.state.usage);
     },
     onModeChange: async (mode: string) => {
       await updateTabProviderSettings(tab, plugin, (settings) => {
@@ -1201,6 +1224,47 @@ function initializeInputToolbar(
         'claudian-plus-input-plan-mode',
         mode === 'plan' && getTabCapabilities(tab, plugin).supportsPlanMode,
       );
+    },
+    onContextWindowChange: async (tokens: number | null) => {
+      const model = getTabSettingsSnapshot(tab, plugin).model;
+      if (!model) {
+        return;
+      }
+
+      await plugin.mutateSettings((settings) => {
+        settings.customContextLimits ??= {};
+        if (tokens === null) {
+          // "Provider default" removes the pin so the model's real window and
+          // its provider-reported percentage take over again.
+          delete settings.customContextLimits[model];
+        } else {
+          settings.customContextLimits[model] = tokens;
+        }
+      });
+
+      // The stored window is what the percentage is measured against, so the
+      // current usage has to be re-expressed against it immediately.
+      const providerSettings = getTabSettingsSnapshot(tab, plugin);
+      const uiConfig = getTabChatUIConfig(tab, plugin);
+      const contextWindow = uiConfig.getContextWindowSize(
+        model,
+        providerSettings.customContextLimits,
+        providerSettings,
+      );
+      if (tab.state.usage) {
+        tab.state.usage = recalculateUsageForModel(
+          tab.state.usage,
+          model,
+          contextWindow,
+          {
+            overrideContextWindow: tokens === null
+              ? false
+              : isContextWindowPinned(uiConfig, model, providerSettings.customContextLimits),
+          },
+        );
+      }
+      tab.ui.contextUsageMeter?.update(tab.state.usage);
+      tab.ui.modelSelector?.renderOptions();
     },
     onInterrupt: () => {
       tab.controllers.inputController?.cancelStreaming();

@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 
+import { stripInjectedPromptContext } from '../../../core/prompt/injectedContext';
 import { extractResolvedAnswersFromResultText } from '../../../core/tools/toolInput';
 import { isWriteEditTool, TOOL_ASK_USER_QUESTION } from '../../../core/tools/toolNames';
 import type { ChatMessage, ContentBlock, ImageAttachment, ToolCallInfo } from '../../../core/types';
@@ -149,7 +150,9 @@ function mapStoredMessage(
     ?? Date.now();
 
   if (role === 'user') {
-    const promptText = extractUserQuery(getJoinedTextParts(message.parts));
+    const promptText = stripInjectedPromptContext(
+      extractUserQuery(getJoinedTextParts(message.parts)),
+    );
     const images = buildUserImages(message.parts, id);
     return {
       assistantMessageId: undefined,

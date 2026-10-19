@@ -1,3 +1,4 @@
+import { stripInjectedPromptContext } from '../../../core/prompt/injectedContext';
 import type { ChatMessage, ContentBlock, StreamChunk } from '../../../core/types/chat';
 import type { ToolCallInfo } from '../../../core/types/tools';
 
@@ -58,6 +59,13 @@ function textContent(content: unknown): string {
     .map(block => block.text as string).join('');
 }
 
+/**
+ * The harness stores whatever the client sent, including the system_context
+ * block prepended to the user turn. Replay is the user's own message, so the
+ * injected reference material is stripped rather than rendered as their words.
+ */
+export const stripInjectedSystemContext = stripInjectedPromptContext;
+
 function addBlock(message: ChatMessage, block: ContentBlock): void {
   const blocks = message.contentBlocks ??= [];
   const last = blocks[blocks.length - 1];
@@ -92,7 +100,13 @@ export function mapDshRecordsToMessages(records: unknown[]): ChatMessage[] {
       if (event.surfaceOp !== 'append' || !isDshObject(data.source) || data.source.kind !== 'user'
         || typeof data.id !== 'string' || data.role !== 'user' || !Array.isArray(data.content)) continue;
       assistant = undefined;
-      messages.push({ id: data.id, userMessageId: data.id, role: 'user', content: textContent(data.content), timestamp: event.time });
+      messages.push({
+        id: data.id,
+        userMessageId: data.id,
+        role: 'user',
+        content: stripInjectedSystemContext(textContent(data.content)),
+        timestamp: event.time,
+      });
     } else if (event.type === 'assistant/message') {
       const native = data.message;
       if (event.surfaceOp !== 'append' || !isDshObject(native) || native.role !== 'assistant'

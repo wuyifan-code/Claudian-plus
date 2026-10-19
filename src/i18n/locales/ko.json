@@ -109,6 +109,13 @@
         "tools": "도구",
         "thinking": "생각"
       }
+    },
+    "contextCapacity": {
+      "label": "컨텍스트 용량",
+      "title": "컨텍스트 용량",
+      "hint": "백분율 계산에 쓰는 창만 바꿉니다. 모델 자체의 실제 한도는 바뀌지 않습니다.",
+      "providerDefault": "공급자 기본값",
+      "saveFailed": "컨텍스트 용량을 저장하지 못했습니다."
     }
   },
   "settings": {

@@ -165,6 +165,8 @@ export class ClaudeChatRuntime implements ChatRuntime {
   private mcpManager: McpServerManager;
   private obsidianMcpServer: McpSdkServerConfigWithInstance | null = null;
   private obsidianMcpServerPromise: Promise<McpSdkServerConfigWithInstance | null> | null = null;
+  /** Reason the Obsidian tools server could not be created; cleared by an explicit reload. */
+  private obsidianMcpServerFailure: string | null = null;
 
   private persistentQuery: Query | null = null;
   private messageChannel: MessageChannel | null = null;
@@ -540,6 +542,9 @@ export class ClaudeChatRuntime implements ChatRuntime {
   }
 
   async reloadMcpServers(): Promise<void> {
+    // An explicit reload is the user's chance to recover after installing the
+    // missing dependency, so it also re-arms the Obsidian tools server.
+    this.obsidianMcpServerFailure = null;
     await this.mcpManager.loadServers();
   }
 
@@ -831,6 +836,11 @@ export class ClaudeChatRuntime implements ChatRuntime {
   private async ensureObsidianMcpServer(): Promise<McpSdkServerConfigWithInstance | null> {
     if (this.obsidianMcpServer) return this.obsidianMcpServer;
     if (this.obsidianMcpServerPromise) return this.obsidianMcpServerPromise;
+    // A build without the MCP SDK can never create the server. Retrying on
+    // every turn would re-run the import, re-log the reason, and pop the same
+    // Notice once per message, so the failure is remembered until the user
+    // explicitly reloads MCP servers.
+    if (this.obsidianMcpServerFailure) return null;
 
     this.obsidianMcpServerPromise = createClaudeObsidianMcpServer(
       this.plugin.app,
@@ -841,7 +851,8 @@ export class ClaudeChatRuntime implements ChatRuntime {
     }).catch(error => {
       // Native tools are an enhancement; a missing optional SDK dependency must
       // never prevent Claude from starting with its regular tool set.
-      new Notice(`Obsidian tools unavailable: ${error instanceof Error ? error.message : String(error)}`);
+      this.obsidianMcpServerFailure = error instanceof Error ? error.message : String(error);
+      new Notice(`Obsidian tools unavailable: ${this.obsidianMcpServerFailure}`);
       return null;
     }).finally(() => {
       this.obsidianMcpServerPromise = null;

@@ -109,6 +109,13 @@
         "tools": "Tools",
         "thinking": "Thinking"
       }
+    },
+    "contextCapacity": {
+      "label": "Context capacity",
+      "title": "Context capacity",
+      "hint": "Sets the window used for the percentage. It does not change the model's real limit.",
+      "providerDefault": "Provider's default",
+      "saveFailed": "Could not save the context capacity."
     }
   },
   "settings": {

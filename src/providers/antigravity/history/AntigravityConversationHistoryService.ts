@@ -1,3 +1,4 @@
+import { stripInjectedPromptContext } from '../../../core/prompt/injectedContext';
 import type {
   ProviderConversationHistoryService,
   ProviderConversationSessionAvailability,
@@ -343,7 +344,7 @@ export function mapAntigravityRecordsToMessages(records: AntigravityHistoryRecor
         current = null;
       }
       messages.push({
-        content: record.text,
+        content: stripInjectedPromptContext(record.text),
         id: `antigravity-user-${record.turnIndex}`,
         role: 'user',
         timestamp: record.timestamp,

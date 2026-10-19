@@ -109,6 +109,13 @@
         "tools": "Tools",
         "thinking": "Gedanken"
       }
+    },
+    "contextCapacity": {
+      "label": "Kontextkapazität",
+      "title": "Kontextkapazität",
+      "hint": "Ändert nur das Fenster für die Prozentberechnung, nicht das tatsächliche Limit des Modells.",
+      "providerDefault": "Anbietervorgabe",
+      "saveFailed": "Kontextkapazität konnte nicht gespeichert werden."
     }
   },
   "settings": {

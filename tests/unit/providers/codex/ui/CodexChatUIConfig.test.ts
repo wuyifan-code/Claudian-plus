@@ -395,8 +395,16 @@ describe('CodexChatUIConfig', () => {
   });
 
   describe('getContextWindowSize', () => {
-    it('should return 200000 for all models', () => {
+    it('falls back to 200000 when no window is pinned', () => {
       expect(codexChatUIConfig.getContextWindowSize(TEST_CODEX_MODEL)).toBe(200_000);
+      expect(codexChatUIConfig.getContextWindowSize(TEST_CODEX_MODEL, { other: 300_000 })).toBe(200_000);
+    });
+
+    it('honours a pinned window for the selected model', () => {
+      expect(codexChatUIConfig.getContextWindowSize(
+        TEST_CODEX_MODEL,
+        { [TEST_CODEX_MODEL]: 600_000 },
+      )).toBe(600_000);
     });
   });
 

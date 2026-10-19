@@ -1201,6 +1201,73 @@ describe('MessageRenderer', () => {
     );
   });
 
+  it('folds an interleaved thinking/tool run into one collapsed group', () => {
+    const messagesEl = createMockEl();
+    const mockComponent = createMockComponent();
+    const renderer = new MessageRenderer({} as any, mockComponent as any, messagesEl);
+
+    // The shape DeepSeek produces: reasoning before every tool call.
+    const msg: ChatMessage = {
+      id: 'm-interleaved',
+      role: 'assistant',
+      content: 'Done.',
+      timestamp: Date.now(),
+      toolCalls: [
+        { id: 't-1', name: 'glob', input: {}, status: 'completed' } as any,
+        { id: 't-2', name: 'read', input: {}, status: 'completed' } as any,
+        { id: 't-3', name: 'push', input: {}, status: 'error' } as any,
+      ],
+      contentBlocks: [
+        { type: 'thinking', content: 'Plan A', durationSeconds: 1 } as any,
+        { type: 'tool_use', toolId: 't-1' } as any,
+        { type: 'thinking', content: 'Plan B', durationSeconds: 2 } as any,
+        { type: 'tool_use', toolId: 't-2' } as any,
+        { type: 'thinking', content: 'Plan C', durationSeconds: 3 } as any,
+        { type: 'tool_use', toolId: 't-3' } as any,
+        { type: 'text', content: 'Done.' } as any,
+      ],
+    };
+
+    renderer.renderStoredMessage(msg);
+
+    const groups = messagesEl.querySelectorAll('.claudian-plus-tool-group');
+    expect(groups).toHaveLength(1);
+    expect(groups[0].classList.contains('expanded')).toBe(false);
+    expect(groups[0].querySelector('.claudian-plus-tool-group-count')?.textContent)
+      .toContain('3');
+
+    // No standalone thinking block survives outside the group.
+    expect(renderStoredThinkingBlock).toHaveBeenCalledTimes(3);
+    const leadingContainers = (renderStoredThinkingBlock as jest.Mock).mock.calls
+      .map(call => call[0] as any);
+    for (const container of leadingContainers) {
+      expect(container.hasClass('claudian-plus-tool-group-list')).toBe(true);
+    }
+  });
+
+  it('keeps a lone thinking step without tools as a normal thinking block', () => {
+    const messagesEl = createMockEl();
+    const mockComponent = createMockComponent();
+    const renderer = new MessageRenderer({} as any, mockComponent as any, messagesEl);
+
+    const msg: ChatMessage = {
+      id: 'm-thinking-only',
+      role: 'assistant',
+      content: 'Answer',
+      timestamp: Date.now(),
+      toolCalls: [],
+      contentBlocks: [
+        { type: 'thinking', content: 'Just reasoning', durationSeconds: 1 } as any,
+        { type: 'text', content: 'Answer' } as any,
+      ],
+    };
+
+    renderer.renderStoredMessage(msg);
+
+    expect(messagesEl.querySelectorAll('.claudian-plus-tool-group')).toHaveLength(0);
+    expect(renderStoredThinkingBlock).toHaveBeenCalledTimes(1);
+  });
+
   // ============================================
   // addMessage (streaming)
   // ============================================

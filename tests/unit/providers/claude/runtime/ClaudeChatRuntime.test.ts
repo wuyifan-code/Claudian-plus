@@ -9,6 +9,7 @@ import * as historyStore from '@/providers/claude/history/ClaudeHistoryStore';
 import * as sdkLoader from '@/providers/claude/loadClaudeAgentSdk';
 import { ClaudeChatRuntime } from '@/providers/claude/runtime/ClaudeChatRuntime';
 import { MessageChannel } from '@/providers/claude/runtime/ClaudeMessageChannel';
+import * as ClaudeObsidianMcp from '@/providers/claude/runtime/ClaudeObsidianMcp';
 import { createResponseHandler } from '@/providers/claude/runtime/types';
 import * as envUtils from '@/utils/env';
 import * as sessionUtils from '@/utils/session';
@@ -252,6 +253,44 @@ describe('ClaudeChatRuntime', () => {
       await service.reloadMcpServers();
 
       expect(mockMcpManager.loadServers).toHaveBeenCalled();
+    });
+
+    it('warns once and stops retrying when the Obsidian tools SDK is unavailable', async () => {
+      // Ships without the MCP SDK bundle: creation always rejects.
+      const createServer = jest.spyOn(ClaudeObsidianMcp, 'createClaudeObsidianMcpServer')
+        .mockRejectedValue(new Error('The MCP SDK is not bundled in this build.'));
+
+      const first = await (service as any).ensureObsidianMcpServer();
+      const second = await (service as any).ensureObsidianMcpServer();
+      const third = await (service as any).ensureObsidianMcpServer();
+
+      expect(first).toBeNull();
+      expect(second).toBeNull();
+      expect(third).toBeNull();
+      // Every failed attempt used to fire a fresh Notice, once per turn.
+      expect(createServer).toHaveBeenCalledTimes(1);
+      const obsidianNotices = (Notice as unknown as jest.Mock).mock.calls
+        .filter(([message]) => String(message).includes('Obsidian tools unavailable'));
+      expect(obsidianNotices).toHaveLength(1);
+
+      createServer.mockRestore();
+    });
+
+    it('retries after an explicit MCP reload', async () => {
+      const createServer = jest.spyOn(ClaudeObsidianMcp, 'createClaudeObsidianMcpServer')
+        .mockRejectedValueOnce(new Error('transient'))
+        .mockResolvedValueOnce({ type: 'sdk', name: 'obsidian', instance: {} } as any);
+
+      expect(await (service as any).ensureObsidianMcpServer()).toBeNull();
+
+      await service.reloadMcpServers();
+
+      expect(await (service as any).ensureObsidianMcpServer()).toEqual(
+        expect.objectContaining({ name: 'obsidian' }),
+      );
+      expect(createServer).toHaveBeenCalledTimes(2);
+
+      createServer.mockRestore();
     });
   });
 

@@ -142,4 +142,22 @@ describe('AcpSessionUpdateNormalizer', () => {
       uri: 'file:///tmp/project/README.md',
     })).toBe('README.md');
   });
+
+  it('drops the injected system context from the echoed user message', () => {
+    const normalizer = new AcpSessionUpdateNormalizer();
+
+    const update = normalizer.normalize({
+      content: {
+        text: '<system_context>\n## Long-term Memory\n\nPrefers Chinese.\n</system_context>\n\nWhat is adversarial review?',
+        type: 'text',
+      },
+      messageId: 'user-1',
+      sessionUpdate: 'user_message_chunk',
+    });
+
+    const start = update && 'streamChunks' in update
+      ? update.streamChunks.find(chunk => chunk.type === 'user_message_start')
+      : undefined;
+    expect(start).toMatchObject({ content: 'What is adversarial review?' });
+  });
 });

@@ -535,9 +535,42 @@ describe('StreamController - Text Content', () => {
 
       expect(deps.state.usage).toEqual(expect.objectContaining({
         contextTokens: 50000,
-        contextWindow: 200000,
+        // Gemini in Antigravity runs with a 1M window, not a 200K guess.
+        contextWindow: 1000000,
         contextWindowIsAuthoritative: false,
-        percentage: 25,
+        percentage: 5,
+      }));
+    });
+
+    it('honors a pinned Antigravity capacity when the usage chunk reports the raw runtime id', async () => {
+      const msg = createTestMessage();
+      (deps.plugin as any).getConversationSync = jest.fn().mockReturnValue({
+        id: 'conv-1',
+        providerId: 'antigravity',
+        selectedModel: 'antigravity/gemini-3.8-flash-low',
+        messages: [],
+      });
+      deps.state.currentConversationId = 'conv-1';
+      // The toolbar writes the pin under the selection id the selector holds.
+      (deps.plugin as any).settings.customContextLimits = {
+        'antigravity/gemini-3.8-flash-low': 300_000,
+      };
+
+      const usage = createMockUsage({
+        model: 'gemini-3.8-flash-low',
+        inputTokens: 50000,
+        contextTokens: 50000,
+        contextWindow: 0,
+        contextWindowIsAuthoritative: false,
+        percentage: 0,
+      });
+
+      await controller.handleStreamChunk({ type: 'usage', usage, sessionId: 'session-1' }, msg);
+
+      expect(deps.state.usage).toEqual(expect.objectContaining({
+        contextWindow: 300_000,
+        contextWindowIsAuthoritative: false,
+        percentage: 17,
       }));
     });
 
@@ -1529,6 +1562,27 @@ describe('StreamController - Text Content', () => {
       await controller.finalizeCurrentThinkingBlock(msg);
 
       expect(msg.contentBlocks).toEqual([]);
+    });
+
+    it('should keep consecutive thinking chunks in one block instead of splitting per chunk', async () => {
+      const { createThinkingBlock } = jest.requireMock('@/features/chat/rendering/ThinkingBlockRenderer');
+      const msg = createTestMessage();
+      createThinkingBlock.mockReturnValueOnce({
+        wrapperEl: createMockEl(),
+        contentEl: createMockEl(),
+        labelEl: createMockEl(),
+        content: '',
+        startTime: Date.now(),
+      });
+
+      // A reasoning fragment per step used to produce one collapsed block each.
+      await controller.handleStreamChunk({ type: 'thinking', content: 'Plan A' }, msg);
+      await controller.handleStreamChunk({ type: 'thinking', content: 'Plan B' }, msg);
+      await controller.handleStreamChunk({ type: 'thinking', content: 'Plan C' }, msg);
+
+      expect(createThinkingBlock).toHaveBeenCalledTimes(1);
+      expect(deps.state.currentThinkingState?.content).toBe('Plan APlan BPlan C');
+      expect(msg.contentBlocks ?? []).toEqual([]);
     });
 
     it('should coalesce thinking renders until the next animation frame', async () => {

@@ -120,8 +120,11 @@ export const codexChatUIConfig: ProviderChatUIConfig = {
     return model ? getCodexDefaultReasoningEffort(model) : DEFAULT_REASONING_VALUE;
   },
 
-  getContextWindowSize(): number {
-    return DEFAULT_CONTEXT_WINDOW;
+  getContextWindowSize(model?: string, customLimits?: Record<string, number>): number {
+    const pinned = model ? customLimits?.[model] : undefined;
+    return typeof pinned === 'number' && Number.isFinite(pinned) && pinned > 0
+      ? pinned
+      : DEFAULT_CONTEXT_WINDOW;
   },
 
   isDefaultModel(model: string): boolean {

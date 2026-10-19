@@ -40,6 +40,21 @@ describe('BangBashService', () => {
     );
   });
 
+  it('hides the console window on Windows so a ! command does not flash one', async () => {
+    execMock.mockImplementation((_cmd: any, _opts: any, cb: any) => {
+      cb(null, '', '');
+      return undefined as any;
+    });
+
+    await service.execute('echo hello');
+
+    // `exec` runs through a shell, so Windows allocates a console unless the
+    // spawn is told to hide it.
+    expect(execMock.mock.calls[0][1]).toEqual(
+      expect.objectContaining({ windowsHide: process.platform === 'win32' }),
+    );
+  });
+
   it('should return stdout for a successful command', async () => {
     execMock.mockImplementation((_cmd: any, _opts: any, cb: any) => {
       cb(null, 'hello\n', '');

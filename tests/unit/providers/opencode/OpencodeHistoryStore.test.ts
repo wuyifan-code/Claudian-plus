@@ -91,6 +91,35 @@ describe('mapOpencodeMessages', () => {
     ]);
   });
 
+  it('strips the injected system context from replayed user messages', () => {
+    const messages = mapOpencodeMessages([
+      {
+        info: {
+          id: 'msg-user',
+          role: 'user',
+          time: { created: 1_000 },
+        },
+        parts: [
+          {
+            id: 'part-text',
+            text: [
+              '<system_context>',
+              '## Long-term Memory',
+              '',
+              'Prefers Chinese.',
+              '</system_context>',
+              '',
+              'Summarize this note.',
+            ].join('\n'),
+            type: 'text',
+          },
+        ],
+      },
+    ]);
+
+    expect(messages[0].content).toBe('Summarize this note.');
+  });
+
   it('rehydrates user file image parts', () => {
     const messages = mapOpencodeMessages([
       {

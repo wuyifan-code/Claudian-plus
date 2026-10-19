@@ -39,7 +39,30 @@ DeepSeek Harness (`dsh`) is now a first-class provider, implemented directly aga
 
 ---
 
-## 🌟 What's New in V3.1.0
+## 🌟 What's New in V3.1.1
+
+**A hardening release.** Every item below is a defect found by auditing the 3.1.0 tree, not a new feature.
+
+### 1. Fixes
+- **A prompt could land in the wrong conversation.** Sending to chat from the file menu, a command, or the quick-input modal while the tab limit was reached wrote the text into whatever live conversation was active. It now stops and explains the limit instead.
+- **Context usage was wrong for several providers.**
+  - Antigravity's Gemini models reported against a 200K denominator while running with a 1M window, so long sessions pinned the meter at 100%. The window is now resolved per model family (Gemini 1M; Claude- and GPT-OSS-hosted models stay conservative), and a model id it does not recognise keeps the safe default.
+  - The context-capacity selector was a no-op for Antigravity: the value was stored under one model-id spelling and looked up under another, so the percentage snapped back on the next turn. Both spellings now resolve to the same setting.
+  - A capacity you picked could not be undone. The meter menu gained **Provider's default**, which clears the override.
+- **"Obsidian tools unavailable" on every Claude turn.** When the MCP SDK is not present in a build, the failure was retried and reported once per message. It is now reported once and only re-attempted when you explicitly reload MCP servers.
+- **A console window flashed for `!` commands.** Local `!` command execution on Windows is now spawned hidden, like every other subprocess the plugin starts.
+- **Claude CLI detection could break entirely.** A permission error while probing the npm global prefix escaped as an exception and aborted CLI resolution; it now degrades to "not found there" and keeps searching.
+- **Multi-step turns rendered as many collapsed blocks.** A contiguous run of reasoning and tool calls is now one execution phase with a single summary line until expanded.
+- **Injected memory context appeared as your own words.** Reference material injected into the user turn for ACP-based providers (Kimi, OpenCode, Pi), DeepSeek, Antigravity and Codex no longer shows up when a conversation is replayed from history.
+- **The header mark borrowed Claude's colour.** The provider icon is now monochrome for every provider except Claude, which keeps its own brand colour.
+
+### 2. Notes
+- **#11 (terminal console flash) is still open.** 3.1.0's fix removed the plugin's own proxy-probe leak. The `where.exe` call seen in the bundle is not plugin code — it is inlined from the upstream Claude Agent SDK — and the remaining once-per-process flash needs one more data point from the reporter.
+- **Tab bar.** The tab strip stays hidden by design; the new-tab button remains visible and disabled at the limit, and the limit is explained in a notice.
+
+---
+
+## 🌟 V3.1.0
 
 **DeepSeek Harness returns, rebuilt on the current architecture.** It is joined by three fixes reported on the issue tracker.
 
@@ -54,7 +77,7 @@ DeepSeek Harness (`dsh`) is now a first-class provider, implemented directly aga
 ### 2. Fixes
 - **Caret colour in dark themes (#9).** The composer and the live-preview editor now inherit `--text-normal` for `caret-color`, so the caret inverts with the theme instead of staying dark.
 - **Scrambled history layout (#10).** Opening a session from the conversation list no longer creates a second tab for the same id, and consecutive Antigravity assistant messages merge into one content block instead of one block each.
-- **Terminal flash on every turn (#11).** Registry probing for the system proxy now passes `windowsHide`, so no console window appears behind the vault.
+- **Terminal flash on every turn (#11).** Registry probing for the system proxy now passes `windowsHide`, removing the plugin's own per-turn console leak. A residual once-per-process flash is still tracked in #11 and is not fixed by this release.
 - **Codex fork on long threads.** Forking passes an inclusive `lastTurnId` checkpoint to `thread/fork` instead of forking the whole thread and rolling back, which paginated threads reject.
 
 ---
