@@ -305,3 +305,5 @@ Claudian Plus 站在两个上游项目之上：
 - 提 Issue 与讨论：[GitHub Issues](https://github.com/wuyifan-code/Claudian-plus/issues)
 - 微信公众号：**「递归识海」**
 - 文章与最新动态：[关注公众号：递归识海](https://mp.weixin.qq.com/s/m2AVQl2PdXERGmIrx4jiuA)
+
+[![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
