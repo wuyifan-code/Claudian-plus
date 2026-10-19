@@ -285,6 +285,15 @@ Claudian Plus is built upon two upstream open-source projects:
 
 *Original and Claudian-derived code is licensed under **MIT**; Codian-derived code retains **AGPL-3.0** obligations. See [LICENSE](LICENSE) and [NOTICE](NOTICE).*
 
+### Community contributors
+
+Diagnostics that changed the implementation, credited where the fix landed:
+
+| Contributor | Reported in | Contribution |
+| :--- | :--- | :--- |
+| **[Mofusigil](https://github.com/Mofusigil)** | [PR #5](https://github.com/wuyifan-code/Claudian-plus/pull/5) | Traced the Codex fork failure to `thread/rollback` being rejected for paginated threads, and verified the inclusive `lastTurnId` boundary against `thread_processor.rs` and `thread_rollout_truncation.rs`. Shipped in 3.1.0 as `5ac19e8e`. |
+| **[miemiecaigou](https://github.com/miemiecaigou)** | [#9](https://github.com/wuyifan-code/Claudian-plus/issues/9), [#10](https://github.com/wuyifan-code/Claudian-plus/issues/10), [#11](https://github.com/wuyifan-code/Claudian-plus/issues/11), [#12](https://github.com/wuyifan-code/Claudian-plus/issues/12), [#13](https://github.com/wuyifan-code/Claudian-plus/issues/13) | Located the caret-colour specificity conflict, the duplicate-tab and split-block causes of the scrambled history layout, the cold-start console window, and the Antigravity usage-window normalisation path. |
+
 ---
 
 ## 💡 Community & Follow
