@@ -285,6 +285,15 @@ Claudian Plus 站在两个上游项目之上：
 
 *原创与继承自 Claudian 的代码遵循 **MIT**；继承自 Codian 的代码保留 **AGPL-3.0** 义务。文件级归属说明见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)。*
 
+### 社区贡献者
+
+这些排查定位直接改变了实现，按修复落地处致谢：
+
+| 贡献者 | 提交位置 | 贡献 |
+| :--- | :--- | :--- |
+| **[Mofusigil](https://github.com/Mofusigil)** | [PR #5](https://github.com/wuyifan-code/Claudian-plus/pull/5) | 定位了 Codex fork 失败的根因——分页线程会拒绝 `thread/rollback`，并对照 `thread_processor.rs` 与 `thread_rollout_truncation.rs` 验证了包含式 `lastTurnId` 边界。已随 3.1.0 的 `5ac19e8e` 落地。 |
+| **[miemiecaigou](https://github.com/miemiecaigou)** | [#9](https://github.com/wuyifan-code/Claudian-plus/issues/9)、[#10](https://github.com/wuyifan-code/Claudian-plus/issues/10)、[#11](https://github.com/wuyifan-code/Claudian-plus/issues/11)、[#12](https://github.com/wuyifan-code/Claudian-plus/issues/12)、[#13](https://github.com/wuyifan-code/Claudian-plus/issues/13) | 定位了光标颜色的特异性冲突、历史排版错乱的重复标签页与正文切块两个成因、冷启动控制台窗口，以及 Antigravity 上下文窗口的归一化路径。 |
+
 ---
 
 ## 💡 关注与交流
