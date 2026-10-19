@@ -305,3 +305,5 @@ If you encounter any issues, have questions, or want to explore feature ideas:
 - File an Issue: [GitHub Issues](https://github.com/wuyifan-code/Claudian-plus/issues)
 - WeChat Official Account: **「递归识海」**
 - Follow & Updates: [关注公众号：递归识海](https://mp.weixin.qq.com/s/m2AVQl2PdXERGmIrx4jiuA)
+
+[![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
