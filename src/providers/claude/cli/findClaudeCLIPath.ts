@@ -92,6 +92,21 @@ function resolveClaudeFromPathEntries(
   return null;
 }
 
+/**
+ * Existence check that survives an unreadable path.
+ *
+ * `getNpmGlobalPrefix` runs on the CLI-resolution path, where a permission
+ * error on `%APPDATA%\npm` must degrade to "no prefix" instead of aborting
+ * resolution with an exception.
+ */
+function directoryExists(directoryPath: string): boolean {
+  try {
+    return fs.existsSync(directoryPath);
+  } catch {
+    return false;
+  }
+}
+
 function getNpmGlobalPrefix(): string | null {
   if (process.env.npm_config_prefix) {
     return process.env.npm_config_prefix;
@@ -101,7 +116,7 @@ function getNpmGlobalPrefix(): string | null {
     const appDataNpm = process.env.APPDATA
       ? path.join(process.env.APPDATA, 'npm')
       : null;
-    if (appDataNpm && fs.existsSync(appDataNpm)) {
+    if (appDataNpm && directoryExists(appDataNpm)) {
       return appDataNpm;
     }
   }

@@ -142,6 +142,7 @@ describe('AntigravityChatUIConfig', () => {
         'getModelOptions',
         'getProviderIcon',
         'getReasoningOptions',
+        'hasContextWindowOverride',
         'isAdaptiveReasoningModel',
         'isDefaultModel',
         'normalizeModelVariant',
@@ -177,11 +178,69 @@ describe('AntigravityChatUIConfig', () => {
     });
   });
 
-  it('falls back to the shared context window with custom overrides', () => {
-    expect(antigravityChatUIConfig.getContextWindowSize(ENCODED_MANUAL_MODEL_ID)).toBe(200_000);
+  it('falls back to the model family window with custom overrides', () => {
+    // A Gemini model without a pin gets its real 1M window, not a 200K guess.
+    expect(antigravityChatUIConfig.getContextWindowSize(ENCODED_MANUAL_MODEL_ID)).toBe(1_000_000);
     expect(antigravityChatUIConfig.getContextWindowSize(ENCODED_MANUAL_MODEL_ID, {
       [ENCODED_MANUAL_MODEL_ID]: 123_000,
     })).toBe(123_000);
+  });
+
+  describe('context window', () => {
+    it('defaults Gemini models to the 1M window they run with', () => {
+      expect(antigravityChatUIConfig.getContextWindowSize('antigravity/gemini-3.8-flash-high'))
+        .toBe(1_000_000);
+      expect(antigravityChatUIConfig.getContextWindowSize('gemini-3.1-pro-low')).toBe(1_000_000);
+    });
+
+    it('keeps Claude-hosted Antigravity models on the 200K window', () => {
+      expect(antigravityChatUIConfig.getContextWindowSize('antigravity/claude-sonnet-4-6'))
+        .toBe(200_000);
+    });
+
+    it('keeps the conservative default for an unknown model id', () => {
+      expect(antigravityChatUIConfig.getContextWindowSize('antigravity/custom-experimental'))
+        .toBe(200_000);
+    });
+
+    it('honors a pin written under the encoded selection id when the runtime reports the raw id', () => {
+      // The toolbar writes `antigravity/gemini-...`; agy's usage chunk reports the
+      // bare runtime id. A bare lookup here silently dropped the user's choice.
+      expect(antigravityChatUIConfig.getContextWindowSize('gemini-3.8-flash-high', {
+        'antigravity/gemini-3.8-flash-high': 300_000,
+      })).toBe(300_000);
+    });
+
+    it('honors a pin written under the raw id when the selection id is passed in', () => {
+      expect(antigravityChatUIConfig.getContextWindowSize('antigravity/gemini-3.8-flash-high', {
+        'gemini-3.8-flash-high': 600_000,
+      })).toBe(600_000);
+    });
+
+    it('honors a pin written under a model label', () => {
+      expect(antigravityChatUIConfig.getContextWindowSize('antigravity/gemini-3.8-flash-high', {
+        'Gemini 3.8 Flash (High)': 300_000,
+      })).toBe(300_000);
+    });
+
+    it('reports whether the user pinned a window for this model', () => {
+      expect(antigravityChatUIConfig.hasContextWindowOverride?.('gemini-3.8-flash-high', {
+        'antigravity/gemini-3.8-flash-high': 300_000,
+      })).toBe(true);
+      expect(antigravityChatUIConfig.hasContextWindowOverride?.('gemini-3.8-flash-high', {}))
+        .toBe(false);
+      expect(antigravityChatUIConfig.hasContextWindowOverride?.('gemini-3.8-flash-high'))
+        .toBe(false);
+    });
+
+    it('ignores an invalid pinned value', () => {
+      expect(antigravityChatUIConfig.getContextWindowSize('gemini-3.8-flash-high', {
+        'gemini-3.8-flash-high': 0,
+      })).toBe(1_000_000);
+      expect(antigravityChatUIConfig.getContextWindowSize('gemini-3.8-flash-high', {
+        'gemini-3.8-flash-high': Number.NaN,
+      })).toBe(1_000_000);
+    });
   });
 
   it('round-trips the manual model id through the shared selection encoding', () => {

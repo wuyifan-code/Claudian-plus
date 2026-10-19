@@ -32,8 +32,40 @@ describe('DSH official record normalization', () => {
     expect(messages[1].toolCalls).toEqual([{ id: 't', name: 'fs_read', input: { path: 'a' }, status: 'completed', result: 'File' }]);
   });
 
-  it('does not expose replacement context and refuses unrecognized required events', () => {
-    expect(mapDshRecordsToMessages([{ ...record(0, 'user/message', message('u', 'user', [{ type: 'text', text: 'summary' }])), event: {
+  it('strips the injected system_context block from replayed user messages', () => {
+    const prompt = [
+      '<system_context>',
+      '## Long-term Memory',
+      '',
+      'User prefers Chinese.',
+      '',
+      '## Awareness Context',
+      '',
+      '<awareness>',
+      '### 协作风格',
+      'Concise.',
+      '</awareness>',
+      '</system_context>',
+      '',
+      '对抗性审查是什么？',
+    ].join('\n');
+
+    const messages = mapDshRecordsToMessages([
+      record(0, 'user/message', message('u', 'user', [{ type: 'text', text: prompt }])),
+    ]);
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].content).toBe('对抗性审查是什么？');
+  });
+
+  it('leaves a user message untouched when it carries no injected block', () => {
+    const messages = mapDshRecordsToMessages([
+      record(0, 'user/message', message('u', 'user', [{ type: 'text', text: 'plain question' }])),
+    ]);
+    expect(messages[0].content).toBe('plain question');
+  });
+
+  it('does not expose replacement context and refuses unrecognized required events', () => {    expect(mapDshRecordsToMessages([{ ...record(0, 'user/message', message('u', 'user', [{ type: 'text', text: 'summary' }])), event: {
       ...record(0, 'user/message', message('u', 'user', [{ type: 'text', text: 'summary' }])).event,
       surfaceOp: { op: 'replace', startSeq: 0, endSeq: 0 },
     } }])).toEqual([]);

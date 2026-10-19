@@ -1233,6 +1233,187 @@ describe('ContextUsageMeter', () => {
   });
 });
 
+describe('ContextUsageMeter capacity selector', () => {
+  const CAPACITY_OPTIONS = [300_000, 600_000, 1_000_000];
+
+  function createMeter(activeWindow = 200_000, hasOverride = true) {
+    const parentEl = createMockEl();
+    const onContextWindowChange = jest.fn().mockResolvedValue(undefined);
+    const meter = new ContextUsageMeter(parentEl, {
+      onContextWindowChange,
+      getContextWindow: () => activeWindow,
+      hasOverride: () => hasOverride,
+    });
+    return { parentEl, meter, onContextWindowChange };
+  }
+
+  function openMenu(parentEl: any) {
+    const button = parentEl.querySelector('.claudian-plus-context-meter-button');
+    expect(button).not.toBeNull();
+    button!.click();
+  }
+
+  function capacityOptions(parentEl: any) {
+    return parentEl.querySelectorAll('.claudian-plus-context-meter-option');
+  }
+
+  it('exposes the meter as a button that opens a capacity menu', () => {
+    const { parentEl } = createMeter();
+    expect(parentEl.querySelector('.claudian-plus-context-meter-button')).not.toBeNull();
+    expect(parentEl.querySelector('.claudian-plus-context-meter-menu')).toBeNull();
+
+    openMenu(parentEl);
+    expect(parentEl.querySelector('.claudian-plus-context-meter-menu')).not.toBeNull();
+  });
+
+  it('offers exactly 300K, 600K and 1M', () => {
+    const { parentEl } = createMeter();
+    openMenu(parentEl);
+
+    const options = capacityOptions(parentEl)
+      .filter((el: any) => el.getAttribute('data-context-window') !== 'default');
+    expect(options).toHaveLength(CAPACITY_OPTIONS.length);
+    expect(options.map((option: any) => option.getAttribute('data-context-window')))
+      .toEqual(CAPACITY_OPTIONS.map(String));
+  });
+
+  it('offers a reset entry that clears the pin', async () => {
+    const { parentEl, onContextWindowChange } = createMeter(300_000);
+    openMenu(parentEl);
+
+    const reset = capacityOptions(parentEl)
+      .find((el: any) => el.getAttribute('data-context-window') === 'default');
+    expect(reset).toBeDefined();
+
+    reset!.click();
+    await Promise.resolve();
+
+    expect(onContextWindowChange).toHaveBeenCalledWith(null);
+    expect(parentEl.querySelector('.claudian-plus-context-meter-menu')).toBeNull();
+  });
+
+  it('marks the reset entry active when nothing is pinned', () => {
+    const { parentEl } = createMeter(1_000_000, false);
+    openMenu(parentEl);
+
+    const active = capacityOptions(parentEl).filter((el: any) => el.hasClass('is-active'));
+    expect(active).toHaveLength(1);
+    expect(active[0].getAttribute('data-context-window')).toBe('default');
+  });
+
+  it('closes the menu when clicking outside the meter', () => {
+    const { parentEl, meter } = createMeter();
+    // The meter registers its dismissal listener on the container's own
+    // document; give it a stub so the wiring is observable without jsdom.
+    const listeners = new Set<(event: { target: unknown }) => void>();
+    (meter as any).container.ownerDocument = {
+      addEventListener: (_event: string, handler: (event: { target: unknown }) => void) => {
+        listeners.add(handler);
+      },
+      removeEventListener: (_event: string, handler: (event: { target: unknown }) => void) => {
+        listeners.delete(handler);
+      },
+    };
+
+    openMenu(parentEl);
+    expect(parentEl.querySelector('.claudian-plus-context-meter-menu')).not.toBeNull();
+    expect(listeners.size).toBe(1);
+
+    const handler = Array.from(listeners)[0];
+    handler({ target: createMockEl() });
+
+    expect(parentEl.querySelector('.claudian-plus-context-meter-menu')).toBeNull();
+    // Leaving a document-level listener behind would leak across tab switches.
+    expect(listeners.size).toBe(0);
+  });
+
+  it('exposes menu semantics on the trigger and the menu', () => {
+    const { parentEl } = createMeter();
+    const button = parentEl.querySelector('.claudian-plus-context-meter-button');
+    expect(button!.getAttribute('aria-haspopup')).toBe('menu');
+    expect(button!.getAttribute('aria-expanded')).toBe('false');
+
+    openMenu(parentEl);
+
+    expect(button!.getAttribute('aria-expanded')).toBe('true');
+    const menu = parentEl.querySelector('.claudian-plus-context-meter-menu');
+    expect(menu!.getAttribute('role')).toBe('menu');
+  });
+
+  it('reports the chosen capacity and closes the menu', async () => {
+    const { parentEl, onContextWindowChange } = createMeter();
+    openMenu(parentEl);
+
+    const option = capacityOptions(parentEl)
+      .find((el: any) => el.getAttribute('data-context-window') === '600000');
+    expect(option).toBeDefined();
+    option!.click();
+    await Promise.resolve();
+
+    expect(onContextWindowChange).toHaveBeenCalledWith(600_000);
+    expect(parentEl.querySelector('.claudian-plus-context-meter-menu')).toBeNull();
+  });
+
+  it('marks the active capacity in the menu', () => {
+    const { parentEl } = createMeter(300_000);
+    openMenu(parentEl);
+
+    const active = capacityOptions(parentEl).filter((el: any) => el.hasClass('is-active'));
+    expect(active).toHaveLength(1);
+    expect(active[0].getAttribute('data-context-window')).toBe('300000');
+  });
+  it('marks nothing active when the window is not one of the presets', () => {
+    const { parentEl } = createMeter(200_000);
+    openMenu(parentEl);
+
+    const presetActive = capacityOptions(parentEl)
+      .filter((el: any) => el.getAttribute('data-context-window') !== 'default')
+      .filter((el: any) => el.hasClass('is-active'));
+    expect(presetActive).toHaveLength(0);
+  });
+
+  it('stays usable when no usage has arrived yet', () => {
+    const { parentEl } = createMeter();
+    openMenu(parentEl);
+    expect(parentEl.querySelector('.claudian-plus-context-meter-menu')).not.toBeNull();
+  });
+
+  it('becomes a read-only gauge when the model has no tunable window', () => {
+    const { parentEl, meter } = createMeter();
+    meter.setSelectable(false);
+
+    openMenu(parentEl);
+    expect(parentEl.querySelector('.claudian-plus-context-meter-menu')).toBeNull();
+    expect(meter).toBeDefined();
+  });
+
+  it('restores the menu once selectable again', () => {
+    const { parentEl, meter } = createMeter();
+    meter.setSelectable(false);
+    meter.setSelectable(true);
+
+    openMenu(parentEl);
+    expect(parentEl.querySelector('.claudian-plus-context-meter-menu')).not.toBeNull();
+  });
+
+  it('closes an open menu when it becomes read-only', () => {
+    const { parentEl, meter } = createMeter();
+    openMenu(parentEl);
+    expect(parentEl.querySelector('.claudian-plus-context-meter-menu')).not.toBeNull();
+
+    meter.setSelectable(false);
+    expect(parentEl.querySelector('.claudian-plus-context-meter-menu')).toBeNull();
+  });
+
+  it('is read-only when constructed without callbacks', () => {
+    const parentEl = createMockEl();
+    new ContextUsageMeter(parentEl);
+    const button = parentEl.querySelector('.claudian-plus-context-meter-button');
+    button!.click();
+    expect(parentEl.querySelector('.claudian-plus-context-meter-menu')).toBeNull();
+  });
+});
+
 describe('McpServerSelector - toggle and badges', () => {
   let parentEl: any;
   let selector: McpServerSelector;

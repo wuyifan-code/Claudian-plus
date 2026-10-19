@@ -1,3 +1,5 @@
+import { stripInjectedPromptContext } from '../../core/prompt/injectedContext';
+
 const CODEX_IMAGE_OPEN_TAG_PATTERN = /^<image\b[^>]*>$/i;
 const CODEX_IMAGE_CLOSE_TAG_PATTERN = /^<\/image>$/i;
 const CODEX_EMPTY_IMAGE_TAG_PATTERN = /^<image\b[^>]*>\s*<\/image>$/i;
@@ -11,6 +13,7 @@ const CODEX_CONTROL_BLOCK_TAGS = [
   'user-preferences',
   'subagent_notification',
   'skill',
+  'system_context',
 ];
 
 const CODEX_AGENTS_INSTRUCTIONS_PREFIX = '# AGENTS.md instructions';
@@ -99,7 +102,11 @@ export function joinCodexUserTextParts(parts: readonly string[], separator = '')
 }
 
 export function extractCodexUserVisibleText(text: string): string | null {
-  const withoutImagePlaceholders = stripCodexImagePlaceholderText(text);
+  // The leading-block pass handles the usual prefix position; the shared
+  // stripper also removes a block that a resumed thread stores further in.
+  const withoutImagePlaceholders = stripInjectedPromptContext(
+    stripCodexImagePlaceholderText(text),
+  );
   const visible = stripCodexImagePlaceholderText(
     stripLeadingCodexControlMetadata(withoutImagePlaceholders),
   ).trim();

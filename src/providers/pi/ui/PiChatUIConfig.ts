@@ -120,10 +120,16 @@ export const piChatUIConfig: ProviderChatUIConfig = {
     customLimits?: Record<string, number>,
     settings?: Record<string, unknown>,
   ): number {
+    // An explicit pick outranks discovered metadata: the selector would be a
+    // no-op otherwise, and the user chose it for this model on purpose.
+    const pinned = customLimits?.[model];
+    if (typeof pinned === 'number' && Number.isFinite(pinned) && pinned > 0) {
+      return pinned;
+    }
     const metadataContextWindow = settings
       ? getCachedModel(model, settings)?.contextWindow
       : undefined;
-    return metadataContextWindow ?? customLimits?.[model] ?? DEFAULT_CONTEXT_WINDOW;
+    return metadataContextWindow ?? DEFAULT_CONTEXT_WINDOW;
   },
 
   isDefaultModel(model: string): boolean {

@@ -9,13 +9,13 @@ import {
   DEFAULT_ANTIGRAVITY_MODEL_ID,
   DEFAULT_ANTIGRAVITY_MODELS,
   encodeAntigravityModelSelectionId,
+  getAntigravityModelContextWindow,
   isAntigravityModelSelectionId,
   looksLikeAntigravityModel,
+  resolveAntigravityContextLimit,
   toAntigravityRuntimeModelId,
 } from '../models';
 import { getAntigravityProviderSettings } from '../settings';
-
-const DEFAULT_CONTEXT_WINDOW = 200_000;
 
 function pushOption(options: ProviderUIOption[], seenValues: Set<string>, option: ProviderUIOption): void {
   if (seenValues.has(option.value)) {
@@ -127,7 +127,12 @@ export const antigravityChatUIConfig: ProviderChatUIConfig = {
   },
 
   getContextWindowSize(model: string, customLimits?: Record<string, number>): number {
-    return customLimits?.[model] ?? DEFAULT_CONTEXT_WINDOW;
+    return resolveAntigravityContextLimit(model, customLimits)
+      ?? getAntigravityModelContextWindow(model);
+  },
+
+  hasContextWindowOverride(model: string, customLimits?: Record<string, number>): boolean {
+    return resolveAntigravityContextLimit(model, customLimits) !== null;
   },
 
   isDefaultModel(model: string): boolean {

@@ -214,3 +214,78 @@ export function normalizeAntigravityManualModelId(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+/** Conservative window for a model whose family is unknown. */
+export const ANTIGRAVITY_DEFAULT_CONTEXT_WINDOW = 200_000;
+
+/** Window for the Gemini families agy serves. */
+export const ANTIGRAVITY_GEMINI_CONTEXT_WINDOW = 1_000_000;
+
+/**
+ * Context window a model actually runs with inside Antigravity.
+ *
+ * `agy` reports token counts but no window, so the denominator has to come from
+ * here. Its catalog mixes families with different limits: the Gemini models run
+ * with 1M, while the Claude-hosted and GPT-OSS entries keep the smaller window.
+ * An unrecognized id keeps the conservative default rather than inheriting 1M.
+ *
+ * The model is resolved through `toAntigravityRuntimeModelId` first, so a
+ * selection id (`antigravity/gemini-…`), a label, or the bare runtime id all
+ * land on the same family.
+ */
+export function getAntigravityModelContextWindow(model: string | null | undefined): number {
+  if (!model || !model.trim()) {
+    return ANTIGRAVITY_DEFAULT_CONTEXT_WINDOW;
+  }
+  const runtimeModelId = toAntigravityRuntimeModelId(model).toLowerCase();
+  if (!runtimeModelId) {
+    return ANTIGRAVITY_DEFAULT_CONTEXT_WINDOW;
+  }
+  if (runtimeModelId.startsWith('gemini-')) {
+    return ANTIGRAVITY_GEMINI_CONTEXT_WINDOW;
+  }
+  return ANTIGRAVITY_DEFAULT_CONTEXT_WINDOW;
+}
+
+function isValidAntigravityContextLimit(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+/**
+ * Resolves a user-pinned context window for an Antigravity model.
+ *
+ * The pin is written by the chat toolbar under the model id it holds (the
+ * encoded selection id), while a usage chunk reports the bare runtime id that
+ * `agy` sent. Both spellings, and the human label, therefore have to resolve to
+ * the same pin; a bare map lookup silently dropped the user's choice on the
+ * streaming path.
+ */
+export function resolveAntigravityContextLimit(
+  model: string | null | undefined,
+  customLimits: Record<string, number> | undefined,
+): number | null {
+  if (!customLimits) {
+    return null;
+  }
+  const trimmed = (model ?? '').trim();
+  if (trimmed) {
+    const exact = customLimits[trimmed];
+    if (isValidAntigravityContextLimit(exact)) {
+      return exact;
+    }
+  }
+
+  const wanted = trimmed ? toAntigravityRuntimeModelId(trimmed) : '';
+  if (!wanted) {
+    return null;
+  }
+
+  const matches = Object.entries(customLimits).filter(([key, limit]) => (
+    isValidAntigravityContextLimit(limit)
+    && toAntigravityRuntimeModelId(key) === wanted
+  ));
+
+  // Ambiguity means the map cannot say which limit was meant; let the family
+  // default decide instead of picking one arbitrarily.
+  return matches.length === 1 ? matches[0][1] : null;
+}
+

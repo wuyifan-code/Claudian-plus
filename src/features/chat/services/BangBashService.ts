@@ -27,6 +27,9 @@ export class BangBashService {
         env: { ...process.env, PATH: this.enhancedPath },
         timeout: TIMEOUT_MS,
         maxBuffer: MAX_BUFFER,
+        // `exec` goes through a shell; on Windows that allocates a console
+        // window for the command's whole lifetime unless it is hidden.
+        windowsHide: true,
         shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/bash',
       }, (error, stdout, stderr) => {
         if (error && 'killed' in error && error.killed) {

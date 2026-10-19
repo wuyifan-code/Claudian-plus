@@ -34,7 +34,7 @@ import { TabBar } from './tabs/TabBar';
 import { TabManager } from './tabs/TabManager';
 import { clampMaxTabs, type TabData, type TabId } from './tabs/types';
 import { SessionsView } from './ui/SessionsView';
-import { recalculateUsageForModel } from './utils/usageInfo';
+import { isContextWindowPinned, recalculateUsageForModel } from './utils/usageInfo';
 
 type LoadableView = {
   containerEl?: HTMLElement;
@@ -163,7 +163,18 @@ export class ClaudianPlusView extends ItemView {
       );
 
       if (tab.state.usage) {
-        tab.state.usage = recalculateUsageForModel(tab.state.usage, model, contextWindow);
+        tab.state.usage = recalculateUsageForModel(
+          tab.state.usage,
+          model,
+          contextWindow,
+          {
+            overrideContextWindow: isContextWindowPinned(
+              uiConfig,
+              model,
+              providerSettings.customContextLimits,
+            ),
+          },
+        );
       }
 
       refreshTabProviderSelectors(tab, this.plugin);
@@ -844,7 +855,12 @@ export class ClaudianPlusView extends ItemView {
     }
   }
 
-  async createNewTab(): Promise<void> {
+  /**
+   * Creates or reuses a blank tab. Returns whether a usable tab is active
+   * afterwards, so callers that are about to write into its composer can abort
+   * instead of typing into an unrelated live conversation.
+   */
+  async createNewTab(): Promise<boolean> {
     await this.whenReady();
     // Claim an idle blank draft before spending a slot; a fresh page is only
     // allocated when nothing can be reused.
@@ -852,9 +868,10 @@ export class ClaudianPlusView extends ItemView {
     if (!tab) {
       new Notice(t('chat.tabLimit.newTabNotice', { count: String(this.getMaxTabs()) }));
       this.updateTabBarVisibility();
-      return;
+      return false;
     }
     this.updateTabBarVisibility();
+    return this.getActiveTab() !== null;
   }
 
   private getMaxTabs(): number {

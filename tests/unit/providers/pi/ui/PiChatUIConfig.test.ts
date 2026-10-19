@@ -162,9 +162,15 @@ describe('PiChatUIConfig', () => {
       },
     };
 
+    // An explicit pick outranks metadata; without one the metadata wins.
     expect(piChatUIConfig.getContextWindowSize(
       'pi:anthropic/claude-sonnet-4',
-      { 'pi:anthropic/claude-sonnet-4': 123_000 },
+      { 'pi:anthropic/claude-sonnet-4': 300_000 },
+      contextSettings,
+    )).toBe(300_000);
+    expect(piChatUIConfig.getContextWindowSize(
+      'pi:anthropic/claude-sonnet-4',
+      undefined,
       contextSettings,
     )).toBe(1_000_000);
     expect(piChatUIConfig.getContextWindowSize(

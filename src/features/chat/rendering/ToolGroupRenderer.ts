@@ -7,6 +7,12 @@ import { collapseElement, setupCollapsible } from './collapsible';
 export interface StoredToolGroupOptions {
   initiallyExpanded?: boolean;
   collapsedByDefault?: boolean;
+  /**
+   * Renders reasoning that belongs to this execution phase. It is placed at the
+   * top of the collapsed list so the whole phase reads as one entry instead of
+   * a separate thinking block per step.
+   */
+  renderLeadingContent?: (listEl: HTMLElement) => void;
 }
 
 export type ToolGroupStatus = 'running' | 'completed' | 'error' | 'blocked';
@@ -110,6 +116,8 @@ export function renderStoredToolGroup(
   updateToolGroupStatusEl(statusEl, status);
 
   const listEl = containerEl.createDiv({ cls: 'claudian-plus-tool-group-list' });
+
+  options.renderLeadingContent?.(listEl);
 
   for (const tc of toolCalls) {
     renderSingleTool(listEl, tc);

@@ -1,6 +1,6 @@
 # Claudian Plus — Obsidian 实机 Smoke Checklist
 
-> 版本: 3.0.1 · 日期: 2026-09-18
+> 版本: 3.1.1 · 日期: 2026-10-19
 >
 > 此 checklist 供在 Obsidian 实机环境中逐项验证。必须在真实 Obsidian vault 中执行，
 > 不得以单元测试替代。
@@ -18,7 +18,7 @@
 
 ## Tab 与会话
 
-- [ ] 新建 Tab（+ 按钮），选择 provider（Claude / Codex / OpenCode / Kimi / Pi）
+- [ ] 新建 Tab（+ 按钮），选择 provider（Claude / Codex / OpenCode / Kimi / Pi / Antigravity / DeepSeek Harness）
 - [ ] 发送简单 prompt（如 "hello"），确认收到流式回复
 - [ ] 关闭 Tab（标签页关闭按钮），重新打开面板，确认 Tab 恢复
 - [ ] 多个 Tab 之间切换，确认状态保持
@@ -92,9 +92,23 @@
 - [ ] 点击停止后，已接收的文本仍然显示
 - [ ] 隐藏/最小化窗口期间不产生大量 DOM 重绘，重新显示后正文完整
 
+## 3.1.1 修复验证
+
+- [ ] 达到标签页上限时，从文件右键菜单 / 命令面板发送到聊天：提示上限且不写入当前会话的输入框
+- [ ] Antigravity 新建会话首轮后，上下文指示器显示非 0% 的合理百分比
+- [ ] Antigravity 长会话（token 超过 200K）不再一直显示 100%
+- [ ] 点击上下文指示器选择 300K / 600K / 1M，下一轮对话后百分比仍按所选窗口计算（不被弹回默认）
+- [ ] 上下文指示器菜单选择"使用提供方默认值"后，百分比回到 Provider 自己的窗口
+- [ ] 上下文指示器菜单点击空白处可关闭；键盘 Escape 可关闭
+- [ ] Claude 对话不再每轮弹出 "Obsidian tools unavailable"
+- [ ] Claude 中执行 `!命令`，Windows 上不闪控制台窗口
+- [ ] 多步工具调用的回复折叠为一行摘要，展开后思考与工具按原顺序显示
+- [ ] 从历史记录重放 Kimi / OpenCode / Pi / DeepSeek / Antigravity / Codex 会话，用户消息中不出现注入的 `<system_context>` 块
+- [ ] 顶部 Provider 图标：Claude 保留橙色，其余 Provider 为主题黑白
+
 ## Inline Edit
 
-- [ ] 在 Markdown 编辑器选中文本 → Mod+K → 确认弹出 inline edit 面板
+- [ ] 在 Markdown 编辑器选中文本 → 命令面板执行 inline edit 命令 → 确认弹出 inline edit 面板（该命令默认不绑定热键）
 - [ ] 提交指令后确认按 provider 返回修改结果并可应用/放弃
 
 ## Antigravity Provider（默认禁用）

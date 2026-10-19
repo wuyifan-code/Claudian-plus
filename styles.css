@@ -347,13 +347,22 @@ button.claudian-plus-view-switcher-btn.is-active {
   white-space: nowrap;
 }
 
+/* The header mark is monochrome for every provider except Claude, which keeps
+   its own brand colour. Provider brand tokens stay in use elsewhere (accents,
+   toggles, status), so this is scoped to the header mark rather than remapping
+   --claudian-plus-brand. Provider ids without a brand token would otherwise
+   inherit Claude's orange through the container default. */
 .claudian-plus-logo {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--claudian-plus-brand);
+  color: var(--text-normal);
   transition: transform var(--claudian-plus-transition-bounce), color var(--claudian-plus-transition-normal);
   flex-shrink: 0;
+}
+
+.claudian-plus-container[data-provider="claude"] .claudian-plus-logo {
+  color: var(--claudian-plus-brand-claude);
 }
 
 .claudian-plus-logo svg {
@@ -3529,6 +3538,99 @@ body.theme-light .claudian-plus-message-content pre {
 
 .claudian-plus-context-meter.warning .claudian-plus-context-meter-percent {
   color: var(--claudian-plus-error);
+}
+
+/* The meter doubles as the capacity selector trigger: one click target, so the
+   ring keeps its inline size while the menu does the explaining. */
+.claudian-plus-context-meter-button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--claudian-plus-radius-sm);
+  cursor: pointer;
+  outline: none;
+}
+
+.claudian-plus-context-meter-button:hover,
+.claudian-plus-context-meter.is-open .claudian-plus-context-meter-button {
+  background: var(--background-modifier-hover);
+}
+
+.claudian-plus-context-meter-button:focus-visible {
+  box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+}
+
+/* GPT-family models keep the provider's window, so the ring is a plain gauge. */
+.claudian-plus-context-meter.is-read-only .claudian-plus-context-meter-button {
+  cursor: default;
+}
+
+.claudian-plus-context-meter.is-read-only .claudian-plus-context-meter-button:hover {
+  background: transparent;
+}
+
+.claudian-plus-context-meter-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 220px;
+  padding: 6px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--claudian-plus-radius-lg);
+  box-shadow: var(--claudian-plus-shadow-lg);
+}
+
+.claudian-plus-context-meter-menu-title {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.claudian-plus-context-meter-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: var(--claudian-plus-radius-sm);
+  font-size: 12px;
+  color: var(--text-normal);
+  cursor: pointer;
+}
+
+.claudian-plus-context-meter-option:hover {
+  background: var(--background-modifier-hover);
+}
+
+.claudian-plus-context-meter-option.is-active {
+  background: var(--background-modifier-hover);
+  color: var(--claudian-plus-brand);
+  font-weight: 600;
+}
+
+/* Reset entry sits apart from the presets: it is not a capacity, it clears one. */
+.claudian-plus-context-meter-option.is-default {
+  margin-top: 2px;
+  border-top: 1px solid var(--background-modifier-border);
+  padding-top: 8px;
+  color: var(--text-muted);
+}
+
+.claudian-plus-context-meter-option.is-default.is-active {
+  color: var(--claudian-plus-brand);
+}
+
+.claudian-plus-context-meter-menu-hint {
+  padding: 4px 8px 2px;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--text-faint);
+  white-space: normal;
 }
 
 

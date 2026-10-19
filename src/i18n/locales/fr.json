@@ -109,6 +109,13 @@
         "tools": "Outils",
         "thinking": "Réflexion"
       }
+    },
+    "contextCapacity": {
+      "label": "Capacité de contexte",
+      "title": "Capacité de contexte",
+      "hint": "Modifie uniquement la fenêtre utilisée pour le pourcentage, pas la limite réelle du modèle.",
+      "providerDefault": "Valeur par défaut du fournisseur",
+      "saveFailed": "Impossible d’enregistrer la capacité de contexte."
     }
   },
   "settings": {

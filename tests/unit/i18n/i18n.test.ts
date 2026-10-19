@@ -119,6 +119,7 @@ describe('i18n', () => {
     // `t()` falls back to English silently, so a locale that misses these keys
     // would ship English copy with no failing test. Guard them explicitly.
     const tabLimitKeys = [
+      'chat.tabLimit.newTabLabel',
       'chat.tabLimit.newTabNotice',
       'chat.tabLimit.newTabDisabledHint',
     ] as const;
@@ -134,6 +135,34 @@ describe('i18n', () => {
         if (locale === 'en') continue;
         setLocale(locale);
         for (const key of tabLimitKeys) {
+          const translated = t(key);
+          expect(translated).not.toBe(key);
+          expect(translated).not.toBe(englishValues.get(key));
+        }
+      }
+    });
+  });
+
+  describe('context capacity selector', () => {
+    const contextCapacityKeys = [
+      'chat.contextCapacity.label',
+      'chat.contextCapacity.title',
+      'chat.contextCapacity.hint',
+      'chat.contextCapacity.providerDefault',
+      'chat.contextCapacity.saveFailed',
+    ] as const;
+
+    it('translates the capacity selector copy in every locale', () => {
+      const englishValues = new Map<string, string>();
+      setLocale('en');
+      for (const key of contextCapacityKeys) {
+        englishValues.set(key, t(key));
+      }
+
+      for (const locale of getAvailableLocales()) {
+        if (locale === 'en') continue;
+        setLocale(locale);
+        for (const key of contextCapacityKeys) {
           const translated = t(key);
           expect(translated).not.toBe(key);
           expect(translated).not.toBe(englishValues.get(key));

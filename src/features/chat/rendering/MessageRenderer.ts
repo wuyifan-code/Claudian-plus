@@ -812,6 +812,19 @@ export class MessageRenderer {
       for (let i = 0; i < msg.contentBlocks.length; i++) {
         const block = msg.contentBlocks[i];
         if (block.type === 'thinking') {
+          // A run of thinking and tool calls is one execution phase. Collapsing
+          // it as a whole keeps a multi-step turn to a single summary line
+          // instead of one block per step.
+          const runEnd = this.findToolRunEnd(msg, i);
+          const runTools = this.collectRunTools(msg, i, runEnd);
+          if (runEnd > i && runTools.length >= 1 && this.runHasToolUse(msg, i, runEnd)) {
+            this.renderExecutionRun(contentEl, msg, i, runEnd, runTools, markdownComponent);
+            for (const tc of runTools) {
+              renderedToolIds.add(tc.id);
+            }
+            i = runEnd - 1;
+            continue;
+          }
           renderStoredThinkingBlock(
             contentEl,
             block.content,
@@ -935,6 +948,104 @@ export class MessageRenderer {
 
   private isReadingModeActive(): boolean {
     return this.getReadingMode?.() ?? false;
+  }
+
+  /**
+   * End index (exclusive) of the contiguous run of thinking and tool_use
+   * blocks starting at `start`. Text, compaction boundaries, and subagent
+   * blocks end the run because they are real output boundaries.
+   */
+  private findToolRunEnd(msg: ChatMessage, start: number): number {
+    const blocks = msg.contentBlocks ?? [];
+    let end = start;
+    while (end < blocks.length) {
+      const type = blocks[end].type;
+      if (type !== 'thinking' && type !== 'tool_use') {
+        break;
+      }
+      end++;
+    }
+    return end;
+  }
+
+  private collectRunTools(msg: ChatMessage, start: number, end: number): ToolCallInfo[] {
+    const blocks = msg.contentBlocks ?? [];
+    const tools: ToolCallInfo[] = [];
+    for (let index = start; index < end; index++) {
+      const block = blocks[index];
+      if (block.type !== 'tool_use') {
+        continue;
+      }
+      const tool = msg.toolCalls?.find(tc => tc.id === block.toolId);
+      if (tool && this.shouldRenderToolCall(tool)) {
+        tools.push(tool);
+      }
+    }
+    return tools;
+  }
+
+  private runHasToolUse(msg: ChatMessage, start: number, end: number): boolean {
+    const blocks = msg.contentBlocks ?? [];
+    for (let index = start; index < end; index++) {
+      if (blocks[index].type === 'tool_use') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Renders one collapsed execution phase: every thinking block of the run and
+   * every tool call inside it, in their original order, under a single summary
+   * header so a multi-step turn reads as one line until the user expands it.
+   */
+  private renderExecutionRun(
+    contentEl: HTMLElement,
+    msg: ChatMessage,
+    start: number,
+    end: number,
+    tools: ToolCallInfo[],
+    markdownComponent?: Component,
+  ): void {
+    const blocks = msg.contentBlocks ?? [];
+    const items: ToolCallInfo[] = [];
+    for (let index = start; index < end; index++) {
+      const block = blocks[index];
+      if (block.type === 'tool_use') {
+        const tool = tools.find(tc => tc.id === block.toolId);
+        if (tool) {
+          items.push(tool);
+        }
+      }
+    }
+
+    const thinking: Array<{ content: string; durationSeconds?: number }> = [];
+    for (let index = start; index < end; index++) {
+      const block = blocks[index];
+      if (block.type === 'thinking' && block.content.trim()) {
+        thinking.push({ content: block.content, durationSeconds: block.durationSeconds });
+      }
+    }
+
+    renderStoredToolGroup(
+      contentEl,
+      items,
+      (container, toolCall) => this.renderToolCall(container, toolCall, msg),
+      {
+        collapsedByDefault: true,
+        renderLeadingContent: (listEl) => {
+          for (const entry of thinking) {
+            renderStoredThinkingBlock(
+              listEl,
+              entry.content,
+              entry.durationSeconds,
+              (el, md) => this.renderMessageMarkdown(el, md, markdownComponent),
+              { collapsedByDefault: true },
+            );
+          }
+        },
+      },
+    );
   }
 
   /**

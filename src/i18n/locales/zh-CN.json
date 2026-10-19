@@ -109,6 +109,13 @@
         "tools": "工具",
         "thinking": "思考"
       }
+    },
+    "contextCapacity": {
+      "label": "上下文容量",
+      "title": "上下文容量",
+      "hint": "只影响百分比换算的窗口，不改变模型本身的真实上限。",
+      "providerDefault": "使用提供方默认值",
+      "saveFailed": "无法保存上下文容量设置。"
     }
   },
   "settings": {

@@ -113,13 +113,22 @@ button.claudian-plus-view-switcher-btn.is-active {
   white-space: nowrap;
 }
 
+/* The header mark is monochrome for every provider except Claude, which keeps
+   its own brand colour. Provider brand tokens stay in use elsewhere (accents,
+   toggles, status), so this is scoped to the header mark rather than remapping
+   --claudian-plus-brand. Provider ids without a brand token would otherwise
+   inherit Claude's orange through the container default. */
 .claudian-plus-logo {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--claudian-plus-brand);
+  color: var(--text-normal);
   transition: transform var(--claudian-plus-transition-bounce), color var(--claudian-plus-transition-normal);
   flex-shrink: 0;
+}
+
+.claudian-plus-container[data-provider="claude"] .claudian-plus-logo {
+  color: var(--claudian-plus-brand-claude);
 }
 
 .claudian-plus-logo svg {

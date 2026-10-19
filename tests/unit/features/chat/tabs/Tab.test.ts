@@ -24,6 +24,7 @@ import {
   initializeTabUI,
   onProviderAvailabilityChanged,
   recycleTabRuntime,
+  refreshTabWorkspaceServices,
   setupServiceCallbacks,
   type TabCreateOptions,
   updatePlanModeUI,
@@ -163,6 +164,7 @@ const createMockThinkingBudgetSelector = () => ({
 const createMockContextUsageMeter = () => ({
   update: jest.fn(),
   setVisible: jest.fn(),
+  setSelectable: jest.fn(),
 });
 
 const createMockExternalContextSelector = () => ({
@@ -930,6 +932,124 @@ describe('Tab - Service Initialization', () => {
 
       expect(getChatUIConfigSpy).toHaveBeenCalledWith('codex');
       expect(getCapabilitiesSpy).toHaveBeenCalledWith('codex');
+    });
+
+    it('hides the capacity selector for GPT-family models only', () => {
+      jest.spyOn(ProviderRegistry, 'createInstructionRefineService').mockReturnValue({ cancel: jest.fn(), resetConversation: jest.fn() } as any);
+      jest.spyOn(ProviderRegistry, 'createTitleGenerationService').mockReturnValue({ cancel: jest.fn() } as any);
+      jest.spyOn(ProviderRegistry, 'getTaskResultInterpreter').mockReturnValue({} as any);
+
+      const plugin = createMockPlugin();
+      plugin.settings.model = 'gpt-5.4-mini';
+      const tab = createTab(createMockOptions({ plugin }));
+      initializeTabUI(tab, plugin);
+      expect(mockContextUsageMeter.setSelectable).toHaveBeenLastCalledWith(false);
+
+      mockContextUsageMeter.setSelectable.mockClear();
+      plugin.settings.model = 'sonnet';
+      tab.draftModel = 'sonnet';
+      refreshTabWorkspaceServices(tab, plugin);
+      expect(mockContextUsageMeter.setSelectable).toHaveBeenLastCalledWith(true);
+    });
+
+    it('persists the chosen context capacity for the active model and recalculates usage', async () => {
+      jest.spyOn(ProviderRegistry, 'createInstructionRefineService').mockReturnValue({ cancel: jest.fn(), resetConversation: jest.fn() } as any);
+      jest.spyOn(ProviderRegistry, 'createTitleGenerationService').mockReturnValue({ cancel: jest.fn() } as any);
+      jest.spyOn(ProviderRegistry, 'getTaskResultInterpreter').mockReturnValue({} as any);
+      jest.spyOn(ProviderRegistry, 'getChatUIConfig').mockReturnValue({
+        getModelOptions: jest.fn().mockReturnValue([]),
+        ownsModel: jest.fn().mockReturnValue(true),
+        isAdaptiveReasoningModel: jest.fn().mockReturnValue(false),
+        getReasoningOptions: jest.fn().mockReturnValue([]),
+        getDefaultReasoningValue: jest.fn().mockReturnValue('off'),
+        getContextWindowSize: jest.fn(
+          (model: string, customLimits?: Record<string, number>) => customLimits?.[model] ?? 200_000,
+        ),
+        isDefaultModel: jest.fn().mockReturnValue(true),
+        applyModelDefaults: jest.fn(),
+        normalizeModelVariant: jest.fn((model: string) => model),
+        getCustomModelIds: jest.fn().mockReturnValue(new Set()),
+      } as any);
+
+      const plugin = createMockPlugin();
+      plugin.settings.model = 'sonnet';
+      const tab = createTab(createMockOptions({ plugin }));
+      tab.state.usage = {
+        inputTokens: 0,
+        cacheCreationInputTokens: 0,
+        cacheReadInputTokens: 0,
+        contextTokens: 150_000,
+        contextWindow: 200_000,
+        percentage: 75,
+      };
+
+      initializeTabUI(tab, plugin);
+
+      const toolbarModule = jest.requireMock('@/features/chat/ui/InputToolbar') as {
+        createInputToolbar: jest.Mock;
+      };
+      const toolbarCallbacks = toolbarModule.createInputToolbar.mock.calls.at(-1)?.[1];
+      expect(toolbarCallbacks.onContextWindowChange).toBeDefined();
+
+      await toolbarCallbacks.onContextWindowChange(600_000);
+
+      expect(plugin.settings.customContextLimits?.sonnet).toBe(600_000);
+      expect(tab.state.usage?.contextWindow).toBe(600_000);
+      expect(tab.state.usage?.percentage).toBe(25);
+      expect(mockContextUsageMeter.update).toHaveBeenCalledWith(tab.state.usage);
+    });
+
+    it('clears a pinned context capacity and restores the provider default', async () => {
+      jest.spyOn(ProviderRegistry, 'createInstructionRefineService').mockReturnValue({ cancel: jest.fn(), resetConversation: jest.fn() } as any);
+      jest.spyOn(ProviderRegistry, 'createTitleGenerationService').mockReturnValue({ cancel: jest.fn() } as any);
+      jest.spyOn(ProviderRegistry, 'getTaskResultInterpreter').mockReturnValue({} as any);
+      jest.spyOn(ProviderRegistry, 'getChatUIConfig').mockReturnValue({
+        getModelOptions: jest.fn().mockReturnValue([]),
+        ownsModel: jest.fn().mockReturnValue(true),
+        isAdaptiveReasoningModel: jest.fn().mockReturnValue(false),
+        getReasoningOptions: jest.fn().mockReturnValue([]),
+        getDefaultReasoningValue: jest.fn().mockReturnValue('off'),
+        getContextWindowSize: jest.fn(
+          (model: string, customLimits?: Record<string, number>) => customLimits?.[model] ?? 200_000,
+        ),
+        hasContextWindowOverride: jest.fn(
+          (model: string, customLimits?: Record<string, number>) => (
+            typeof customLimits?.[model] === 'number'
+          ),
+        ),
+        isDefaultModel: jest.fn().mockReturnValue(true),
+        applyModelDefaults: jest.fn(),
+        normalizeModelVariant: jest.fn((model: string) => model),
+        getCustomModelIds: jest.fn().mockReturnValue(new Set()),
+      } as any);
+
+      const plugin = createMockPlugin();
+      plugin.settings.model = 'sonnet';
+      plugin.settings.customContextLimits = { sonnet: 600_000 };
+      const tab = createTab(createMockOptions({ plugin }));
+      tab.state.usage = {
+        inputTokens: 0,
+        cacheCreationInputTokens: 0,
+        cacheReadInputTokens: 0,
+        contextTokens: 150_000,
+        contextWindow: 600_000,
+        percentage: 25,
+      };
+
+      initializeTabUI(tab, plugin);
+
+      const toolbarModule = jest.requireMock('@/features/chat/ui/InputToolbar') as {
+        createInputToolbar: jest.Mock;
+      };
+      const toolbarCallbacks = toolbarModule.createInputToolbar.mock.calls.at(-1)?.[1];
+      expect(toolbarCallbacks.onContextWindowChange).toBeDefined();
+
+      await toolbarCallbacks.onContextWindowChange(null);
+
+      expect(plugin.settings.customContextLimits?.sonnet).toBeUndefined();
+      // Back on the provider's window: 150K of 200K is 75%.
+      expect(tab.state.usage?.contextWindow).toBe(200_000);
+      expect(tab.state.usage?.percentage).toBe(75);
     });
 
     it('resolves the agent mention service through the provider-specific lookup', () => {

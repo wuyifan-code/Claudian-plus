@@ -1,7 +1,7 @@
 # Claudian Plus Code Wiki
 
 > 本文档对 Claudian Plus 仓库进行结构化梳理，覆盖整体架构、模块职责、关键类型/类/函数、依赖关系以及构建运行方式。
-> 仓库版本：`3.0.1`（见 [package.json](../package.json) / [manifest.json](../manifest.json)）。
+> 仓库版本：`3.1.1`（见 [package.json](../package.json) / [manifest.json](../manifest.json)）。
 
 ---
 
@@ -28,7 +28,7 @@
 **Claudian Plus** 是一个仅桌面端的 Obsidian 插件（`isDesktopOnly: true`），把编码 Agent（Codex、Claude、OpenCode、Kimi、Pi）嵌入 Obsidian 侧边栏。设计目标：
 
 - **本地优先**：会话、记忆、Provider 会话都保存在 Vault 内（`.claudian-plus/`），无遥测。
-- **Provider 可插拔**：五个 Provider 通过 `ProviderRegistry` 与 `ProviderWorkspaceRegistry` 接入，共享 `Conversation` 模型与 `ChatRuntime` 契约，但保留各自的运行时协议、历史格式、权限流。
+- **Provider 可插拔**：七个 Provider 通过 `ProviderRegistry` 与 `ProviderWorkspaceRegistry` 接入，共享 `Conversation` 模型与 `ChatRuntime` 契约，但保留各自的运行时协议、历史格式、权限流。
 - **Codex 优先**：默认 Provider 为 Codex，默认模型 `gpt-5.6-sol`（见 [src/app/settings/defaultSettings.ts](../src/app/settings/defaultSettings.ts)）。
 - **Vault 即工作区**：`@note` / `@folder` 上下文、Canvas/Properties/links 读写、知识索引、意识机制等围绕笔记展开。
 
@@ -80,7 +80,7 @@
 
 1. `patchSetMaxListenersForElectron()` 在任何 SDK import 之前修补 Electron 兼容性。
 2. `StartupProfiler.finishModuleEvaluation()` 标记模块求值完成。
-3. 动态 `import('./providers')` → `registerBuiltInProviders()` 注册五个 Provider 到两个 registry。
+3. 动态 `import('./providers')` → `registerBuiltInProviders()` 注册七个 Provider 到两个 registry。
 4. `loadSettings({ deferNonRestoredSessionMetadata: true })`：并行加载 settings 与 tabManagerState，迁移 Claude service 设置，归一化 plan mode 与 provider selection，仅同步加载已恢复 tab 的会话元数据，剩余延后到 `onLayoutReady` 之后。
 5. 绑定 `ClaudePlusPlugin` 到 vault 事件。
 6. 启动定时器：Dream（每小时检查 + 启动后 30s 一次启动梦境）。
