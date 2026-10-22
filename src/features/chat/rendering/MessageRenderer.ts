@@ -49,10 +49,14 @@ import {
 import { renderStoredThinkingBlock } from './ThinkingBlockRenderer';
 import { renderStoredToolCall } from './ToolCallRenderer';
 import { renderStoredToolGroup } from './ToolGroupRenderer';
+import { splitUiFences } from './ui/fenceSplitter';
+import { renderUiBlock } from './UiBlockRenderer';
 import { renderStoredWriteEdit } from './WriteEditRenderer';
 
 export interface RenderContentOptions {
   deferMath?: boolean;
+  /** Stable message identity, used to key generated-UI widget state. */
+  messageId?: string;
   /**
    * Component that owns the rendered markdown. Stored (history) messages pass
    * a per-message child component so window eviction can release everything
@@ -1291,9 +1295,46 @@ export class MessageRenderer {
   // ============================================
 
   /**
-   * Renders markdown content with code block enhancements.
+   * Renders message content, routing declarative UI fences to `renderUiBlock`
+   * and everything else through the normal markdown pipeline.
+   *
+   * Fences are split before the markdown pipeline so LaTeX normalisation and
+   * raw-HTML escaping keep operating on exactly the same text as before.
    */
   async renderContent(
+    el: HTMLElement,
+    markdown: string,
+    options?: RenderContentOptions
+  ): Promise<void> {
+    const segments = splitUiFences(markdown);
+    const onlyMarkdown = segments.length === 1 && segments[0]?.kind === 'markdown';
+    if (onlyMarkdown) {
+      await this.renderMarkdownContent(el, markdown, options);
+      return;
+    }
+
+    el.empty();
+    let fenceIndex = 0;
+    for (const segment of segments) {
+      if (segment.kind === 'ui') {
+        const uiEl = el.createDiv({ cls: 'claudian-plus-ui-block' });
+        renderUiBlock(uiEl, segment.content, {
+          blockKey: `${options?.messageId ?? 'live'}:${String(fenceIndex)}`,
+        });
+        fenceIndex += 1;
+        continue;
+      }
+
+      if (segment.content.trim().length === 0) continue;
+      const markdownEl = el.createDiv({ cls: 'claudian-plus-markdown-segment' });
+      await this.renderMarkdownContent(markdownEl, segment.content, options);
+    }
+  }
+
+  /**
+   * Renders markdown content with code block enhancements.
+   */
+  private async renderMarkdownContent(
     el: HTMLElement,
     markdown: string,
     options?: RenderContentOptions
