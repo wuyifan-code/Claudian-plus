@@ -325,11 +325,12 @@ export class KimiChatRuntime implements ChatRuntime {
       runtimeEnv.CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_TOKEN = obsidianBridge.token;
     }
     const promptSettings = this.getSystemPromptSettings(cwd);
-    const [memoryAppendix, consciousnessAppendix] = await Promise.all([
+    const [memoryAppendix, consciousnessAppendix, responseFormatAppendix] = await Promise.all([
       this.plugin.getMemoryInjectionText(),
       this.plugin.getConsciousnessInjectionText(),
+      this.plugin.getResponseFormatInjectionText?.() ?? Promise.resolve(null),
     ]);
-    const combinedAppendix = [memoryAppendix, consciousnessAppendix].filter(Boolean).join('\n\n') || undefined;
+    const combinedAppendix = [memoryAppendix, consciousnessAppendix, responseFormatAppendix].filter(Boolean).join('\n\n') || undefined;
 
     const baseLaunchKey = JSON.stringify({
       command: resolvedCliPath,

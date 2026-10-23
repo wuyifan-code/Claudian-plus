@@ -1,10 +1,13 @@
 /**
- * Resident instructions that teach a model the response format.
+ * Response-format instructions that teach a model the generative UI channel.
  *
- * The ChatGPT "intelligent UI" behaviour comes from training. Providers wired
- * into this plugin are not trained on our component library, so the judgement
- * ("when a UI helps, when plain text is better") has to be described in the
- * prompt instead. Keep this text compact and stable: it is injected every turn.
+ * ChatGPT's "intelligent UI" behaviour is trained into the model. Providers
+ * wired into this plugin are not trained on our component library, so the
+ * judgement ("when a UI helps, when plain text is better") has to be described
+ * in the prompt instead.
+ *
+ * This lives in `core/` because both provider runtimes and the feature layer
+ * consume it: providers may not import from `features/`.
  */
 
 export const GENERATIVE_UI_INSTRUCTION = `## Response form
@@ -52,3 +55,8 @@ detail = Card([Title($selected, "sm"), Text("点击上面任意模块查看它�
 - Keep it readable at narrow width (a side panel): prefer Col and short rows over wide multi-column layouts.
 - Every \`$variable\` must be read by something, and every named statement must be reachable from root.
 - If you are unsure the program is valid, answer in plain text instead.`;
+
+/** Returns the instruction, or null when the feature is switched off. */
+export function resolveGenerativeUiInstruction(enabled: boolean): string | null {
+  return enabled ? GENERATIVE_UI_INSTRUCTION : null;
+}

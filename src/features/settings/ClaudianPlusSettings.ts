@@ -1016,6 +1016,27 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
       targetEl: mathSetting.settingEl,
     });
 
+    const generativeUiSetting = new Setting(card)
+      .setName(t('settings.generativeUi.name'))
+      .setDesc(t('settings.generativeUi.desc'))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.generativeUiEnabled !== false)
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.generativeUiEnabled = value;
+            });
+          })
+      );
+    this.registerSearchEntry({
+      categoryId: 'appearance',
+      categoryLabel: 'Appearance',
+      settingKey: 'generative-ui',
+      name: t('settings.generativeUi.name'),
+      desc: t('settings.generativeUi.desc'),
+      targetEl: generativeUiSetting.settingEl,
+    });
+
     const editSetting = new Setting(card)
       .setName(t('settings.expandFileEditsByDefault.name'))
       .setDesc(t('settings.expandFileEditsByDefault.desc'))

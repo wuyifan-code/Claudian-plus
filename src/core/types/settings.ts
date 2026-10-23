@@ -174,6 +174,12 @@ export interface ClaudianPlusSettings {
   /** Enable mouse follow for the welcome blob (above input, full-width). Defaults to true. */
   blobFollowPointer?: boolean;
 
+  /**
+   * Teach providers the generative-UI response format so the model can answer
+   * with an interactive UI when the question benefits from one. Defaults to true.
+   */
+  generativeUiEnabled?: boolean;
+
   // Provider command visibility
   hiddenProviderCommands: HiddenProviderCommands;
 

@@ -356,11 +356,12 @@ export class CodexChatRuntime implements ChatRuntime {
     const providerSettings = this.getProviderSettings();
     const model = this.resolveModel(queryOptions, providerSettings);
     const promptSettings = this.getSystemPromptSettings();
-    const [memoryAppendix, consciousnessAppendix] = await Promise.all([
+    const [memoryAppendix, consciousnessAppendix, responseFormatAppendix] = await Promise.all([
       this.plugin.getMemoryInjectionText(),
       this.plugin.getConsciousnessInjectionText(),
+      this.plugin.getResponseFormatInjectionText?.() ?? Promise.resolve(null),
     ]);
-    const combinedAppendix = [memoryAppendix, consciousnessAppendix].filter(Boolean).join('\n\n') || undefined;
+    const combinedAppendix = [memoryAppendix, consciousnessAppendix, responseFormatAppendix].filter(Boolean).join('\n\n') || undefined;
     const promptText = buildSystemPrompt(promptSettings, { memoryAppendix: combinedAppendix });
 
     const enqueueChunk = (chunk: StreamChunk): void => {
