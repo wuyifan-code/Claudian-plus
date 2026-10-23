@@ -1355,16 +1355,14 @@ export class MessageRenderer {
           blockKey: `${options.messageId ?? 'live'}:${String(fenceIndex)}`,
           callbacks: this.buildUiCallbacks(),
         });
-        // A program the renderer cannot use is shown as a code block rather
-        // than silently disappearing from the answer.
+        // A program the renderer cannot use degrades to plain text rather than
+        // disappearing from the answer or being dumped as a code block.
         if (!rendered) {
           uiEl.remove();
-          const fallbackEl = el.createDiv({ cls: 'claudian-plus-markdown-segment' });
-          await this.renderMarkdownContent(
-            fallbackEl,
-            ['```claudian-ui', segment.content.trimEnd(), '```'].join('\n'),
-            options,
-          );
+          el.createDiv({
+            cls: 'claudian-plus-ui-fallback',
+            text: segment.content.trimEnd(),
+          });
         }
         fenceIndex += 1;
         continue;

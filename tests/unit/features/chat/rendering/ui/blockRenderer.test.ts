@@ -112,6 +112,29 @@ describe('renderUiBlock', () => {
     expect(uiBlockSubscriptionCount()).toBe(0);
   });
 
+  it('renders a layered diagram and reports the clicked node', () => {
+    const container = createContainer();
+    const source = [
+      'root = Col([flow, detail], 3)',
+      '$sel = "a"',
+      'flow = Diagram([{title: "输入", nodes: [{id: "a", label: "Token"}]}, {title: "编码器", nodes: [{id: "b", label: "注意力"}, {id: "c", label: "FFN"}]}], $sel)',
+      'detail = Text("selected=" + $sel)',
+    ].join('\n');
+
+    renderUiBlock(container, source, { blockKey: 'd1:0' });
+
+    const nodes = container.querySelectorAll('.claudian-plus-ui-diagram-node');
+    expect(nodes).toHaveLength(3);
+    expect(container.textContent).toContain('selected=a');
+    expect((nodes[0] as HTMLElement).classList.contains('is-selected')).toBe(true);
+
+    (nodes[1] as HTMLElement).click();
+
+    expect(container.textContent).toContain('selected=b');
+    const afterClick = container.querySelectorAll('.claudian-plus-ui-diagram-node');
+    expect((afterClick[1] as HTMLElement).classList.contains('is-selected')).toBe(true);
+  });
+
   it('forwards host actions to the callbacks', () => {
     const container = createContainer();
     const onContinueConversation = jest.fn();

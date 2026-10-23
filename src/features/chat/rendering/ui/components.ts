@@ -153,8 +153,7 @@ function buildLayout(element: ResolvedElement, ctx: RenderContext): HTMLElement 
     case 'Grid': {
       const container = createColumn('claudian-plus-ui-grid');
       const columns = readNumberValue(element.values[1]);
-      container.style.display = 'grid';
-      container.style.gridTemplateColumns = `repeat(${Math.max(1, Math.trunc(columns ?? 2))}, minmax(0, 1fr))`;
+      container.dataset.columns = String(Math.max(1, Math.min(4, Math.trunc(columns ?? 2))));
       applyGap(container, element.values[3]);
       appendChildren(container, element.values[0], ctx);
       return container;
@@ -317,10 +316,98 @@ function buildButton(element: ResolvedElement, ctx: RenderContext): HTMLElement 
   return button;
 }
 
-function readBoundTarget(element: ResolvedElement, ctx: RenderContext): { name: string; value: unknown } | null {
-  const target = element.args[0];
+function readBoundTarget(
+  element: ResolvedElement,
+  ctx: RenderContext,
+  argumentIndex = 0,
+): { name: string; value: unknown } | null {
+  const target = element.args[argumentIndex];
   if (target === undefined || target.kind !== 'state') return null;
-  return { name: target.name, value: element.values[0] };
+  return { name: target.name, value: element.values[argumentIndex] };
+}
+
+interface DiagramNode {
+  id: string;
+  label: string;
+}
+
+function readDiagramLayers(value: unknown): Array<{ title: string; nodes: DiagramNode[] }> {
+  if (!Array.isArray(value)) return [];
+
+  return value.map((layer, layerIndex) => {
+    if (typeof layer === 'string') {
+      return { title: '', nodes: [{ id: layer, label: layer }] };
+    }
+    if (layer === null || typeof layer !== 'object') {
+      return { title: '', nodes: [{ id: `layer-${String(layerIndex)}`, label: '' }] };
+    }
+
+    const record = layer as Record<string, unknown>;
+    const title = typeof record.title === 'string' ? record.title : '';
+    const rawNodes = Array.isArray(record.nodes) ? record.nodes : [];
+
+    const nodes: DiagramNode[] = rawNodes.map((node, nodeIndex) => {
+      if (typeof node === 'string') return { id: node, label: node };
+      if (node === null || typeof node !== 'object') {
+        const fallback = String(nodeIndex + 1);
+        return { id: fallback, label: fallback };
+      }
+      const nodeRecord = node as Record<string, unknown>;
+      const label = typeof nodeRecord.label === 'string'
+        ? nodeRecord.label
+        : typeof nodeRecord.id === 'string' ? nodeRecord.id : String(nodeIndex + 1);
+      const id = typeof nodeRecord.id === 'string' ? nodeRecord.id : label;
+      return { id, label };
+    });
+
+    return { title, nodes };
+  });
+}
+
+/**
+ * Vertical flow diagram: layers of clickable nodes with connectors between
+ * them. Laid out vertically because the chat panel is narrow, and fully in
+ * HTML so labels stay legible and follow the theme.
+ */
+function buildDiagram(element: ResolvedElement, ctx: RenderContext): HTMLElement {
+  const container = createColumn('claudian-plus-ui-diagram');
+  const layers = readDiagramLayers(element.values[0]);
+  const binding = readBoundTarget(element, ctx, 1);
+  const selected = toDisplayText(binding?.value ?? '');
+
+  layers.forEach((layer, layerIndex) => {
+    const layerEl = createDiv({ cls: 'claudian-plus-ui-diagram-layer' });
+    if (layer.title.length > 0) {
+      layerEl.appendChild(createDiv({
+        cls: 'claudian-plus-ui-diagram-layer-title',
+        text: layer.title,
+      }));
+    }
+
+    const nodesEl = createDiv({ cls: 'claudian-plus-ui-diagram-nodes' });
+    for (const node of layer.nodes) {
+      const chip = createEl('button', {
+        cls: 'claudian-plus-ui-diagram-node',
+        text: node.label,
+      });
+      chip.dataset.nodeId = node.id;
+      if (node.id === selected) chip.classList.add('is-selected');
+      chip.setAttribute('type', 'button');
+      chip.addEventListener('click', () => {
+        if (binding === null) return;
+        ctx.setState(binding.name, node.id);
+      });
+      nodesEl.appendChild(chip);
+    }
+    layerEl.appendChild(nodesEl);
+    container.appendChild(layerEl);
+
+    if (layerIndex < layers.length - 1) {
+      container.appendChild(createDiv({ cls: 'claudian-plus-ui-diagram-connector' }));
+    }
+  });
+
+  return container;
 }
 
 function buildInput(element: ResolvedElement, ctx: RenderContext): HTMLElement {
@@ -404,7 +491,7 @@ function readChartPoints(element: ResolvedElement): ChartPoint[] {
   });
 }
 
-function createSvgNode(tag: string, attrs: Record<string, string | number>): SVGElement {
+function createSvgNode(tag: keyof SVGElementTagNameMap, attrs: Record<string, string | number>): SVGElement {
   const node = createSvg(tag);
   for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, String(value));
   return node;
@@ -562,6 +649,8 @@ export function buildElement(element: ResolvedElement, ctx: RenderContext): HTML
       return buildTable(element, ctx);
     case 'Chart':
       return buildChart(element);
+    case 'Diagram':
+      return buildDiagram(element, ctx);
     case 'Button':
       return buildButton(element, ctx);
     case 'Input':

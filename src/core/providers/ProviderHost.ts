@@ -48,6 +48,15 @@ export interface ProviderHost {
   /** Get the consciousness injection text for system prompt, or null if disabled. */
   getConsciousnessInjectionText(): Promise<string | null>;
 
+  /**
+   * Get the response-format instructions (generative UI) for this turn, or null
+   * when the capability is off.
+   *
+   * Providers without a system-prompt slot inject this per turn instead, so it
+   * lives on the host contract rather than in a single provider.
+   */
+  getResponseFormatInjectionText?(): Promise<string | null>;
+
   /** Start the loopback native Obsidian bridge for external providers, when available. */
   ensureObsidianToolBridge?(): Promise<ObsidianToolBridgeHandle>;
 
