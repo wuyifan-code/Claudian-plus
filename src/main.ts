@@ -56,6 +56,7 @@ import {
   type ObsidianToolBridgeHandle,
   undoLastCanvasWrite,
 } from './core/obsidian';
+import { resolveGenerativeUiInstruction } from './core/prompt/generativeUi';
 import {
   getEnvironmentVariablesForScope as getScopedEnvironmentVariables,
   getRuntimeEnvironmentText,
@@ -93,7 +94,6 @@ import { LivePreviewComposerEnhancement } from './features/chat/composer/LivePre
 import type { ComposerEnhancement } from './features/chat/composer/types';
 import { registerFileMenu } from './features/chat/fileMenu';
 import { QuickAgentInputModal } from './features/chat/QuickAgentInputModal';
-import { GENERATIVE_UI_INSTRUCTION } from './features/chat/rendering/ui/prompt';
 import { InlineEditModal, InlineEditService } from './features/inline-edit';
 import { ClaudianPlusSettingTab } from './features/settings/ClaudianPlusSettings';
 import { localeText, setLocale } from './i18n/i18n';
@@ -1449,7 +1449,7 @@ export default class ClaudianPlusPlugin extends Plugin {
    * wired here are not, so the judgement has to travel with each turn.
    */
   async getResponseFormatInjectionText(): Promise<string | null> {
-    return GENERATIVE_UI_INSTRUCTION;
+    return resolveGenerativeUiInstruction(this.settings.generativeUiEnabled !== false);
   }
 
   /** Get the memory injection text for system prompt, or null if disabled/empty. */

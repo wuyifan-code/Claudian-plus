@@ -438,6 +438,10 @@
       "name": "Defer math rendering during streaming",
       "desc": "Show raw LaTeX while responses stream, then render math once when each text block completes."
     },
+    "generativeUi": {
+      "name": "Intelligent UI answers",
+      "desc": "Let the model answer with an interactive interface (diagrams, tables, charts, controls) when that explains or compares better than text, and keep plain text otherwise."
+    },
     "expandFileEditsByDefault": {
       "name": "Expand file edits by default",
       "desc": "Show Write and Edit diffs expanded when they first appear."

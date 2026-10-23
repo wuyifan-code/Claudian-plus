@@ -311,11 +311,12 @@ export class PiChatRuntime implements ChatRuntime {
 
     const hasSessionTarget = Boolean(this.sessionId || this.sessionFile);
     const promptSettings = this.getSystemPromptSettings(cwd);
-    const [memoryAppendix, consciousnessAppendix] = await Promise.all([
+    const [memoryAppendix, consciousnessAppendix, responseFormatAppendix] = await Promise.all([
       this.plugin.getMemoryInjectionText(),
       this.plugin.getConsciousnessInjectionText(),
+      this.plugin.getResponseFormatInjectionText?.() ?? Promise.resolve(null),
     ]);
-    const combinedAppendix = [memoryAppendix, consciousnessAppendix].filter(Boolean).join('\n\n') || undefined;
+    const combinedAppendix = [memoryAppendix, consciousnessAppendix, responseFormatAppendix].filter(Boolean).join('\n\n') || undefined;
     const systemPrompt = buildSystemPrompt(promptSettings, { memoryAppendix: combinedAppendix });
     const obsidianBridge = this.plugin.ensureObsidianToolBridge
       ? await this.plugin.ensureObsidianToolBridge().catch(() => undefined)

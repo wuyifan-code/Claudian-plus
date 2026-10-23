@@ -83,6 +83,9 @@ export const DEFAULT_CLAUDIAN_PLUS_SETTINGS: ClaudianPlusSettings = {
 
   blobFollowPointer: true,
 
+  // Let the model answer with an interactive UI when the question benefits from one.
+  generativeUiEnabled: true,
+
   // Memory system
   memoryEnabled: true,
   memoryFilePath: DEFAULT_MEMORY_FILE_PATH,
