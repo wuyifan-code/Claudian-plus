@@ -85,6 +85,10 @@ export class ClaudianPlusProviderHost implements ProviderHost {
     return this.plugin.getConsciousnessInjectionText();
   }
 
+  getResponseFormatInjectionText(): Promise<string | null> {
+    return this.plugin.getResponseFormatInjectionText();
+  }
+
   ensureObsidianToolBridge() {
     return this.plugin.ensureObsidianToolBridge();
   }

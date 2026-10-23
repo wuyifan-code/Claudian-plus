@@ -244,7 +244,8 @@ export class DshChatRuntime implements ChatRuntime {
       }, error => { this.setReady(false); active.close(error); }, undefined, () => active.close(new Error('DeepSeek live follow ended before the requested turn completed.')));
       await active.snapshotReady;
       if (!active.closed) {
-        const additions = (await Promise.all([this.plugin.getMemoryInjectionText(), this.plugin.getConsciousnessInjectionText()])).filter((value): value is string => !!value?.trim());
+        const responseFormat = this.plugin.getResponseFormatInjectionText?.() ?? Promise.resolve(null);
+        const additions = (await Promise.all([this.plugin.getMemoryInjectionText(), this.plugin.getConsciousnessInjectionText(), responseFormat])).filter((value): value is string => !!value?.trim());
         const prompt = additions.length ? `<system_context>\n${additions.join('\n\n')}\n</system_context>\n\n${turn.prompt}` : turn.prompt;
         if (!active.closed) await lease.client.call('session/prompt', { request: { sessionId, requestId, mode: 'queue', content: [{ type: 'text', text: prompt }] } });
       }

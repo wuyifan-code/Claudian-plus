@@ -93,6 +93,7 @@ import { LivePreviewComposerEnhancement } from './features/chat/composer/LivePre
 import type { ComposerEnhancement } from './features/chat/composer/types';
 import { registerFileMenu } from './features/chat/fileMenu';
 import { QuickAgentInputModal } from './features/chat/QuickAgentInputModal';
+import { GENERATIVE_UI_INSTRUCTION } from './features/chat/rendering/ui/prompt';
 import { InlineEditModal, InlineEditService } from './features/inline-edit';
 import { ClaudianPlusSettingTab } from './features/settings/ClaudianPlusSettings';
 import { localeText, setLocale } from './i18n/i18n';
@@ -1439,6 +1440,16 @@ export default class ClaudianPlusPlugin extends Plugin {
       });
     }
     return this._legacyMigrator;
+  }
+
+  /**
+   * Response-format instructions for providers with no system-prompt slot.
+   *
+   * ChatGPT's "intelligent UI" behaviour is trained into the model; providers
+   * wired here are not, so the judgement has to travel with each turn.
+   */
+  async getResponseFormatInjectionText(): Promise<string | null> {
+    return GENERATIVE_UI_INSTRUCTION;
   }
 
   /** Get the memory injection text for system prompt, or null if disabled/empty. */
