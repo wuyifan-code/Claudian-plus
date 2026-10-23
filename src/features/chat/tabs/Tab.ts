@@ -45,6 +45,7 @@ import { SelectionController } from '../controllers/SelectionController';
 import { StreamController } from '../controllers/StreamController';
 import { MessageRenderer } from '../rendering/MessageRenderer';
 import { cleanupThinkingBlock } from '../rendering/ThinkingBlockRenderer';
+import { buildUiContinuationPrompt } from '../rendering/ui/followUp';
 import { findRewindContext } from '../rewind';
 import { BangBashService } from '../services/BangBashService';
 import { SubagentManager } from '../services/SubagentManager';
@@ -1576,6 +1577,21 @@ export function initializeTabControllers(
       : undefined,
     () => getTabCapabilities(tab, plugin),
     () => tab.state.getReadingMode(),
+    {
+      continueConversation: (prompt, context) => {
+        const inputController = tab.controllers.inputController;
+        if (!inputController) return;
+        void inputController.sendMessage({
+          content: buildUiContinuationPrompt(prompt, context),
+        });
+      },
+      openExternal: (url) => {
+        activeWindow.open(url, '_blank', 'noopener');
+      },
+      copyText: (text) => {
+        void navigator.clipboard.writeText(text);
+      },
+    },
   );
 
   // Selection controller

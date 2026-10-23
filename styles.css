@@ -3987,6 +3987,341 @@ body.theme-light .claudian-plus-message-content pre {
 
 
 /* ============================================
+   components/generative-ui.css
+   ============================================ */
+/* Generative UI: declarative program rendered as native chat DOM.
+   Every colour, radius and font comes from a token so community themes re-skin
+   generated answers automatically. */
+
+.claudian-plus-ui-block {
+  display: block;
+  margin: 4px 0;
+}
+
+.claudian-plus-ui {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  color: var(--claudian-plus-text-normal);
+  font-size: var(--font-ui-medium);
+  line-height: var(--line-height-normal);
+}
+
+.claudian-plus-ui-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.claudian-plus-ui-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  min-width: 0;
+}
+
+.claudian-plus-ui-box {
+  display: flex;
+  flex-direction: column;
+}
+
+.claudian-plus-ui-grid {
+  display: grid;
+  min-width: 0;
+}
+
+/* Card ------------------------------------------------------------------- */
+
+.claudian-plus-ui-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--claudian-plus-border);
+  border-radius: var(--radius-m);
+  background: var(--claudian-plus-surface-primary);
+  min-width: 0;
+}
+
+.claudian-plus-ui-card.is-soft {
+  background: var(--claudian-plus-surface-secondary);
+  border-color: transparent;
+}
+
+.claudian-plus-ui-divider {
+  height: 1px;
+  background: var(--claudian-plus-border);
+  margin: 4px 0;
+}
+
+.claudian-plus-ui-spacer {
+  align-self: stretch;
+}
+
+/* Text ------------------------------------------------------------------- */
+
+.claudian-plus-ui-title {
+  font-weight: 600;
+  line-height: var(--line-height-tight);
+  color: var(--claudian-plus-text-normal);
+}
+
+.claudian-plus-ui-title[data-size='sm'] { font-size: var(--font-ui-medium); }
+.claudian-plus-ui-title[data-size='md'] { font-size: var(--font-ui-large); }
+.claudian-plus-ui-title[data-size='lg'] { font-size: var(--h3-size); }
+.claudian-plus-ui-title[data-size='xl'] { font-size: var(--h2-size); }
+.claudian-plus-ui-title[data-size='2xl'] { font-size: var(--h1-size); }
+.claudian-plus-ui-title[data-size='3xl'] { font-size: var(--h1-size); }
+
+.claudian-plus-ui-text {
+  color: var(--claudian-plus-text-normal);
+}
+
+.claudian-plus-ui-text[data-size='xs'] { font-size: var(--font-ui-smaller); }
+.claudian-plus-ui-text[data-size='sm'] { font-size: var(--font-ui-small); }
+.claudian-plus-ui-text[data-size='md'] { font-size: var(--font-ui-medium); }
+.claudian-plus-ui-text[data-size='lg'] { font-size: var(--font-ui-large); }
+
+.claudian-plus-ui-caption {
+  font-size: var(--font-ui-smaller);
+  color: var(--claudian-plus-text-muted);
+}
+
+.claudian-plus-ui-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: var(--radius-s);
+  background: var(--claudian-plus-surface-alt);
+  color: var(--claudian-plus-text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.claudian-plus-ui-quote {
+  padding-inline-start: 10px;
+  border-inline-start: 2px solid var(--claudian-plus-border);
+  color: var(--claudian-plus-text-muted);
+}
+
+.claudian-plus-ui-quote cite {
+  display: block;
+  margin-top: 4px;
+  font-size: var(--font-ui-smaller);
+  font-style: normal;
+  color: var(--claudian-plus-text-faint);
+}
+
+.claudian-plus-ui-code pre {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-s);
+  background: var(--claudian-plus-surface-secondary);
+  overflow-x: auto;
+}
+
+.claudian-plus-ui-code code {
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-small);
+}
+
+/* Lists ------------------------------------------------------------------ */
+
+.claudian-plus-ui-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.claudian-plus-ui-list-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-inline-start: 14px;
+  position: relative;
+}
+
+.claudian-plus-ui-list-item::before {
+  content: '•';
+  position: absolute;
+  inset-inline-start: 0;
+  color: var(--claudian-plus-text-faint);
+}
+
+.claudian-plus-ui-list[data-marker='number'] {
+  counter-reset: ui-list;
+}
+
+.claudian-plus-ui-list[data-marker='number'] .claudian-plus-ui-list-item {
+  counter-increment: ui-list;
+}
+
+.claudian-plus-ui-list[data-marker='number'] .claudian-plus-ui-list-item::before {
+  content: counter(ui-list) '.';
+}
+
+.claudian-plus-ui-list[data-marker='none'] .claudian-plus-ui-list-item {
+  padding-inline-start: 0;
+}
+
+.claudian-plus-ui-list[data-marker='none'] .claudian-plus-ui-list-item::before {
+  content: none;
+}
+
+.claudian-plus-ui-list-title {
+  font-weight: 500;
+}
+
+.claudian-plus-ui-list-desc {
+  font-size: var(--font-ui-small);
+  color: var(--claudian-plus-text-muted);
+}
+
+/* Table ------------------------------------------------------------------ */
+
+.claudian-plus-ui-table-wrap {
+  overflow-x: auto;
+}
+
+.claudian-plus-ui-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-ui-small);
+}
+
+.claudian-plus-ui-table th,
+.claudian-plus-ui-table td {
+  padding: 6px 10px;
+  text-align: start;
+  border-bottom: 1px solid var(--claudian-plus-border);
+  vertical-align: top;
+}
+
+.claudian-plus-ui-table th {
+  font-weight: 600;
+  color: var(--claudian-plus-text-muted);
+  white-space: nowrap;
+}
+
+.claudian-plus-ui-chart {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.claudian-plus-ui-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Inputs ----------------------------------------------------------------- */
+
+.claudian-plus-ui-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.claudian-plus-ui-field label {
+  font-size: var(--font-ui-smaller);
+  color: var(--claudian-plus-text-muted);
+}
+
+.claudian-plus-ui-input {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--claudian-plus-border);
+  border-radius: var(--radius-s);
+  background: var(--claudian-plus-surface-primary);
+  color: var(--claudian-plus-text-normal);
+  font-size: var(--font-ui-small);
+}
+
+.claudian-plus-ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--claudian-plus-border);
+  background: var(--claudian-plus-interactive-normal);
+  color: var(--claudian-plus-text-normal);
+  font-size: var(--font-ui-small);
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.claudian-plus-ui-button:hover {
+  background: var(--claudian-plus-interactive-hover);
+}
+
+.claudian-plus-ui-button[data-variant='solid'] {
+  background: var(--claudian-plus-accent);
+  color: var(--claudian-plus-text-on-accent);
+  border-color: transparent;
+}
+
+.claudian-plus-ui-button[data-variant='solid']:hover {
+  background: var(--claudian-plus-accent-hover);
+}
+
+.claudian-plus-ui-button[data-variant='ghost'] {
+  background: transparent;
+  border-color: transparent;
+  color: var(--claudian-plus-text-muted);
+}
+
+.claudian-plus-ui-button[data-variant='ghost']:hover {
+  background: var(--claudian-plus-surface-hover);
+  color: var(--claudian-plus-text-normal);
+}
+
+.claudian-plus-ui-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.claudian-plus-ui-segmented {
+  display: inline-flex;
+  flex-direction: row;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-s);
+  background: var(--claudian-plus-surface-secondary);
+}
+
+.claudian-plus-ui-segment {
+  padding: 3px 10px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--claudian-plus-text-muted);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+.claudian-plus-ui-segment:hover {
+  color: var(--claudian-plus-text-normal);
+}
+
+.claudian-plus-ui-segment.is-active {
+  background: var(--claudian-plus-surface-primary);
+  color: var(--claudian-plus-text-normal);
+  font-weight: 500;
+}
+
+/* Markdown segments that share a message with a UI block ------------------ */
+
+.claudian-plus-markdown-segment + .claudian-plus-ui-block,
+.claudian-plus-ui-block + .claudian-plus-markdown-segment {
+  margin-top: 8px;
+}
+
+
+/* ============================================
    components/staging-drawer.css
    ============================================ */
 /* Staging Drawer for In-Chat Memory Rules Review */

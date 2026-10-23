@@ -50,11 +50,16 @@ import { renderStoredThinkingBlock } from './ThinkingBlockRenderer';
 import { renderStoredToolCall } from './ToolCallRenderer';
 import { renderStoredToolGroup } from './ToolGroupRenderer';
 import { splitUiFences } from './ui/fenceSplitter';
-import { renderUiBlock } from './UiBlockRenderer';
+import { disposeUiBlocksUnder, renderUiBlock, type UiBlockCallbacks } from './UiBlockRenderer';
 import { renderStoredWriteEdit } from './WriteEditRenderer';
 
 export interface RenderContentOptions {
   deferMath?: boolean;
+  /**
+   * Enables declarative UI fences. Only assistant-authored text passes this;
+   * user text and thinking blocks keep rendering the fence verbatim.
+   */
+  allowUi?: boolean;
   /** Stable message identity, used to key generated-UI widget state. */
   messageId?: string;
   /**
@@ -63,6 +68,13 @@ export interface RenderContentOptions {
    * the markdown render registered; live streaming keeps the shared component.
    */
   component?: Component;
+}
+
+/** Host capabilities a generated UI needs to call back into the chat. */
+export interface UiFeatureHost {
+  continueConversation(prompt: string, context?: unknown): void;
+  openExternal(url: string): void;
+  copyText(text: string): void;
 }
 
 export type RenderContentFn = (
@@ -112,6 +124,7 @@ export class MessageRenderer {
   private liveNodeOrder: HTMLElement[] = [];
 
   private getReadingMode?: () => boolean;
+  private uiHost?: UiFeatureHost;
 
   constructor(
     plugin: FeatureHost,
@@ -121,6 +134,7 @@ export class MessageRenderer {
     forkCallback?: (messageId: string) => Promise<void>,
     getCapabilities?: () => ProviderCapabilities,
     getReadingMode?: () => boolean,
+    uiHost?: UiFeatureHost,
   ) {
     this.app = plugin.app;
     this.plugin = plugin;
@@ -129,6 +143,7 @@ export class MessageRenderer {
     this.rewindCallback = rewindCallback;
     this.forkCallback = forkCallback;
     this.getReadingMode = getReadingMode;
+    this.uiHost = uiHost;
     this.getCapabilities = getCapabilities ?? (() => ({
       providerId: DEFAULT_CHAT_PROVIDER_ID,
       supportsPersistentRuntime: false,
@@ -441,6 +456,7 @@ export class MessageRenderer {
       return;
     }
 
+    disposeUiBlocksUnder(msgEl);
     msgEl.remove();
     this.liveMessageEls.delete(messageId);
     this.liveNodeOrder = this.liveNodeOrder.filter((el) => el !== msgEl);
@@ -666,6 +682,8 @@ export class MessageRenderer {
         this.storedScopes.delete(scope);
         this.storedMessageComponents.delete(node);
       }
+      // Widgets keep a store subscription; drop it with the evicted nodes.
+      disposeUiBlocksUnder(node);
     }
     this.cancelPendingUiCallbacksFor(nodes);
     this.liveMessageEls.delete(messageId);
@@ -792,8 +810,16 @@ export class MessageRenderer {
   private renderMessageMarkdown(
     el: HTMLElement,
     markdown: string,
-    markdownComponent?: Component
+    markdownComponent?: Component,
+    uiMessageId?: string,
   ): Promise<void> {
+    if (uiMessageId !== undefined) {
+      return this.renderContent(el, markdown, {
+        component: markdownComponent,
+        allowUi: true,
+        messageId: uiMessageId,
+      });
+    }
     if (markdownComponent) {
       return this.renderContent(el, markdown, { component: markdownComponent });
     }
@@ -844,7 +870,7 @@ export class MessageRenderer {
             continue;
           }
           const textEl = contentEl.createDiv({ cls: 'claudian-plus-text-block' });
-          void this.renderMessageMarkdown(textEl, normalized.content, markdownComponent);
+          void this.renderMessageMarkdown(textEl, normalized.content, markdownComponent, msg.id);
           this.addTextCopyButton(textEl, normalized.content);
           this.addActionableResponseBar(textEl, normalized.content);
         } else if (block.type === 'tool_use') {
@@ -916,7 +942,7 @@ export class MessageRenderer {
         hadLegacyInterruptIndicator ||= normalized.interrupted;
         if (normalized.content.trim()) {
           const textEl = contentEl.createDiv({ cls: 'claudian-plus-text-block' });
-          void this.renderMessageMarkdown(textEl, normalized.content, markdownComponent);
+          void this.renderMessageMarkdown(textEl, normalized.content, markdownComponent, msg.id);
           this.addTextCopyButton(textEl, normalized.content);
           this.addActionableResponseBar(textEl, normalized.content);
         }
@@ -1306,6 +1332,13 @@ export class MessageRenderer {
     markdown: string,
     options?: RenderContentOptions
   ): Promise<void> {
+    // Only assistant-authored text may render a program. User text and
+    // thinking blocks show the fence verbatim as a code block.
+    if (options?.allowUi !== true) {
+      await this.renderMarkdownContent(el, markdown, options);
+      return;
+    }
+
     const segments = splitUiFences(markdown);
     const onlyMarkdown = segments.length === 1 && segments[0]?.kind === 'markdown';
     if (onlyMarkdown) {
@@ -1318,9 +1351,21 @@ export class MessageRenderer {
     for (const segment of segments) {
       if (segment.kind === 'ui') {
         const uiEl = el.createDiv({ cls: 'claudian-plus-ui-block' });
-        renderUiBlock(uiEl, segment.content, {
-          blockKey: `${options?.messageId ?? 'live'}:${String(fenceIndex)}`,
+        const rendered = renderUiBlock(uiEl, segment.content, {
+          blockKey: `${options.messageId ?? 'live'}:${String(fenceIndex)}`,
+          callbacks: this.buildUiCallbacks(),
         });
+        // A program the renderer cannot use is shown as a code block rather
+        // than silently disappearing from the answer.
+        if (!rendered) {
+          uiEl.remove();
+          const fallbackEl = el.createDiv({ cls: 'claudian-plus-markdown-segment' });
+          await this.renderMarkdownContent(
+            fallbackEl,
+            ['```claudian-ui', segment.content.trimEnd(), '```'].join('\n'),
+            options,
+          );
+        }
         fenceIndex += 1;
         continue;
       }
@@ -1329,6 +1374,16 @@ export class MessageRenderer {
       const markdownEl = el.createDiv({ cls: 'claudian-plus-markdown-segment' });
       await this.renderMarkdownContent(markdownEl, segment.content, options);
     }
+  }
+
+  private buildUiCallbacks(): UiBlockCallbacks | undefined {
+    if (!this.uiHost) return undefined;
+    const host = this.uiHost;
+    return {
+      onContinueConversation: (prompt, context) => host.continueConversation(prompt, context),
+      onOpenUrl: (url) => host.openExternal(url),
+      onCopy: (text) => host.copyText(text),
+    };
   }
 
   /**

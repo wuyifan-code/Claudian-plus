@@ -263,6 +263,25 @@ describe('MessageRenderer', () => {
     expect(indicatorEl.children[0].textContent).toBe('Interrupted');
   });
 
+  it('renders a UI fence verbatim unless the caller opts in', async () => {
+    const { MarkdownRenderer } = await import('obsidian');
+    const messagesEl = createMockEl();
+    const { renderer } = createRenderer(messagesEl);
+    const fenced = ['```claudian-ui', 'root = Col([])', '```'].join('\n');
+    const el = createMockEl();
+
+    // Default path is user text and thinking blocks: no UI rendering.
+    await renderer.renderContent(el, fenced);
+
+    expect(el.querySelectorAll('.claudian-plus-ui-block')).toHaveLength(0);
+    expect(MarkdownRenderer.renderMarkdown).toHaveBeenCalledWith(
+      fenced,
+      expect.anything(),
+      '',
+      expect.anything()
+    );
+  });
+
   it('renders bare interrupt marker for empty interrupted assistant message', () => {
     const messagesEl = createMockEl();
     const mockComponent = createMockComponent();

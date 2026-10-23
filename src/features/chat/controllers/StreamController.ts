@@ -60,6 +60,7 @@ import {
   createLiveToolGroup,
   type LiveToolGroupState,
 } from '../rendering/ToolGroupRenderer';
+import { mayContainUiFence } from '../rendering/ui/fenceSplitter';
 import {
   createWriteEditBlock,
   finalizeWriteEditBlock,
@@ -98,6 +99,8 @@ export class StreamController {
   private static readonly MIN_STREAM_RENDER_INTERVAL_MS = 100;
 
   private deps: StreamControllerDeps;
+  /** Assistant message currently streaming, used to key generated-UI state. */
+  private activeAssistantMessageId: string | null = null;
   private pendingTextRenderFrame: ScheduledAnimationFrame | null = null;
   private pendingTextRenderPromise: Promise<void> | null = null;
   private resolvePendingTextRender: (() => void) | null = null;
@@ -149,6 +152,7 @@ export class StreamController {
 
   async handleStreamChunk(chunk: StreamChunk, msg: ChatMessage): Promise<void> {
     const { state } = this.deps;
+    this.activeAssistantMessageId = msg.id;
 
     switch (chunk.type) {
       case 'thinking':
@@ -528,9 +532,21 @@ export class StreamController {
   }
 
   private getStreamingRenderOptions(content: string): RenderContentOptions | undefined {
-    return this.shouldDeferMathRendering() && hasStreamingMathDelimiters(content)
-      ? { deferMath: true }
-      : undefined;
+    // Keep the plain-text call shape untouched: options are only built when the
+    // frame actually needs deferred math or may contain a UI fence.
+    const mayContainFence = mayContainUiFence(content);
+    const needsDeferredMath = this.shouldDeferMathRendering() && hasStreamingMathDelimiters(content);
+    if (!mayContainFence && !needsDeferredMath) return undefined;
+
+    const options: RenderContentOptions = {};
+    if (mayContainFence) {
+      options.allowUi = true;
+      options.messageId = this.activeAssistantMessageId ?? 'live';
+    }
+    if (needsDeferredMath) {
+      options.deferMath = true;
+    }
+    return options;
   }
 
   private capturePlanFilePath(input: Record<string, unknown>): void {
@@ -858,7 +874,14 @@ export class StreamController {
         && this.shouldDeferMathRendering()
         && hasStreamingMathDelimiters(state.currentTextContent)
       ) {
-        await renderer.renderContent(state.currentTextEl, state.currentTextContent);
+        if (mayContainUiFence(state.currentTextContent)) {
+          await renderer.renderContent(state.currentTextEl, state.currentTextContent, {
+            allowUi: true,
+            messageId: msg.id,
+          });
+        } else {
+          await renderer.renderContent(state.currentTextEl, state.currentTextContent);
+        }
       }
       msg.contentBlocks = msg.contentBlocks || [];
       msg.contentBlocks.push({ type: 'text', content: state.currentTextContent });

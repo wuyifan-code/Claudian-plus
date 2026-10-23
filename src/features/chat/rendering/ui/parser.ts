@@ -460,3 +460,26 @@ export const ROOT_STATEMENT = 'root';
 export function getRootStatement(program: UiProgram): UiStatement | undefined {
   return program.statements.get(ROOT_STATEMENT);
 }
+
+/**
+ * Bounded parse cache.
+ *
+ * The streaming renderer re-renders the same accumulated text on every frame
+ * and scrolling a stored conversation re-renders the same program again;
+ * parsing is pure, so the result is reusable until evicted.
+ */
+const PARSE_CACHE_LIMIT = 32;
+const parseCache = new Map<string, UiProgram>();
+
+export function parseUiProgramCached(source: string): UiProgram {
+  const cached = parseCache.get(source);
+  if (cached !== undefined) return cached;
+
+  const parsed = parseUiProgram(source);
+  if (parseCache.size >= PARSE_CACHE_LIMIT) {
+    const oldest = parseCache.keys().next();
+    if (oldest.done !== true) parseCache.delete(oldest.value);
+  }
+  parseCache.set(source, parsed);
+  return parsed;
+}

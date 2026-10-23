@@ -366,6 +366,187 @@ function buildSegmentedControl(element: ResolvedElement, ctx: RenderContext): HT
   return container;
 }
 
+/** Series palette drawn from theme tokens so charts follow the active theme. */
+const CHART_COLORS = [
+  'var(--color-blue)',
+  'var(--color-green)',
+  'var(--color-orange)',
+  'var(--color-purple)',
+  'var(--color-pink)',
+  'var(--color-cyan)',
+];
+
+interface ChartPoint {
+  label: string;
+  value: number;
+}
+
+function readChartPoints(element: ResolvedElement): ChartPoint[] {
+  const rows = Array.isArray(element.values[1]) ? element.values[1] : [];
+  const xKey = typeof element.values[2] === 'string' ? element.values[2] : null;
+  const seriesValues = element.values[3];
+  const seriesKey = Array.isArray(seriesValues) && typeof seriesValues[0] === 'string'
+    ? seriesValues[0]
+    : null;
+
+  return rows.map((row, index) => {
+    if (row === null || typeof row !== 'object') {
+      return { label: String(index + 1), value: 0 };
+    }
+    const record = row as Record<string, unknown>;
+    const labelKey = xKey ?? Object.keys(record).find((key) => typeof record[key] === 'string') ?? null;
+    const valueKey = seriesKey
+      ?? Object.keys(record).find((key) => typeof record[key] === 'number')
+      ?? null;
+    const label = labelKey === null ? String(index + 1) : String(record[labelKey] ?? index + 1);
+    const rawValue = valueKey === null ? 0 : record[valueKey];
+    return { label, value: typeof rawValue === 'number' ? rawValue : Number(rawValue) || 0 };
+  });
+}
+
+function createSvgNode(tag: string, attrs: Record<string, string | number>): SVGElement {
+  const node = createSvg(tag);
+  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, String(value));
+  return node;
+}
+
+const CHART_WIDTH = 320;
+
+function buildBarChart(points: ChartPoint[], height: number): SVGElement {
+  const padding = { top: 8, bottom: 22, left: 8, right: 8 };
+  const plotWidth = CHART_WIDTH - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const max = Math.max(...points.map((point) => Math.abs(point.value)), 1);
+  const slot = points.length === 0 ? plotWidth : plotWidth / points.length;
+  const barWidth = Math.max(4, Math.min(28, slot * 0.6));
+
+  const svg = createSvgNode('svg', {
+    viewBox: `0 0 ${CHART_WIDTH} ${height}`,
+    width: '100%',
+    height,
+    role: 'img',
+  });
+
+  points.forEach((point, index) => {
+    const barHeight = (Math.abs(point.value) / max) * plotHeight;
+    svg.appendChild(createSvgNode('rect', {
+      x: padding.left + slot * index + (slot - barWidth) / 2,
+      y: padding.top + plotHeight - barHeight,
+      width: barWidth,
+      height: Math.max(1, barHeight),
+      rx: 3,
+      fill: CHART_COLORS[index % CHART_COLORS.length],
+    }));
+
+    const label = createSvgNode('text', {
+      x: padding.left + slot * index + slot / 2,
+      y: height - 6,
+      'text-anchor': 'middle',
+      'font-size': 9,
+      fill: 'var(--claudian-plus-text-faint)',
+    });
+    label.textContent = point.label;
+    svg.appendChild(label);
+  });
+
+  return svg;
+}
+
+function buildLineChart(points: ChartPoint[], height: number, area: boolean): SVGElement {
+  const padding = { top: 8, bottom: 22, left: 8, right: 8 };
+  const plotWidth = CHART_WIDTH - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const max = Math.max(...points.map((point) => Math.abs(point.value)), 1);
+  const step = points.length <= 1 ? plotWidth : plotWidth / (points.length - 1);
+
+  const coordinates = points.map((point, index) => {
+    const x = padding.left + step * index;
+    const y = padding.top + plotHeight - (Math.abs(point.value) / max) * plotHeight;
+    return `${x},${y}`;
+  });
+
+  const svg = createSvgNode('svg', {
+    viewBox: `0 0 ${CHART_WIDTH} ${height}`,
+    width: '100%',
+    height,
+    role: 'img',
+  });
+
+  if (area && coordinates.length > 1) {
+    const baseY = padding.top + plotHeight;
+    const firstX = coordinates[0]?.split(',')[0] ?? String(padding.left);
+    const lastX = coordinates[coordinates.length - 1]?.split(',')[0] ?? String(CHART_WIDTH);
+    svg.appendChild(createSvgNode('polygon', {
+      points: `${firstX},${baseY} ${coordinates.join(' ')} ${lastX},${baseY}`,
+      fill: 'var(--claudian-plus-surface-alt)',
+    }));
+  }
+
+  svg.appendChild(createSvgNode('polyline', {
+    points: coordinates.join(' '),
+    fill: 'none',
+    stroke: CHART_COLORS[0],
+    'stroke-width': 2,
+    'stroke-linejoin': 'round',
+  }));
+
+  return svg;
+}
+
+function buildPieChart(points: ChartPoint[], height: number, donut: boolean): SVGElement {
+  const size = Math.min(CHART_WIDTH, height);
+  const radius = size / 2 - 6;
+  const center = size / 2;
+  const total = points.reduce((sum, point) => sum + Math.abs(point.value), 0) || 1;
+
+  const svg = createSvgNode('svg', {
+    viewBox: `0 0 ${CHART_WIDTH} ${height}`,
+    width: '100%',
+    height,
+    role: 'img',
+  });
+
+  let angle = -Math.PI / 2;
+  points.forEach((point, index) => {
+    const slice = (Math.abs(point.value) / total) * Math.PI * 2;
+    const end = angle + slice;
+    const x1 = center + radius * Math.cos(angle);
+    const y1 = center + radius * Math.sin(angle);
+    const x2 = center + radius * Math.cos(end);
+    const y2 = center + radius * Math.sin(end);
+    const largeArc = slice > Math.PI ? 1 : 0;
+    const color = CHART_COLORS[index % CHART_COLORS.length];
+    const path = donut
+      ? `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`
+      : `M ${center} ${center} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+    svg.appendChild(createSvgNode('path', {
+      d: path,
+      fill: donut ? 'none' : color,
+      stroke: color,
+      'stroke-width': donut ? 14 : 0,
+    }));
+    angle = end;
+  });
+
+  return svg;
+}
+
+function buildChart(element: ResolvedElement): HTMLElement {
+  const container = createColumn('claudian-plus-ui-chart');
+  const type = readString(element, 0) ?? 'bar';
+  const points = readChartPoints(element);
+  const height = Math.max(80, Math.min(360, readNumberValue(element.values[7]) ?? 160));
+
+  const svg = type === 'pie' || type === 'donut'
+    ? buildPieChart(points, height, type === 'donut')
+    : type === 'line' || type === 'area'
+      ? buildLineChart(points, height, type === 'area')
+      : buildBarChart(points, height);
+
+  container.appendChild(svg);
+  return container;
+}
+
 /** Builds one component node. Unknown components render nothing. */
 export function buildElement(element: ResolvedElement, ctx: RenderContext): HTMLElement | null {
   switch (element.name) {
@@ -379,6 +560,8 @@ export function buildElement(element: ResolvedElement, ctx: RenderContext): HTML
       return buildLayout(element, ctx);
     case 'Table':
       return buildTable(element, ctx);
+    case 'Chart':
+      return buildChart(element);
     case 'Button':
       return buildButton(element, ctx);
     case 'Input':

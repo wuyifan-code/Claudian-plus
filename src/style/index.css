@@ -27,6 +27,7 @@
 @import "./components/blob-welcome.css";
 @import "./components/ambient-context.css";
 @import "./components/actionable-response.css";
+@import "./components/generative-ui.css";
 @import "./components/staging-drawer.css";
 
 /* Toolbar */
