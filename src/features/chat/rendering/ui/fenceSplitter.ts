@@ -140,3 +140,11 @@ export function hasUiFence(markdown: string): boolean {
   }
   return false;
 }
+
+/**
+ * Cheap pre-check for the streaming hot path: could this text contain any
+ * fence at all? Avoids splitting every frame of plain prose.
+ */
+export function mayContainUiFence(markdown: string): boolean {
+  return markdown.includes('```') || markdown.includes('~~~');
+}

@@ -368,17 +368,61 @@ npm run check:performance        # bundle 预算
 
 已验证的关键不变量：无围栏时**字节级走原路径**（math / 图片嵌入 / wikilink 三条后处理完全不变，有测试锁定）；模型写的内容全程走 `textContent`/`createEl({text})`，无 `innerHTML`。
 
-### 10.3 M1 开工前必须补的三件事（M0 暴露的真实问题）
+### 10.3 M0 暴露的三个问题（已在 M1 处理完毕）
 
-1. **`messageId` 没接进来**：`renderContent` 目前拿不到消息 ID，widget key 退化为 `live:0`，同屏多个界面会串状态。M3 要做的是把 `messageId` 从 `renderAssistantContent` 传进 `RenderContentOptions`（`RenderContentOptions.messageId` 字段已预留）。
-2. **每帧重解析**：流式期间 ≤100 ms 会整块重渲染，解析器每次重跑。M1 需按 source 字符串缓存解析结果（当前正确但不经济）。
-3. **无 CSS 模块**：组件带 `claudian-plus-ui-*` 类名但没有样式表，现在是能跑但没排版的裸 DOM。M1 补 `src/style/components/generative-ui.css` 并在 `src/style/index.css` 注册；注意 `styles.css` 是 tracked 构建产物，必须用 `npm run build:css` 重新生成。
+1. ~~**`messageId` 没接进来**~~ → 两条路径都打通：`renderMessageMarkdown(..., msg.id)` 覆盖历史消息，`StreamController.activeAssistantMessageId` 覆盖流式渲染；并新增 `RenderContentOptions.allowUi`，保证只有助手文本能渲染程序（用户文本与思考块仍按原样显示代码块）。
+2. ~~**每帧重解析**~~ → `parseUiProgramCached`（32 条上限）按源码缓存解析结果。
+3. ~~**无 CSS 模块**~~ → `src/style/components/generative-ui.css` 已注册进 `index.css`，`styles.css` 已重新生成（257,172 B）。
 
 ### 10.4 环境坑（下次会话直接用）
 
 - `npm install` 在受限沙箱下会因生命周期脚本 `spawn EPERM` 失败 → 加 `--ignore-scripts`。
 - `npm run build` 会 `execSync` 子进程，受限沙箱下必然失败 → 需要完全权限，或直接用 `node_modules\@esbuild\win32-x64\esbuild.exe` 跑 CLI 近似构建（注意 CLI 构建会少掉 LICENSE banner 与自定义插件，只适合比较**增量**）。
-- 仓库里 tracked 的 `styles.css` 与 `build-css` 产物**本来就不一致**（差 621 B）。这是既有漂移，与本功能无关，M0 已还原以免污染 diff；但 M1 提交 CSS 时会再次遇到，需要单独决定是否接受这次重新生成。
+- 仓库里 tracked 的 `styles.css` 与 `build-css` 产物**本来就不一致**（差 621 B）。这是既有漂移，与本功能无关；本次因新增 CSS 模块而重新生成，属于有意更新。
+
+## 11. 实现完成度与真机验证
+
+### 11.1 最终数据（干净构建，不含临时预览入口）
+
+| 项 | 值 |
+| --- | --- |
+| 官方基线 `main.js` | 3,759,390 B |
+| 最终产物 | **3,785,964 B** |
+| 净增量 | **+26,574 B** |
+| 预算上限 / 剩余 | 3,800,000 B / **14,036 B** |
+| `npm run check:performance` | 通过（exit 0） |
+| `tsc --noEmit` / `npm run lint` | 通过 / 0 error |
+| `styles.css` | 257,172 B（+13,357 B，新模块并入） |
+| 渲染层单测 | 500 passed（19 套） |
+
+### 11.2 里程碑逐项
+
+| 里程碑 | 状态 | 说明 |
+| --- | --- | --- |
+| M1 围栏识别 + 只读渲染 | 完成 | 切分 / 容错解析 / 19 个组件；补齐 `messageId`、解析缓存、CSS 模块 |
+| M2 表达式与计算 | 完成 | 22 个内置函数、`@Each`、逐表达式降级 |
+| M3 交互状态 | 完成 | `$var` / `@Set` / `@Reset`；store 按 `blockKey` 键控；**修复流式重渲染导致的 store 订阅泄漏**（单测锁定）；消息被窗口淘汰时 `disposeUiBlocksUnder` 释放 |
+| M4 回流对话 | 完成 | `@ToAssistant` → `InputController.sendMessage`，上下文包在 `<untrusted_ui_state>`（16k 上限）；`@OpenUrl` 仅 http(s)；`@Copy`；`Chart`（bar/line/area/pie/donut，纯 SVG） |
+| M5 打磨 | 部分 | 已做：渲染失败降级为代码块、`openui` 别名、沿用现有折叠约定。未做：设置三档开关、i18n 文案、大纲节点类型 |
+
+### 11.3 真机验证（Kimi computer use，截图见 `.context/verification/`）
+
+在真实 Obsidian 1.14.4 + Creative Vault 中完成：
+
+1. 装入构建产物并冷启动 Obsidian → 插件加载无报错，命令面板可见其命令。
+2. 渲染样例程序 → Title / Badge / Card / Table（数值由 `@Round` / `@Format` / `@Percent` 计算，非硬编码）/ SVG 柱状图（跟随主题色）/ SegmentedControl 全部正确。
+3. 点击分段控件「紧凑」→ 文案由「均衡」变为「紧凑」，证明 *状态 → 重算 → 重渲染* 链路打通，且状态保存在 DOM 之外。
+4. 点击「按这个方案继续」→ `@ToAssistant` 回调带着 `{pace, days}` 触发。
+5. 删除临时预览入口后重新构建、重新装入并**重新加载 Obsidian** → 无报错、命令已消失，发布面干净。
+
+> 临时预览命令仅用于验证，验证后已删除；最终产物与验证时版本的差异仅此入口。
+
+### 11.4 有意留到后续
+
+- 设置三档（`off` / `skill` / `always`）与由注册表生成 skill 文档的脚本。
+- i18n（10 个 locale 文件 + `TranslationKey`）。
+- 大纲/导航把界面块当作节点。
+- `Svg` 原语、`Map`、`HtmlView` 与远程图片——按 §4 的边界继续不做。
 
 ---
 
