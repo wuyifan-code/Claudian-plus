@@ -1,5 +1,5 @@
 import { buildThinkingSummary } from '@/features/chat/rendering/ThinkingBlockRenderer';
-import { buildToolCallSummary } from '@/features/chat/rendering/ToolCallRenderer';
+import { buildExecutionRunSummary, buildToolCallSummary } from '@/features/chat/rendering/ToolCallRenderer';
 
 describe('Reading mode summary builders', () => {
   describe('buildToolCallSummary', () => {
@@ -34,6 +34,38 @@ describe('Reading mode summary builders', () => {
 
     it('provides a default thinking summary when duration is not provided', () => {
       expect(buildThinkingSummary({})).toBe('Thought');
+    });
+  });
+
+  describe('buildExecutionRunSummary', () => {
+    it('summarizes a whole run with tool count, deduped names and thinking time', () => {
+      const summary = buildExecutionRunSummary({
+        tools: [
+          { name: 'grep' },
+          { name: 'glob' },
+          { name: 'grep' },
+        ],
+        thinkingSeconds: 12,
+      });
+      expect(summary).toContain('3 tools');
+      expect(summary).toContain('grep · glob');
+      expect(summary).toContain('thought 12s');
+    });
+
+    it('reports failed tool counts when any tool errored', () => {
+      const summary = buildExecutionRunSummary({
+        tools: [
+          { name: 'pwsh', status: 'error' },
+          { name: 'pwsh', status: 'completed' },
+          { name: 'glob', status: 'error' },
+        ],
+      });
+      expect(summary).toContain('2 failed');
+      expect(summary).not.toContain('thought');
+    });
+
+    it('handles an empty tool list', () => {
+      expect(buildExecutionRunSummary({ tools: [] })).toBe('0 tools');
     });
   });
 });

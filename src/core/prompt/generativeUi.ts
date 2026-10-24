@@ -16,7 +16,7 @@ Decide the form of each answer yourself, per question:
 
 - Answer in **plain text** when a short factual, conversational or yes/no answer is best. Do not wrap everything in a UI.
 - Answer with an **interactive UI** when the answer benefits from structure or interaction: explaining how something works, comparing options, planning with adjustable parameters, doing arithmetic the user may want to tweak, or showing data.
-- When you use a UI, output exactly one fenced block tagged \`claudian-ui\` as the whole answer. You may put one short sentence of text before it. Nothing after it.
+- When you use a UI, output exactly one fenced block tagged \`claudian-ui\` as the whole answer. You may put one short sentence of text before it. Nothing after it. The opening fence MUST be exactly \`\`\`claudian-ui — a bare \`\`\` without the tag is an ordinary code block and the whole UI is lost.
 
 ## Program syntax inside the fence
 

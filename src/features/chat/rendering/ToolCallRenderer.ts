@@ -1152,6 +1152,25 @@ export function buildToolCallSummary(opts: ToolCallSummaryOptions): string {
   return parts.join(' · ');
 }
 
+export interface ExecutionRunSummaryOptions {
+  tools: Array<{ name: string; status?: string }>;
+  thinkingSeconds?: number;
+}
+
+/** One-line reading-mode summary for a whole execution run. */
+export function buildExecutionRunSummary(opts: ExecutionRunSummaryOptions): string {
+  const names = [...new Set(opts.tools.map(tool => tool.name))].join(' · ');
+  const parts: string[] = [names ? `${opts.tools.length} tools: ${names}` : `${opts.tools.length} tools`];
+  const failed = opts.tools.filter(
+    tool => tool.status === 'error' || tool.status === 'blocked',
+  ).length;
+  if (failed > 0) parts.push(`${failed} failed`);
+  if (typeof opts.thinkingSeconds === 'number' && opts.thinkingSeconds > 0) {
+    parts.push(`thought ${opts.thinkingSeconds}s`);
+  }
+  return parts.join(' · ');
+}
+
 export interface ToolCallRenderOptions {
   initiallyExpanded?: boolean;
   collapsedByDefault?: boolean;

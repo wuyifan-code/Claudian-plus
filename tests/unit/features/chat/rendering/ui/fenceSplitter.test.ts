@@ -96,4 +96,48 @@ describe('splitUiFences', () => {
     expect(reconstructed).toContain('B');
     expect(reconstructed).toContain('C');
   });
+
+  describe('bare fence sniffing (model forgets the claudian-ui tag)', () => {
+    it('treats a bare fence whose first line is `root =` as a UI program', () => {
+      const markdown = ['```', 'root = Col([Title("hi")])', '```'].join('\n');
+      const parts = splitUiFences(markdown);
+
+      expect(parts).toHaveLength(1);
+      expect(parts[0]).toMatchObject({ kind: 'ui', language: '', closed: true });
+      expect(parts[0].content).toBe('root = Col([Title("hi")])');
+    });
+
+    it('leaves a bare fence with non-program content as a plain code block', () => {
+      const markdown = ['```', 'const x = 1;', '```'].join('\n');
+      const parts = splitUiFences(markdown);
+
+      expect(parts).toHaveLength(1);
+      expect(parts[0]).toEqual({ kind: 'markdown', content: markdown });
+      expect(hasUiFence(markdown)).toBe(false);
+    });
+
+    it('does not sniff tagged fences: ```js with root inside stays a code block', () => {
+      const markdown = ['```js', 'root = Col([])', '```'].join('\n');
+      const parts = splitUiFences(markdown);
+
+      expect(parts).toHaveLength(1);
+      expect(parts[0]).toEqual({ kind: 'markdown', content: markdown });
+    });
+
+    it('keeps a partial bare-fence program while streaming (unclosed)', () => {
+      const markdown = ['```', 'root = Col([', '  Title("hi"),'].join('\n');
+      const parts = splitUiFences(markdown);
+
+      expect(parts).toHaveLength(1);
+      expect(parts[0]).toMatchObject({ kind: 'ui', language: '', closed: false });
+    });
+
+    it('does not sniff when the line after a bare fence is blank', () => {
+      const markdown = ['```', '', 'root = Col([])', '```'].join('\n');
+      const parts = splitUiFences(markdown);
+
+      expect(parts).toHaveLength(1);
+      expect(parts[0]).toEqual({ kind: 'markdown', content: markdown });
+    });
+  });
 });

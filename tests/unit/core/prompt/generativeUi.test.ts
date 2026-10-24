@@ -11,6 +11,8 @@ describe('generative UI instruction', () => {
     expect(instruction).toBe(GENERATIVE_UI_INSTRUCTION);
     expect(instruction).toContain('claudian-ui');
     expect(instruction).toContain('## Response form');
+    // Guards against the recurring model slip of emitting a bare fence.
+    expect(instruction).toContain('MUST be exactly');
   });
 
   it('returns nothing when the feature is disabled', () => {
