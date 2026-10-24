@@ -27,6 +27,10 @@ jest.mock('@/features/chat/rendering/ThinkingBlockRenderer', () => ({
 }));
 jest.mock('@/features/chat/rendering/ToolCallRenderer', () => ({
   renderStoredToolCall: jest.fn(),
+  buildExecutionRunSummary: jest.fn(
+    (opts: { tools: Array<{ name: string }>; thinkingSeconds?: number }) =>
+      `${opts.tools.length} tools${opts.thinkingSeconds ? ` · thought ${opts.thinkingSeconds}s` : ''}`,
+  ),
 }));
 jest.mock('@/features/chat/rendering/WriteEditRenderer', () => ({
   renderStoredWriteEdit: jest.fn(),
@@ -1191,7 +1195,7 @@ describe('MessageRenderer', () => {
     expect(count?.textContent).toContain('3');
   });
 
-  it('keeps a single tool call unbundled without a tool group', () => {
+  it('folds a single tool call into the execution details aggregate', () => {
     const messagesEl = createMockEl();
     const mockComponent = createMockComponent();
     const renderer = new MessageRenderer({} as any, mockComponent as any, messagesEl);
@@ -1211,8 +1215,12 @@ describe('MessageRenderer', () => {
     };
 
     renderer.renderStoredMessage(msg);
-    const group = messagesEl.querySelector('.claudian-plus-tool-group');
-    expect(group).toBeNull();
+    // The aggregate collapsible lives at the message level; the tool call is
+    // inside its (collapsed) body, not rendered inline.
+    const aggregateHeader = messagesEl.querySelector('.claudian-plus-thinking-header');
+    expect(aggregateHeader).not.toBeNull();
+    const aggregateBody = messagesEl.querySelector('.claudian-plus-thinking-content');
+    expect(aggregateBody).not.toBeNull();
     expect(renderStoredToolCall).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ id: 't-1' }),

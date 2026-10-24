@@ -4316,10 +4316,83 @@ body.theme-light .claudian-plus-message-content pre {
   color: var(--claudian-plus-text-normal);
 }
 
+.claudian-plus-ui-segmented.is-block {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+}
+
+.claudian-plus-ui-segmented.is-block .claudian-plus-ui-segment {
+  width: 100%;
+  text-align: center;
+}
+
 .claudian-plus-ui-segment.is-active {
   background: var(--claudian-plus-surface-primary);
   color: var(--claudian-plus-text-normal);
   font-weight: 500;
+}
+
+/* Slider ------------------------------------------------------------------- */
+
+.claudian-plus-ui-slider {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.claudian-plus-ui-range {
+  flex: 1 1 auto;
+  min-width: 0;
+  accent-color: var(--claudian-plus-accent);
+}
+
+.claudian-plus-ui-slider-value {
+  flex: 0 0 auto;
+  min-width: 3ch;
+  text-align: end;
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
+  color: var(--claudian-plus-text-muted);
+  white-space: nowrap;
+}
+
+.claudian-plus-ui-slider-unit {
+  margin-inline-start: 2px;
+  color: var(--claudian-plus-text-faint);
+}
+
+/* Select and Checkbox ------------------------------------------------------ */
+
+.claudian-plus-ui-select {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--claudian-plus-border);
+  border-radius: var(--radius-s);
+  background: var(--claudian-plus-surface-primary);
+  color: var(--claudian-plus-text-normal);
+  font-size: var(--font-ui-small);
+}
+
+.claudian-plus-ui-checkbox {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.claudian-plus-ui-checkbox-input {
+  margin: 0;
+  accent-color: var(--claudian-plus-accent);
+}
+
+.claudian-plus-ui-checkbox-text {
+  font-size: var(--font-ui-small);
+  color: var(--claudian-plus-text-normal);
 }
 
 /* Markdown segments that share a message with a UI block ------------------ */
@@ -4427,6 +4500,15 @@ body.theme-light .claudian-plus-message-content pre {
   .claudian-plus-ui-block .claudian-plus-ui-table th,
   .claudian-plus-ui-block .claudian-plus-ui-table td {
     padding: 4px 6px;
+  }
+
+  /* Let the slider readout shrink instead of squeezing the draggable thumb. */
+  .claudian-plus-ui-block .claudian-plus-ui-slider {
+    gap: 4px;
+  }
+
+  .claudian-plus-ui-block .claudian-plus-ui-slider-value {
+    min-width: 0;
   }
 }
 

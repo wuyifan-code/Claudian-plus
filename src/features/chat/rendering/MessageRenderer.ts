@@ -1,6 +1,8 @@
 import type { App } from 'obsidian';
 import { Component, MarkdownRenderer, Menu, Notice, setIcon } from 'obsidian';
 
+import { createBlobEngine } from '@/shared/blob/BlobEngine';
+
 import type { MindRecallInfo } from '../../../core/memory/mind-types';
 import { DEFAULT_CHAT_PROVIDER_ID, type ProviderCapabilities } from '../../../core/providers/types';
 import type { ChatRewindMode } from '../../../core/runtime/types';
@@ -40,6 +42,7 @@ import { WelcomeService } from '../services/WelcomeService';
 import { BlobWelcomeView } from '../ui/BlobWelcomeView';
 import type { WelcomeAnimation, WelcomeAnimationMode } from '../ui/welcomeAnimation';
 import { formatConversationDirectoryTitle } from '../utils/conversationDirectoryTitle';
+import { type CollapsibleState,setupCollapsible } from './collapsible';
 import { MessageRenderWindow } from './MessageRenderWindow';
 import { resolveSubagentLifecycleAdapter } from './subagentLifecycleResolution';
 import {
@@ -47,7 +50,7 @@ import {
   renderStoredSubagent,
 } from './SubagentRenderer';
 import { renderStoredThinkingBlock } from './ThinkingBlockRenderer';
-import { renderStoredToolCall } from './ToolCallRenderer';
+import { buildExecutionRunSummary, renderStoredToolCall } from './ToolCallRenderer';
 import { renderStoredToolGroup } from './ToolGroupRenderer';
 import { splitUiFences } from './ui/fenceSplitter';
 import {
@@ -108,6 +111,14 @@ function runRendererAction(action: () => Promise<void>): void {
   void action().catch(() => {
     // UI actions already surface expected failures locally.
   });
+}
+
+/** Accumulates execution runs folded into one collapsible "Execution details" row. */
+interface ExecutionAggregate {
+  content: HTMLElement;
+  tools: Array<{ name: string; status?: string }>;
+  thinkingSeconds: number;
+  accumulate(tools: ToolCallInfo[], thinkingSeconds: number): void;
 }
 
 export class MessageRenderer {
@@ -849,6 +860,10 @@ export class MessageRenderer {
 
     if (msg.contentBlocks && msg.contentBlocks.length > 0) {
       const renderedToolIds = new Set<string>();
+      // Every execution run of the message folds into ONE collapsible
+      // "Execution details" row, so agent steps cost a single line however
+      // many runs the turn took. Expanding it reveals the full detail.
+      let aggregate: ExecutionAggregate | null = null;
       for (let i = 0; i < msg.contentBlocks.length; i++) {
         const block = msg.contentBlocks[i];
         if (block.type === 'thinking') {
@@ -858,7 +873,9 @@ export class MessageRenderer {
           const runEnd = this.findToolRunEnd(msg, i);
           const runTools = this.collectRunTools(msg, i, runEnd);
           if (runEnd > i && runTools.length >= 1 && this.runHasToolUse(msg, i, runEnd)) {
-            this.renderExecutionRun(contentEl, msg, i, runEnd, runTools, markdownComponent);
+            aggregate ??= this.createExecutionAggregate(contentEl);
+            this.renderExecutionRun(aggregate.content, msg, i, runEnd, runTools, markdownComponent);
+            aggregate.accumulate(runTools, this.collectRunThinkingSeconds(msg, i, runEnd));
             for (const tc of runTools) {
               renderedToolIds.add(tc.id);
             }
@@ -896,20 +913,18 @@ export class MessageRenderer {
           }
           i = j - 1;
 
-          if (contiguousTools.length >= 2) {
+          if (contiguousTools.length >= 1) {
+            aggregate ??= this.createExecutionAggregate(contentEl);
             renderStoredToolGroup(
-              contentEl,
+              aggregate.content,
               contiguousTools,
               (container, tc) => this.renderToolCall(container, tc, msg),
               { collapsedByDefault: true }
             );
+            aggregate.accumulate(contiguousTools, 0);
             for (const tc of contiguousTools) {
               renderedToolIds.add(tc.id);
             }
-          } else if (contiguousTools.length === 1) {
-            const tc = contiguousTools[0];
-            this.renderToolCall(contentEl, tc, msg);
-            renderedToolIds.add(tc.id);
           }
         } else if (block.type === 'context_compacted') {
           const boundaryEl = contentEl.createDiv({ cls: 'claudian-plus-compact-boundary' });
@@ -1032,6 +1047,60 @@ export class MessageRenderer {
       }
     }
     return false;
+  }
+
+  /**
+   * Aggregate row: every execution run of the message folds into one
+   * collapsible "Execution details" row. Collapsed it costs a single line;
+   * expanded it shows the runs in full detail (tool groups included).
+   */
+  private createExecutionAggregate(contentEl: HTMLElement): ExecutionAggregate {
+    const wrapperEl = contentEl.createDiv({ cls: 'claudian-plus-thinking-block' });
+    const headerEl = wrapperEl.createDiv({ cls: 'claudian-plus-thinking-header' });
+    headerEl.setAttribute('tabindex', '0');
+    headerEl.setAttribute('role', 'button');
+    const blobHost = headerEl.createDiv({ cls: 'claudian-plus-thinking-blob' });
+    // Decorative: skipped in DOM-less test environments.
+    if (typeof document !== 'undefined') {
+      void createBlobEngine(blobHost, { size: 'small', initialState: 'idle' });
+    }
+    const labelEl = headerEl.createSpan({ cls: 'claudian-plus-thinking-label' });
+    labelEl.setText('Execution details');
+    const bodyEl = wrapperEl.createDiv({ cls: 'claudian-plus-thinking-content' });
+
+    const state: CollapsibleState = { isExpanded: false };
+    setupCollapsible(wrapperEl, headerEl, bodyEl, state, {
+      initiallyExpanded: false,
+      baseAriaLabel: 'Execution details',
+    });
+
+    const aggregate: ExecutionAggregate = {
+      content: bodyEl,
+      tools: [],
+      thinkingSeconds: 0,
+      accumulate: (tools, thinkingSeconds) => {
+        aggregate.tools.push(...tools.map(tc => ({ name: tc.name, status: tc.status })));
+        aggregate.thinkingSeconds += thinkingSeconds;
+        const summary = buildExecutionRunSummary({
+          tools: aggregate.tools,
+          thinkingSeconds: aggregate.thinkingSeconds,
+        });
+        labelEl.setText(`Execution details · ${summary}`);
+      },
+    };
+    return aggregate;
+  }
+
+  private collectRunThinkingSeconds(msg: ChatMessage, start: number, end: number): number {
+    const blocks = msg.contentBlocks ?? [];
+    let seconds = 0;
+    for (let index = start; index < end; index++) {
+      const block = blocks[index];
+      if (block.type === 'thinking' && typeof block.durationSeconds === 'number') {
+        seconds += block.durationSeconds;
+      }
+    }
+    return seconds;
   }
 
   /**

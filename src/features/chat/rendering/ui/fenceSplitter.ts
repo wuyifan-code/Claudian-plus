@@ -30,6 +30,14 @@ const UI_FENCE_LANGUAGES = new Set(['claudian-ui', 'openui']);
 const OPEN_FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})[ \t]*([\w.+-]*)/;
 /** Closing fence: same character, at least as long, nothing else on the line. */
 const CLOSE_FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
+/**
+ * Untagged fences are only treated as UI programs when the very first content
+ * line declares the root statement — the one construct ordinary code blocks
+ * never start with. The tag-less form is a model slip (the instruction demands
+ * ```claudian-ui); without this sniff the whole answer degrades to a code
+ * block even though the program itself is valid.
+ */
+const ROOT_FIRST_LINE_PATTERN = /^\s*root\s*=/;
 
 type FenceMode = 'text' | 'fence' | 'ui';
 
@@ -81,7 +89,8 @@ export function splitUiFences(markdown: string): UiFencePart[] {
     mode = 'text';
   };
 
-  for (const line of lines) {
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index] ?? '';
     if (mode === 'fence') {
       buffer.push(line);
       if (isClosingFence(line, fenceChar, fenceLength)) mode = 'text';
@@ -97,7 +106,7 @@ export function splitUiFences(markdown: string): UiFencePart[] {
       continue;
     }
 
-    const open = OPEN_FENCE_PATTERN.exec(line);
+    const open = line.match(OPEN_FENCE_PATTERN);
     if (!open) {
       buffer.push(line);
       continue;
@@ -110,6 +119,14 @@ export function splitUiFences(markdown: string): UiFencePart[] {
 
     if (UI_FENCE_LANGUAGES.has(language)) {
       fenceLanguage = language;
+      mode = 'ui';
+      continue;
+    }
+
+    // Bare fence (no info string): sniff the first content line before
+    // committing. Tagged fences must never be sniffed — ```js is JavaScript.
+    if (language.length === 0 && ROOT_FIRST_LINE_PATTERN.test(lines[index + 1] ?? '')) {
+      fenceLanguage = '';
       mode = 'ui';
       continue;
     }
