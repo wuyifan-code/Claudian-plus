@@ -39,6 +39,31 @@ DeepSeek Harness (`dsh`) is now a first-class provider, implemented directly aga
 
 ---
 
+## 🌟 What's New in V3.2.0
+
+**A feature release**, headlined by Intelligent UI: agents can now answer with interactive native-DOM interfaces instead of plain markdown.
+
+### 1. Intelligent UI (generative answers)
+- **Agents answer with real interfaces.** A provider may reply with a fenced ` ```claudian-ui ` program that renders as native Obsidian DOM — never an iframe, never `innerHTML` — with byte-for-byte transcript replay on every provider.
+- **A compact declarative language.** 24 components: layout (`Col`, `Row`, `Grid`, `Card`, …), data (`Table`, pure-SVG `Chart`, clickable `Diagram` flows), and inputs (`Input`, `Slider`, `Select`, `Checkbox`, `SegmentedControl`, `Button`). 24 pure `@functions` (`@Sum`, `@Round`, `@Each`, …) and 5 actions (`@Set`, `@Reset`, `@ToAssistant`, `@OpenUrl`, `@Copy`). `@ToAssistant` sends the widget's context back to the agent as the next turn.
+- **Widget state survives reloads.** Slider positions, selections and checkboxes are persisted per conversation (16 KiB per block, 64 KiB per session) and restored when you reopen or reload.
+- **Focus stays where you type.** Rebuilds triggered by your own keystrokes — including mid-stream re-renders — restore focus and caret on the exact control.
+- **One collapsed row per turn.** Every reasoning-and-tool run folds into a single `Execution details` line with an aggregate summary (tool count, names, failures, thinking time). Click to expand the full detail; no reading-mode toggle needed.
+- **Judge built in.** The language is injected into every provider's system prompt (toggle in Settings → Appearance), the renderer degrades unrenderable programs to text instead of blanking them, and a model that forgets the `claudian-ui` tag on its fence gets a content-sniffing fallback.
+
+### 2. Memory & consciousness V2
+- The memory subsystem is rewritten as a single V2 pipeline (dream jobs, repository maintenance, claim keys, export views) with no new dependencies. Injection budgets are now token-aware.
+
+### 3. DeepSeek Harness hardening
+- **Catalog refresh failures are visible and non-destructive.** A native catalog that returns nothing or fails per provider now reports diagnostics instead of silently wiping your saved models.
+- `scripts/sync-dsh-profiles.mjs` syncs model-provider config between DSH profiles (Desktop ⇄ web) without touching credentials.
+
+### 4. Developer experience
+- `npm run build` now deploys the built artifacts straight into a sibling vault checkout's `.obsidian/plugins/claudian-plus/` (no-op outside that layout), so build-to-test is one command.
+- Bundle budget raised to 3.85 MB for the new surface; the release build stays at 3.62 MiB.
+
+---
+
 ## 🌟 What's New in V3.1.1
 
 **A hardening release.** Every item below is a defect found by auditing the 3.1.0 tree, not a new feature.

@@ -39,6 +39,31 @@ DeepSeek Harness（`dsh`）现在是一等 Provider。它直接对着官方 Harn
 
 ---
 
+## 🌟 V3.2.0 更新
+
+**一个功能版本**，主打 Intelligent UI：Agent 现在可以用可交互的原生界面回答，而不只是 Markdown。
+
+### 1. Intelligent UI（生成式回答）
+- **Agent 的回答可以是真正的界面。** Provider 可以用 ` ```claudian-ui ` 围栏程序回复，渲染为 Obsidian 原生 DOM——绝不用 iframe、绝不用 `innerHTML`——并且在所有 Provider 的历史重放里逐字节保真。
+- **一门精简的声明式语言。** 24 个组件：布局（`Col`、`Row`、`Grid`、`Card` 等）、数据（`Table`、纯 SVG `Chart`、可点击联动的 `Diagram` 流程）、输入（`Input`、`Slider`、`Select`、`Checkbox`、`SegmentedControl`、`Button`）。24 个纯 `@函数`（`@Sum`、`@Round`、`@Each` 等）与 5 个动作（`@Set`、`@Reset`、`@ToAssistant`、`@OpenUrl`、`@Copy`）。`@ToAssistant` 可把控件上下文作为下一轮对话发回给 Agent。
+- **控件状态跨重载保留。** 滑块位置、下拉选择、勾选状态按会话持久化（单块 16 KiB、全会话 64 KiB），重开会话或重载 Obsidian 后自动恢复。
+- **输入焦点不丢。** 由你自己的按键触发的界面重建——包括流式过程中的重渲染——都会精确恢复焦点与光标位置。
+- **每回合只占一行。** 所有思考与工具调用折叠为一行 `Execution details`，汇总显示工具数、名称、失败数与思考时长；点击展开完整细节，无需打开阅读模式。
+- **自带兜底。** 语言规范注入每个 Provider 的系统提示词（设置 → 外观 可开关）；无法渲染的程序降级为文本而不是消失；模型忘写 `claudian-ui` 标签时，渲染端按内容嗅探兜底。
+
+### 2. 记忆与意识 V2
+- 记忆子系统重写为单管线 V2（dream 任务、仓库维护、claim key、导出视图），零新增依赖；注入预算改为按 token 计算。
+
+### 3. DeepSeek Harness 加固
+- **目录刷新失败可见且不破坏数据。** 原生目录返回空或部分 Provider 失败时，现在会报告诊断信息，而不是静默清空你已保存的模型列表。
+- `scripts/sync-dsh-profiles.mjs` 可在 DSH 的多个 profile（Desktop ⇄ web）之间同步模型 Provider 配置，绝不触碰凭证。
+
+### 4. 开发体验
+- `npm run build` 现在会把构建产物直接部署到同级 vault 检出的 `.obsidian/plugins/claudian-plus/`（其他布局下自动跳过），构建即测试。
+- Bundle 预算为新增面提升到 3.85 MB；本版本构建实际 3.62 MiB。
+
+---
+
 ## 🌟 V3.1.1 更新
 
 **一次加固版本。** 下面每一条都是审计 3.1.0 代码时发现的缺陷，不是新功能。
