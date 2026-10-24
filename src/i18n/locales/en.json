@@ -187,7 +187,11 @@
       },
       "maxChars": {
         "name": "Max injection characters",
-        "desc": "Maximum characters to inject into system prompt"
+        "desc": "Character cap for the legacy memory file injection; retrieved memory uses the token budget"
+      },
+      "maxTokens": {
+        "name": "Max injection tokens",
+        "desc": "Token budget for the retrieved memory context injected into the system prompt"
       },
       "manage": {
         "name": "Manage memories",
@@ -223,18 +227,6 @@
       "interval": {
         "name": "Dream interval (hours)",
         "desc": "Minimum time between automatic consolidation runs"
-      },
-      "maxLogDays": {
-        "name": "Log lookback (days)",
-        "desc": "How many recent days of short-term logs to consider"
-      },
-      "inputCap": {
-        "name": "Input budget (chars)",
-        "desc": "Character budget for one dream cycle; older content is truncated"
-      },
-      "maxNewFacts": {
-        "name": "Max new facts per dream",
-        "desc": "Upper bound on long-term memory entries written per cycle"
       },
       "runNow": "Run dream now",
       "runNowDesc": "Consolidate pending short-term memories immediately"

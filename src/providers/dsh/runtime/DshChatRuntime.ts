@@ -93,7 +93,7 @@ export class DshChatRuntime implements ChatRuntime {
     if (request.browserSelection) prompt = appendBrowserContext(prompt, request.browserSelection);
     if (request.canvasSelection) prompt = appendCanvasContext(prompt, request.canvasSelection);
     if (request.ambientContext) {
-      const context = formatAmbientContextXml(request.ambientContext);
+      const context = formatAmbientContextXml(request.ambientContext, request.ambientBudgets);
       if (context) prompt += `\n\n${context}`;
     }
     return { request, persistedContent: request.text, prompt, isCompact: false, mcpMentions: new Set() };
@@ -245,7 +245,7 @@ export class DshChatRuntime implements ChatRuntime {
       await active.snapshotReady;
       if (!active.closed) {
         const responseFormat = this.plugin.getResponseFormatInjectionText?.() ?? Promise.resolve(null);
-        const additions = (await Promise.all([this.plugin.getMemoryInjectionText(), this.plugin.getConsciousnessInjectionText(), responseFormat])).filter((value): value is string => !!value?.trim());
+        const additions = (await Promise.all([this.plugin.getMemoryInjectionText(turn.prompt), this.plugin.getConsciousnessInjectionText(), responseFormat])).filter((value): value is string => !!value?.trim());
         const prompt = additions.length ? `<system_context>\n${additions.join('\n\n')}\n</system_context>\n\n${turn.prompt}` : turn.prompt;
         if (!active.closed) await lease.client.call('session/prompt', { request: { sessionId, requestId, mode: 'queue', content: [{ type: 'text', text: prompt }] } });
       }

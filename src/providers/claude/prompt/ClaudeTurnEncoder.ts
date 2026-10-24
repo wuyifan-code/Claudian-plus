@@ -36,7 +36,7 @@ export function encodeClaudeTurn(
   let prompt = mcpManager.transformMentions(persistedContent);
 
   if (!isCompact && request.ambientContext) {
-    const ambientXml = formatAmbientContextXml(request.ambientContext);
+    const ambientXml = formatAmbientContextXml(request.ambientContext, request.ambientBudgets);
     if (ambientXml) {
       prompt = prompt ? `${prompt}\n\n${ambientXml}` : ambientXml;
     }

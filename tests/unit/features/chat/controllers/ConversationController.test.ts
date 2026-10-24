@@ -606,6 +606,70 @@ describe('ConversationController', () => {
     });
   });
 
+  describe('ui state persistence wiring', () => {
+    function createPersistenceController() {
+      return {
+        activate: jest.fn(),
+        deactivate: jest.fn(),
+        release: jest.fn(),
+        flush: jest.fn().mockResolvedValue(undefined),
+        dispose: jest.fn().mockResolvedValue(undefined),
+      };
+    }
+
+    it('activates persistence when a conversation is restored', async () => {
+      const uiStatePersistence = createPersistenceController();
+      deps = createMockDeps({ uiStatePersistence } as unknown as Partial<ConversationControllerDeps>);
+      controller = new ConversationController(deps);
+
+      deps.state.currentConversationId = 'conv-1';
+      (deps.plugin.getConversationById as jest.Mock).mockResolvedValue({
+        id: 'conv-1',
+        messages: [{ id: '1', role: 'user', content: 'test', timestamp: Date.now() }],
+        sessionId: null,
+      });
+
+      await controller.loadActive();
+
+      expect(uiStatePersistence.activate).toHaveBeenCalledWith('conv-1');
+    });
+
+    it('activates persistence when switching conversations', async () => {
+      const uiStatePersistence = createPersistenceController();
+      deps = createMockDeps({ uiStatePersistence } as unknown as Partial<ConversationControllerDeps>);
+      controller = new ConversationController(deps);
+      deps.state.currentConversationId = 'old-conv';
+
+      await controller.switchTo('new-conv');
+
+      expect(uiStatePersistence.activate).toHaveBeenCalledWith('switched-conv');
+    });
+
+    it('deactivates persistence when resetting to the entry point', async () => {
+      const uiStatePersistence = createPersistenceController();
+      deps = createMockDeps({ uiStatePersistence } as unknown as Partial<ConversationControllerDeps>);
+      controller = new ConversationController(deps);
+
+      await controller.createNew();
+
+      expect(uiStatePersistence.deactivate).toHaveBeenCalled();
+    });
+
+    it('releases persistence when a history conversation is deleted', async () => {
+      const uiStatePersistence = createPersistenceController();
+      deps = createMockDeps({ uiStatePersistence } as unknown as Partial<ConversationControllerDeps>);
+      controller = new ConversationController(deps);
+      deps.state.currentConversationId = 'other-conv';
+
+      await (controller as unknown as {
+        deleteHistoryConversation: (id: string, options: { onRerender: () => void }) => Promise<void>;
+      }).deleteHistoryConversation('conv-doomed', { onRerender: jest.fn() });
+
+      expect(deps.plugin.deleteConversation).toHaveBeenCalledWith('conv-doomed');
+      expect(uiStatePersistence.release).toHaveBeenCalledWith('conv-doomed');
+    });
+  });
+
   describe('switchTo with currentNote', () => {
     it('should set currentNote when switched conversation has one', async () => {
       const fileContextManager = deps.getFileContextManager()!;

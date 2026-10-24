@@ -187,24 +187,26 @@ export interface ClaudianPlusSettings {
   memoryEnabled: boolean;
   memoryFilePath: string;
   memoryMaxInjectionChars: number;
-  /** Sub-cap for the global mind profile layer, within memoryMaxInjectionChars. */
+  /**
+   * Token budget for the V2 memory-context injection packet. Distinct from
+   * memoryMaxInjectionChars, which caps the legacy character-based injection.
+   */
+  memoryMaxInjectionTokens?: number;
+  /** @deprecated Legacy layer sub-cap; kept for settings compatibility, no longer read. */
   memoryMaxGlobalInjectionChars: number;
-  /** Sub-cap for the dynamic project rules layer, within memoryMaxInjectionChars. */
+  /** @deprecated Legacy layer sub-cap; kept for settings compatibility, no longer read. */
   memoryMaxProjectInjectionChars: number;
 
   // Consciousness system (QoderWork-inspired)
   consciousnessEnabled: boolean;
   consciousnessAutoMemory: boolean;
 
-  // Dream memory consolidation (auto distillation of short-term logs)
-  /** Minimum interval between automatic dreams in ms. */
+  // Dream memory consolidation (V2 job scheduling)
+  /** Minimum interval between automatic dream sweeps in ms. */
   dreamIntervalMs?: number;
-  /** How many recent days of short-term logs to consider. */
-  dreamMaxLogDays?: number;
-  /** Input character budget for one dream cycle. */
-  dreamInputCharCap?: number;
-  /** Maximum new long-term memory facts per dream cycle. */
-  dreamMaxNewFacts?: number;
+
+  /** V2 memory maintenance: episodes older than this are pruned (0 = keep forever). */
+  memoryEpisodeRetentionDays?: number;
 
   // Saving mode for automatic background requests (R1)
   /** Missing values are treated as `standard` for existing installs. */
@@ -213,6 +215,18 @@ export interface ClaudianPlusSettings {
   backgroundRequestDailyLimit?: number | null;
   /** Internal: persisted { day, count } so the daily count survives a restart. */
   backgroundRequestUsage?: { day: string; count: number };
+
+  // Ambient context (per-turn environment awareness)
+  /** Master switch for the ambient context snapshot injected with each turn. */
+  ambientContextEnabled?: boolean;
+  /** Character budget for the ambient focus/document content. Default 32000. */
+  ambientMaxContentChars?: number;
+  /** Cap for outline entries in the ambient snapshot. Default 50. */
+  ambientMaxOutlineEntries?: number;
+  /** Cap for in/out links in the ambient snapshot. Default 25. */
+  ambientMaxLinks?: number;
+  /** Persisted per-file context modes (auto | pinned | ignored). */
+  ambientFileModes?: Record<string, 'auto' | 'pinned' | 'ignored'>;
 
   // Allow provider-specific extension fields
   [key: string]: unknown;

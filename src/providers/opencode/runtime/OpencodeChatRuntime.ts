@@ -147,6 +147,8 @@ export class OpencodeChatRuntime implements ChatRuntime {
   readonly providerId = 'opencode' as const;
 
   private activeTurn: ActiveTurn | null = null;
+  /** Prompt of the in-flight turn, so memory retrieval can see the user message. */
+  private memoryQueryPrompt: string | undefined;
   private approvalCallback: ApprovalCallback | null = null;
   private connection: AcpClientConnection | null = null;
   private connectionGeneration = 0;
@@ -354,7 +356,7 @@ export class OpencodeChatRuntime implements ChatRuntime {
     }
     const promptSettings = this.getSystemPromptSettings(cwd);
     const [memoryAppendix, consciousnessAppendix, responseFormatAppendix] = await Promise.all([
-      this.plugin.getMemoryInjectionText(),
+      this.plugin.getMemoryInjectionText(this.memoryQueryPrompt),
       this.plugin.getConsciousnessInjectionText(),
       this.plugin.getResponseFormatInjectionText?.() ?? Promise.resolve(null),
     ]);
@@ -450,6 +452,7 @@ export class OpencodeChatRuntime implements ChatRuntime {
       yield { type: 'done' };
       return;
     }
+    this.memoryQueryPrompt = turn.prompt;
     if (queryOptions?.model) {
       this.setCurrentConversationModel(queryOptions.model);
     }

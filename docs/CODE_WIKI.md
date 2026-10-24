@@ -490,31 +490,39 @@ Tab 在首次发送前保持冷态；runtime warmup 必须 explicit 且 provider
 
 ## 8. Memory / Consciousness 子系统
 
-位于 [src/core/memory/](../src/core/memory/)，受 `consciousnessEnabled` / `consciousnessAutoMemory` / `memoryEnabled` 等 settings 控制。
+位于 [src/core/memory/](../src/core/memory/)，受 `consciousnessEnabled` / `consciousnessAutoMemory` / `memoryEnabled` / `ambientContextEnabled` 等 settings 控制。自 2026-10 起 **V2 事件源管线是唯一真相**：记忆写入、蒸馏、检索、反馈与遗忘全部经由 `src/core/memory/v2/`；`memory.md` 降级为 dream commit 后刷新的导出视图。
 
 | 文件 | 职责 |
 | --- | --- |
-| `MemoryStore.ts` | 用户显式记忆（`remember...` / `forget...`）读写，构建 injection text |
-| `MemoryExtractor.ts` | 从对话中提取记忆候选 |
-| `ConsciousnessEngine.ts` | 意识机制：awareness 目录（soul/user/short-term/activity），self-reflection 与记忆累积，灵感来自 QoderWork |
-| `DreamService.ts` | 梦境记忆整合：周期性把短期日志蒸馏为长期记忆 facts / profile updates / insights。`DREAM_CHECK_INTERVAL_MS` 每小时检查；启动后 30s 跑一次 startup dream |
+| `v2/MemoryCoordinator.ts` | 回合结束落 episode + 排 dream job；显式命令（记住/忘记/纠正/列出，含句中"顺便记住"与多匹配 forget）；注入反馈回流（exposed/referenced）；空闲观察 episode 入库；无新 episode 的作业零预算关闭 |
+| `v2/MemoryRepository.ts` | 世代快照存储；候选记录（微梦产物待审）；approve/dismiss；关键词回填；反馈汇总；保留期归档与存储 GC（episode 窗口、世代压缩、反馈修剪）；遗忘账本 |
+| `v2/MemoryRetriever.ts` | IDF（BM25 风格）加权打分 + recency/feedback/scope 加权 + 关键词索引匹配；kind 分层 token 预算装箱 |
+| `v2/DreamRunner.ts` | 后台梦境：episode → 提议；claimKey 复用指令、keywords 契约、keywordAnnotations 回填；无效 claimKey 回退规范化哈希 |
+| `v2/claimKey.ts` | 稳定 claimKey（归一化内容 FNV-1a 哈希）与关键词清洗 |
+| `v2/exportView.ts` | active 记录 → 用户可读 `memory.md` 导出视图 |
+| `v2/migration/LegacyMemoryMigrator.ts` | 一次性迁移 memory.md / MindStore durable+staging / USER.md → V2 |
+| `MicroDreamCoordinator.ts` | 会话级微梦：轨迹 → 建议 → **V2 candidate 待审**（不再写 MindStore staging） |
+| `ConsciousnessEngine.ts` | 意识机制：awareness 目录（soul/user/short-term/activity）；注入预算按 **token** 截断 |
+| `IdleActivityObserver.ts` | 空闲观察：≥15 分钟无交互且期间有足够文件活动时产出一条摘要，交 coordinator 记为 episode |
+| `activityContext.ts` | 时间/最近编辑/最近会话的活动感知注入块（纯函数） |
+| `projectScope.ts` | projectId 派生：vault 根 git remote → vault 文件夹名兜底 |
 | `VaultKnowledgeEngine.ts` | 轻量 Vault 知识摘要，注入 awareness context |
 | `memoryPrompt.ts` | `wrapMemoryInjection` / `escapePromptTagCloser` / `formatMemoryAppendix` |
-| `MindStore.ts` | Dreaming V3 心智存储：durable / staging 条目、scope 与时序状态（`DurableMindEntry`、`StagingMindEntry`、`MindTemporalState`） |
-| `MicroDreamCoordinator.ts` | 微梦境协调：借 `AuxQueryRunner` 与 `prompt/dreamMemory` 在空闲时做小规模整合 |
-| `HybridMindPromptInjector.ts` | memory 与 mind 双通道混合注入，产出 `HybridMindInjectionResult` / `MindRecallInfo` |
-| `deduplication.ts` | 记忆条目去重：`normalizeMemoryContent` / `isMemoryDuplicate` / `deduplicateMemoryEntries`（`MIN_CONTAINMENT_LENGTH`） |
-| `mind-types.ts` | Dreaming V3 Mind & Habit Engine 类型与 schema（`MindCategory`: user_preference / coding_habit / project_rule / correction_rule） |
+| `MindStore.ts` | 旧版心智存储：仅保留读取，供一次性迁移与设置页兼容；staging 不再写入 |
+| `deduplication.ts` | 记忆条目去重的旧工具（V1 路径），V2 依赖 claimKey |
+| `mind-types.ts` | 旧版 Mind 类型与 schema（迁移输入） |
 | `memoryCachePolicy.ts` | 记忆子系统读缓存的白名单策略：awareness 目录（含 legacy）、当前 `memoryFilePath`、legacy memory 文件 |
 | `consciousness-types.ts` / `types.ts` | 配置与类型 |
 | `index.ts` | 模块导出（barrel） |
 | `backup.ts` | 写入前备份 |
 
-注入入口：`ClaudianPlusPlugin.getMemoryInjectionText()` / `getConsciousnessInjectionText()`，作为 system prompt 增强返回给 provider runtime（增强失败必须静默，不可阻断 provider 启动）。
+注入入口：`ClaudianPlusPlugin.getMemoryInjectionText(userPrompt?)` / `getConsciousnessInjectionText()`，作为 system prompt 增强返回给 provider runtime（增强失败必须静默，不可阻断 provider 启动）。**7 个 provider 调用点都传入当轮用户消息**（直接传参或 runtime 字段暂存），检索器因此能看见用户问题而不是只有文件路径。
+
+维护节奏：启动时迁移 + 一个 startup dream job；每小时一次维护扫描（保留期归档 + 存储 GC，无模型调用）与到期 dream 作业处理；会话结束触发微梦；空闲观察按需产出 episode。所有自动模型调用共用 `AuxiliaryRequestGate`（省电模式 + 每日预算 + 前台忙碌）。
 
 ### 8.1 每轮注入的读缓存
 
-五个 provider runtime 在每次发送前都会 `await` 这两个注入入口（`ClaudeChatRuntime.ts:812`、`CodexChatRuntime.ts:307/364`、`KimiChatRuntime.ts:329/508`、`OpencodeChatRuntime.ts:357`、`PiChatRuntime.ts:315`），因此这条路径上的每一次读盘都是**每消息成本**。走 pass-through 适配器时实测为每轮 17 次读侧操作 + 1 次写（`recordHit` 的用量记录）。
+provider runtime 在每次发送前都会 `await` 这两个注入入口，因此这条路径上的每一次读盘都是**每消息成本**。V1 注入器退役后，V2 检索在主目录存储上进行（不触碰 vault），vault 侧只剩 awareness 文件的读缓存路径。
 
 `SharedStorageService` 把共享的 `VaultFileAdapter` 包在 [CachedVaultAdapter](../src/core/storage/CachedVaultAdapter.ts) 里，并由 `memoryCachePolicy` 限定只有记忆子系统的路径进入缓存；其余路径（`.claudian-plus/sessions/**`、settings、conversations、provider 历史）完全透传，I/O 与内存画像不变。
 
@@ -522,14 +530,14 @@ Tab 在首次发送前保持冷态；runtime warmup 必须 explicit 且 provider
 
 | 触发 | 机制 |
 | --- | --- |
-| 记忆子系统自身的写入（memory add/forget、mind approve/dismiss/decay、Dream、MicroDream、awareness 写入、knowledge scan） | 覆盖 `write` 等变更方法：写入内容直接播种进缓存（写穿透），不失效 |
+| 记忆子系统自身的写入（memory add/forget、awareness 写入、knowledge scan） | 覆盖 `write` 等变更方法：写入内容直接播种进缓存（写穿透），不失效 |
 | 用户在 Obsidian 中手改 `memory.md` / awareness 文件 | `vault.on('modify' | 'create')` → `invalidate(path)` |
 | 删除 / 重命名 | `invalidateSubtree`，同时覆盖正缓存与负缓存 |
 | `memoryFilePath` 等设置变更 | 策略谓词每次操作实时求值，无需重建适配器 |
 
-不变式：缓存只保存**原始文本与存在性事实**，不保存解析后的结构（`resolveInjection` 会对条目排序/过滤，共享可变数组会产生别名 bug）；`exists` 的已知事实总是直接回答，策略只决定缓存**允许学到什么**；读失败不入缓存。
+不变式：缓存只保存**原始文本与存在性事实**，不保存解析后的结构；`exists` 的已知事实总是直接回答，策略只决定缓存**允许学到什么**；读失败不入缓存。
 
-预算与回归门禁见 `tests/integration/memory/injectionIoBudget.test.ts`：冷态 ≤ 12 次读侧操作，热态必须为 0，并逐路径锁定了冷态成本表。
+预算与回归门禁见 `tests/integration/memory/injectionIoBudget.test.ts`：V2 栈冷态 ≤ 8 次读侧操作，热态必须为 0。V2 仓储自身的 IO 走 `IMemoryStorageAdapter`（home 目录），不在 vault 预算内；反馈写盘按回合批量合并。
 
 ---
 

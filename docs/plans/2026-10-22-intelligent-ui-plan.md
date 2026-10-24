@@ -67,7 +67,7 @@
 
 | 约束 | 实测值 | 影响 |
 | --- | --- | --- |
-| bundle 上限 | `scripts/check-startup-performance.mjs:20` → `mainBudgetBytes = 3_800_000` | 超限 CI 直接 fail |
+| bundle 上限 | `scripts/check-startup-performance.mjs:20` → `mainBudgetBytes = 3_850_000` | 超限 CI 直接 fail |
 | 当前产物 | `…\.obsidian\plugins\claudian-plus\main.js` = **3,759,390 B** | **余量 40,610 B（1.07%）** |
 | 结论 | React + `react-dom` 单独就超限 | **禁止引入任何 UI 框架/OpenUI 运行时依赖** |
 | HTML 策略 | `src/utils/markdownHtml.ts` 先转义，再由**唯一一处** `MarkdownRenderer.render`（`MessageRenderer.ts:1317`）渲染 | 模型 HTML 永远渲不出来——这个不变量要保住 |

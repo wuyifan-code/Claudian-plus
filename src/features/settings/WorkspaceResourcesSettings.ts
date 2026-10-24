@@ -378,6 +378,21 @@ export class WorkspaceResourcesSettings {
         });
 
       new Setting(card)
+        .setName(t('settings.memory.maxTokens.name'))
+        .setDesc(t('settings.memory.maxTokens.desc'))
+        .addSlider((slider) => {
+          slider
+            .setLimits(400, 4000, 100)
+            .setValue(plugin.settings.memoryMaxInjectionTokens ?? 1200)
+            .setDynamicTooltip()
+            .onChange(async (value) => {
+              await plugin.mutateSettings((settings) => {
+                settings.memoryMaxInjectionTokens = value;
+              });
+            });
+        });
+
+      new Setting(card)
         .setName(t('settings.memory.maxChars.name'))
         .setDesc(t('settings.memory.maxChars.desc'))
         .addSlider((slider) => {
@@ -519,42 +534,6 @@ export class WorkspaceResourcesSettings {
             }));
 
         new Setting(card)
-          .setName(t('settings.dream.maxLogDays.name'))
-          .setDesc(t('settings.dream.maxLogDays.desc'))
-          .addText((text) => text
-            .setValue(String(plugin.settings.dreamMaxLogDays ?? 7))
-            .onChange(async (value) => {
-              const parsed = Math.max(1, Number.parseInt(value, 10) || 7);
-              await plugin.mutateSettings((settings) => {
-                settings.dreamMaxLogDays = parsed;
-              });
-            }));
-
-        new Setting(card)
-          .setName(t('settings.dream.inputCap.name'))
-          .setDesc(t('settings.dream.inputCap.desc'))
-          .addText((text) => text
-            .setValue(String(plugin.settings.dreamInputCharCap ?? 8000))
-            .onChange(async (value) => {
-              const parsed = Math.max(1000, Number.parseInt(value, 10) || 8000);
-              await plugin.mutateSettings((settings) => {
-                settings.dreamInputCharCap = parsed;
-              });
-            }));
-
-        new Setting(card)
-          .setName(t('settings.dream.maxNewFacts.name'))
-          .setDesc(t('settings.dream.maxNewFacts.desc'))
-          .addText((text) => text
-            .setValue(String(plugin.settings.dreamMaxNewFacts ?? 10))
-            .onChange(async (value) => {
-              const parsed = Math.max(1, Number.parseInt(value, 10) || 10);
-              await plugin.mutateSettings((settings) => {
-                settings.dreamMaxNewFacts = parsed;
-              });
-            }));
-
-        new Setting(card)
           .setName(t('settings.dream.runNow'))
           .setDesc(t('settings.dream.runNowDesc'))
           .addButton((button) => {
@@ -562,16 +541,15 @@ export class WorkspaceResourcesSettings {
               .setButtonText(t('settings.dream.runNow'))
               .setCta()
               .onClick(async () => {
-                const result = await plugin.getDreamService().runDream(true);
-                if (result.ran) {
-                  new Notice(`Dream memory consolidated: ${result.newFacts} fact(s), ${result.profileUpdates} profile update(s).`);
-                } else if (result.reason === 'no-new-logs') {
-                  new Notice('No new short-term memories to consolidate.');
-                } else if (result.reason === 'already-running') {
-                  new Notice('A memory consolidation is already running.');
-                } else if (result.reason === 'failed') {
-                  new Notice(`Memory consolidation failed: ${result.error ?? 'unknown error'}`);
+                const coordinator = plugin.getMemoryCoordinator?.();
+                if (!coordinator) {
+                  new Notice('Memory system is unavailable.');
+                  return;
                 }
+                await plugin.getMemoryRepository().initialize().catch(() => undefined);
+                await coordinator.enqueueScheduledJob('manual');
+                const result = await coordinator.processPendingJobs();
+                new Notice(`Memory consolidation: ${result.processed} processed, ${result.deferred} deferred, ${result.failed} failed.`);
               });
           });
       }

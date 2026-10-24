@@ -77,8 +77,8 @@ export class ClaudianPlusProviderHost implements ProviderHost {
     return this.plugin.getResolvedProviderCliPath(providerId, context);
   }
 
-  getMemoryInjectionText(): Promise<string | null> {
-    return this.plugin.getMemoryInjectionText();
+  getMemoryInjectionText(userPrompt?: string): Promise<string | null> {
+    return this.plugin.getMemoryInjectionText(userPrompt);
   }
 
   getConsciousnessInjectionText(): Promise<string | null> {

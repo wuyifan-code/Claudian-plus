@@ -141,6 +141,12 @@ export interface SessionMetadata {
   resumeAtMessageId?: string;
   /** Whether reading mode (collapsed tools/thinking) is active for this conversation. */
   readingMode?: boolean;
+  /**
+   * Generated-UI widget state: blockKey (`messageId:fenceIndex`) -> state
+   * name -> JSON-safe value. Private persistence channel; never sent to the
+   * model (the `@ToAssistant` context argument is the model-facing channel).
+   */
+  uiState?: Record<string, Record<string, unknown>>;
 }
 
 /**

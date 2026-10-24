@@ -61,17 +61,23 @@ describe('ClaudianPlusSettingTab Shell', () => {
       getMicroDreamCoordinator: () => ({
         evaluateSession: jest.fn().mockResolvedValue({ ran: false }),
       }),
-      getHybridMindPromptInjector: () => ({
-        buildLayer1Profile: jest.fn().mockResolvedValue(''),
-        buildLayer2Context: jest.fn().mockResolvedValue(''),
-        injectMind: jest.fn().mockResolvedValue(''),
+      getMemoryRepository: () => ({
+        initialize: jest.fn().mockResolvedValue(undefined),
+        listRecords: jest.fn().mockResolvedValue([]),
+        getCurrentGeneration: jest.fn().mockResolvedValue('gen_000001'),
+        listJobs: jest.fn().mockResolvedValue([]),
+        commitExplicit: jest.fn().mockResolvedValue(undefined),
+        commitCandidate: jest.fn().mockResolvedValue(null),
+        approveCandidate: jest.fn().mockResolvedValue(null),
+        dismissCandidate: jest.fn().mockResolvedValue(null),
+      }),
+      getMemoryCoordinator: () => ({
+        processPendingJobs: jest.fn().mockResolvedValue({ processed: 0, deferred: 0, failed: 0 }),
+        enqueueScheduledJob: jest.fn().mockResolvedValue(undefined),
       }),
       getConsciousnessEngine: () => ({
         updateConfig: jest.fn(),
         initialize: jest.fn().mockResolvedValue(undefined),
-      }),
-      getDreamService: () => ({
-        runDream: jest.fn().mockResolvedValue({ ran: true, newFacts: 2, profileUpdates: 1 }),
       }),
       getVaultKnowledgeEngine: () => ({
         updateConfig: jest.fn(),

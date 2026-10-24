@@ -53,6 +53,12 @@ export interface ChatTurnRequest {
   browserSelection?: BrowserSelectionContext | null;
   canvasSelection?: CanvasSelectionContext | null;
   ambientContext?: AmbientContextSnapshot | null;
+  /** Budget caps for formatting the ambient snapshot into the prompt. */
+  ambientBudgets?: {
+    maxContentChars?: number;
+    maxOutlineEntries?: number;
+    maxLinks?: number;
+  };
   externalContextPaths?: string[];
   enabledMcpServers?: Set<string>;
   agentSkillContext?: AgentSkillContext;

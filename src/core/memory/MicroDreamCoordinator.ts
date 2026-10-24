@@ -7,8 +7,9 @@ import {
 } from '../prompt/dreamMemory';
 import type { ProviderId } from '../providers/types';
 import { DEFAULT_CHAT_PROVIDER_ID } from '../providers/types';
-import type { MemoryStore } from './MemoryStore';
-import type { MindStore } from './MindStore';
+import { canonicalClaimKey } from './v2/claimKey';
+import type { MemoryRepository } from './v2/MemoryRepository';
+import type { MemoryKind, MemoryScope } from './v2/types';
 
 export interface SessionMessageInput {
   role: string;
@@ -31,10 +32,10 @@ export interface MicroDreamRunResult {
 }
 
 export interface MicroDreamCoordinatorDependencies {
-  mindStore: MindStore;
+  repository: MemoryRepository;
+  vaultId: string;
   createRunner: (providerId: ProviderId) => AuxQueryRunner;
   getConversationContext?: () => { providerId: ProviderId; model: string | null } | null;
-  getMemoryStore?: () => MemoryStore | null;
   isEnabled?: () => boolean;
   /** Shared saving-mode policy + daily budget consulted for automatic evaluations. */
   backgroundRequestGate?: BackgroundRequestGate;
@@ -62,18 +63,29 @@ function stringifyMessageContent(content: unknown): string {
   return '';
 }
 
+function ruleKind(category: string): MemoryKind {
+  switch (category) {
+    case 'project_rule':
+      return 'project_state';
+    case 'coding_habit':
+    case 'correction_rule':
+      return 'lesson';
+    default:
+      return 'profile';
+  }
+}
+
 export class MicroDreamCoordinator {
   private readonly minTurns: number;
   private readonly maxTrajectoryChars: number;
   private readonly lastEvaluatedWatermarks = new Map<string, number>();
   private readonly inFlightEvaluations = new Map<string, Promise<MicroDreamRunResult>>();
 
-  constructor(private readonly deps: MicroDreamCoordinatorDependencies) {
+  constructor(
+    private readonly deps: MicroDreamCoordinatorDependencies,
+  ) {
     this.minTurns = deps.minTurns ?? 3;
     this.maxTrajectoryChars = deps.maxTrajectoryChars ?? 6000;
-    if (deps.getMemoryStore) {
-      deps.mindStore.setMemoryStoreProvider(deps.getMemoryStore);
-    }
   }
 
   getLastEvaluatedTurnCount(sessionId: string): number | undefined {
@@ -140,16 +152,12 @@ export class MicroDreamCoordinator {
         return { ran: false, reason: 'insubstantial', newStagingCount: 0 };
       }
 
-      // Fetch existing durable rules to prevent re-extracting known rules
-      const durableRules = await this.deps.mindStore.listDurable('project');
-      const globalRules = await this.deps.mindStore.listDurable('global');
-      const memoryEntries = (await this.deps.getMemoryStore?.()?.load()) ?? [];
-      const memoryRulesText = memoryEntries.map((m) => `- [${m.category}] ${m.content}`);
-      const existingRulesText = [
-        ...globalRules.map((r) => `- [${r.category}] (${r.scope}) ${r.content}`),
-        ...durableRules.map((r) => `- [${r.category}] (${r.scope}) ${r.content}`),
-        ...memoryRulesText,
-      ].join('\n');
+      // Existing memories prevent re-extracting known facts
+      const activeRecords = await this.deps.repository.listRecords({ status: 'active' });
+      const candidateRecords = await this.deps.repository.listRecords({ status: 'candidate' });
+      const existingRulesText = [...activeRecords, ...candidateRecords]
+        .map((r) => `- [${r.kind}] (${r.claimKey}) ${r.content}`)
+        .join('\n');
 
       const userPrompt = buildMicroDreamPrompt({
         trajectoryText,
@@ -222,13 +230,18 @@ export class MicroDreamCoordinator {
 
     let addedCount = 0;
     for (const rule of parsed.rules) {
-      const added = await this.deps.mindStore.addStaging({
-        category: rule.category,
-        scope: rule.scope,
+      const kind = ruleKind(rule.category);
+      const scope: MemoryScope = { vaultId: this.deps.vaultId };
+      const claimKey = canonicalClaimKey(kind, rule.content);
+      // Micro-dream proposals become V2 candidates: they are only injected
+      // after the user approves them in settings.
+      const added = await this.deps.repository.commitCandidate({
+        kind,
+        claimKey,
         content: rule.content,
+        scope,
+        basis: 'inferred',
         rationale: rule.rationale,
-        sourceSessionId: session.id,
-        confidence: rule.confidence,
       });
       if (added) {
         addedCount++;

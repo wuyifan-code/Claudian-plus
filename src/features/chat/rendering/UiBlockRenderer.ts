@@ -26,6 +26,8 @@ export interface UiBlockCallbacks {
 export interface UiBlockOptions {
   /** Stable per-widget key, e.g. `messageId:fenceIndex`. */
   blockKey: string;
+  /** Conversation that owns the widget state for persistence; unowned blocks claim as `live`. */
+  ownerId?: string;
   callbacks?: UiBlockCallbacks;
   store?: UiStateStore;
 }
@@ -41,6 +43,19 @@ interface BlockEntry {
 const blocks = new Map<string, BlockEntry>();
 
 const SAFE_URL = /^https?:\/\//i;
+
+/**
+ * Stable per-widget key, unique across conversations: history replay ids are
+ * per-session indexes (e.g. Codex `codex-msg-0`), so the owning conversation
+ * must be part of the key or two sessions would share widget state.
+ */
+export function uiBlockKey(
+  ownerId: string | undefined,
+  messageId: string | undefined,
+  fenceIndex: number,
+): string {
+  return `${ownerId ?? 'live'}:${messageId ?? 'live'}:${String(fenceIndex)}`;
+}
 
 function runHostAction(action: ResolvedAction, callbacks: UiBlockCallbacks | undefined): void {
   if (callbacks === undefined) return;
@@ -75,6 +90,70 @@ function isElementValue(value: unknown): value is ResolvedElement {
     && (value as { type?: unknown }).type === 'element';
 }
 
+/** Focus snapshot for a bound widget control, carried across re-renders. */
+export interface InputFocus {
+  binding: string;
+  selectionStart: number | null;
+  selectionEnd: number | null;
+}
+
+/** Input types whose selectionStart/End read safely on every engine. */
+const TEXT_SELECTION_INPUT_TYPES = new Set(['text', 'search', 'url', 'tel', 'password', 'email']);
+
+/**
+ * Reads the focused bound control inside `container`; call before the old DOM
+ * is emptied. Selection is only read for text-like inputs: other types return
+ * null on modern engines and throw on legacy ones.
+ */
+export function captureUiFocus(container: HTMLElement): InputFocus | null {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLInputElement || active instanceof HTMLSelectElement)) return null;
+  const binding = active.dataset.uiBinding;
+  if (binding === undefined || binding.length === 0) return null;
+  if (!container.contains(active)) return null;
+  const supportsSelection = active instanceof HTMLInputElement
+    && TEXT_SELECTION_INPUT_TYPES.has(active.type);
+  return {
+    binding,
+    selectionStart: supportsSelection ? active.selectionStart : null,
+    selectionEnd: supportsSelection ? active.selectionEnd : null,
+  };
+}
+
+function findBoundControl(
+  container: HTMLElement,
+  binding: string,
+): HTMLInputElement | HTMLSelectElement | null {
+  // Binding names come from the model; escape before selector interpolation and
+  // fall back to a scan where CSS.escape is unavailable (jsdom).
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+    const escaped = CSS.escape(binding);
+    return container.querySelector(
+      `input[data-ui-binding="${escaped}"], select[data-ui-binding="${escaped}"]`,
+    );
+  }
+  const candidates = container.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
+    'input[data-ui-binding], select[data-ui-binding]',
+  );
+  for (const candidate of Array.from(candidates)) {
+    if (candidate.dataset.uiBinding === binding) return candidate;
+  }
+  return null;
+}
+
+/** Refocuses the rebuilt twin of a captured control so typing survives re-renders. */
+export function restoreUiFocus(container: HTMLElement, focus: InputFocus | null): void {
+  if (focus === null) return;
+  const next = findBoundControl(container, focus.binding);
+  if (next === null) return;
+  next.focus();
+  if (next instanceof HTMLInputElement
+    && focus.selectionStart !== null
+    && focus.selectionEnd !== null) {
+    next.setSelectionRange(focus.selectionStart, focus.selectionEnd);
+  }
+}
+
 function renderOnce(
   container: HTMLElement,
   source: string,
@@ -104,8 +183,12 @@ function renderOnce(
   const node = buildElement(rootValue, context);
   if (node === null) return false;
 
+  // The full rebuild would otherwise destroy the input the user is typing in
+  // on every keystroke; carry focus and caret across by binding name.
+  const focus = captureUiFocus(container);
   container.replaceChildren();
   container.appendChild(node);
+  restoreUiFocus(container, focus);
   return true;
 }
 
@@ -118,6 +201,7 @@ export function renderUiBlock(container: HTMLElement, source: string, options: U
   if (source.trim().length === 0) return false;
 
   const store = options.store ?? uiStateStore;
+  store.claim(options.blockKey, options.ownerId ?? 'live');
   const previous = blocks.get(options.blockKey);
   if (previous !== undefined) {
     previous.unsubscribe();

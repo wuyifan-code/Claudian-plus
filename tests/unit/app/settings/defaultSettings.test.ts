@@ -22,6 +22,10 @@ describe('enhanced default settings', () => {
     expect(DEFAULT_CLAUDIAN_PLUS_SETTINGS.backgroundRequestDailyLimit).toBeNull();
   });
 
+  it('caps the memory injection packet by a dedicated token budget', () => {
+    expect(DEFAULT_CLAUDIAN_PLUS_SETTINGS.memoryMaxInjectionTokens).toBe(1200);
+  });
+
   it('resolves missing saved saving modes to standard without disabling user features', () => {
     expect(resolveAuxiliarySavingMode(undefined)).toBe('standard');
     expect(resolveAuxiliarySavingMode('economy')).toBe('economy');

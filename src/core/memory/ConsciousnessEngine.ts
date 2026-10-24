@@ -24,6 +24,42 @@ import {
 import { escapePromptTagCloser } from './memoryPrompt';
 import type { MemoryEntry } from './types';
 
+/** Token budgets for the awareness injection, replacing line-count truncation. */
+const SOUL_INJECTION_TOKEN_BUDGET = 150;
+const PROFILE_INJECTION_TOKEN_BUDGET = 250;
+
+/**
+ * Conservative token estimate (~4 chars per Latin token, ~1.5 per CJK char),
+ * mirroring the V2 retriever's estimator so budgets are comparable.
+ */
+function estimateTokens(text: string): number {
+  let cjkCount = 0;
+  let nonCjkCount = 0;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code >= 0x4e00 && code <= 0x9fa5) {
+      cjkCount++;
+    } else {
+      nonCjkCount++;
+    }
+  }
+  return Math.ceil(nonCjkCount / 4 + cjkCount / 1.5);
+}
+
+/** Truncates at a line boundary so the summary stays readable Markdown. */
+function truncateToTokenBudget(text: string, tokenBudget: number): string {
+  const lines = text.split('\n');
+  const kept: string[] = [];
+  let used = 0;
+  for (const line of lines) {
+    const lineTokens = estimateTokens(line) || 1;
+    if (used + lineTokens > tokenBudget) break;
+    kept.push(line);
+    used += lineTokens;
+  }
+  return kept.join('\n');
+}
+
 /**
  * ConsciousnessEngine manages the awareness system for self-reflection
  * and memory accumulation, inspired by QoderWork's consciousness mechanism.
@@ -194,23 +230,6 @@ export class ConsciousnessEngine {
     };
   }
 
-  /** Check if reflection should be triggered. */
-  shouldReflect(memories: MemoryEntry[], conversationCount: number): boolean {
-    if (!this.config.enabled || !this.config.autoMemoryEnabled) {
-      return false;
-    }
-
-    if (conversationCount < this.config.minConversationsForReflection) {
-      return false;
-    }
-
-    if (memories.length < this.config.minMemoriesForConsolidation) {
-      return false;
-    }
-
-    return true;
-  }
-
   /** Get soul content (collaboration style). */
   async getSoul(): Promise<string | null> {
     const soulPath = await this.getReadablePath(SOUL_FILE, LEGACY_SOUL_FILE);
@@ -265,18 +284,22 @@ export class ConsciousnessEngine {
 
     const parts: string[] = [];
 
-    // Add soul/collaboration style summary
+    // Add soul/collaboration style summary, token-budgeted instead of line-counted
     const soul = await this.getSoul();
     if (soul) {
-      const soulSummary = soul.split('\n').slice(0, 10).join('\n');
-      parts.push(`### 协作风格\n${soulSummary}`);
+      const soulSummary = truncateToTokenBudget(soul, SOUL_INJECTION_TOKEN_BUDGET);
+      if (soulSummary.trim()) {
+        parts.push(`### 协作风格\n${soulSummary}`);
+      }
     }
 
-    // Add user profile summary
+    // Add user profile summary, token-budgeted instead of line-counted
     const profile = await this.getUserProfile();
     if (profile) {
-      const profileSummary = profile.split('\n').slice(0, 15).join('\n');
-      parts.push(`### 用户画像\n${profileSummary}`);
+      const profileSummary = truncateToTokenBudget(profile, PROFILE_INJECTION_TOKEN_BUDGET);
+      if (profileSummary.trim()) {
+        parts.push(`### 用户画像\n${profileSummary}`);
+      }
     }
 
     if (parts.length === 0) {

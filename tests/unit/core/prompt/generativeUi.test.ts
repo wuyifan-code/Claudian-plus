@@ -37,4 +37,33 @@ describe('generative UI instruction', () => {
     expect(GENERATIVE_UI_INSTRUCTION).toContain('plain text');
     expect(GENERATIVE_UI_INSTRUCTION).toContain('Diagram(');
   });
+
+  it('documents the implemented helper functions and host actions', () => {
+    for (const name of ['@First', '@Last', '@Plural', '@Split', '@Contains', '@Upper', '@Lower']) {
+      expect(GENERATIVE_UI_INSTRUCTION).toContain(name);
+    }
+    expect(GENERATIVE_UI_INSTRUCTION).toContain('@OpenUrl(url)');
+    expect(GENERATIVE_UI_INSTRUCTION).toContain('@Copy(text)');
+  });
+
+  it('documents implemented component parameters', () => {
+    expect(GENERATIVE_UI_INSTRUCTION).toContain('Text(text, size?, color?, weight?, italic?)');
+    expect(GENERATIVE_UI_INSTRUCTION).toContain('List(children, marker?)');
+    expect(GENERATIVE_UI_INSTRUCTION)
+      .toContain('Button(label, action?, variant? "solid"|"outline"|"soft"|"ghost", disabled?, full-width?)');
+  });
+
+  it('documents the Slider, Select and Checkbox input signatures', () => {
+    expect(GENERATIVE_UI_INSTRUCTION).toContain('Slider($value, min, max, step?, label?, unit?)');
+    expect(GENERATIVE_UI_INSTRUCTION).toContain('Select($value, options, label?)');
+    expect(GENERATIVE_UI_INSTRUCTION).toContain('Checkbox($value, label?)');
+  });
+
+  it('no longer advertises unimplemented parameters', () => {
+    expect(GENERATIVE_UI_INSTRUCTION).not.toContain('format');
+    expect(GENERATIVE_UI_INSTRUCTION).not.toContain('currency');
+    expect(GENERATIVE_UI_INSTRUCTION).not.toContain('stacked');
+    expect(GENERATIVE_UI_INSTRUCTION).not.toContain('marker?, children?');
+    expect(GENERATIVE_UI_INSTRUCTION).not.toContain('icon?');
+  });
 });

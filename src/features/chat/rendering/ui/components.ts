@@ -131,6 +131,10 @@ function buildLayout(element: ResolvedElement, ctx: RenderContext): HTMLElement 
     case 'Row': {
       const container = createColumn('claudian-plus-ui-row');
       applyGap(container, element.values[1]);
+      const align = readString(element, 2);
+      if (align === 'start') container.style.alignItems = 'flex-start';
+      else if (align === 'center') container.style.alignItems = 'center';
+      else if (align === 'end') container.style.alignItems = 'flex-end';
       const justify = readString(element, 3);
       if (justify === 'between') container.style.justifyContent = 'space-between';
       else if (justify === 'center') container.style.justifyContent = 'center';
@@ -146,7 +150,7 @@ function buildLayout(element: ResolvedElement, ctx: RenderContext): HTMLElement 
       const padding = readNumberValue(element.values[3]);
       if (padding !== null) container.style.padding = `${padding * 4}px`;
       applyColor(container, element.values[4], 'background');
-      if (element.values[6] === true) container.style.border = '1px solid var(--claudian-plus-border)';
+      if (element.values[5] === true) container.style.border = '1px solid var(--claudian-plus-border)';
       appendChildren(container, element.values[0], ctx);
       return container;
     }
@@ -154,7 +158,7 @@ function buildLayout(element: ResolvedElement, ctx: RenderContext): HTMLElement 
       const container = createColumn('claudian-plus-ui-grid');
       const columns = readNumberValue(element.values[1]);
       container.dataset.columns = String(Math.max(1, Math.min(4, Math.trunc(columns ?? 2))));
-      applyGap(container, element.values[3]);
+      applyGap(container, element.values[2]);
       appendChildren(container, element.values[0], ctx);
       return container;
     }
@@ -240,7 +244,7 @@ function buildText(element: ResolvedElement, ctx: RenderContext): HTMLElement {
       if (description.length > 0) {
         container.appendChild(createDiv({ cls: 'claudian-plus-ui-list-desc', text: description }));
       }
-      appendChildren(container, element.values[3], ctx);
+      appendChildren(container, element.values[2], ctx);
       return container;
     }
     default: {
@@ -306,10 +310,10 @@ function buildButton(element: ResolvedElement, ctx: RenderContext): HTMLElement 
   button.textContent = readText(element, 0);
   const variant = readString(element, 2);
   button.dataset.variant = variant ?? 'solid';
-  if (element.values[7] === true) {
+  if (element.values[3] === true) {
     button.setAttribute('disabled', 'disabled');
   }
-  if (element.values[8] === true) button.style.width = '100%';
+  if (element.values[4] === true) button.style.width = '100%';
   const action = element.values[1];
   const targetName = readActionTarget(element.args[1]);
   button.addEventListener('click', () => dispatchAction(action, ctx, targetName));
@@ -417,6 +421,7 @@ function buildInput(element: ResolvedElement, ctx: RenderContext): HTMLElement {
 
   const binding = readBoundTarget(element, ctx);
   const input = createEl('input', { cls: 'claudian-plus-ui-input' });
+  if (binding !== null) input.dataset.uiBinding = binding.name;
   const type = readString(element, 2);
   input.type = type === 'number' ? 'number' : 'text';
   const placeholder = readString(element, 3);
@@ -425,7 +430,17 @@ function buildInput(element: ResolvedElement, ctx: RenderContext): HTMLElement {
 
   input.addEventListener('input', () => {
     if (binding === null) return;
-    ctx.setState(binding.name, input.type === 'number' ? Number(input.value) : input.value);
+    if (input.type === 'number') {
+      // Clearing the field or mid-edit values like "-" must not snap back to
+      // the last committed number (Number("") === 0).
+      const raw = input.value.trim();
+      if (raw.length === 0) return;
+      const parsed = Number(raw);
+      if (Number.isNaN(parsed)) return;
+      ctx.setState(binding.name, parsed);
+      return;
+    }
+    ctx.setState(binding.name, input.value);
   });
 
   container.appendChild(input);
@@ -437,6 +452,7 @@ function buildSegmentedControl(element: ResolvedElement, ctx: RenderContext): HT
   const binding = readBoundTarget(element, ctx);
   const options = Array.isArray(element.values[1]) ? element.values[1] : [];
   const current = toDisplayText(binding?.value ?? '');
+  if (element.values[2] === true) container.classList.add('is-block');
 
   for (const option of options) {
     const value = toDisplayText(option);
@@ -450,6 +466,99 @@ function buildSegmentedControl(element: ResolvedElement, ctx: RenderContext): HT
     container.appendChild(button);
   }
 
+  return container;
+}
+
+/**
+ * Slider commits on `change` only: `input` fires mid-drag and a state write
+ * would rebuild the block under the user's hand, breaking the drag gesture.
+ * The value readout therefore shows the committed value; while dragging, the
+ * native control itself is the indicator.
+ */
+function buildSlider(element: ResolvedElement, ctx: RenderContext): HTMLElement {
+  const container = createColumn('claudian-plus-ui-field');
+  const label = readString(element, 4);
+  if (label !== null) container.appendChild(createEl('label', { text: label }));
+
+  const binding = readBoundTarget(element, ctx);
+  const rawMin = readNumberValue(element.values[1]) ?? 0;
+  const rawMax = readNumberValue(element.values[2]) ?? 100;
+  const step = readNumberValue(element.values[3]) ?? 1;
+  const min = Math.min(rawMin, rawMax);
+  const max = Math.max(rawMin, rawMax);
+
+  const input = createEl('input', { cls: 'claudian-plus-ui-range' });
+  input.type = 'range';
+  if (binding !== null) input.dataset.uiBinding = binding.name;
+  input.min = String(min);
+  input.max = String(max);
+  input.step = String(step);
+  const current = readNumberValue(binding?.value);
+  input.value = String(current === null ? min : Math.min(max, Math.max(min, current)));
+
+  input.addEventListener('change', () => {
+    if (binding === null) return;
+    ctx.setState(binding.name, Number(input.value));
+  });
+
+  const row = createDiv({ cls: 'claudian-plus-ui-slider' });
+  row.appendChild(input);
+  const readout = createSpan({ cls: 'claudian-plus-ui-slider-value', text: input.value });
+  const unit = readString(element, 5);
+  if (unit !== null) {
+    readout.appendChild(createSpan({ cls: 'claudian-plus-ui-slider-unit', text: unit }));
+  }
+  row.appendChild(readout);
+
+  container.appendChild(row);
+  return container;
+}
+
+function buildSelect(element: ResolvedElement, ctx: RenderContext): HTMLElement {
+  const container = createColumn('claudian-plus-ui-field');
+  const label = readString(element, 2);
+  if (label !== null) container.appendChild(createEl('label', { text: label }));
+
+  const binding = readBoundTarget(element, ctx);
+  const select = createEl('select', { cls: 'claudian-plus-ui-select' });
+  if (binding !== null) select.dataset.uiBinding = binding.name;
+  const options = Array.isArray(element.values[1]) ? element.values[1] : [];
+  for (const option of options) {
+    const text = toDisplayText(option);
+    select.appendChild(createEl('option', { text, attr: { value: text } }));
+  }
+  select.value = toDisplayText(binding?.value ?? '');
+
+  select.addEventListener('change', () => {
+    if (binding === null) return;
+    ctx.setState(binding.name, select.value);
+  });
+
+  container.appendChild(select);
+  return container;
+}
+
+function buildCheckbox(element: ResolvedElement, ctx: RenderContext): HTMLElement {
+  const container = createColumn('claudian-plus-ui-field');
+  const binding = readBoundTarget(element, ctx);
+  const labelText = readString(element, 1);
+
+  const wrapper = createEl('label', { cls: 'claudian-plus-ui-checkbox' });
+  const input = createEl('input', { cls: 'claudian-plus-ui-checkbox-input' });
+  input.type = 'checkbox';
+  if (binding !== null) input.dataset.uiBinding = binding.name;
+  input.checked = binding?.value === true;
+
+  input.addEventListener('change', () => {
+    if (binding === null) return;
+    ctx.setState(binding.name, input.checked);
+  });
+
+  wrapper.appendChild(input);
+  if (labelText !== null) {
+    wrapper.appendChild(createSpan({ cls: 'claudian-plus-ui-checkbox-text', text: labelText }));
+  }
+  container.appendChild(wrapper);
   return container;
 }
 
@@ -622,7 +731,7 @@ function buildChart(element: ResolvedElement): HTMLElement {
   const container = createColumn('claudian-plus-ui-chart');
   const type = readString(element, 0) ?? 'bar';
   const points = readChartPoints(element);
-  const height = Math.max(80, Math.min(360, readNumberValue(element.values[7]) ?? 160));
+  const height = Math.max(80, Math.min(360, readNumberValue(element.values[4]) ?? 160));
 
   const svg = type === 'pie' || type === 'donut'
     ? buildPieChart(points, height, type === 'donut')
@@ -655,6 +764,12 @@ export function buildElement(element: ResolvedElement, ctx: RenderContext): HTML
       return buildButton(element, ctx);
     case 'Input':
       return buildInput(element, ctx);
+    case 'Slider':
+      return buildSlider(element, ctx);
+    case 'Select':
+      return buildSelect(element, ctx);
+    case 'Checkbox':
+      return buildCheckbox(element, ctx);
     case 'SegmentedControl':
       return buildSegmentedControl(element, ctx);
     case 'Title':

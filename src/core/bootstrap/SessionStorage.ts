@@ -58,6 +58,11 @@ function isUsageInfo(value: unknown): value is UsageInfo {
       || typeof value.contextWindowIsAuthoritative === 'boolean');
 }
 
+function isUiStateMap(value: unknown): value is Record<string, Record<string, unknown>> {
+  if (!isRecord(value)) return false;
+  return Object.values(value).every(entry => isRecord(entry));
+}
+
 /**
  * Metadata files are user-writable JSON. Keep malformed values out of the
  * history bootstrap path so a single damaged file cannot produce an invalid
@@ -105,6 +110,7 @@ function parseSessionMetadata(value: unknown, expectedId: string): SessionMetada
   if (typeof value.resumeAtMessageId === 'string') {
     metadata.resumeAtMessageId = value.resumeAtMessageId;
   }
+  if (isUiStateMap(value.uiState)) metadata.uiState = value.uiState;
 
   return metadata;
 }
@@ -142,9 +148,35 @@ export class SessionStorage {
 
   async saveMetadata(metadata: SessionMetadata): Promise<void> {
     const filePath = this.getMetadataPath(metadata.id);
-    const content = JSON.stringify(metadata, null, 2);
+    // Writers that rebuild metadata from a Conversation (toSessionMetadata)
+    // do not carry uiState; keep the persisted widget state instead of
+    // dropping it. Passing an explicit value (including {}) still wins.
+    const uiState = metadata.uiState === undefined
+      ? await this.readPersistedUiState(metadata.id)
+      : metadata.uiState;
+    const content = JSON.stringify(
+      uiState === undefined ? metadata : { ...metadata, uiState },
+      null,
+      2,
+    );
     await this.adapter.write(filePath, content);
     await this.deleteLegacyMetadataIfPresent(metadata.id);
+  }
+
+  private async readPersistedUiState(
+    id: string,
+  ): Promise<Record<string, Record<string, unknown>> | undefined> {
+    const filePath = this.getMetadataPath(id);
+    try {
+      if (!(await this.adapter.exists(filePath))) return undefined;
+      const parsed: unknown = JSON.parse(await this.adapter.read(filePath));
+      if (isRecord(parsed) && isUiStateMap(parsed.uiState)) {
+        return parsed.uiState;
+      }
+    } catch {
+      // Absent or damaged metadata leaves nothing to preserve.
+    }
+    return undefined;
   }
 
   async loadMetadata(id: string): Promise<SessionMetadata | null> {

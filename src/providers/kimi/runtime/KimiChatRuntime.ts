@@ -506,7 +506,7 @@ export class KimiChatRuntime implements ChatRuntime {
     }
 
     const [memoryAppendix, consciousnessAppendix] = await Promise.all([
-      this.plugin.getMemoryInjectionText(),
+      this.plugin.getMemoryInjectionText(turn.prompt),
       this.plugin.getConsciousnessInjectionText(),
     ]);
 

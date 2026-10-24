@@ -61,6 +61,41 @@ describe('DeepSeek Harness passive workspace services', () => {
     expect(mockRelease).toHaveBeenCalledTimes(1);
   });
 
+  it('reports native provider failures while still persisting the groups that resolved', async () => {
+    const host = plugin();
+    mockCall.mockResolvedValue({
+      default: { provider: 'native', model: 'one' }, routableProviders: ['native'],
+      failures: [
+        { id: 'remote', name: 'Remote', message: 'credential missing' },
+        { id: 'broken' },
+      ],
+      groups: [{ id: 'native', name: 'Native', models: [{ id: 'one', name: 'One' }] }],
+    });
+    const services = createDshWorkspaceServices(host);
+    const result = await services.refreshModelCatalog();
+    expect(result.changed).toBe(true);
+    expect(result.diagnostics).toContain('Remote (remote): credential missing');
+    expect(getDshProviderSettings(host.settings).models).toEqual([
+      { provider: 'native', model: 'one', label: 'One', isDefault: true },
+    ]);
+  });
+
+  it('keeps the last known models when the native catalog returns no groups', async () => {
+    const host = plugin();
+    updateDshProviderSettings(host.settings, { models: [{ provider: 'native', model: 'old', label: 'Old' }] });
+    mockCall.mockResolvedValue({
+      default: { provider: 'native', model: 'old' }, routableProviders: [], groups: [],
+      failures: [{ id: 'native', name: 'Native', message: 'offline' }],
+    });
+    const services = createDshWorkspaceServices(host);
+    const result = await services.refreshModelCatalog();
+    expect(result.changed).toBe(false);
+    expect(result.diagnostics).toContain('Native (native): offline');
+    expect(getDshProviderSettings(host.settings).models).toEqual([
+      { provider: 'native', model: 'old', label: 'Old' },
+    ]);
+  });
+
   it('refreshes the default marker when the native default changes without changing the model list', async () => {
     const host = plugin();
     const catalog = {
@@ -150,7 +185,10 @@ describe('DeepSeek Harness passive workspace services', () => {
     const services = createDshWorkspaceServices(host);
     await services.refreshModelCatalog();
     updateDshProviderSettings(host.settings, { environmentVariables: '# Comment\nEXAMPLE=one\nDSH_HOME=/native\n' });
-    await expect(services.refreshModelCatalog()).resolves.toEqual({ changed: false });
+    await expect(services.refreshModelCatalog()).resolves.toEqual({
+      changed: false,
+      diagnostics: expect.stringContaining('no available models'),
+    });
     expect(mockCall).toHaveBeenCalledTimes(2);
   });
 });

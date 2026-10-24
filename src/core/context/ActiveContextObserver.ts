@@ -36,10 +36,16 @@ export interface ActiveContextObserverOptions {
   debounceMs?: number;
   onSnapshotChange?: (snapshot: AmbientContextSnapshot) => void;
   defaultMode?: ContextMode;
+  /** Persisted per-file mode lookup, consulted when the observed file changes. */
+  getFileMode?: (path: string) => ContextMode | undefined;
+  /** Persisted per-file mode writer, called when the user changes the mode. */
+  setFileMode?: (path: string, mode: ContextMode) => void;
 }
 
 const DEFAULT_DEBOUNCE_MS = 150;
 const POLL_INTERVAL_MS = 500;
+/** While no editor has focus, selection polling is pointless; check less often. */
+const UNFOCUSED_POLL_EVERY_N_TICKS = 4;
 
 /**
  * Observes the active Obsidian workspace (editor selection, section TOC fallback,
@@ -48,18 +54,25 @@ const POLL_INTERVAL_MS = 500;
 export class ActiveContextObserver {
   private readonly app: App;
   private readonly debounceMs: number;
+  private readonly getFileMode?: (path: string) => ContextMode | undefined;
+  private readonly setFileMode?: (path: string, mode: ContextMode) => void;
   private mode: ContextMode;
   private snapshot: AmbientContextSnapshot;
   private listeners = new Set<(snapshot: AmbientContextSnapshot) => void>();
   private eventRefs: EventRef[] = [];
   private debounceTimer: number | null = null;
   private pollInterval: number | null = null;
+  private pollTick = 0;
   private isStarted = false;
   private isDisposed = false;
+  private currentFilePath: string | null = null;
+  private cachedDocumentContent: { path: string; content: string } | null = null;
 
   constructor(app: App, options: ActiveContextObserverOptions = {}) {
     this.app = app;
     this.debounceMs = options.debounceMs ?? DEFAULT_DEBOUNCE_MS;
+    this.getFileMode = options.getFileMode;
+    this.setFileMode = options.setFileMode;
     this.mode = options.defaultMode ?? 'auto';
 
     if (options.onSnapshotChange) {
@@ -89,13 +102,19 @@ export class ActiveContextObserver {
 
       const editorChangeRef = (this.app.workspace as unknown as { on?: (event: string, cb: () => void) => EventRef }).on?.(
         'editor-change',
-        () => this.scheduleRefresh(),
+        () => {
+          this.invalidateDocumentCache();
+          this.scheduleRefresh();
+        },
       );
       if (editorChangeRef) this.eventRefs.push(editorChangeRef);
     }
 
     if (this.app.metadataCache?.on) {
-      const metaRef = this.app.metadataCache.on('changed', () => this.scheduleRefresh());
+      const metaRef = this.app.metadataCache.on('changed', () => {
+        this.invalidateDocumentCache();
+        this.scheduleRefresh();
+      });
       if (metaRef) this.eventRefs.push(metaRef);
     }
 
@@ -152,6 +171,9 @@ export class ActiveContextObserver {
   setMode(mode: ContextMode): void {
     if (this.mode === mode) return;
     this.mode = mode;
+    if (this.currentFilePath) {
+      this.setFileMode?.(this.currentFilePath, mode);
+    }
 
     if (mode === 'ignored') {
       this.snapshot = {
@@ -223,6 +245,14 @@ export class ActiveContextObserver {
     const view = this.app.workspace?.getActiveViewOfType?.(MarkdownView);
     if (!view?.editor) return;
 
+    // Selection only moves while the editor owns focus; away from it we can
+    // drop to a 2s cadence (every 4th 500ms tick) for free.
+    const hasFocus = typeof view.editor.hasFocus === 'function' ? view.editor.hasFocus() : true;
+    this.pollTick += 1;
+    if (!hasFocus && this.pollTick % UNFOCUSED_POLL_EVERY_N_TICKS !== 0) {
+      return;
+    }
+
     const currentSelection = view.editor.getSelection?.() ?? '';
     const lastFocusContent = this.snapshot.focus?.content;
 
@@ -235,6 +265,42 @@ export class ActiveContextObserver {
     }
   }
 
+  /** The full document text is cached until an edit event invalidates it. */
+  private getDocumentContent(path: string, editor: { getValue?: () => string }): string {
+    if (this.cachedDocumentContent && this.cachedDocumentContent.path === path) {
+      return this.cachedDocumentContent.content;
+    }
+    const content = typeof editor.getValue === 'function' ? editor.getValue() : '';
+    this.cachedDocumentContent = { path, content };
+    return content;
+  }
+
+  private invalidateDocumentCache(): void {
+    this.cachedDocumentContent = null;
+  }
+
+  /** Applies a persisted per-file mode when the observed file changes. */
+  private syncModeForFile(path: string): boolean {
+    if (this.currentFilePath === path) return true;
+    this.currentFilePath = path;
+    const persisted = this.getFileMode?.(path);
+    if (persisted && persisted !== this.mode) {
+      this.mode = persisted;
+      if (persisted === 'ignored') {
+        this.snapshot = {
+          timestamp: Date.now(),
+          mode: 'ignored',
+          document: null,
+          focus: null,
+          graph: null,
+        };
+        this.notifyListeners();
+        return false;
+      }
+    }
+    return true;
+  }
+
   private extractAndUpdateSnapshot(): void {
     if (this.isDisposed || this.mode === 'pinned' || this.mode === 'ignored') return;
 
@@ -242,9 +308,12 @@ export class ActiveContextObserver {
 
     if (markdownView?.file && markdownView?.editor) {
       const file = markdownView.file;
+      if (!this.syncModeForFile(file.path)) {
+        return;
+      }
       const fileCache = this.app.metadataCache?.getFileCache?.(file);
       const editor = markdownView.editor;
-      const fullContent = typeof editor.getValue === 'function' ? editor.getValue() : '';
+      const fullContent = this.getDocumentContent(file.path, editor);
 
       const document = extractDocumentContext(
         {
@@ -288,6 +357,9 @@ export class ActiveContextObserver {
     const activeView = activeLeaf?.view;
     if (activeView?.getViewType?.() === 'canvas' || activeView?.canvas) {
       const canvasFile = activeView.file;
+      if (canvasFile && !this.syncModeForFile(canvasFile.path)) {
+        return;
+      }
       const canvasData = activeView.canvas?.data ?? activeView.data;
       const selectedNode = activeView.canvas?.selection?.values?.()?.next?.()?.value;
       const activeNodeId = selectedNode?.id;

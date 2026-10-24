@@ -50,7 +50,10 @@ export const dshSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     new Setting(container)
       .setName(localeText('原生模型目录', 'Native model catalog'))
-      .setDesc(localeText('从原生服务刷新模型。请先通过 DeepSeek Harness 配置提供商和凭证。', 'Refresh models from the native host. Configure credentials and providers with DeepSeek Harness first.'))
+      .setDesc(localeText(
+        '从原生服务刷新模型。此插件启动 CLI 的 web profile（dsh --profile web），其提供商和凭证需在该原生配置中单独设置，与桌面应用的配置相互独立。',
+        'Refresh models from the native host. This plugin boots the CLI web profile (`dsh --profile web`); its providers and credentials are configured there and are separate from the Desktop app profile.',
+      ))
       .addButton(button => {
         refreshButton = button;
         button.setButtonText(localeText('刷新模型', 'Refresh models')).setDisabled(!current.enabled).onClick(async () => {

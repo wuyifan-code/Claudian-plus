@@ -1,3 +1,8 @@
+export {
+  type ActivityContextInput,
+  buildActivityContext,
+  wrapActivityContext,
+} from './activityContext';
 export { ConsciousnessEngine } from './ConsciousnessEngine';
 export {
   deduplicateMemoryEntries,
@@ -5,9 +10,7 @@ export {
   MIN_CONTAINMENT_LENGTH,
   normalizeMemoryContent,
 } from './deduplication';
-export { DREAM_CHECK_INTERVAL_MS,DreamService } from './DreamService';
-export { HybridMindPromptInjector, type MindPromptContext } from './HybridMindPromptInjector';
-export { MemoryExtractor } from './MemoryExtractor';
+export { IdleActivityObserver, type IdleActivityObserverOptions } from './IdleActivityObserver';
 export { escapePromptTagCloser, formatMemoryAppendix, wrapMemoryInjection } from './memoryPrompt';
 export { MemoryStore } from './MemoryStore';
 export {
@@ -26,5 +29,8 @@ export type {
   StagingStoreData,
 } from './mind-types';
 export { MindStore } from './MindStore';
+export {
+  deriveProjectIdFromGitConfig,
+  deriveProjectIdFromVaultName,
+} from './projectScope';
 export { VaultKnowledgeEngine } from './VaultKnowledgeEngine';
-

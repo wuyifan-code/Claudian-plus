@@ -1,49 +1,29 @@
 import { Notice } from 'obsidian';
 
-import type { DurableMindEntry, MindCategory, StagingMindEntry } from '../../core/memory/mind-types';
-import type { MindStore } from '../../core/memory/MindStore';
 import type { MemoryCoordinator } from '../../core/memory/v2/MemoryCoordinator';
 import type { MemoryRepository } from '../../core/memory/v2/MemoryRepository';
 import type { MemoryRecord } from '../../core/memory/v2/types';
 
 export interface MindSettingsTabOptions {
   containerEl: HTMLElement;
-  mindStore: MindStore;
-  memoryRepository?: MemoryRepository;
+  memoryRepository: MemoryRepository;
   memoryCoordinator?: MemoryCoordinator;
   locale?: string;
   onChanged?: () => void;
 }
 
-function categoryLabel(cat: MindCategory, isZh: boolean): string {
-  switch (cat) {
-    case 'user_preference':
-      return isZh ? '用户偏好' : 'User Preference';
-    case 'coding_habit':
-      return isZh ? '编码习惯' : 'Coding Habit';
-    case 'project_rule':
-      return isZh ? '项目规则' : 'Project Rule';
-    case 'correction_rule':
-      return isZh ? '纠偏经验' : 'Correction Rule';
-  }
-}
-
 export class MindSettingsTab {
   private readonly containerEl: HTMLElement;
-  private readonly mindStore: MindStore;
-  private readonly memoryRepository?: MemoryRepository;
+  private readonly repo: MemoryRepository;
   private readonly memoryCoordinator?: MemoryCoordinator;
   private readonly isZh: boolean;
   private readonly onChanged?: () => void;
 
-  private selectedScopeFilter: 'all' | 'global' | 'project' = 'all';
-  private searchQuery = '';
   private v2SearchQuery = '';
 
   constructor(options: MindSettingsTabOptions) {
     this.containerEl = options.containerEl;
-    this.mindStore = options.mindStore;
-    this.memoryRepository = options.memoryRepository;
+    this.repo = options.memoryRepository;
     this.memoryCoordinator = options.memoryCoordinator;
     this.isZh = (options.locale ?? 'en').toLowerCase().startsWith('zh');
     this.onChanged = options.onChanged;
@@ -53,42 +33,38 @@ export class MindSettingsTab {
     this.containerEl.empty();
     const root = this.containerEl.createDiv({ cls: 'claudian-plus-mind-settings' });
 
-    const stagingEntries = await this.mindStore.listStaging();
-    const durableEntries = await this.mindStore.listDurable();
+    await this.repo.initialize().catch(() => undefined);
+    const candidates = await this.repo.listRecords({ status: 'candidate' });
 
     this.renderHeader(root);
-    this.renderStagingSection(root, stagingEntries);
-    this.renderDurableSection(root, durableEntries);
-
-    if (this.memoryRepository) {
-      await this.renderV2Section(root);
-    }
+    this.renderCandidateSection(root, candidates);
+    await this.renderV2Section(root);
   }
 
   private renderHeader(root: HTMLElement): void {
     const card = root.createDiv({ cls: 'claudian-plus-settings-card' });
     const header = card.createDiv({
       cls: 'claudian-plus-settings-card-header',
-      text: this.isZh ? 'AI 心智与微梦境 (Dreaming V3)' : 'AI Mind & Habits (Dreaming V3)',
+      text: this.isZh ? '记忆与微梦境 (V2)' : 'Memory & Micro-Dreams (V2)',
     });
     header.createDiv({
       cls: 'claudian-plus-settings-feature-guide-copy',
       text: this.isZh
-        ? '会话驱动的时态感知心智演进引擎。AI 在每次会话结束时自动提炼高确定性偏好与项目规则，经你确认后精准注入后续对话。'
-        : 'Session-driven temporal mind engine. Automatically synthesizes durable habits and project rules from conversations with user review.',
+        ? '会话结束后自动提炼的记忆建议会先进入草稿箱，经你确认后才会注入后续对话；已生效的记忆可在下方管理。'
+        : 'Session-end micro-dream proposals land in the review queue before injection; approved memories are managed below.',
     });
   }
 
-  private renderStagingSection(root: HTMLElement, stagingList: StagingMindEntry[]): void {
+  private renderCandidateSection(root: HTMLElement, candidates: MemoryRecord[]): void {
     const card = root.createDiv({ cls: 'claudian-plus-settings-card' });
     const headerRow = card.createDiv({ cls: 'claudian-plus-mind-section-header' });
 
     headerRow.createDiv({
       cls: 'claudian-plus-settings-card-header',
-      text: this.isZh ? `待审草稿箱 (${stagingList.length})` : `Staging Queue (${stagingList.length})`,
+      text: this.isZh ? `待审草稿箱 (${candidates.length})` : `Review Queue (${candidates.length})`,
     });
 
-    if (stagingList.length > 0) {
+    if (candidates.length > 0) {
       const actionsEl = headerRow.createDiv({ cls: 'claudian-plus-mind-header-actions' });
       const approveAllBtn = actionsEl.createEl('button', {
         cls: 'mod-cta',
@@ -96,69 +72,51 @@ export class MindSettingsTab {
       });
       approveAllBtn.addEventListener('click', () => {
         void (async () => {
-          await this.mindStore.approveAllStaging();
-          this.onChanged?.();
-          await this.render();
-        })();
-      });
-
-      const clearBtn = actionsEl.createEl('button', {
-        text: this.isZh ? '清空草稿' : 'Clear All',
-      });
-      clearBtn.addEventListener('click', () => {
-        void (async () => {
-          await this.mindStore.clearStaging();
+          for (const candidate of candidates) {
+            await this.repo.approveCandidate(candidate.id).catch(() => null);
+          }
           this.onChanged?.();
           await this.render();
         })();
       });
     }
 
-    if (stagingList.length === 0) {
+    if (candidates.length === 0) {
       card.createDiv({
         cls: 'claudian-plus-mind-empty-hint',
         text: this.isZh
-          ? '暂无待审草稿。当长会话结束或产生实质代码交互时，微梦境将自动在此生成心智建议。'
-          : 'No pending staging entries. When meaningful sessions finish, Micro-Dream will synthesize proposals here.',
+          ? '暂无待审草稿。当长会话结束时，微梦境将自动在此生成记忆建议。'
+          : 'No pending candidates. When meaningful sessions finish, micro-dreams will propose memories here.',
       });
       return;
     }
 
     const listContainer = card.createDiv({ cls: 'claudian-plus-mind-list' });
-    for (const entry of stagingList) {
-      this.renderStagingCard(listContainer, entry);
+    for (const entry of candidates) {
+      this.renderCandidateCard(listContainer, entry);
     }
   }
 
-  private renderStagingCard(container: HTMLElement, entry: StagingMindEntry): void {
+  private renderCandidateCard(container: HTMLElement, entry: MemoryRecord): void {
     const card = container.createDiv({ cls: 'claudian-plus-staging-card' });
 
     const metaRow = card.createDiv({ cls: 'claudian-plus-mind-meta-row' });
     metaRow.createSpan({
-      cls: `claudian-plus-mind-badge badge-${entry.category}`,
-      text: categoryLabel(entry.category, this.isZh),
+      cls: 'claudian-plus-mind-badge',
+      text: entry.kind.toUpperCase(),
     });
     metaRow.createSpan({
       cls: 'claudian-plus-mind-scope-pill',
-      text: entry.scope === 'global' ? (this.isZh ? '全局偏好' : 'Global') : (this.isZh ? '本库专属' : 'Project'),
-    });
-    metaRow.createSpan({
-      cls: 'claudian-plus-mind-confidence',
-      text: `${Math.round(entry.confidence * 100)}% conf`,
+      text: entry.scope.projectId
+        ? `Project: ${entry.scope.projectId}`
+        : this.isZh ? '全库' : 'Vault',
     });
 
-    const contentInput = card.createEl('input', {
+    card.createEl('input', {
       cls: 'claudian-plus-mind-content-input',
       type: 'text',
       value: entry.content,
     });
-
-    if (entry.rationale) {
-      card.createDiv({
-        cls: 'claudian-plus-mind-rationale',
-        text: `${this.isZh ? '来源依据: ' : 'Rationale: '}${entry.rationale}`,
-      });
-    }
 
     const actionRow = card.createDiv({ cls: 'claudian-plus-mind-action-row' });
     const approveBtn = actionRow.createEl('button', {
@@ -167,9 +125,7 @@ export class MindSettingsTab {
     });
     approveBtn.addEventListener('click', () => {
       void (async () => {
-        await this.mindStore.approveStaging(entry.id, {
-          content: contentInput.value.trim() || entry.content,
-        });
+        await this.repo.approveCandidate(entry.id).catch(() => null);
         this.onChanged?.();
         await this.render();
       })();
@@ -181,125 +137,7 @@ export class MindSettingsTab {
     });
     dismissBtn.addEventListener('click', () => {
       void (async () => {
-        await this.mindStore.dismissStaging(entry.id);
-        this.onChanged?.();
-        await this.render();
-      })();
-    });
-  }
-
-  private renderDurableSection(root: HTMLElement, durableList: DurableMindEntry[]): void {
-    const card = root.createDiv({ cls: 'claudian-plus-settings-card' });
-    const headerRow = card.createDiv({ cls: 'claudian-plus-mind-section-header' });
-
-    headerRow.createDiv({
-      cls: 'claudian-plus-settings-card-header',
-      text: this.isZh ? `已生效心智库 (${durableList.length})` : `Active Durable Mind (${durableList.length})`,
-    });
-
-    const addBtn = headerRow.createEl('button', {
-      cls: 'mod-cta',
-      text: this.isZh ? '+ 手动新增规则' : '+ Add Rule',
-    });
-    addBtn.addEventListener('click', () => {
-      void (async () => {
-        await this.mindStore.addDurable({
-          category: 'user_preference',
-          scope: 'global',
-          state: 'active',
-          content: this.isZh ? '新用户偏好规则' : 'New preference rule',
-          confidence: 1.0,
-          tags: [],
-        });
-        this.onChanged?.();
-        await this.render();
-      })();
-    });
-
-    // Filter controls
-    const filterRow = card.createDiv({ cls: 'claudian-plus-mind-filter-row' });
-    const searchInput = filterRow.createEl('input', {
-      type: 'text',
-      cls: 'claudian-plus-mind-search-input',
-      placeholder: this.isZh ? '搜索已生效规则...' : 'Search durable rules...',
-    });
-    searchInput.value = this.searchQuery;
-    searchInput.addEventListener('input', () => {
-      this.searchQuery = searchInput.value.trim().toLowerCase();
-      this.filterAndRenderDurableCards(listContainer, durableList);
-    });
-
-    const listContainer = card.createDiv({ cls: 'claudian-plus-mind-list' });
-    this.filterAndRenderDurableCards(listContainer, durableList);
-  }
-
-  private filterAndRenderDurableCards(container: HTMLElement, list: DurableMindEntry[]): void {
-    container.empty();
-
-    let filtered = list;
-    if (this.selectedScopeFilter !== 'all') {
-      filtered = filtered.filter((e) => e.scope === this.selectedScopeFilter);
-    }
-    if (this.searchQuery) {
-      filtered = filtered.filter(
-        (e) =>
-          e.content.toLowerCase().includes(this.searchQuery) ||
-          e.tags.some((t) => t.toLowerCase().includes(this.searchQuery)),
-      );
-    }
-
-    if (filtered.length === 0) {
-      container.createDiv({
-        cls: 'claudian-plus-mind-empty-hint',
-        text: this.isZh ? '未找到匹配的规则' : 'No matching rules found',
-      });
-      return;
-    }
-
-    for (const entry of filtered) {
-      this.renderDurableCard(container, entry);
-    }
-  }
-
-  private renderDurableCard(container: HTMLElement, entry: DurableMindEntry): void {
-    const card = container.createDiv({ cls: 'claudian-plus-durable-card' });
-
-    const metaRow = card.createDiv({ cls: 'claudian-plus-mind-meta-row' });
-    metaRow.createSpan({
-      cls: `claudian-plus-mind-badge badge-${entry.category}`,
-      text: categoryLabel(entry.category, this.isZh),
-    });
-    metaRow.createSpan({
-      cls: 'claudian-plus-mind-scope-pill',
-      text: entry.scope === 'global' ? (this.isZh ? '全局' : 'Global') : (this.isZh ? '本库' : 'Project'),
-    });
-    metaRow.createSpan({
-      cls: 'claudian-plus-mind-state-tag',
-      text: entry.state === 'active' ? (this.isZh ? '● 活跃' : '● Active') : (this.isZh ? '○ 过时' : '○ Stale'),
-    });
-
-    const contentInput = card.createEl('input', {
-      cls: 'claudian-plus-mind-content-input',
-      type: 'text',
-      value: entry.content,
-    });
-    contentInput.addEventListener('change', () => {
-      void (async () => {
-        await this.mindStore.updateDurable(entry.id, {
-          content: contentInput.value.trim(),
-        });
-        this.onChanged?.();
-      })();
-    });
-
-    const actionRow = card.createDiv({ cls: 'claudian-plus-mind-action-row' });
-    const deleteBtn = actionRow.createEl('button', {
-      cls: 'claudian-plus-mind-btn-delete',
-      text: this.isZh ? '删除' : 'Delete',
-    });
-    deleteBtn.addEventListener('click', () => {
-      void (async () => {
-        await this.mindStore.deleteDurable(entry.id);
+        await this.repo.dismissCandidate(entry.id).catch(() => null);
         this.onChanged?.();
         await this.render();
       })();
@@ -307,21 +145,17 @@ export class MindSettingsTab {
   }
 
   private async renderV2Section(root: HTMLElement): Promise<void> {
-    if (!this.memoryRepository) {
-      return;
-    }
-
     const card = root.createDiv({ cls: 'claudian-plus-settings-card' });
     const headerRow = card.createDiv({ cls: 'claudian-plus-mind-section-header' });
 
-    const records = await this.memoryRepository.listRecords({ status: 'active' });
-    const currentGen = await this.memoryRepository.getCurrentGeneration();
-    const jobs = await this.memoryRepository.listJobs();
+    const records = await this.repo.listRecords({ status: 'active' });
+    const currentGen = await this.repo.getCurrentGeneration();
+    const jobs = await this.repo.listJobs();
     const pendingJobs = jobs.filter((j) => j.status === 'queued' || j.status === 'deferred');
 
     headerRow.createDiv({
       cls: 'claudian-plus-settings-card-header',
-      text: this.isZh ? `记忆仓库 V2 (${records.length})` : `Memory Repository V2 (${records.length})`,
+      text: this.isZh ? `记忆仓库 (${records.length})` : `Memory Repository (${records.length})`,
     });
 
     const actionsEl = headerRow.createDiv({ cls: 'claudian-plus-mind-header-actions' });
@@ -350,16 +184,14 @@ export class MindSettingsTab {
     });
     addBtn.addEventListener('click', () => {
       void (async () => {
-        if (!this.memoryRepository) return;
         const defaultContent = this.isZh ? '新用户偏好' : 'New user preference';
-        const claimKey = `pref_manual_${Date.now()}`;
-        await this.memoryRepository.commitExplicit({
+        await this.repo.commitExplicit({
           action: 'remember',
           kind: 'profile',
-          claimKey,
+          claimKey: `pref_manual_${Date.now()}`,
           content: defaultContent,
           scope: { vaultId: 'default' },
-        });
+        }).catch(() => undefined);
         this.onChanged?.();
         await this.render();
       })();
@@ -382,18 +214,18 @@ export class MindSettingsTab {
       card.createDiv({
         cls: 'claudian-plus-mind-empty-hint',
         text: this.isZh
-          ? '仓库中暂无活跃的 V2 记忆。对话完成后，系统将自动增量提炼为经历与长期记忆。'
-          : 'No active V2 memories. Completed conversations are automatically consolidated into long-term memories.',
+          ? '仓库中暂无活跃记忆。对话完成后，系统将自动增量提炼为长期记忆。'
+          : 'No active memories. Completed conversations are automatically consolidated into long-term memories.',
       });
       return;
     }
 
-    // Filter row for V2 records
+    // Filter row for records
     const filterRow = card.createDiv({ cls: 'claudian-plus-mind-filter-row' });
     const v2SearchInput = filterRow.createEl('input', {
       type: 'text',
       cls: 'claudian-plus-mind-search-input',
-      placeholder: this.isZh ? '搜索 V2 记忆或 claimKey...' : 'Search V2 memories or claimKey...',
+      placeholder: this.isZh ? '搜索记忆或 claimKey...' : 'Search memories or claimKey...',
     });
     v2SearchInput.value = this.v2SearchQuery;
 
@@ -413,7 +245,7 @@ export class MindSettingsTab {
       if (filtered.length === 0) {
         listContainer.createDiv({
           cls: 'claudian-plus-mind-empty-hint',
-          text: this.isZh ? '未找到匹配的 V2 记忆' : 'No matching V2 memories found',
+          text: this.isZh ? '未找到匹配的记忆' : 'No matching memories found',
         });
         return;
       }
@@ -434,15 +266,8 @@ export class MindSettingsTab {
     const card = container.createDiv({ cls: 'claudian-plus-durable-card' });
 
     const metaRow = card.createDiv({ cls: 'claudian-plus-mind-meta-row' });
-    const kindClass =
-      record.kind === 'profile'
-        ? 'badge-user_preference'
-        : record.kind === 'project_state'
-          ? 'badge-project_rule'
-          : 'badge-correction_rule';
-
     metaRow.createSpan({
-      cls: `claudian-plus-mind-badge ${kindClass}`,
+      cls: 'claudian-plus-mind-badge',
       text: record.kind.toUpperCase(),
     });
     metaRow.createSpan({
@@ -465,17 +290,16 @@ export class MindSettingsTab {
     });
     contentInput.addEventListener('change', () => {
       void (async () => {
-        if (!this.memoryRepository) return;
         const newContent = contentInput.value.trim();
         if (newContent && newContent !== record.content) {
-          await this.memoryRepository.commitExplicit({
+          await this.repo.commitExplicit({
             action: 'correct',
             kind: record.kind,
             claimKey: record.claimKey,
             content: newContent,
             scope: record.scope,
             reason: 'User edited in settings',
-          });
+          }).catch(() => undefined);
           this.onChanged?.();
         }
       })();
@@ -488,13 +312,12 @@ export class MindSettingsTab {
     });
     deleteBtn.addEventListener('click', () => {
       void (async () => {
-        if (!this.memoryRepository) return;
-        await this.memoryRepository.commitExplicit({
+        await this.repo.commitExplicit({
           action: 'forget',
           claimKey: record.claimKey,
           scope: record.scope,
           reason: 'User forgot in settings',
-        });
+        }).catch(() => undefined);
         this.onChanged?.();
         await this.render();
       })();

@@ -195,61 +195,6 @@ describe('ConsciousnessEngine', () => {
     });
   });
 
-  describe('shouldReflect', () => {
-    it('returns false when disabled', () => {
-      const adapter = createMockAdapter();
-      const engine = new ConsciousnessEngine(adapter, { enabled: false });
-
-      const memories = Array.from({ length: 20 }, (_, i) => ({
-        id: `${i}`,
-        category: 'Test',
-        content: `Test ${i}`,
-        source: 'user-explicit' as const,
-        createdAt: 0,
-        updatedAt: 0,
-      }));
-
-      expect(engine.shouldReflect(memories, 10)).toBe(false);
-    });
-
-    it('returns false when not enough conversations', () => {
-      const adapter = createMockAdapter();
-      const engine = new ConsciousnessEngine(adapter, {
-        minConversationsForReflection: 5,
-      });
-
-      const memories = Array.from({ length: 20 }, (_, i) => ({
-        id: `${i}`,
-        category: 'Test',
-        content: `Test ${i}`,
-        source: 'user-explicit' as const,
-        createdAt: 0,
-        updatedAt: 0,
-      }));
-
-      expect(engine.shouldReflect(memories, 3)).toBe(false);
-    });
-
-    it('returns true when conditions are met', () => {
-      const adapter = createMockAdapter();
-      const engine = new ConsciousnessEngine(adapter, {
-        minConversationsForReflection: 5,
-        minMemoriesForConsolidation: 10,
-      });
-
-      const memories = Array.from({ length: 15 }, (_, i) => ({
-        id: `${i}`,
-        category: 'Test',
-        content: `Test ${i}`,
-        source: 'user-explicit' as const,
-        createdAt: 0,
-        updatedAt: 0,
-      }));
-
-      expect(engine.shouldReflect(memories, 10)).toBe(true);
-    });
-  });
-
   describe('buildConsciousnessInjection', () => {
     it('builds awareness context from the soul and user profile without requiring memory entries', async () => {
       const adapter = createMockAdapter({

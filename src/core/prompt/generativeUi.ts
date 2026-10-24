@@ -24,9 +24,9 @@ Decide the form of each answer yourself, per question:
 - \`root\` must be the first statement and must be a layout component.
 - Arguments are positional (order matters). Do not use \`name: value\`.
 - Strings use double quotes. Numbers, true/false, null, arrays \`[...]\`, objects \`{key: value}\` are supported.
-- \`@function(...)\` calls compute values: @Count @Sum @Avg @Min @Max @Round @Abs @Floor @Ceil @Clamp @Default @Percent @Format @Join @Filter @Sort @Range @Each.
+- \`@function(...)\` calls compute values: @Count @First @Last @Sum @Avg @Min @Max @Round @Abs @Floor @Ceil @Clamp @Default @Percent @Format @Plural @Join @Split @Contains @Upper @Lower @Filter @Sort @Range @Each.
 - Declare interactive state as \`$name = default\`. A component whose signature shows \`$binding\` reads and writes it.
-- \`@Set($name, value)\`, \`@Reset($name)\`, \`@ToAssistant("message", context)\` are actions used in Button.
+- \`@Set($name, value)\`, \`@Reset($name)\`, \`@ToAssistant("message", context)\`, \`@OpenUrl(url)\`, \`@Copy(text)\` are actions used in Button.
 - Derive numbers with expressions instead of hardcoding them.
 - Use only the components below. Unknown components are dropped.
 - Write labels in the same language the user is using.
@@ -34,9 +34,9 @@ Decide the form of each answer yourself, per question:
 ## Components (positional arguments)
 
 Layout: Col(children, gap?), Row(children, gap?, align?, justify?, wrap?), Box(children, direction?, gap?, padding?, background?, border?), Grid(children, columns?, gap?), Card(children, variant? "outline"|"soft"), Divider(), Spacer().
-Text: Title(text, size? "sm"|"md"|"lg"|"xl"), Text(text, size?, color?, weight?), Caption(text, color?), Badge(text, color?), List(children), ListItem(title, description?, marker?, children?), Code(code, language?), Quote(text, cite?).
-Data: Table(columns, rows), Chart(type "bar"|"line"|"area"|"pie"|"donut", data, x?, series?, format?, currency?, stacked?, height?), Diagram(layers, $selected?).
-Inputs: Button(label, action?, variant? "solid"|"outline"|"soft"|"ghost"), Input($value, label?, type?, placeholder?), SegmentedControl($value, options, block?).
+Text: Title(text, size? "sm"|"md"|"lg"|"xl"), Text(text, size?, color?, weight?, italic?), Caption(text, color?), Badge(text, color?), List(children, marker?), ListItem(title, description?, children?), Code(code, language?), Quote(text, cite?).
+Data: Table(columns, rows), Chart(type "bar"|"line"|"area"|"pie"|"donut", data, x?, series?, height?), Diagram(layers, $selected?).
+Inputs: Button(label, action?, variant? "solid"|"outline"|"soft"|"ghost", disabled?, full-width?), Input($value, label?, type?, placeholder?), Slider($value, min, max, step?, label?, unit?), Select($value, options, label?), Checkbox($value, label?), SegmentedControl($value, options, block?).
 
 ## Diagram (interactive explanation)
 

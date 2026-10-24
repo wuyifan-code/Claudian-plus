@@ -1,29 +1,21 @@
 import { AuxiliaryRequestGate } from '@/core/auxiliary/AuxiliaryRequestPolicy';
 import type { AuxQueryRunner } from '@/core/auxiliary/AuxQueryRunner';
-import type { MemoryStore } from '@/core/memory/MemoryStore';
 import { MicroDreamCoordinator } from '@/core/memory/MicroDreamCoordinator';
-import { MindStore } from '@/core/memory/MindStore';
-import type { VaultFileAdapter } from '@/core/storage/VaultFileAdapter';
+import { canonicalClaimKey } from '@/core/memory/v2/claimKey';
+import { MemoryRepository } from '@/core/memory/v2/MemoryRepository';
+import { InMemoryMemoryStorageAdapter } from '@/core/memory/v2/storage/MemoryStorageAdapter';
 
 describe('MicroDreamCoordinator', () => {
-  let mockAdapter: jest.Mocked<VaultFileAdapter>;
-  let mindStore: MindStore;
+  let repo: MemoryRepository;
   let mockRunner: jest.Mocked<AuxQueryRunner>;
   let createRunner: jest.Mock;
 
   beforeEach(async () => {
-    const files: Record<string, string> = {};
-    mockAdapter = {
-      exists: jest.fn().mockImplementation(async (path: string) => path in files),
-      read: jest.fn().mockImplementation(async (path: string) => files[path] || ''),
-      write: jest.fn().mockImplementation(async (path: string, content: string) => {
-        files[path] = content;
-      }),
-      ensureFolder: jest.fn().mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<VaultFileAdapter>;
-
-    mindStore = new MindStore(mockAdapter);
-    await mindStore.initialize();
+    repo = new MemoryRepository({
+      storage: new InMemoryMemoryStorageAdapter(),
+      vaultId: 'test-vault',
+    });
+    await repo.initialize();
 
     mockRunner = {
       query: jest.fn(),
@@ -35,7 +27,8 @@ describe('MicroDreamCoordinator', () => {
 
   it('skips micro-dream if session has fewer turns than minTurns and no tool calls', async () => {
     const coordinator = new MicroDreamCoordinator({
-      mindStore,
+      repository: repo,
+      vaultId: 'test-vault',
       createRunner,
       minTurns: 3,
     });
@@ -70,7 +63,8 @@ describe('MicroDreamCoordinator', () => {
     );
 
     const coordinator = new MicroDreamCoordinator({
-      mindStore,
+      repository: repo,
+      vaultId: 'test-vault',
       createRunner,
       minTurns: 2,
     });
@@ -89,10 +83,10 @@ describe('MicroDreamCoordinator', () => {
     expect(result.ran).toBe(true);
     expect(result.newStagingCount).toBe(1);
 
-    const staging = await mindStore.listStaging();
-    expect(staging).toHaveLength(1);
-    expect(staging[0].content).toBe('Always respond in Chinese');
-    expect(staging[0].category).toBe('user_preference');
+    const candidates = await repo.listRecords({ status: 'candidate' });
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0].content).toBe('Always respond in Chinese');
+    expect(candidates[0].kind).toBe('profile');
   });
 
   it('triggers when hasToolCalls is true even if turn count is low', async () => {
@@ -111,7 +105,8 @@ describe('MicroDreamCoordinator', () => {
     );
 
     const coordinator = new MicroDreamCoordinator({
-      mindStore,
+      repository: repo,
+      vaultId: 'test-vault',
       createRunner,
       minTurns: 5,
     });
@@ -133,7 +128,8 @@ describe('MicroDreamCoordinator', () => {
     mockRunner.query.mockRejectedValueOnce(new Error('Network offline'));
 
     const coordinator = new MicroDreamCoordinator({
-      mindStore,
+      repository: repo,
+      vaultId: 'test-vault',
       createRunner,
       minTurns: 2,
     });
@@ -153,21 +149,24 @@ describe('MicroDreamCoordinator', () => {
     expect(result.error).toContain('Network offline');
   });
 
-  it('includes MemoryStore entries in prompt and avoids duplicate staging proposals', async () => {
-    const memoryStore = {
-      load: jest.fn().mockResolvedValue([
-        { id: 'm1', content: 'Prefers PNPM package manager', category: 'Tools' },
-      ]),
-    };
+  it('includes existing memories in prompt and avoids duplicate candidates', async () => {
+    const existingContent = 'Prefers PNPM package manager';
+    await repo.commitExplicit({
+      action: 'remember',
+      kind: 'lesson',
+      claimKey: canonicalClaimKey('lesson', existingContent),
+      content: existingContent,
+      scope: { vaultId: 'test-vault' },
+    });
 
     mockRunner.query.mockImplementation(async (_config, prompt) => {
-      expect(prompt).toContain('Prefers PNPM package manager');
+      expect(prompt).toContain(existingContent);
       return JSON.stringify({
         rules: [
           {
             category: 'coding_habit',
             scope: 'project',
-            content: 'Prefers PNPM package manager',
+            content: existingContent,
             rationale: 'Mentioned in session',
             confidence: 0.9,
           },
@@ -176,9 +175,9 @@ describe('MicroDreamCoordinator', () => {
     });
 
     const coordinator = new MicroDreamCoordinator({
-      mindStore,
+      repository: repo,
+      vaultId: 'test-vault',
       createRunner,
-      getMemoryStore: () => memoryStore as unknown as MemoryStore,
       minTurns: 1,
     });
 
@@ -192,10 +191,10 @@ describe('MicroDreamCoordinator', () => {
     });
 
     expect(result.ran).toBe(true);
-    // Duplicate rule was rejected by cross-deduplication in MindStore
+    // Duplicate rule was rejected by claimKey dedupe against the active record
     expect(result.newStagingCount).toBe(0);
-    const staging = await mindStore.listStaging();
-    expect(staging).toHaveLength(0);
+    const candidates = await repo.listRecords({ status: 'candidate' });
+    expect(candidates).toHaveLength(0);
   });
 
   it('invokes onNewStaging callback when new rules are synthesized', async () => {
@@ -215,7 +214,8 @@ describe('MicroDreamCoordinator', () => {
     );
 
     const coordinator = new MicroDreamCoordinator({
-      mindStore,
+      repository: repo,
+      vaultId: 'test-vault',
       createRunner,
       minTurns: 1,
       onNewStaging: onNewStagingSpy,
@@ -251,7 +251,8 @@ describe('MicroDreamCoordinator', () => {
     );
 
     const coordinator = new MicroDreamCoordinator({
-      mindStore,
+      repository: repo,
+      vaultId: 'test-vault',
       createRunner,
       minTurns: 2,
     });
@@ -308,7 +309,8 @@ describe('MicroDreamCoordinator', () => {
     mockRunner.query.mockReturnValue(queryPromise);
 
     const coordinator = new MicroDreamCoordinator({
-      mindStore,
+      repository: repo,
+      vaultId: 'test-vault',
       createRunner,
       minTurns: 2,
     });
@@ -364,7 +366,8 @@ describe('MicroDreamCoordinator', () => {
       gate: AuxiliaryRequestGate,
     ): MicroDreamCoordinator {
       return new MicroDreamCoordinator({
-        mindStore,
+        repository: repo,
+      vaultId: 'test-vault',
         createRunner,
         minTurns: 2,
         backgroundRequestGate: gate,
@@ -495,7 +498,8 @@ describe('MicroDreamCoordinator', () => {
     it('behaves as before when no gate is configured', async () => {
       mockRunner.query.mockResolvedValueOnce(JSON.stringify({ rules: [] }));
       const coordinator = new MicroDreamCoordinator({
-        mindStore,
+        repository: repo,
+      vaultId: 'test-vault',
         createRunner,
         minTurns: 2,
       });

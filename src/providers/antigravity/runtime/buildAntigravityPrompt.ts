@@ -53,7 +53,7 @@ export function buildAntigravityPrompt(
   }
 
   if (request.ambientContext) {
-    const ambientXml = formatAmbientContextXml(request.ambientContext);
+    const ambientXml = formatAmbientContextXml(request.ambientContext, request.ambientBudgets);
     if (ambientXml) {
       prompt = `${prompt}\n\n${ambientXml}`;
     }

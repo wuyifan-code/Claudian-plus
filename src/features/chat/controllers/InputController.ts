@@ -128,6 +128,11 @@ export interface InputControllerDeps {
   onForkAll?: () => Promise<void>;
   restorePrePlanPermissionModeIfNeeded?: () => void | Promise<void>;
   turnOwner?: ActiveTurnOwner;
+  /**
+   * Title generation lazily creates the conversation before the first turn's
+   * widgets mount; activating it there routes their state claims correctly.
+   */
+  uiStatePersistence?: { activate(conversationId: string): void };
 }
 
 export interface SendMessageOptions {
@@ -236,103 +241,28 @@ export class InputController {
       }
 
       const coordinator = plugin.getMemoryCoordinator?.();
-      if (coordinator) {
-        const vaultId = plugin.app?.vault?.getName() || 'default-vault';
-        const handled = await coordinator.handleExplicitCommand(message, {
-          vaultId,
-        });
-        if (handled) {
-          const isForget = /^(?:请?忘记|forget)/i.test(message.trim());
-          if (isForget) {
-            new Notice(t('settings.memory.removed'));
+      if (!coordinator) {
+        // V2 is the only production memory pipeline; without it there is
+        // nothing to do at input time (no regex-based implicit extraction).
+        return;
+      }
+
+      const vaultId = plugin.app?.vault?.getName() || 'default-vault';
+      const result = await coordinator.handleExplicitCommand(message, { vaultId });
+      if (result.handled) {
+        if (result.action === 'remember' || result.action === 'correct') {
+          new Notice(t('settings.memory.saved'));
+        } else if (result.action === 'forget') {
+          if (result.unmatched) {
+            new Notice(t('settings.memory.alreadyEmpty'));
           } else {
-            new Notice(t('settings.memory.saved'));
+            new Notice(result.removedCount === 1
+              ? t('settings.memory.removed')
+              : t('settings.memory.removedMultiple').replace('{count}', String(result.removedCount)));
           }
-          return;
+        } else if (result.action === 'list') {
+          new Notice(t('settings.memory.listCount').replace('{count}', String(result.total)));
         }
-        // V2 explicitly avoids regex-based implicit extraction at user input time.
-        // Complete episodes and background dreaming handle automated learning.
-        return;
-      }
-
-      const memoryStore = plugin.getMemoryStore();
-
-      // Check for list request
-      if (plugin.memoryExtractor.isListRequest(message)) {
-        const entries = await memoryStore.load();
-        if (entries.length === 0) {
-          new Notice(t('settings.memory.alreadyEmpty'));
-        } else {
-          new Notice(t('settings.memory.listCount').replace('{count}', String(entries.length)));
-        }
-        return;
-      }
-
-      // Check for forget/remove request
-      const forgetTerm = plugin.memoryExtractor.extractForgetRequest(message);
-      if (forgetTerm) {
-        const removedCount = await memoryStore.remove(forgetTerm);
-        if (removedCount > 0) {
-          // Log activity
-          if (plugin.settings.consciousnessEnabled) {
-            const engine = plugin.getConsciousnessEngine();
-            await engine.logActivity('memory-remove', `Removed ${removedCount} memory(ies) matching "${forgetTerm}"`);
-          }
-          new Notice(removedCount === 1
-            ? t('settings.memory.removed')
-            : t('settings.memory.removedMultiple').replace('{count}', String(removedCount)));
-        }
-        return;
-      }
-
-      // Otherwise, extract and save new memories
-      const existingEntries = await memoryStore.load();
-      const durableMindRules = plugin.getMindStore ? ((await plugin.getMindStore().listDurable()) ?? []) : [];
-      const dedupeExisting = [...existingEntries, ...durableMindRules];
-
-      // First try explicit extraction (trigger words like "记住...")
-      const explicitResult = plugin.memoryExtractor.extract(message, dedupeExisting);
-
-      // Then try implicit extraction (auto-detect important info) when auto-memory is enabled
-      let implicitResult = { entries: [] as typeof explicitResult.entries };
-      if (plugin.settings.consciousnessEnabled && plugin.settings.consciousnessAutoMemory) {
-        implicitResult = plugin.memoryExtractor.extractImplicit(message, [
-          ...dedupeExisting,
-          ...explicitResult.entries,
-        ]);
-      }
-
-      // Combine results
-      const allEntries = [...explicitResult.entries, ...implicitResult.entries];
-      if (allEntries.length === 0) {
-        return;
-      }
-
-      for (const entry of allEntries) {
-        await memoryStore.add({
-          category: entry.category,
-          content: entry.content,
-          source: entry.source,
-        });
-      }
-
-      // Log activity
-      if (plugin.settings.consciousnessEnabled) {
-        const engine = plugin.getConsciousnessEngine();
-        const implicitCount = implicitResult.entries.length;
-        const explicitCount = explicitResult.entries.length;
-        const logMsg = implicitCount > 0
-          ? `Added ${allEntries.length} memory(ies) (${explicitCount} explicit, ${implicitCount} implicit)`
-          : `Added ${allEntries.length} memory(ies)`;
-        await engine.logActivity('memory-add', logMsg);
-      }
-
-      // Notify user that memories were saved (only for explicit memories to avoid noise)
-      if (explicitResult.entries.length > 0) {
-        const count = explicitResult.entries.length;
-        new Notice(count === 1
-          ? t('settings.memory.saved')
-          : t('settings.memory.savedMultiple').replace('{count}', String(count)));
       }
     } catch {
       // Silently ignore memory extraction errors - don't affect main flow
@@ -750,14 +680,6 @@ export class InputController {
           }
         }
 
-        // Save short-term memory if consciousness is enabled (legacy fallback)
-        if (plugin.settings.consciousnessEnabled && plugin.settings.consciousnessAutoMemory && !plugin.getMemoryCoordinator) {
-          const userContent = displayContent.slice(0, 200);
-          const assistantContent = finalAssistantMsg.content?.slice(0, 200) || '';
-          const summary = `User: ${userContent}\nAssistant: ${assistantContent}`;
-          void plugin.getConsciousnessEngine().saveShortTermMemory(summary).catch(() => {});
-        }
-
         // Auto-hide completed todo panel on response end
         // Panel reappears only when new TodoWrite tool is called
         if (state.currentTodos && state.currentTodos.every(t => t.status === 'completed')) {
@@ -1067,6 +989,7 @@ export class InputController {
       ? fileContextManager.transformContextMentions(options.content)
       : options.content;
     const enabledMcpServers = mcpServerSelector?.getEnabledServers();
+    const ambientEnabled = this.deps.plugin.settings.ambientContextEnabled !== false;
     return {
       displayContent: options.content,
       turnRequest: {
@@ -1076,7 +999,16 @@ export class InputController {
         editorSelection: editorContext,
         browserSelection: browserContext,
         canvasSelection: canvasContext,
-        ambientContext: this.deps.activeContextObserver?.getSnapshot() ?? undefined,
+        ambientContext: ambientEnabled
+          ? (this.deps.activeContextObserver?.getSnapshot() ?? undefined)
+          : undefined,
+        ambientBudgets: ambientEnabled
+          ? {
+              maxContentChars: this.deps.plugin.settings.ambientMaxContentChars,
+              maxOutlineEntries: this.deps.plugin.settings.ambientMaxOutlineEntries,
+              maxLinks: this.deps.plugin.settings.ambientMaxLinks,
+            }
+          : undefined,
         externalContextPaths: externalContextPaths && externalContextPaths.length > 0
           ? externalContextPaths
           : undefined,
@@ -1485,6 +1417,9 @@ export class InputController {
         ...(selectedModel ? { selectedModel } : {}),
       });
       state.currentConversationId = conversation.id;
+      // This creation path preempts ConversationController.save's lazy branch,
+      // which is the other place persistence gets activated for new chats.
+      this.deps.uiStatePersistence?.activate(conversation.id);
     }
 
     // Find first user message by role (not by index)
@@ -2026,20 +1961,9 @@ export class InputController {
           if (coordinator) {
             const vaultId = this.deps.plugin.app?.vault?.getName() || 'default-vault';
             await coordinator.handleExplicitCommand(`remember: ${ruleContent}`, { vaultId });
-          }
-          const entry = await this.deps.plugin.getMindStore().addDurable({
-            category: 'user_preference',
-            scope: 'project',
-            state: 'active',
-            content: ruleContent,
-            confidence: 0.95,
-            rationale: 'Added via /remember slash command',
-            tags: [],
-          });
-          if (entry) {
-            new Notice(`Remembered: "${entry.content}"`);
+            new Notice(`Remembered: "${ruleContent}"`);
           } else {
-            new Notice(`Rule already remembered: "${ruleContent}"`);
+            new Notice('Memory system is unavailable.');
           }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
@@ -2055,17 +1979,16 @@ export class InputController {
         }
         try {
           const coordinator = this.deps.plugin.getMemoryCoordinator?.();
-          if (coordinator) {
-            const vaultId = this.deps.plugin.app?.vault?.getName() || 'default-vault';
-            await coordinator.handleExplicitCommand(`forget: ${keyword}`, { vaultId });
+          if (!coordinator) {
+            new Notice('Memory system is unavailable.');
+            return;
           }
-          const forgotten = this.deps.plugin.getMindStore ? await this.deps.plugin.getMindStore().forgetRule(keyword) : null;
-          const removedFromMemory = this.deps.plugin.getMemoryStore ? await this.deps.plugin.getMemoryStore().remove(keyword) : 0;
-          if (forgotten || removedFromMemory > 0) {
-            const label = forgotten ? forgotten.content : keyword;
-            new Notice(`Forgot rule/memory: "${label}"`);
+          const vaultId = this.deps.plugin.app?.vault?.getName() || 'default-vault';
+          const result = await coordinator.handleExplicitCommand(`forget: ${keyword}`, { vaultId });
+          if (result.handled && result.action === 'forget' && !result.unmatched && result.removedCount > 0) {
+            new Notice(`Forgot ${result.removedCount} memor${result.removedCount > 1 ? 'ies' : 'y'} matching "${keyword}"`);
           } else {
-            new Notice(`No matching rule found for "${keyword}"`);
+            new Notice(`No matching memory found for "${keyword}"`);
           }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);

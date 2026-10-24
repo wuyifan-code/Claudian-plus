@@ -165,7 +165,11 @@
       },
       "maxChars": {
         "name": "Maximale Injektionszeichen",
-        "desc": "Maximale Zeichenanzahl für die System-Prompt-Injektion"
+        "desc": "Zeichenlimit für die Injektion der Legacy-Speicherdatei; abgerufene Erinnerungen nutzen das Token-Budget"
+      },
+      "maxTokens": {
+        "name": "Maximale Injektions-Tokens",
+        "desc": "Token-Budget für den abgerufenen Erinnerungskontext, der in den System-Prompt injiziert wird"
       },
       "manage": {
         "name": "Speicher verwalten",
@@ -201,18 +205,6 @@
       "interval": {
         "name": "Dream interval (hours)",
         "desc": "Minimum time between automatic consolidation runs"
-      },
-      "maxLogDays": {
-        "name": "Log lookback (days)",
-        "desc": "How many recent days of short-term logs to consider"
-      },
-      "inputCap": {
-        "name": "Input budget (chars)",
-        "desc": "Character budget for one dream cycle; older content is truncated"
-      },
-      "maxNewFacts": {
-        "name": "Max new facts per dream",
-        "desc": "Upper bound on long-term memory entries written per cycle"
       },
       "runNow": "Run dream now",
       "runNowDesc": "Consolidate pending short-term memories immediately"
@@ -415,6 +407,10 @@
     "deferMathRenderingDuringStreaming": {
       "name": "Mathe-Rendering während Streaming aufschieben",
       "desc": "LaTeX während des Streamings roh anzeigen und Mathematik einmal rendern, wenn der Textblock abgeschlossen ist."
+    },
+    "generativeUi": {
+      "name": "Antworten mit intelligenter Benutzeroberfläche",
+      "desc": "Erlaubt dem Modell, mit einer interaktiven Oberfläche (Diagramme, Tabellen, Charts, Steuerelemente) zu antworten, wenn das besser erklärt oder vergleicht als Text; sonst Klartext."
     },
     "expandFileEditsByDefault": {
       "name": "Dateibearbeitungen standardmäßig ausklappen",

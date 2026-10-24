@@ -11,6 +11,7 @@ import { formatConversationTimestamp } from '../../../utils/date';
 import type { FeatureHost } from '../../FeatureHost';
 import type { MessageRenderer } from '../rendering/MessageRenderer';
 import { cleanupThinkingBlock } from '../rendering/ThinkingBlockRenderer';
+import type { UiStatePersistenceController } from '../rendering/ui/uiStatePersistence';
 import { findRewindContext } from '../rewind';
 import type { SubagentManager } from '../services/SubagentManager';
 import type { ChatState } from '../state/ChatState';
@@ -59,6 +60,8 @@ export interface ConversationControllerDeps {
   awaitBackgroundWork?: () => Promise<void>;
   /** True once the owning tab has begun teardown. */
   isDisposed?: () => boolean;
+  /** Persists generated-UI widget state across conversation switches and reloads. */
+  uiStatePersistence?: UiStatePersistenceController;
 }
 
 type SaveOptions = {
@@ -242,6 +245,7 @@ export class ConversationController {
   private resetToEntryPointState(): void {
     const { plugin, state } = this.deps;
 
+    this.deps.uiStatePersistence?.deactivate();
     state.currentConversationId = null;
     state.clearMessages();
     state.usage = null;
@@ -461,6 +465,9 @@ export class ConversationController {
         ...(selectedModel ? { selectedModel } : {}),
       });
       state.currentConversationId = conversation.id;
+      // Widgets rendered before the lazy creation claimed no owner; from here
+      // on re-renders claim this conversation so their state persists.
+      this.deps.uiStatePersistence?.activate(conversation.id);
     }
 
     const fileCtx = this.deps.getFileContextManager();
@@ -512,6 +519,7 @@ export class ConversationController {
   ): void {
     const { plugin, state, renderer } = this.deps;
 
+    this.deps.uiStatePersistence?.activate(conversation.id);
     state.currentConversationId = conversation.id;
     state.messages = [...conversation.messages];
     state.usage = conversation.usage ?? null;
@@ -1029,6 +1037,7 @@ export class ConversationController {
     if (state.isStreaming) return;
 
     await plugin.deleteConversation(conversationId);
+    this.deps.uiStatePersistence?.release(conversationId);
     options.onRerender();
 
     if (conversationId === state.currentConversationId) {

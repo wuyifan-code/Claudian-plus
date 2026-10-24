@@ -3,6 +3,7 @@ import { createMockEl } from '@test/helpers/mockElement';
 import { Notice } from 'obsidian';
 
 import { ProviderWorkspaceRegistry } from '@/core/providers/ProviderWorkspaceRegistry';
+import { uiStateStore } from '@/features/chat/rendering/ui/stateStore';
 import { TabManager } from '@/features/chat/tabs/TabManager';
 import {
   DEFAULT_MAX_TABS,
@@ -2823,6 +2824,38 @@ describe('TabManager - forkToNewTab', () => {
 
     const updateCall = mockUpdateConversation.mock.calls[0][1];
     expect(updateCall.currentNote).toBeUndefined();
+  });
+
+  it('releases generated-UI state for the fork conversation when tab creation fails', async () => {
+    const mockCreateConversation = jest.fn().mockResolvedValue({ id: 'fork-conv-dead', providerId: 'claude' });
+    const mockUpdateConversation = jest.fn().mockResolvedValue(undefined);
+    const mockDeleteConversation = jest.fn().mockResolvedValue(undefined);
+
+    const plugin = createMockPlugin({
+      createConversation: mockCreateConversation,
+      updateConversation: mockUpdateConversation,
+      deleteConversation: mockDeleteConversation,
+    });
+
+    const manager = createManager({ plugin });
+    await manager.createTab();
+
+    uiStateStore.claim('fork-dead-msg:0', 'fork-conv-dead');
+    mockCreateTab.mockImplementationOnce(() => {
+      throw new Error('tab creation failed');
+    });
+
+    await expect(manager.forkToNewTab({
+      messages: [
+        { id: 'msg-1', role: 'user', content: 'hello', timestamp: 1 },
+        { id: 'msg-2', role: 'assistant', content: 'hi', timestamp: 2 },
+      ] as any,
+      sourceSessionId: 'session-1',
+      resumeAt: 'assistant-uuid-1',
+    })).rejects.toThrow('tab creation failed');
+
+    expect(mockDeleteConversation).toHaveBeenCalledWith('fork-conv-dead');
+    expect(uiStateStore.scopesOf('fork-conv-dead')).toEqual([]);
   });
 });
 

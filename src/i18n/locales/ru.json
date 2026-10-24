@@ -165,7 +165,11 @@
       },
       "maxChars": {
         "name": "Максимум символов инъекции",
-        "desc": "Максимальное количество символов для инъекции в системный промпт"
+        "desc": "Лимит символов для инъекции из устаревшего файла памяти; извлечённая память использует бюджет токенов"
+      },
+      "maxTokens": {
+        "name": "Максимум токенов инъекции",
+        "desc": "Бюджет токенов для извлечённого контекста памяти, добавляемого в системный промпт"
       },
       "manage": {
         "name": "Управление памятью",
@@ -201,18 +205,6 @@
       "interval": {
         "name": "Dream interval (hours)",
         "desc": "Minimum time between automatic consolidation runs"
-      },
-      "maxLogDays": {
-        "name": "Log lookback (days)",
-        "desc": "How many recent days of short-term logs to consider"
-      },
-      "inputCap": {
-        "name": "Input budget (chars)",
-        "desc": "Character budget for one dream cycle; older content is truncated"
-      },
-      "maxNewFacts": {
-        "name": "Max new facts per dream",
-        "desc": "Upper bound on long-term memory entries written per cycle"
       },
       "runNow": "Run dream now",
       "runNowDesc": "Consolidate pending short-term memories immediately"
@@ -415,6 +407,10 @@
     "deferMathRenderingDuringStreaming": {
       "name": "Отложить рендеринг формул во время потока",
       "desc": "Показывать исходный LaTeX во время потоковой передачи и рендерить формулы один раз после завершения каждого текстового блока."
+    },
+    "generativeUi": {
+      "name": "Ответы в интеллектуальном интерфейсе",
+      "desc": "Позволяет модели отвечать интерактивным интерфейсом (диаграммы, таблицы, графики, элементы управления), когда это объясняет или сравнивает лучше текста; в остальных случаях — обычный текст."
     },
     "expandFileEditsByDefault": {
       "name": "Раскрывать правки файлов по умолчанию",
