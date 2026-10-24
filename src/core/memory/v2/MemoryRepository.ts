@@ -1,3 +1,4 @@
+import { sanitizeKeywords } from './claimKey';
 import type { IMemoryStorageAdapter } from './storage/MemoryStorageAdapter';
 import type {
   CheckpointsState,
@@ -7,7 +8,9 @@ import type {
   DreamProposal,
   EpisodeRecord,
   ForgetEntry,
+  KeywordAnnotation,
   MemoryFeedbackRecord,
+  MemoryFeedbackSummary,
   MemoryKind,
   MemoryRecord,
   MemoryScope,
@@ -37,6 +40,36 @@ export interface CommitExplicitParams {
 export interface ForgetCommitResult {
   suppressedCount: number;
   entry: ForgetEntry;
+}
+
+/** Creates a pending candidate record awaiting user review. */
+export interface CommitCandidateParams {
+  kind: MemoryKind;
+  claimKey: string;
+  content: string;
+  scope: MemoryScope;
+  basis?: MemoryRecord['basis'];
+  rationale?: string;
+  conditions?: string[];
+}
+
+export interface RetentionParams {
+  now: number;
+  /** Active records neither referenced nor re-confirmed for this long become stale. */
+  staleDays?: number;
+  /** Minimum exposures before the stale rule applies. */
+  staleMinExposures?: number;
+}
+
+export interface RetentionResult {
+  archivedByReviewAfter: number;
+  flaggedStale: number;
+}
+
+export interface PruneResult {
+  prunedEpisodes: number;
+  prunedFeedback: number;
+  removedGenerations: number;
 }
 
 export interface CommitDreamParams {
@@ -69,6 +102,7 @@ export class MemoryRepository {
     version: 1,
   };
   private cachedForgetLedger: ForgetEntry[] = [];
+  private cachedFeedbackSummary = new Map<string, MemoryFeedbackSummary>();
   private initialized = false;
 
   constructor(options: MemoryRepositoryOptions) {
@@ -88,6 +122,7 @@ export class MemoryRepository {
 
     // Load forget ledger first
     await this.loadForgetLedger();
+    await this.loadFeedbackSummary();
 
     const currentPath = `${this.baseDir}/CURRENT`;
     if (await this.storage.exists(currentPath)) {
@@ -425,6 +460,7 @@ export class MemoryRepository {
             supersedes,
             conditions: prop.conditions,
             outcome: prop.outcome,
+            keywords: prop.keywords,
           };
           this.cachedRecords.push(record);
           appliedCount++;
@@ -514,8 +550,305 @@ export class MemoryRepository {
 
   async recordFeedback(feedback: MemoryFeedbackRecord): Promise<void> {
     this.assertInitialized();
+    this.trackFeedback(feedback);
     const feedbackPath = `${this.baseDir}/feedback/${feedback.id}.json`;
     await this.storage.writeFileAtomic(feedbackPath, JSON.stringify(feedback, null, 2));
+  }
+
+  /**
+   * Writes many feedback records in one file so a single turn does not produce
+   * one file write per recalled memory.
+   */
+  async recordFeedbackBatch(records: MemoryFeedbackRecord[]): Promise<void> {
+    this.assertInitialized();
+    if (records.length === 0) return;
+    for (const record of records) {
+      this.trackFeedback(record);
+    }
+    const batchId = records[0].id;
+    const batchPath = `${this.baseDir}/feedback/batch_${batchId.replace(/^fb_/, '')}.json`;
+    await this.storage.writeFileAtomic(batchPath, JSON.stringify(records, null, 2));
+  }
+
+  /** Aggregated exposure/reference counts per memory, for retrieval weighting. */
+  getFeedbackSummary(): Map<string, MemoryFeedbackSummary> {
+    return new Map(this.cachedFeedbackSummary);
+  }
+
+  private trackFeedback(feedback: MemoryFeedbackRecord): void {
+    const existing = this.cachedFeedbackSummary.get(feedback.memoryId) ?? {
+      exposed: 0,
+      referenced: 0,
+      corrected: 0,
+      lastAt: 0,
+    };
+    if (feedback.type === 'exposed') existing.exposed += 1;
+    else if (feedback.type === 'referenced') existing.referenced += 1;
+    else if (feedback.type === 'corrected') existing.corrected += 1;
+    existing.lastAt = Math.max(existing.lastAt, feedback.timestamp);
+    this.cachedFeedbackSummary.set(feedback.memoryId, existing);
+  }
+
+  private async loadFeedbackSummary(): Promise<void> {
+    const files = await this.storage.listFiles(`${this.baseDir}/feedback`);
+    for (const file of files) {
+      if (!file.endsWith('.json')) continue;
+      try {
+        const raw = await this.storage.readFile(`${this.baseDir}/feedback/${file}`);
+        const parsed = JSON.parse(raw) as unknown;
+        const records = Array.isArray(parsed)
+          ? (parsed as MemoryFeedbackRecord[])
+          : [parsed as MemoryFeedbackRecord];
+        for (const record of records) {
+          if (record && typeof record.memoryId === 'string') {
+            this.trackFeedback(record);
+          }
+        }
+      } catch {
+        // Skip corrupt feedback file
+      }
+    }
+  }
+
+  /**
+   * Commits a candidate record for user review (micro-dream output). Returns
+   * null when an active or pending record with the same claimKey already
+   * exists in the same scope.
+   */
+  async commitCandidate(params: CommitCandidateParams): Promise<MemoryRecord | null> {
+    this.assertInitialized();
+    const token = await this.acquireWriterLock();
+    try {
+      if (this.isSuppressed({ claimKey: params.claimKey, content: params.content })) {
+        return null;
+      }
+      const duplicate = this.cachedRecords.find(
+        (r) =>
+          (r.status === 'active' || r.status === 'candidate') &&
+          r.claimKey === params.claimKey &&
+          r.scope.vaultId === params.scope.vaultId &&
+          r.scope.projectId === params.scope.projectId,
+      );
+      if (duplicate) {
+        return null;
+      }
+
+      const now = Date.now();
+      const record: MemoryRecord = {
+        id: `mem_${now}_${Math.random().toString(36).slice(2, 7)}`,
+        revision: 1,
+        kind: params.kind,
+        scope: params.scope,
+        claimKey: params.claimKey,
+        content: params.content,
+        status: 'candidate',
+        basis: params.basis ?? 'inferred',
+        evidence: [],
+        observedAt: now,
+        supersedes: [],
+        conditions: params.conditions,
+      };
+      this.cachedRecords.push(record);
+      const nextGen = this.nextGenerationName(this.currentGen);
+      await this.persistGeneration(nextGen);
+      this.currentGen = nextGen;
+      return record;
+    } finally {
+      if (token) {
+        await this.releaseWriterLock(token);
+      }
+    }
+  }
+
+  /** Promotes a candidate to active after user approval. */
+  async approveCandidate(id: string): Promise<MemoryRecord | null> {
+    return await this.updateRecordStatus(id, 'active');
+  }
+
+  /** Archives a candidate after user dismissal and suppresses its claimKey. */
+  async dismissCandidate(id: string, reason = 'User dismissed candidate'): Promise<MemoryRecord | null> {
+    const record = this.cachedRecords.find((r) => r.id === id);
+    if (!record) return null;
+    await this.commitExplicit({
+      action: 'forget',
+      claimKey: record.claimKey,
+      content: record.content,
+      scope: record.scope,
+      reason,
+    });
+    return await this.updateRecordStatus(id, 'archived');
+  }
+
+  private async updateRecordStatus(id: string, status: MemoryStatus): Promise<MemoryRecord | null> {
+    this.assertInitialized();
+    const token = await this.acquireWriterLock();
+    try {
+      const record = this.cachedRecords.find((r) => r.id === id);
+      if (!record) return null;
+      record.status = status;
+      record.revision += 1;
+      const nextGen = this.nextGenerationName(this.currentGen);
+      await this.persistGeneration(nextGen);
+      this.currentGen = nextGen;
+      return { ...record };
+    } finally {
+      if (token) {
+        await this.releaseWriterLock(token);
+      }
+    }
+  }
+
+  /** Backfills keywords on existing records that lack them. Returns applied count. */
+  async applyKeywordAnnotations(annotations: KeywordAnnotation[]): Promise<number> {
+    this.assertInitialized();
+    if (annotations.length === 0) return 0;
+    const token = await this.acquireWriterLock();
+    try {
+      let applied = 0;
+      for (const annotation of annotations) {
+        const record = this.cachedRecords.find((r) => r.id === annotation.id);
+        if (!record || record.keywords?.length) continue;
+        const keywords = sanitizeKeywords(annotation.keywords);
+        if (keywords.length === 0) continue;
+        record.keywords = keywords;
+        record.revision += 1;
+        applied++;
+      }
+      if (applied === 0) return 0;
+      const nextGen = this.nextGenerationName(this.currentGen);
+      await this.persistGeneration(nextGen);
+      this.currentGen = nextGen;
+      return applied;
+    } finally {
+      if (token) {
+        await this.releaseWriterLock(token);
+      }
+    }
+  }
+
+  /**
+   * Retention sweep without any model call: records past their reviewAfter are
+   * archived, and long-unreferenced active records get reviewAfter set so the
+   * next sweep archives them and retrieval hides them immediately.
+   */
+  async applyRetention(params: RetentionParams): Promise<RetentionResult> {
+    this.assertInitialized();
+    const staleDays = params.staleDays ?? 45;
+    const staleMinExposures = params.staleMinExposures ?? 5;
+    const staleCutoff = params.now - staleDays * 24 * 60 * 60 * 1000;
+
+    let archivedByReviewAfter = 0;
+    let flaggedStale = 0;
+    let changed = false;
+
+    for (const rec of this.cachedRecords) {
+      if (rec.status !== 'active') continue;
+
+      if (rec.reviewAfter !== undefined && rec.reviewAfter <= params.now) {
+        rec.status = 'archived';
+        rec.revision += 1;
+        archivedByReviewAfter++;
+        changed = true;
+        continue;
+      }
+
+      const feedback = this.cachedFeedbackSummary.get(rec.id);
+      const isStale =
+        feedback !== undefined &&
+        feedback.exposed >= staleMinExposures &&
+        feedback.referenced === 0 &&
+        rec.observedAt < staleCutoff &&
+        rec.reviewAfter === undefined;
+      if (isStale) {
+        rec.reviewAfter = params.now;
+        rec.revision += 1;
+        flaggedStale++;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      const token = await this.acquireWriterLock();
+      try {
+        const nextGen = this.nextGenerationName(this.currentGen);
+        await this.persistGeneration(nextGen);
+        this.currentGen = nextGen;
+      } finally {
+        if (token) {
+          await this.releaseWriterLock(token);
+        }
+      }
+    }
+
+    return { archivedByReviewAfter, flaggedStale };
+  }
+
+  /**
+   * Storage GC: drops episodes and feedback files older than the cutoff and
+   * removes superseded generation snapshots, keeping the newest few. The
+   * episode referenced by the dream checkpoint is always kept.
+   */
+  async pruneStorage(params: {
+    now: number;
+    episodeRetentionDays?: number;
+    feedbackRetentionDays?: number;
+    keepGenerations?: number;
+  }): Promise<PruneResult> {
+    this.assertInitialized();
+    const episodeCutoff =
+      params.episodeRetentionDays && params.episodeRetentionDays > 0
+        ? params.now - params.episodeRetentionDays * 24 * 60 * 60 * 1000
+        : null;
+    const feedbackCutoff =
+      params.feedbackRetentionDays && params.feedbackRetentionDays > 0
+        ? params.now - params.feedbackRetentionDays * 24 * 60 * 60 * 1000
+        : null;
+    const keepGenerations = params.keepGenerations ?? 3;
+
+    let prunedEpisodes = 0;
+    if (episodeCutoff !== null) {
+      const protectedId = this.cachedCheckpoints.lastAdjudicatedEventId;
+      const episodes = await this.listEpisodes();
+      for (const episode of episodes) {
+        if (episode.timestamp >= episodeCutoff) continue;
+        if (protectedId && episode.id === protectedId) continue;
+        await this.storage.deleteFile(`${this.baseDir}/episodes/${episode.id}.json`);
+        prunedEpisodes++;
+      }
+    }
+
+    let prunedFeedback = 0;
+    if (feedbackCutoff !== null) {
+      const files = await this.storage.listFiles(`${this.baseDir}/feedback`);
+      for (const file of files) {
+        if (!file.endsWith('.json')) continue;
+        const match = file.match(/^(?:fb|batch)_(\d+)/);
+        if (!match) continue;
+        const timestamp = Number(match[1]);
+        if (Number.isFinite(timestamp) && timestamp < feedbackCutoff) {
+          await this.storage.deleteFile(`${this.baseDir}/feedback/${file}`);
+          prunedFeedback++;
+        }
+      }
+    }
+
+    let removedGenerations = 0;
+    const generationFiles = await this.storage.listFiles(`${this.baseDir}/generations`);
+    const generations = generationFiles
+      .filter((name) => /^gen_\d+$/.test(name))
+      .sort()
+      .map((name) => name);
+    const keep = new Set(generations.slice(-keepGenerations));
+    keep.add(this.currentGen);
+    for (const gen of generations) {
+      if (keep.has(gen)) continue;
+      for (const file of await this.storage.listFiles(`${this.baseDir}/generations/${gen}`)) {
+        await this.storage.deleteFile(`${this.baseDir}/generations/${gen}/${file}`);
+      }
+      removedGenerations++;
+    }
+
+    return { prunedEpisodes, prunedFeedback, removedGenerations };
   }
 
   async acquireWriterLock(): Promise<string | null> {

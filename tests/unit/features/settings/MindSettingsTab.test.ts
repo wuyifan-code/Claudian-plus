@@ -1,162 +1,106 @@
 import { createMockEl, type MockElement } from '@test/helpers/mockElement';
 
-import { MindStore } from '@/core/memory/MindStore';
-import type { MemoryCoordinator } from '@/core/memory/v2/MemoryCoordinator';
-import type { MemoryRepository } from '@/core/memory/v2/MemoryRepository';
-import type { VaultFileAdapter } from '@/core/storage/VaultFileAdapter';
+import { MemoryRepository } from '@/core/memory/v2/MemoryRepository';
+import { InMemoryMemoryStorageAdapter } from '@/core/memory/v2/storage/MemoryStorageAdapter';
 import { MindSettingsTab } from '@/features/settings/MindSettingsTab';
 
 describe('MindSettingsTab', () => {
-  let mockAdapter: jest.Mocked<VaultFileAdapter>;
-  let mindStore: MindStore;
+  let repo: MemoryRepository;
   let containerEl: MockElement;
 
   beforeEach(async () => {
     containerEl = createMockEl('div');
-    const files: Record<string, string> = {};
-    mockAdapter = {
-      exists: jest.fn().mockImplementation(async (path: string) => path in files),
-      read: jest.fn().mockImplementation(async (path: string) => files[path] || ''),
-      write: jest.fn().mockImplementation(async (path: string, content: string) => {
-        files[path] = content;
-      }),
-      ensureFolder: jest.fn().mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<VaultFileAdapter>;
-
-    mindStore = new MindStore(mockAdapter);
-    await mindStore.initialize();
+    repo = new MemoryRepository({
+      storage: new InMemoryMemoryStorageAdapter(),
+      vaultId: 'test-vault',
+    });
+    await repo.initialize();
   });
 
-  it('renders empty staging and durable sections when no entries exist', async () => {
-    const tab = new MindSettingsTab({
+  function createTab(): MindSettingsTab {
+    return new MindSettingsTab({
       containerEl: containerEl as unknown as HTMLElement,
-      mindStore,
+      memoryRepository: repo,
       locale: 'en',
     });
+  }
 
-    await tab.render();
+  it('renders empty review and repository sections when nothing exists', async () => {
+    await createTab().render();
 
     expect(containerEl.querySelector('.claudian-plus-mind-settings')).not.toBeNull();
     const headers = containerEl.querySelectorAll('.claudian-plus-settings-card-header');
-    expect(headers.length).toBeGreaterThanOrEqual(3);
-    expect(headers[1].textContent).toContain('Staging Queue (0)');
-    expect(headers[2].textContent).toContain('Active Durable Mind (0)');
+    expect(headers.length).toBeGreaterThanOrEqual(2);
+    expect(headers[1].textContent).toContain('Review Queue (0)');
   });
 
-  it('renders staging entries and handles approve and dismiss clicks', async () => {
-    await mindStore.addStaging({
-      category: 'user_preference',
-      scope: 'global',
+  it('renders candidates and promotes one to active on approve', async () => {
+    await repo.commitCandidate({
+      kind: 'profile',
+      claimKey: 'user.candidate_lang',
       content: 'Always reply in Chinese',
+      scope: { vaultId: 'test-vault' },
       rationale: 'User command',
-      sourceSessionId: 'sess-1',
-      confidence: 0.9,
     });
 
-    const tab = new MindSettingsTab({
-      containerEl: containerEl as unknown as HTMLElement,
-      mindStore,
-      locale: 'en',
-    });
+    await createTab().render();
 
-    await tab.render();
+    const candidateCard = containerEl.querySelector('.claudian-plus-staging-card');
+    expect(candidateCard).not.toBeNull();
 
-    const stagingCard = containerEl.querySelector('.claudian-plus-staging-card');
-    expect(stagingCard).not.toBeNull();
-    expect(stagingCard?.querySelector('.claudian-plus-mind-rationale')?.textContent).toContain('User command');
-
-    // Click approve button
-    const approveBtn = stagingCard?.querySelector('.claudian-plus-mind-btn-approve');
+    const approveBtn = candidateCard?.querySelector('.claudian-plus-mind-btn-approve');
     expect(approveBtn).not.toBeNull();
     approveBtn?.click();
 
-    // Wait for async update
-    await new Promise((r) => setTimeout(r, 20));
+    await new Promise((r) => setTimeout(r, 40));
 
-    expect(await mindStore.listStaging()).toHaveLength(0);
-    expect(await mindStore.listDurable()).toHaveLength(1);
+    expect(await repo.listRecords({ status: 'candidate' })).toHaveLength(0);
+    const active = await repo.listRecords({ status: 'active' });
+    expect(active).toHaveLength(1);
+    expect(active[0].content).toBe('Always reply in Chinese');
   });
 
-  it('renders durable entries and handles delete', async () => {
-    await mindStore.addDurable({
-      category: 'coding_habit',
-      scope: 'project',
-      state: 'active',
+  it('archives and suppresses a candidate on dismiss', async () => {
+    await repo.commitCandidate({
+      kind: 'lesson',
+      claimKey: 'lesson.candidate_pnpm',
       content: 'Use pnpm only',
-      confidence: 0.95,
-      tags: ['pnpm'],
+      scope: { vaultId: 'test-vault' },
     });
 
-    const tab = new MindSettingsTab({
-      containerEl: containerEl as unknown as HTMLElement,
-      mindStore,
-      locale: 'en',
+    await createTab().render();
+
+    const dismissBtn = containerEl.querySelector('.claudian-plus-mind-btn-dismiss');
+    expect(dismissBtn).not.toBeNull();
+    dismissBtn?.click();
+
+    await new Promise((r) => setTimeout(r, 40));
+
+    expect(await repo.listRecords({ status: 'candidate' })).toHaveLength(0);
+    expect(await repo.listRecords({ status: 'active' })).toHaveLength(0);
+    expect((await repo.getForgetLedger()).length).toBe(1);
+  });
+
+  it('renders active records and forgets them from the repository section', async () => {
+    await repo.commitExplicit({
+      action: 'remember',
+      kind: 'profile',
+      claimKey: 'pref_lang',
+      content: 'Always reply in Chinese',
+      scope: { vaultId: 'test-vault' },
     });
 
-    await tab.render();
+    await createTab().render();
 
-    const durableCard = containerEl.querySelector('.claudian-plus-durable-card');
-    expect(durableCard).not.toBeNull();
+    const headers = containerEl.querySelectorAll('.claudian-plus-settings-card-header');
+    const repoHeader = Array.from(headers).find((h) => h.textContent?.includes('Memory Repository (1)'));
+    expect(repoHeader).toBeDefined();
 
-    const deleteBtn = durableCard?.querySelector('.claudian-plus-mind-btn-delete');
+    const deleteBtn = containerEl.querySelector('.claudian-plus-mind-btn-delete');
     expect(deleteBtn).not.toBeNull();
     deleteBtn?.click();
 
-    await new Promise((r) => setTimeout(r, 20));
-    expect(await mindStore.listDurable()).toHaveLength(0);
-  });
-
-  it('renders V2 records and handles forget and correct actions', async () => {
-    const mockRepo = {
-      listRecords: jest.fn().mockResolvedValue([
-        {
-          id: 'mem-1',
-          revision: 1,
-          kind: 'profile',
-          claimKey: 'pref_lang',
-          content: 'Always reply in Chinese',
-          status: 'active',
-          basis: 'explicit',
-          evidence: [],
-          observedAt: Date.now(),
-          supersedes: [],
-          scope: { vaultId: 'default' },
-        },
-      ]),
-      getCurrentGeneration: jest.fn().mockResolvedValue('gen_000001'),
-      listJobs: jest.fn().mockResolvedValue([]),
-      commitExplicit: jest.fn().mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<MemoryRepository>;
-
-    const mockCoordinator = {
-      processPendingJobs: jest.fn().mockResolvedValue({ processed: 1, deferred: 0, failed: 0 }),
-    } as unknown as jest.Mocked<MemoryCoordinator>;
-
-    const tab = new MindSettingsTab({
-      containerEl: containerEl as unknown as HTMLElement,
-      mindStore,
-      memoryRepository: mockRepo,
-      memoryCoordinator: mockCoordinator,
-      locale: 'en',
-    });
-
-    await tab.render();
-
-    const headers = containerEl.querySelectorAll('.claudian-plus-settings-card-header');
-    const v2Header = Array.from(headers).find((h) => h.textContent?.includes('Memory Repository V2'));
-    expect(v2Header).toBeDefined();
-
-    const deleteBtns = containerEl.querySelectorAll('.claudian-plus-mind-btn-delete');
-    const v2DeleteBtn = deleteBtns[deleteBtns.length - 1];
-    expect(v2DeleteBtn).toBeDefined();
-    v2DeleteBtn.click();
-
-    await new Promise((r) => setTimeout(r, 20));
-    expect(mockRepo.commitExplicit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: 'forget',
-        claimKey: 'pref_lang',
-      }),
-    );
+    await new Promise((r) => setTimeout(r, 40));
+    expect(await repo.listRecords({ status: 'active' })).toHaveLength(0);
   });
 });

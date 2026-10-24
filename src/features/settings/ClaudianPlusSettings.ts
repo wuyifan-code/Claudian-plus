@@ -1067,8 +1067,7 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
     const mindTabContainer = container.createDiv({ cls: 'claudian-plus-mind-tab-wrapper' });
     const mindTab = new MindSettingsTab({
       containerEl: mindTabContainer,
-      mindStore: this.plugin.getMindStore(),
-      memoryRepository: this.plugin.getMemoryRepository?.(),
+      memoryRepository: this.plugin.getMemoryRepository(),
       memoryCoordinator: this.plugin.getMemoryCoordinator?.(),
       locale,
     });
@@ -1122,6 +1121,29 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
         targetEl: pathSetting.settingEl,
       });
 
+      const maxTokensSetting = new Setting(memoryCard)
+        .setName(t('settings.memory.maxTokens.name'))
+        .setDesc(t('settings.memory.maxTokens.desc'))
+        .addSlider((slider) => {
+          slider
+            .setLimits(400, 4000, 100)
+            .setValue(this.plugin.settings.memoryMaxInjectionTokens ?? 1200)
+            .setDynamicTooltip()
+            .onChange(async (value) => {
+              await this.plugin.mutateSettings((settings) => {
+                settings.memoryMaxInjectionTokens = value;
+              });
+            });
+        });
+      this.registerSearchEntry({
+        categoryId: 'memory',
+        categoryLabel: 'Memory & Consciousness',
+        settingKey: 'memory-max-tokens',
+        name: t('settings.memory.maxTokens.name'),
+        desc: t('settings.memory.maxTokens.desc'),
+        targetEl: maxTokensSetting.settingEl,
+      });
+
       const maxCharsSetting = new Setting(memoryCard)
         .setName(t('settings.memory.maxChars.name'))
         .setDesc(t('settings.memory.maxChars.desc'))
@@ -1143,68 +1165,6 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
         name: t('settings.memory.maxChars.name'),
         desc: t('settings.memory.maxChars.desc'),
         targetEl: maxCharsSetting.settingEl,
-      });
-
-      const globalCharsSetting = new Setting(memoryCard)
-        .setName(featureCopy(locale, '全局画像预算（字符）', 'Global profile budget (chars)'))
-        .setDesc(featureCopy(
-          locale,
-          '用户画像层在总预算内可占用的上限。',
-          'Cap for the user mind profile layer within the total budget.',
-        ))
-        .addSlider((slider) => {
-          slider
-            .setLimits(100, 1500, 50)
-            .setValue(this.plugin.settings.memoryMaxGlobalInjectionChars)
-            .setDynamicTooltip()
-            .onChange(async (value) => {
-              await this.plugin.mutateSettings((settings) => {
-                settings.memoryMaxGlobalInjectionChars = value;
-              });
-            });
-        });
-      this.registerSearchEntry({
-        categoryId: 'memory',
-        categoryLabel: 'Memory & Consciousness',
-        settingKey: 'memory-global-chars',
-        name: featureCopy(locale, '全局画像预算（字符）', 'Global profile budget (chars)'),
-        desc: featureCopy(
-          locale,
-          '用户画像层在总预算内可占用的上限。',
-          'Cap for the user mind profile layer within the total budget.',
-        ),
-        targetEl: globalCharsSetting.settingEl,
-      });
-
-      const projectCharsSetting = new Setting(memoryCard)
-        .setName(featureCopy(locale, '项目规则预算（字符）', 'Project rules budget (chars)'))
-        .setDesc(featureCopy(
-          locale,
-          '动态项目规则层在总预算内可占用的上限。',
-          'Cap for the dynamic project rules layer within the total budget.',
-        ))
-        .addSlider((slider) => {
-          slider
-            .setLimits(100, 2000, 50)
-            .setValue(this.plugin.settings.memoryMaxProjectInjectionChars)
-            .setDynamicTooltip()
-            .onChange(async (value) => {
-              await this.plugin.mutateSettings((settings) => {
-                settings.memoryMaxProjectInjectionChars = value;
-              });
-            });
-        });
-      this.registerSearchEntry({
-        categoryId: 'memory',
-        categoryLabel: 'Memory & Consciousness',
-        settingKey: 'memory-project-chars',
-        name: featureCopy(locale, '项目规则预算（字符）', 'Project rules budget (chars)'),
-        desc: featureCopy(
-          locale,
-          '动态项目规则层在总预算内可占用的上限。',
-          'Cap for the dynamic project rules layer within the total budget.',
-        ),
-        targetEl: projectCharsSetting.settingEl,
       });
 
       const memoryButtonSetting = new Setting(memoryCard)
@@ -1261,6 +1221,98 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
           memoryStatusSetting.setDesc(featureCopy(locale, '读取失败', 'Failed to load memory status'));
         }
       })();
+    }
+
+    // --- 1.5 Ambient context & memory maintenance ---
+    const ambientCard = this.createCard(
+      container,
+      featureCopy(locale, '环境感知与维护', 'Ambient Context & Maintenance'),
+    );
+
+    new Setting(ambientCard)
+      .setName(featureCopy(locale, '随每轮注入当前上下文', 'Inject current ambient context'))
+      .setDesc(featureCopy(
+        locale,
+        '把当前焦点、文档大纲与链接关系随每条消息注入；关闭后不再读取当前笔记。',
+        'Inject the current focus, outline, and links with each message; when off, the active note is never read for context.',
+      ))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.ambientContextEnabled !== false)
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.ambientContextEnabled = value;
+            });
+          })
+      );
+
+    new Setting(ambientCard)
+      .setName(featureCopy(locale, '上下文内容预算（字符）', 'Context content budget (chars)'))
+      .setDesc(featureCopy(
+        locale,
+        '单次注入的焦点/文档内容上限。',
+        'Cap for focus/document content per injection.',
+      ))
+      .addSlider((slider) => {
+        slider
+          .setLimits(4000, 64000, 2000)
+          .setValue(this.plugin.settings.ambientMaxContentChars ?? 32000)
+          .setDynamicTooltip()
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.ambientMaxContentChars = value;
+            });
+          });
+      });
+
+    new Setting(ambientCard)
+      .setName(featureCopy(locale, '大纲条目上限', 'Outline entry cap'))
+      .setDesc(featureCopy(locale, '注入的大纲条目最大数量。', 'Maximum outline entries injected.'))
+      .addSlider((slider) => {
+        slider
+          .setLimits(10, 100, 10)
+          .setValue(this.plugin.settings.ambientMaxOutlineEntries ?? 50)
+          .setDynamicTooltip()
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.ambientMaxOutlineEntries = value;
+            });
+          });
+      });
+
+    new Setting(ambientCard)
+      .setName(featureCopy(locale, '链接条数上限', 'Link entry cap'))
+      .setDesc(featureCopy(locale, '注入的入链/出链最大数量。', 'Maximum in/out links injected.'))
+      .addSlider((slider) => {
+        slider
+          .setLimits(5, 50, 5)
+          .setValue(this.plugin.settings.ambientMaxLinks ?? 25)
+          .setDynamicTooltip()
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.ambientMaxLinks = value;
+            });
+          });
+      });
+
+    if (this.plugin.settings.memoryEnabled) {
+      new Setting(ambientCard)
+        .setName(featureCopy(locale, '经历保留期（天）', 'Episode retention (days)'))
+        .setDesc(featureCopy(
+          locale,
+          '超过该天数的经历记录会在维护时清理；0 表示永久保留。',
+          'Episodes older than this are pruned during maintenance; 0 keeps them forever.',
+        ))
+        .addText((text) =>
+          text
+            .setValue(String(this.plugin.settings.memoryEpisodeRetentionDays ?? 90))
+            .onChange(async (value) => {
+              const parsed = Math.max(0, Number.parseInt(value, 10) || 0);
+              await this.plugin.mutateSettings((settings) => {
+                settings.memoryEpisodeRetentionDays = parsed;
+              });
+            })
+        );
     }
 
     // --- 2. Consciousness & Awareness Network Card ---
@@ -1349,48 +1401,6 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
           );
 
         new Setting(consciousnessCard)
-          .setName(t('settings.dream.maxLogDays.name'))
-          .setDesc(t('settings.dream.maxLogDays.desc'))
-          .addText((text) =>
-            text
-              .setValue(String(this.plugin.settings.dreamMaxLogDays ?? 7))
-              .onChange(async (value) => {
-                const parsed = Math.max(1, Number.parseInt(value, 10) || 7);
-                await this.plugin.mutateSettings((settings) => {
-                  settings.dreamMaxLogDays = parsed;
-                });
-              })
-          );
-
-        new Setting(consciousnessCard)
-          .setName(t('settings.dream.inputCap.name'))
-          .setDesc(t('settings.dream.inputCap.desc'))
-          .addText((text) =>
-            text
-              .setValue(String(this.plugin.settings.dreamInputCharCap ?? 8000))
-              .onChange(async (value) => {
-                const parsed = Math.max(1000, Number.parseInt(value, 10) || 8000);
-                await this.plugin.mutateSettings((settings) => {
-                  settings.dreamInputCharCap = parsed;
-                });
-              })
-          );
-
-        new Setting(consciousnessCard)
-          .setName(t('settings.dream.maxNewFacts.name'))
-          .setDesc(t('settings.dream.maxNewFacts.desc'))
-          .addText((text) =>
-            text
-              .setValue(String(this.plugin.settings.dreamMaxNewFacts ?? 10))
-              .onChange(async (value) => {
-                const parsed = Math.max(1, Number.parseInt(value, 10) || 10);
-                await this.plugin.mutateSettings((settings) => {
-                  settings.dreamMaxNewFacts = parsed;
-                });
-              })
-          );
-
-        new Setting(consciousnessCard)
           .setName(t('settings.dream.runNow'))
           .setDesc(t('settings.dream.runNowDesc'))
           .addButton((button) => {
@@ -1398,16 +1408,15 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
               .setButtonText(t('settings.dream.runNow'))
               .setCta()
               .onClick(async () => {
-                const result = await this.plugin.getDreamService().runDream(true);
-                if (result.ran) {
-                  new Notice(`Dream memory consolidated: ${result.newFacts} fact(s), ${result.profileUpdates} profile update(s).`);
-                } else if (result.reason === 'no-new-logs') {
-                  new Notice('No new short-term memories to consolidate.');
-                } else if (result.reason === 'already-running') {
-                  new Notice('A memory consolidation is already running.');
-                } else if (result.reason === 'failed') {
-                  new Notice(`Memory consolidation failed: ${result.error ?? 'unknown error'}`);
+                const coordinator = this.plugin.getMemoryCoordinator?.();
+                if (!coordinator) {
+                  new Notice('Memory system is unavailable.');
+                  return;
                 }
+                await this.plugin.getMemoryRepository().initialize().catch(() => undefined);
+                await coordinator.enqueueScheduledJob('manual');
+                const result = await coordinator.processPendingJobs();
+                new Notice(`Memory consolidation: ${result.processed} processed, ${result.deferred} deferred, ${result.failed} failed.`);
               });
           });
       }

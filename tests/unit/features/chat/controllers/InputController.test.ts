@@ -234,45 +234,38 @@ describe('InputController memory extraction', () => {
     };
   }
 
-  it('keeps explicit memories available but does not auto-extract when consciousness is disabled', async () => {
+  it('routes explicit memory commands through the V2 coordinator only', async () => {
     const deps = createMockDeps();
     const memoryStore = createMemoryStore();
-    const explicitEntry = {
-      category: 'User Preferences',
-      content: 'Prefers concise responses',
-      source: 'user-explicit' as const,
-    };
+    const handleExplicitCommand = jest.fn().mockResolvedValue(true);
     const extractImplicit = jest.fn();
     Object.assign(deps.plugin.settings, {
       memoryEnabled: true,
-      consciousnessEnabled: false,
+      consciousnessEnabled: true,
       consciousnessAutoMemory: true,
     });
     Object.assign(deps.plugin, {
+      getMemoryCoordinator: jest.fn(() => ({ handleExplicitCommand })),
       getMemoryStore: jest.fn(() => memoryStore),
       memoryExtractor: {
-        isListRequest: jest.fn().mockReturnValue(false),
-        extractForgetRequest: jest.fn().mockReturnValue(null),
-        extract: jest.fn().mockReturnValue({ entries: [explicitEntry] }),
+        isListRequest: jest.fn(),
+        extractForgetRequest: jest.fn(),
+        extract: jest.fn().mockReturnValue({ entries: [] }),
         extractImplicit,
       },
     });
 
-    await (new InputController(deps) as any).extractAndSaveMemories('remember that I prefer concise responses');
+    await (new InputController(deps) as any).extractAndSaveMemories('记住：我喜欢简洁回复');
 
+    expect(handleExplicitCommand).toHaveBeenCalledWith('记住：我喜欢简洁回复', { vaultId: 'default-vault' });
+    expect(memoryStore.add).not.toHaveBeenCalled();
     expect(extractImplicit).not.toHaveBeenCalled();
-    expect(memoryStore.add).toHaveBeenCalledWith(explicitEntry);
   });
 
-  it('auto-extracts only when both consciousness and auto-memory are enabled', async () => {
+  it('does not fall back to legacy regex extraction when the coordinator is unavailable', async () => {
     const deps = createMockDeps();
     const memoryStore = createMemoryStore();
-    const implicitEntry = {
-      category: 'User Preferences',
-      content: 'Prefers dark mode',
-      source: 'user-implicit' as const,
-    };
-    const extractImplicit = jest.fn().mockReturnValue({ entries: [implicitEntry] });
+    const extractImplicit = jest.fn().mockReturnValue({ entries: [] });
     Object.assign(deps.plugin.settings, {
       memoryEnabled: true,
       consciousnessEnabled: true,
@@ -290,8 +283,31 @@ describe('InputController memory extraction', () => {
 
     await (new InputController(deps) as any).extractAndSaveMemories('I prefer dark mode');
 
-    expect(extractImplicit).toHaveBeenCalledWith('I prefer dark mode', []);
-    expect(memoryStore.add).toHaveBeenCalledWith(implicitEntry);
+    expect(extractImplicit).not.toHaveBeenCalled();
+    expect(memoryStore.add).not.toHaveBeenCalled();
+  });
+});
+
+describe('InputController ambient context assembly', () => {
+  it('attaches the ambient snapshot to the turn request', () => {
+    const snapshot = { mode: 'auto' } as any;
+    const deps = createMockDeps({
+      activeContextObserver: { getSnapshot: () => snapshot } as any,
+    });
+    const controller = new InputController(deps) as any;
+
+    const { turnRequest } = controller.buildTurnSubmission({ content: 'hello' });
+
+    expect(turnRequest.ambientContext).toBe(snapshot);
+  });
+
+  it('omits ambient context when no observer is attached', () => {
+    const deps = createMockDeps();
+    const controller = new InputController(deps) as any;
+
+    const { turnRequest } = controller.buildTurnSubmission({ content: 'hello' });
+
+    expect(turnRequest.ambientContext).toBeUndefined();
   });
 });
 
@@ -1484,6 +1500,33 @@ describe('InputController - Message Queue', () => {
       expect(deps.plugin.createConversation).toHaveBeenCalled();
       expect(deps.plugin.updateConversation).toHaveBeenCalledWith('conv-1', { titleGenerationStatus: 'pending' });
       expect(deps.plugin.renameConversation).toHaveBeenCalledWith('conv-1', 'Test Title');
+    });
+
+    it('activates ui-state persistence with the lazily created conversation id', async () => {
+      const mockTitleService = {
+        generateTitle: jest.fn().mockResolvedValue(undefined),
+        cancel: jest.fn(),
+      };
+      const activate = jest.fn();
+
+      deps = createSendableDeps({
+        getTitleGenerationService: () => mockTitleService as any,
+        uiStatePersistence: { activate },
+      }, null);
+
+      ((deps as any).mockAgentService.query as jest.Mock).mockReturnValue(
+        createMockStream([{ type: 'done' }])
+      );
+
+      (deps.streamController.handleStreamChunk as jest.Mock).mockResolvedValue(undefined);
+
+      inputEl = deps.getInputEl() as ReturnType<typeof createMockInputEl>;
+      inputEl.value = 'Hello world';
+      controller = new InputController(deps);
+
+      await controller.sendMessage();
+
+      expect(activate).toHaveBeenCalledWith('conv-1');
     });
 
     it('should find messages by role, not by index', async () => {
@@ -3628,16 +3671,14 @@ describe('InputController - Message Queue', () => {
     });
   });
   describe('Built-in /remember and /forget commands', () => {
-    it('handles /remember by adding a durable entry to MindStore', async () => {
+    it('handles /remember by routing through MemoryCoordinator', async () => {
       const deps = createSendableDeps();
-      const mockMindStore = {
-        addDurable: jest.fn().mockResolvedValue({
-          id: 'rule-test',
-          content: 'Always format dates in ISO format',
-        }),
-        forgetRule: jest.fn(),
+      const mockCoordinator = {
+        handleExplicitCommand: jest.fn().mockResolvedValue({ handled: true, action: 'remember' }),
+        recordTurnCompleted: jest.fn().mockResolvedValue(undefined),
+        processPendingJobs: jest.fn().mockResolvedValue({ processed: 0, deferred: 0, failed: 0 }),
       };
-      (deps.plugin as any).getMindStore = jest.fn().mockReturnValue(mockMindStore);
+      (deps.plugin as any).getMemoryCoordinator = jest.fn().mockReturnValue(mockCoordinator);
 
       const controller = new InputController(deps);
       const inputEl = deps.getInputEl();
@@ -3645,27 +3686,26 @@ describe('InputController - Message Queue', () => {
 
       await controller.sendMessage();
 
-      expect(mockMindStore.addDurable).toHaveBeenCalledWith(
-        expect.objectContaining({
-          content: 'Always format dates in ISO format',
-          category: 'user_preference',
-          scope: 'project',
-          state: 'active',
-        }),
+      expect(mockCoordinator.handleExplicitCommand).toHaveBeenCalledWith(
+        'remember: Always format dates in ISO format',
+        expect.objectContaining({ vaultId: expect.any(String) }),
       );
-      expect(mockNotice).toHaveBeenCalledWith(expect.stringContaining('Always format dates in ISO format'));
+      expect(mockNotice).toHaveBeenCalledWith('Remembered: "Always format dates in ISO format"');
     });
 
-    it('handles /forget by calling forgetRule on MindStore', async () => {
+    it('handles /forget by routing through MemoryCoordinator', async () => {
       const deps = createSendableDeps();
-      const mockMindStore = {
-        addDurable: jest.fn(),
-        forgetRule: jest.fn().mockResolvedValue({
-          id: 'rule-test',
-          content: 'Always format dates in ISO format',
+      const mockCoordinator = {
+        handleExplicitCommand: jest.fn().mockResolvedValue({
+          handled: true,
+          action: 'forget',
+          unmatched: false,
+          removedCount: 1,
         }),
+        recordTurnCompleted: jest.fn().mockResolvedValue(undefined),
+        processPendingJobs: jest.fn().mockResolvedValue({ processed: 0, deferred: 0, failed: 0 }),
       };
-      (deps.plugin as any).getMindStore = jest.fn().mockReturnValue(mockMindStore);
+      (deps.plugin as any).getMemoryCoordinator = jest.fn().mockReturnValue(mockCoordinator);
 
       const controller = new InputController(deps);
       const inputEl = deps.getInputEl();
@@ -3673,15 +3713,18 @@ describe('InputController - Message Queue', () => {
 
       await controller.sendMessage();
 
-      expect(mockMindStore.forgetRule).toHaveBeenCalledWith('ISO');
-      expect(mockNotice).toHaveBeenCalledWith(expect.stringContaining('Forgot rule'));
+      expect(mockCoordinator.handleExplicitCommand).toHaveBeenCalledWith(
+        'forget: ISO',
+        expect.objectContaining({ vaultId: expect.any(String) }),
+      );
+      expect(mockNotice).toHaveBeenCalledWith('Forgot 1 memory matching "ISO"');
     });
   });
   describe('Memory V2 Integration', () => {
     it('handles explicit remember via MemoryCoordinator.handleExplicitCommand', async () => {
       const deps = createSendableDeps();
       const mockCoordinator = {
-        handleExplicitCommand: jest.fn().mockResolvedValue(true),
+        handleExplicitCommand: jest.fn().mockResolvedValue({ handled: true, action: 'remember' }),
         recordTurnCompleted: jest.fn().mockResolvedValue(undefined),
         processPendingJobs: jest.fn().mockResolvedValue({ processed: 0, deferred: 0, failed: 0 }),
       };

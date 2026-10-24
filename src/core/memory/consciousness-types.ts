@@ -65,12 +65,6 @@ export interface ConsciousnessConfig {
   enabled: boolean;
   /** Enable automatic memory maintenance. */
   autoMemoryEnabled: boolean;
-  /** Minimum conversations before auto-reflection. */
-  minConversationsForReflection: number;
-  /** Minimum memories before consolidation. */
-  minMemoriesForConsolidation: number;
-  /** Auto-reflection interval in milliseconds. */
-  reflectionIntervalMs: number;
   /** Privacy controls for memory collection. */
   privacy: ConsciousnessPrivacyConfig;
   /** Retention policy for automatic cleanup. */
@@ -81,10 +75,6 @@ export interface ConsciousnessConfig {
 export interface ConsciousnessPrivacyConfig {
   /** Allow implicit memory extraction from conversations. */
   allowImplicitExtraction: boolean;
-  /** Include source context (conversation ID, trigger) in stored memories. */
-  includeSourceContext: boolean;
-  /** Require explicit user confirmation before storing implicit memories. */
-  requireConfirmationForImplicit: boolean;
 }
 
 /** Retention policy for automatic memory cleanup. */
@@ -101,13 +91,8 @@ export interface ConsciousnessRetentionConfig {
 export const DEFAULT_CONSCIOUSNESS_CONFIG: ConsciousnessConfig = {
   enabled: true,
   autoMemoryEnabled: true,
-  minConversationsForReflection: 5,
-  minMemoriesForConsolidation: 10,
-  reflectionIntervalMs: 24 * 60 * 60 * 1000, // 24 hours
   privacy: {
     allowImplicitExtraction: true,
-    includeSourceContext: true,
-    requireConfirmationForImplicit: false,
   },
   retention: {
     shortTermMaxAgeDays: 30,

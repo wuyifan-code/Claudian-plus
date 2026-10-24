@@ -13,6 +13,7 @@ import type { NavigationController } from '../controllers/NavigationController';
 import type { SelectionController } from '../controllers/SelectionController';
 import type { StreamController } from '../controllers/StreamController';
 import type { MessageRenderer } from '../rendering/MessageRenderer';
+import type { UiStatePersistenceController } from '../rendering/ui/uiStatePersistence';
 import type { SubagentManager } from '../services/SubagentManager';
 import type { ChatState } from '../state/ChatState';
 import type { BangBashModeManager } from '../ui/BangBashModeManager';
@@ -117,6 +118,8 @@ export interface TabControllers {
   streamController: StreamController | null;
   inputController: InputController | null;
   navigationController: NavigationController | null;
+  /** Persists generated-UI widget state for the tab's active conversation. */
+  uiStatePersistence: UiStatePersistenceController | null;
 }
 
 /**

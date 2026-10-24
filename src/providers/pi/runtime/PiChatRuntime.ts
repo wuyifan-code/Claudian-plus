@@ -137,6 +137,8 @@ export class PiChatRuntime implements ChatRuntime {
   readonly providerId = 'pi' as const;
 
   private activeTurn: ActiveTurn | null = null;
+  /** Prompt of the in-flight turn, so memory retrieval can see the user message. */
+  private memoryQueryPrompt: string | undefined;
   private conversationId: string | null = null;
   private conversationGeneration = 0;
   private currentLaunchKey: string | null = null;
@@ -312,7 +314,7 @@ export class PiChatRuntime implements ChatRuntime {
     const hasSessionTarget = Boolean(this.sessionId || this.sessionFile);
     const promptSettings = this.getSystemPromptSettings(cwd);
     const [memoryAppendix, consciousnessAppendix, responseFormatAppendix] = await Promise.all([
-      this.plugin.getMemoryInjectionText(),
+      this.plugin.getMemoryInjectionText(this.memoryQueryPrompt),
       this.plugin.getConsciousnessInjectionText(),
       this.plugin.getResponseFormatInjectionText?.() ?? Promise.resolve(null),
     ]);
@@ -417,6 +419,7 @@ export class PiChatRuntime implements ChatRuntime {
     if (queryOptions?.model) {
       this.setCurrentConversationModel(queryOptions.model);
     }
+    this.memoryQueryPrompt = turn.prompt;
     const conversationGeneration = this.conversationGeneration;
     this.currentTurnMetadata = {};
     let isReady: boolean;

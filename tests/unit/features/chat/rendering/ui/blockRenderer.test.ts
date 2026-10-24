@@ -1,10 +1,14 @@
 /**
  * @jest-environment jsdom
  */
+import { UiStateStore } from '@/features/chat/rendering/ui/stateStore';
 import {
+  captureUiFocus,
   disposeUiBlocksUnder,
   pruneDetachedUiBlocks,
   renderUiBlock,
+  restoreUiFocus,
+  uiBlockKey,
   uiBlockSubscriptionCount,
 } from '@/features/chat/rendering/UiBlockRenderer';
 
@@ -14,10 +18,34 @@ function createContainer(): HTMLElement {
   return container;
 }
 
+const SIMPLE_PROGRAM = [
+  'root = Col([heading, body])',
+  'heading = Title("Rehber")',
+  'body = Text("Pick a day")',
+].join('\n');
+
 describe('renderUiBlock', () => {
   afterEach(() => {
     document.body.replaceChildren();
     pruneDetachedUiBlocks();
+  });
+
+  it('claims the block scope for the conversation that owns it', () => {
+    const store = new UiStateStore();
+    const container = createContainer();
+
+    renderUiBlock(container, SIMPLE_PROGRAM, { blockKey: 'm-own:0', ownerId: 'conv-9', store });
+
+    expect(store.scopesOf('conv-9')).toContain('m-own:0');
+  });
+
+  it('claims unowned blocks as live', () => {
+    const store = new UiStateStore();
+    const container = createContainer();
+
+    renderUiBlock(container, SIMPLE_PROGRAM, { blockKey: 'm-live:0', store });
+
+    expect(store.scopesOf('live')).toContain('m-live:0');
   });
 
   it('renders a program as native DOM', () => {
@@ -71,6 +99,173 @@ describe('renderUiBlock', () => {
     // Re-rendering the same block keeps the chosen value (streaming frames).
     renderUiBlock(container, source, { blockKey: 'm3:0' });
     expect(container.textContent).toContain('mode=fast');
+  });
+
+  it('keeps focus and the caret in a bound Input across keystroke re-renders', () => {
+    const container = createContainer();
+    const source = [
+      'root = Col([field, echo])',
+      '$name = ""',
+      'field = Input($name, "Name")',
+      'echo = Text("typed=" + $name)',
+    ].join('\n');
+
+    renderUiBlock(container, source, { blockKey: 'm9:0' });
+    const firstInput = container.querySelector('.claudian-plus-ui-input') as HTMLInputElement;
+    firstInput.focus();
+    expect(document.activeElement).toBe(firstInput);
+
+    firstInput.value = 'a';
+    firstInput.setSelectionRange(1, 1);
+    firstInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+    const afterFirstKey = document.activeElement as HTMLInputElement;
+    expect(afterFirstKey.tagName).toBe('INPUT');
+    expect(afterFirstKey.dataset.uiBinding).toBe('name');
+    expect(afterFirstKey.value).toBe('a');
+    expect(afterFirstKey.selectionStart).toBe(1);
+    expect(afterFirstKey.selectionEnd).toBe(1);
+    expect(container.textContent).toContain('typed=a');
+
+    afterFirstKey.value = 'ab';
+    afterFirstKey.setSelectionRange(2, 2);
+    afterFirstKey.dispatchEvent(new Event('input', { bubbles: true }));
+
+    const afterSecondKey = document.activeElement as HTMLInputElement;
+    expect(afterSecondKey.tagName).toBe('INPUT');
+    expect(afterSecondKey.dataset.uiBinding).toBe('name');
+    expect(afterSecondKey.value).toBe('ab');
+    expect(afterSecondKey.selectionStart).toBe(2);
+    expect(afterSecondKey.selectionEnd).toBe(2);
+    expect(container.textContent).toContain('typed=ab');
+  });
+
+  it('restores focus to a bound Select after its change re-renders the block', () => {
+    const container = createContainer();
+    const source = [
+      'root = Col([picker, output])',
+      '$mode = "slow"',
+      'picker = Select($mode, ["slow", "fast"], "Mode")',
+      'output = Text("mode=" + $mode)',
+    ].join('\n');
+
+    renderUiBlock(container, source, { blockKey: 'm10:0' });
+    const select = container.querySelector('select') as HTMLSelectElement;
+    select.focus();
+    expect(document.activeElement).toBe(select);
+
+    select.value = 'fast';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const after = document.activeElement as HTMLSelectElement;
+    expect(after.tagName).toBe('SELECT');
+    expect(after.dataset.uiBinding).toBe('mode');
+    expect(after.value).toBe('fast');
+    expect(container.textContent).toContain('mode=fast');
+  });
+
+  it('keys widget state per conversation so replayed index message ids cannot collide', () => {
+    expect(uiBlockKey('conv-a', 'codex-msg-0', 0)).toBe('conv-a:codex-msg-0:0');
+    expect(uiBlockKey('conv-b', 'codex-msg-0', 0)).toBe('conv-b:codex-msg-0:0');
+    expect(uiBlockKey(undefined, 'm1', 2)).toBe('live:m1:2');
+  });
+
+  it('isolates widget state between conversations sharing the same message id', () => {
+    const source = [
+      'root = Col([picker, output])',
+      '$mode = "slow"',
+      'picker = SegmentedControl($mode, ["slow", "fast"])',
+      'output = Text("mode=" + $mode)',
+    ].join('\n');
+    const containerA = createContainer();
+    const containerB = createContainer();
+    renderUiBlock(containerA, source, {
+      blockKey: uiBlockKey('conv-a', 'codex-msg-0', 0),
+      ownerId: 'conv-a',
+    });
+    renderUiBlock(containerB, source, {
+      blockKey: uiBlockKey('conv-b', 'codex-msg-0', 0),
+      ownerId: 'conv-b',
+    });
+    expect(uiBlockSubscriptionCount()).toBe(2);
+
+    (containerA.querySelectorAll('.claudian-plus-ui-segment')[1] as HTMLElement).click();
+
+    expect(containerA.textContent).toContain('mode=fast');
+    expect(containerB.textContent).toContain('mode=slow');
+
+    (containerB.querySelectorAll('.claudian-plus-ui-segment')[1] as HTMLElement).click();
+    expect(containerB.textContent).toContain('mode=fast');
+  });
+
+  it('carries focus and caret into a fresh container across streaming frames', () => {
+    const container = createContainer();
+    const source = [
+      'root = Col([field, echo])',
+      '$name = ""',
+      'field = Input($name, "Name")',
+      'echo = Text("typed=" + $name)',
+    ].join('\n');
+    renderUiBlock(container, source, { blockKey: 'm12:0' });
+    const input = container.querySelector('.claudian-plus-ui-input') as HTMLInputElement;
+    input.focus();
+    input.value = 'ab';
+    input.setSelectionRange(2, 2);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+
+    // Streaming frame: the old element is emptied and a fresh one mounted, so
+    // the focused control is gone before the new container renders.
+    const focus = captureUiFocus(container);
+    container.remove();
+    const next = createContainer();
+    renderUiBlock(next, source, { blockKey: 'm12:0' });
+    restoreUiFocus(next, focus);
+
+    const after = document.activeElement as HTMLInputElement;
+    expect(after.tagName).toBe('INPUT');
+    expect(after.dataset.uiBinding).toBe('name');
+    expect(after.value).toBe('ab');
+    expect(after.selectionStart).toBe(2);
+    expect(after.selectionEnd).toBe(2);
+    expect(next.textContent).toContain('typed=ab');
+  });
+
+  it('captures focused bound controls without reading selection on types that lack it', () => {
+    const container = createContainer();
+    const range = document.createElement('input');
+    range.type = 'range';
+    range.dataset.uiBinding = 'hours';
+    container.appendChild(range);
+    range.focus();
+
+    const rangeFocus = captureUiFocus(container);
+    expect(rangeFocus?.binding).toBe('hours');
+    expect(rangeFocus?.selectionStart).toBeNull();
+    expect(rangeFocus?.selectionEnd).toBeNull();
+
+    // Legacy engines throw for non-text types; the capture must stay safe.
+    const throwing = document.createElement('input');
+    throwing.type = 'number';
+    throwing.dataset.uiBinding = 'qty';
+    Object.defineProperty(throwing, 'selectionStart', {
+      get(): number | null {
+        throw new DOMException('no selection', 'InvalidStateError');
+      },
+      configurable: true,
+    });
+    Object.defineProperty(throwing, 'selectionEnd', {
+      get(): number | null {
+        throw new DOMException('no selection', 'InvalidStateError');
+      },
+      configurable: true,
+    });
+    container.appendChild(throwing);
+    throwing.focus();
+
+    expect(() => captureUiFocus(container)).not.toThrow();
+    const guarded = captureUiFocus(container);
+    expect(guarded?.binding).toBe('qty');
+    expect(guarded?.selectionStart).toBeNull();
   });
 
   it('reports failure when the program has no usable root', () => {

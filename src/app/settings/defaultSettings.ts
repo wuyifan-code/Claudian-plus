@@ -2,6 +2,7 @@ import {
   DEFAULT_MEMORY_FILE_PATH,
   DEFAULT_MEMORY_MAX_GLOBAL_INJECTION_CHARS,
   DEFAULT_MEMORY_MAX_INJECTION_CHARS,
+  DEFAULT_MEMORY_MAX_INJECTION_TOKENS,
   DEFAULT_MEMORY_MAX_PROJECT_INJECTION_CHARS,
 } from '../../core/memory/types';
 import { getDefaultHiddenProviderCommands } from '../../core/providers/commands/hiddenCommands';
@@ -90,6 +91,7 @@ export const DEFAULT_CLAUDIAN_PLUS_SETTINGS: ClaudianPlusSettings = {
   memoryEnabled: true,
   memoryFilePath: DEFAULT_MEMORY_FILE_PATH,
   memoryMaxInjectionChars: DEFAULT_MEMORY_MAX_INJECTION_CHARS,
+  memoryMaxInjectionTokens: DEFAULT_MEMORY_MAX_INJECTION_TOKENS,
   memoryMaxGlobalInjectionChars: DEFAULT_MEMORY_MAX_GLOBAL_INJECTION_CHARS,
   memoryMaxProjectInjectionChars: DEFAULT_MEMORY_MAX_PROJECT_INJECTION_CHARS,
 
@@ -98,15 +100,23 @@ export const DEFAULT_CLAUDIAN_PLUS_SETTINGS: ClaudianPlusSettings = {
   consciousnessEnabled: false,
   consciousnessAutoMemory: false,
 
-  // Dream memory consolidation follows the consciousness opt-in. Defaults are
-  // safe for local-only distillation: 24h interval, 7 days of logs, capped input.
+  // Dream memory scheduling follows the consciousness opt-in. The hourly sweep
+  // runs retention/GC plus any due V2 dream jobs under the auxiliary gate.
   dreamIntervalMs: 24 * 60 * 60 * 1000,
-  dreamMaxLogDays: 7,
-  dreamInputCharCap: 8000,
-  dreamMaxNewFacts: 10,
+
+  // V2 memory maintenance: episodes older than 90 days are pruned by default.
+  memoryEpisodeRetentionDays: 90,
 
   // Saving mode stays `standard` on fresh installs so automatic background
   // behavior is unchanged; the daily cap is unlimited until the user opts in.
   auxiliarySavingMode: 'standard',
   backgroundRequestDailyLimit: null,
+
+  // Ambient context follows the memory opt-in surface but stays on by default:
+  // it only reflects what the user is already viewing in the active pane.
+  ambientContextEnabled: true,
+  ambientMaxContentChars: 32_000,
+  ambientMaxOutlineEntries: 50,
+  ambientMaxLinks: 25,
+  ambientFileModes: {},
 };

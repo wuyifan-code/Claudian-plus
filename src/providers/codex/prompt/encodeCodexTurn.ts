@@ -44,7 +44,7 @@ export function encodeCodexTurn(request: ChatTurnRequest): PreparedChatTurn {
   }
 
   if (request.ambientContext) {
-    const ambientXml = formatAmbientContextXml(request.ambientContext);
+    const ambientXml = formatAmbientContextXml(request.ambientContext, request.ambientBudgets);
     if (ambientXml) {
       sections.push(`\n\n${ambientXml}`);
     }

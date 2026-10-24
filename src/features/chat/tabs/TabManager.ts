@@ -16,6 +16,7 @@ import { chooseForkTarget } from '../../../shared/modals/ForkTargetModal';
 import { scheduleAnimationFrame } from '../../../utils/animationFrame';
 import { revealWorkspaceLeaf } from '../../../utils/obsidianCompat';
 import type { FeatureHost } from '../../FeatureHost';
+import { releaseConversationUiState } from '../rendering/ui/uiStatePersistence';
 import { getTabProviderId } from './providerResolution';
 import {
   activateTab,
@@ -870,6 +871,7 @@ export class TabManager implements TabManagerInterface {
       return await this.createTab(conversationId);
     } catch (error) {
       await this.plugin.deleteConversation(conversationId).catch(() => {});
+      releaseConversationUiState(conversationId);
       throw error;
     }
   }
@@ -883,6 +885,7 @@ export class TabManager implements TabManagerInterface {
       await activeTab.controllers.conversationController.switchTo(conversationId);
     } catch (error) {
       await this.plugin.deleteConversation(conversationId).catch(() => {});
+      releaseConversationUiState(conversationId);
       throw error;
     }
     return true;

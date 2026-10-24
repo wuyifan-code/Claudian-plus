@@ -35,7 +35,39 @@ function configurationKey(settings: Record<string, unknown>): string {
   return JSON.stringify([current.cliPath, current.cliPathsByHost, environment]);
 }
 
-function flattenCatalog(value: unknown): DshModel[] {
+interface CatalogFailure {
+  id: string;
+  name: string;
+  message: string;
+}
+
+function readCatalogFailures(value: unknown): CatalogFailure[] {
+  if (!Array.isArray(value)) return [];
+  const failures: CatalogFailure[] = [];
+  for (const entry of value) {
+    if (!record(entry) || typeof entry.id !== 'string' || !entry.id.trim()
+      || typeof entry.message !== 'string' || !entry.message.trim()) continue;
+    const id = entry.id.trim();
+    failures.push({
+      id,
+      name: typeof entry.name === 'string' && entry.name.trim() ? entry.name.trim() : id,
+      message: entry.message.trim(),
+    });
+  }
+  return failures;
+}
+
+function catalogDiagnostics(failures: CatalogFailure[], modelCount: number): string | undefined {
+  const unavailable = failures.map(failure => `${failure.name} (${failure.id}): ${failure.message}`).join('; ');
+  if (modelCount === 0) {
+    return unavailable
+      ? `DeepSeek Harness model catalog is empty. Unavailable providers: ${unavailable}`
+      : 'DeepSeek Harness model catalog returned no available models.';
+  }
+  return unavailable ? `DeepSeek Harness model catalog refreshed; unavailable providers: ${unavailable}` : undefined;
+}
+
+function flattenCatalog(value: unknown): { models: DshModel[]; failures: CatalogFailure[] } {
   if (!record(value) || !Array.isArray(value.groups) || !Array.isArray(value.routableProviders)
     || !value.routableProviders.every(entry => typeof entry === 'string')) return malformedCatalog();
   const routable = new Set(value.routableProviders);
@@ -62,7 +94,7 @@ function flattenCatalog(value: unknown): DshModel[] {
       models.push(model);
     }
   }
-  return models;
+  return { models, failures: readCatalogFailures(value.failures) };
 }
 
 export function createDshWorkspaceServices(plugin: ProviderHost): DshWorkspaceServices {
@@ -96,7 +128,12 @@ export function createDshWorkspaceServices(plugin: ProviderHost): DshWorkspaceSe
         }
         await lease.ready();
         const catalog = await lease.client.call('session/modelCatalog', {});
-        const models = flattenCatalog(catalog);
+        const { models, failures } = flattenCatalog(catalog);
+        const diagnostics = catalogDiagnostics(failures, models.length);
+        if (models.length === 0) {
+          // An empty catalog is a native failure, never a reason to discard the last known models.
+          return { changed: false, ...(diagnostics ? { diagnostics } : {}) };
+        }
         let changed = false;
         await plugin.mutateSettings(settings => {
           const current = getDshProviderSettings(settings);
@@ -105,7 +142,11 @@ export function createDshWorkspaceServices(plugin: ProviderHost): DshWorkspaceSe
           updateDshProviderSettings(settings, { models });
           changed = true;
         });
-        return { changed, ...(changed ? { persistedSettingsChanged: true } : {}) };
+        return {
+          changed,
+          ...(changed ? { persistedSettingsChanged: true } : {}),
+          ...(diagnostics ? { diagnostics } : {}),
+        };
       } finally {
         lease.release();
       }

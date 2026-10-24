@@ -1,9 +1,6 @@
 import type { ObsidianMcpServerHandle } from '../core/mcp/ObsidianMcpServer';
 import type {
   ConsciousnessEngine,
-  DreamService,
-  HybridMindPromptInjector,
-  MemoryExtractor,
   MemoryStore,
   MicroDreamCoordinator,
   MindStore,
@@ -19,7 +16,7 @@ import type { AppTabManagerState, ProviderId } from '../core/providers/types';
 import type { ChatRuntime } from '../core/runtime/ChatRuntime';
 import type { AgentSkillRegistry } from '../core/skills/AgentSkillRegistry';
 import type { AgentSkillRepository } from '../core/skills/AgentSkillRepository';
-import type { Conversation, ConversationMeta } from '../core/types';
+import type { Conversation, ConversationMeta, SessionMetadata } from '../core/types';
 import type { ComposerEnhancement } from './chat/composer/types';
 import type { TabData, TabId, TabManagerViewHost } from './chat/tabs/types';
 
@@ -49,35 +46,28 @@ export interface FeatureViewHost extends TabManagerViewHost {
 /** Application capabilities consumed by user-facing features. */
 export interface FeatureHost extends ProviderHost {
   readonly providerHost: ProviderHost;
-  readonly memoryExtractor: MemoryExtractor;
 
-  /** Get the mind store for Dreaming V3 staging and durable mind entries. */
+  /** Get the mind store for legacy mind entries and migration. */
   getMindStore(): MindStore;
 
   /** Get the micro-dream coordinator for session synthesis. */
   getMicroDreamCoordinator(): MicroDreamCoordinator;
 
-  /** Get the hybrid mind prompt injector for dual-layer context injection. */
-  getHybridMindPromptInjector(): HybridMindPromptInjector;
-
-  /** Get the memory store for saving/loading user memories. */
+  /** Get the memory store for the memory.md export view. */
   getMemoryStore(): MemoryStore;
 
 
   /** Get the consciousness engine for awareness features. */
   getConsciousnessEngine(): ConsciousnessEngine;
 
-  /** Get the dream memory consolidation service. */
-  getDreamService(): DreamService;
-
   /** Get the unified memory repository (V2). */
-  getMemoryRepository?(): MemoryRepository;
+  getMemoryRepository(): MemoryRepository;
 
   /** Get the memory coordinator for turn ingestion and background dreams (V2). */
-  getMemoryCoordinator?(): MemoryCoordinator;
+  getMemoryCoordinator(): MemoryCoordinator;
 
   /** Get the memory retriever for task-focused context packet generation (V2). */
-  getMemoryRetriever?(): MemoryRetriever;
+  getMemoryRetriever(): MemoryRetriever;
 
   /** Get active chat context including current provider, model, and active file. */
   getActiveChatContext?(): { providerId: ProviderId; model: string | null; activeFilePath?: string } | null;
@@ -126,6 +116,10 @@ export interface FeatureHost extends ProviderHost {
   ensureConversationSearchIndex?(ids: string[]): Promise<void>;
 
   persistTabManagerState(state: AppTabManagerState): Promise<void>;
+  /** Loads the latest persisted session metadata (generated-UI state hydration). */
+  loadSessionMetadata?(id: string): Promise<SessionMetadata | null>;
+  /** Persists session metadata as-is; callers must merge against the latest on disk. */
+  saveSessionMetadata?(metadata: SessionMetadata): Promise<void>;
   getView(): FeatureViewHost | null;
   getAllViews(): FeatureViewHost[];
   findConversationAcrossViews(

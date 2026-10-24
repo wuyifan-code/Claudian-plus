@@ -165,7 +165,11 @@
       },
       "maxChars": {
         "name": "Máximo de caracteres de injeção",
-        "desc": "Máximo de caracteres para injetar no prompt do sistema"
+        "desc": "Limite de caracteres para a injeção do arquivo de memória legado; a memória recuperada usa o orçamento de tokens"
+      },
+      "maxTokens": {
+        "name": "Máximo de tokens de injeção",
+        "desc": "Orçamento de tokens para o contexto de memória recuperado injetado no prompt do sistema"
       },
       "manage": {
         "name": "Gerenciar memórias",
@@ -201,18 +205,6 @@
       "interval": {
         "name": "Dream interval (hours)",
         "desc": "Minimum time between automatic consolidation runs"
-      },
-      "maxLogDays": {
-        "name": "Log lookback (days)",
-        "desc": "How many recent days of short-term logs to consider"
-      },
-      "inputCap": {
-        "name": "Input budget (chars)",
-        "desc": "Character budget for one dream cycle; older content is truncated"
-      },
-      "maxNewFacts": {
-        "name": "Max new facts per dream",
-        "desc": "Upper bound on long-term memory entries written per cycle"
       },
       "runNow": "Run dream now",
       "runNowDesc": "Consolidate pending short-term memories immediately"
@@ -415,6 +407,10 @@
     "deferMathRenderingDuringStreaming": {
       "name": "Adiar renderização matemática durante streaming",
       "desc": "Mostrar LaTeX bruto enquanto a resposta é transmitida e renderizar a matemática uma vez quando cada bloco de texto terminar."
+    },
+    "generativeUi": {
+      "name": "Respostas com interface inteligente",
+      "desc": "Permite que o modelo responda com uma interface interativa (diagramas, tabelas, gráficos, controles) quando isso explicar ou comparar melhor que texto; caso contrário, texto simples."
     },
     "expandFileEditsByDefault": {
       "name": "Expandir edições de arquivo por padrão",

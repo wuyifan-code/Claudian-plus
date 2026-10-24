@@ -1,10 +1,12 @@
 import type { AuxQueryRunner } from '../../auxiliary/AuxQueryRunner';
 import type { ProviderId } from '../../providers/types';
+import { resolveClaimKey, sanitizeKeywords } from './claimKey';
 import type { MemoryRepository } from './MemoryRepository';
 import type {
   DreamJob,
   DreamProposal,
   EpisodeRecord,
+  KeywordAnnotation,
   MemoryRecord,
 } from './types';
 
@@ -24,11 +26,13 @@ export interface DreamRunOutput {
   appliedCount?: number;
   rejectedCount?: number;
   proposals?: DreamProposal[];
+  keywordAnnotations?: KeywordAnnotation[];
 }
 
 export interface PreparedDreamInput {
   episodes: EpisodeRecord[];
   existingMemories: MemoryRecord[];
+  keywordlessMemories: MemoryRecord[];
   fromEventId?: string;
   toEventId?: string;
   inputLength: number;
@@ -49,6 +53,7 @@ Output strictly valid JSON matching this schema:
       "basis": "explicit" | "observed" | "inferred",
       "conditions": ["optional matching condition tags"],
       "outcome": "succeeded" | "failed" | "unknown",
+      "keywords": ["3-8 lowercase search keywords in the user's language"],
       "evidence": [
         {
           "rootEventId": "id of the episode providing evidence",
@@ -61,13 +66,19 @@ Output strictly valid JSON matching this schema:
         }
       ]
     }
+  ],
+  "keywordAnnotations": [
+    { "id": "existing memory id that lacks keywords", "keywords": ["3-8 keywords"] }
   ]
 }
 
 CRITICAL RULES:
 1. Do not invent facts. Every fact MUST have verifiable evidence from the episodes.
 2. An assistant claiming "I fixed it" is NOT proof of success. Outcome is only "succeeded" if confirmed by a tool_result or user statement.
-3. If there are no new facts or changes, return "proposals": [].`;
+3. claimKey stability: when re-stating, merging, or updating a fact that already exists in "Existing Active Memories", REUSE that record's claimKey verbatim. Invent a new namespaced key only for genuinely new facts.
+4. Every proposal MUST include "keywords": 3-8 lowercase search terms a future query would likely use (in the user's language, e.g. Chinese).
+5. For existing memories listed with "(no keywords)", fill "keywordAnnotations" with their id and keywords. Skip this array entirely when there are none.
+6. If there are no new facts or changes, return "proposals": [].`;
 
 export class DreamRunner {
   private readonly repo: MemoryRepository;
@@ -121,14 +132,27 @@ export class DreamRunner {
     }
 
     const existingMemories = (await this.repo.listRecords({ status: 'active' })).slice(-30);
+    const keywordlessMemories = existingMemories
+      .filter((m) => !m.keywords || m.keywords.length === 0)
+      .slice(-20);
 
     return {
       episodes: selectedEpisodes,
       existingMemories,
+      keywordlessMemories,
       fromEventId: selectedEpisodes[0]?.id,
       toEventId: selectedEpisodes[selectedEpisodes.length - 1]?.id,
       inputLength: currentChars,
     };
+  }
+
+  /**
+   * Cheap local-IO check used by the coordinator to close out queued jobs
+   * without spending gate budget when every episode is already adjudicated.
+   */
+  async hasUnadjudicatedEpisodes(): Promise<boolean> {
+    const input = await this.prepareDreamInput({} as DreamJob);
+    return input.episodes.length > 0;
   }
 
   async runDreamJob(
@@ -159,8 +183,8 @@ export class DreamRunner {
         userPrompt,
       );
 
-      const parsedProposals = this.parseResponse(response, input.episodes);
-      const sanitizedProposals = this.sanitizeProposals(parsedProposals, input.episodes);
+      const parsed = this.parseResponse(response);
+      const sanitizedProposals = this.sanitizeProposals(parsed.proposals, input.episodes);
 
       const commitResult = await this.repo.commitDream({
         jobId: job.id,
@@ -178,6 +202,7 @@ export class DreamRunner {
         appliedCount: commitResult.appliedCount,
         rejectedCount: commitResult.rejectedCount,
         proposals: sanitizedProposals,
+        keywordAnnotations: parsed.keywordAnnotations,
       };
     } catch (err) {
       return {
@@ -192,9 +217,10 @@ export class DreamRunner {
   }
 
   private buildUserPrompt(input: PreparedDreamInput): string {
-    const memoryLines = input.existingMemories.map(
-      (m) => `- [${m.kind}] [${m.claimKey}] ${m.content}`,
-    );
+    const memoryLines = input.existingMemories.map((m) => {
+      const keywordState = m.keywords && m.keywords.length > 0 ? '' : ' (no keywords)';
+      return `- id=${m.id} [${m.kind}] [${m.claimKey}]${keywordState} ${m.content}`;
+    });
     const episodeLines = input.episodes.map((e) => {
       const toolInfo = e.toolCalls && e.toolCalls.length > 0
         ? `\nTools: ${JSON.stringify(e.toolCalls)}`
@@ -203,7 +229,7 @@ export class DreamRunner {
     });
 
     return [
-      '### Existing Active Memories',
+      '### Existing Active Memories (reuse their claimKey when updating the same fact)',
       memoryLines.length > 0 ? memoryLines.join('\n') : '(None)',
       '',
       '### New Episodes to Analyze',
@@ -211,14 +237,24 @@ export class DreamRunner {
     ].join('\n');
   }
 
-  private parseResponse(response: string, episodes: EpisodeRecord[]): DreamProposal[] {
+  private parseResponse(response: string): {
+    proposals: DreamProposal[];
+    keywordAnnotations: KeywordAnnotation[];
+  } {
+    const empty = { proposals: [] as DreamProposal[], keywordAnnotations: [] as KeywordAnnotation[] };
     try {
       const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) return [];
-      const data = JSON.parse(jsonMatch[0]) as { proposals?: DreamProposal[] };
-      return Array.isArray(data.proposals) ? data.proposals : [];
+      if (!jsonMatch) return empty;
+      const data = JSON.parse(jsonMatch[0]) as {
+        proposals?: DreamProposal[];
+        keywordAnnotations?: KeywordAnnotation[];
+      };
+      return {
+        proposals: Array.isArray(data.proposals) ? data.proposals : [],
+        keywordAnnotations: Array.isArray(data.keywordAnnotations) ? data.keywordAnnotations : [],
+      };
     } catch {
-      return [];
+      return empty;
     }
   }
 
@@ -281,6 +317,8 @@ export class DreamRunner {
       }
 
       prop.scope = prop.scope ?? { vaultId: this.vaultId };
+      prop.claimKey = resolveClaimKey(prop.claimKey, prop.kind, prop.content);
+      prop.keywords = sanitizeKeywords(prop.keywords);
       sanitized.push(prop);
     }
 

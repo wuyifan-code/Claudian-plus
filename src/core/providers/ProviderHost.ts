@@ -42,8 +42,11 @@ export interface ProviderHost {
     context?: ProviderCliResolutionContext,
   ): Promise<string | null>;
 
-  /** Get the memory injection text for system prompt, or null if disabled/empty. */
-  getMemoryInjectionText(): Promise<string | null>;
+  /**
+   * Get the memory injection text for system prompt, or null if disabled/empty.
+   * The optional prompt is the current user message and drives retrieval.
+   */
+  getMemoryInjectionText(userPrompt?: string): Promise<string | null>;
 
   /** Get the consciousness injection text for system prompt, or null if disabled. */
   getConsciousnessInjectionText(): Promise<string | null>;

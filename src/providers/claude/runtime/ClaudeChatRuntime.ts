@@ -171,6 +171,8 @@ export class ClaudeChatRuntime implements ChatRuntime {
   private persistentQuery: Query | null = null;
   private messageChannel: MessageChannel | null = null;
   private queryAbortController: AbortController | null = null;
+  /** Prompt of the in-flight turn, so memory retrieval can see the user message. */
+  private memoryQueryPrompt: string | undefined;
   private responseHandlers: ResponseHandler[] = [];
   private responseConsumerRunning = false;
   private responseConsumerPromise: Promise<void> | null = null;
@@ -814,7 +816,7 @@ export class ClaudeChatRuntime implements ChatRuntime {
     );
     const enhancedPath = getEnhancedPath(customEnv.PATH, cliPath);
     const [memoryAppendix, consciousnessAppendix, responseFormatAppendix] = await Promise.all([
-      this.plugin.getMemoryInjectionText(),
+      this.plugin.getMemoryInjectionText(this.memoryQueryPrompt),
       this.plugin.getConsciousnessInjectionText(),
       this.plugin.getResponseFormatInjectionText?.() ?? Promise.resolve(null),
     ]);
@@ -1331,6 +1333,7 @@ export class ClaudeChatRuntime implements ChatRuntime {
       legacyQueryOptions,
     );
     const prompt = normalized.encodedTurn.prompt;
+    this.memoryQueryPrompt = prompt;
     const images = normalized.request.images;
     const conversationHistory = normalized.conversationHistory;
     const queryOptions = normalized.queryOptions;

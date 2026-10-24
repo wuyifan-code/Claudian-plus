@@ -130,6 +130,35 @@ export class LegacyMemoryMigrator {
       }
     }
 
+    // 2.5 Pending MindStore staging entries become V2 candidates awaiting review
+    if (this.mindStore) {
+      try {
+        const stagingEntries = await this.mindStore.listStaging();
+        for (const entry of stagingEntries) {
+          const content = entry.content?.trim();
+          if (!content) continue;
+
+          let kind: MemoryKind = 'profile';
+          if (entry.category === 'project_rule') {
+            kind = 'project_state';
+          } else if (entry.category === 'coding_habit' || entry.category === 'correction_rule') {
+            kind = 'lesson';
+          }
+
+          await this.repo.commitCandidate({
+            kind,
+            claimKey: `legacy.staging.${this.simpleSlug(content.slice(0, 20))}`,
+            content,
+            scope: { vaultId: this.vaultId },
+            basis: 'legacy',
+            rationale: entry.rationale,
+          });
+        }
+      } catch {
+        // Safe fallback
+      }
+    }
+
     // 3. Migrate Consciousness user profile (USER.md)
     if (this.consciousness) {
       try {

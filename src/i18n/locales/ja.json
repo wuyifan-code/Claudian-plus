@@ -165,7 +165,11 @@
       },
       "maxChars": {
         "name": "最大注入文字数",
-        "desc": "システムプロンプトに注入する最大文字数"
+        "desc": "旧メモリファイル注入の文字数上限。検索されたメモリはトークン予算を使用"
+      },
+      "maxTokens": {
+        "name": "最大注入トークン数",
+        "desc": "システムプロンプトに注入される検索済みメモリコンテキストのトークン予算"
       },
       "manage": {
         "name": "メモリを管理",
@@ -201,18 +205,6 @@
       "interval": {
         "name": "Dream interval (hours)",
         "desc": "Minimum time between automatic consolidation runs"
-      },
-      "maxLogDays": {
-        "name": "Log lookback (days)",
-        "desc": "How many recent days of short-term logs to consider"
-      },
-      "inputCap": {
-        "name": "Input budget (chars)",
-        "desc": "Character budget for one dream cycle; older content is truncated"
-      },
-      "maxNewFacts": {
-        "name": "Max new facts per dream",
-        "desc": "Upper bound on long-term memory entries written per cycle"
       },
       "runNow": "Run dream now",
       "runNowDesc": "Consolidate pending short-term memories immediately"
@@ -415,6 +407,10 @@
     "deferMathRenderingDuringStreaming": {
       "name": "ストリーミング中の数式レンダリングを遅延",
       "desc": "応答のストリーミング中は生の LaTeX を表示し、各テキストブロックの完了時に一度だけ数式をレンダリングします。"
+    },
+    "generativeUi": {
+      "name": "インテリジェント UI での回答",
+      "desc": "テキストより説明や比較に適する場合、モデルが対話型インターフェース（図・表・チャート・コントロール）で回答することを許可します。それ以外はプレーンテキストのままです。"
     },
     "expandFileEditsByDefault": {
       "name": "ファイル編集をデフォルトで展開",

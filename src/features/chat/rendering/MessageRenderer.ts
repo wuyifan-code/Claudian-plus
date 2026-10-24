@@ -50,7 +50,14 @@ import { renderStoredThinkingBlock } from './ThinkingBlockRenderer';
 import { renderStoredToolCall } from './ToolCallRenderer';
 import { renderStoredToolGroup } from './ToolGroupRenderer';
 import { splitUiFences } from './ui/fenceSplitter';
-import { disposeUiBlocksUnder, renderUiBlock, type UiBlockCallbacks } from './UiBlockRenderer';
+import {
+  captureUiFocus,
+  disposeUiBlocksUnder,
+  renderUiBlock,
+  restoreUiFocus,
+  type UiBlockCallbacks,
+  uiBlockKey,
+} from './UiBlockRenderer';
 import { renderStoredWriteEdit } from './WriteEditRenderer';
 
 export interface RenderContentOptions {
@@ -62,6 +69,8 @@ export interface RenderContentOptions {
   allowUi?: boolean;
   /** Stable message identity, used to key generated-UI widget state. */
   messageId?: string;
+  /** Conversation that owns generated-UI widget state for persistence. */
+  ownerId?: string;
   /**
    * Component that owns the rendered markdown. Stored (history) messages pass
    * a per-message child component so window eviction can release everything
@@ -125,6 +134,7 @@ export class MessageRenderer {
 
   private getReadingMode?: () => boolean;
   private uiHost?: UiFeatureHost;
+  private uiOwnerId: string | undefined;
 
   constructor(
     plugin: FeatureHost,
@@ -1346,15 +1356,21 @@ export class MessageRenderer {
       return;
     }
 
+    // Streaming frames empty this element and mount a fresh one; carry the
+    // focused widget control (and its caret) across the container swap.
+    const uiFocus = captureUiFocus(el);
     el.empty();
     let fenceIndex = 0;
     for (const segment of segments) {
       if (segment.kind === 'ui') {
         const uiEl = el.createDiv({ cls: 'claudian-plus-ui-block' });
+        const uiOwnerId = options.ownerId ?? this.uiOwnerId;
         const rendered = renderUiBlock(uiEl, segment.content, {
-          blockKey: `${options.messageId ?? 'live'}:${String(fenceIndex)}`,
+          blockKey: uiBlockKey(uiOwnerId, options.messageId, fenceIndex),
+          ownerId: uiOwnerId,
           callbacks: this.buildUiCallbacks(),
         });
+        if (rendered) restoreUiFocus(uiEl, uiFocus);
         // A program the renderer cannot use degrades to plain text rather than
         // disappearing from the answer or being dumped as a code block.
         if (!rendered) {
@@ -1382,6 +1398,11 @@ export class MessageRenderer {
       onOpenUrl: (url) => host.openExternal(url),
       onCopy: (text) => host.copyText(text),
     };
+  }
+
+  /** Binds generated-UI widget state claims to a conversation (persistence owner). */
+  setUiOwnerId(ownerId: string | undefined): void {
+    this.uiOwnerId = ownerId;
   }
 
   /**

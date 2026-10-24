@@ -46,6 +46,7 @@ import { StreamController } from '../controllers/StreamController';
 import { MessageRenderer } from '../rendering/MessageRenderer';
 import { cleanupThinkingBlock } from '../rendering/ThinkingBlockRenderer';
 import { buildUiContinuationPrompt } from '../rendering/ui/followUp';
+import { UiStatePersistenceController } from '../rendering/ui/uiStatePersistence';
 import { findRewindContext } from '../rewind';
 import { BangBashService } from '../services/BangBashService';
 import { SubagentManager } from '../services/SubagentManager';
@@ -640,6 +641,7 @@ export function createTab(options: TabCreateOptions): TabData {
       streamController: null,
       inputController: null,
       navigationController: null,
+      uiStatePersistence: null,
     },
     services: {
       subagentManager,
@@ -1594,6 +1596,13 @@ export function initializeTabControllers(
     },
   );
 
+  // Persist generated-UI widget state for the tab's active conversation and
+  // restore it when the conversation is reopened.
+  tab.controllers.uiStatePersistence = new UiStatePersistenceController({
+    host: plugin,
+    renderer: tab.renderer,
+  });
+
   // Selection controller
   tab.controllers.selectionController = new SelectionController(
     plugin.app,
@@ -1609,7 +1618,20 @@ export function initializeTabControllers(
     dom.inputEl,
   );
 
-  tab.controllers.activeContextObserver = new ActiveContextObserver(plugin.app);
+  tab.controllers.activeContextObserver = new ActiveContextObserver(plugin.app, {
+    getFileMode: (path) => plugin.settings.ambientFileModes?.[path],
+    setFileMode: (path, mode) => {
+      void plugin.mutateSettings((settings) => {
+        const modes = { ...(settings.ambientFileModes ?? {}) };
+        if (mode === 'auto') {
+          delete modes[path];
+        } else {
+          modes[path] = mode;
+        }
+        settings.ambientFileModes = modes;
+      }).catch(() => undefined);
+    },
+  });
   if (ui.contextTray) {
     tab.controllers.activeContextObserver.subscribe((snapshot) => {
       if (tab.controllers.activeContextObserver && ui.contextTray) {
@@ -1684,6 +1706,7 @@ export function initializeTabControllers(
       dismissPendingInlinePrompts: () => tab.controllers.inputController?.dismissPendingApproval(),
       awaitBackgroundWork: () => tab.session.awaitBackgroundWork(),
       isDisposed: () => tab.lifecycleState === 'closing',
+      uiStatePersistence: tab.controllers.uiStatePersistence ?? undefined,
       ensureServiceForConversation: async (conversation) => {
         const nextProviderId = getTabProviderId(tab, plugin, conversation);
         const providerChanged = tab.providerId !== nextProviderId;
@@ -1744,6 +1767,7 @@ export function initializeTabControllers(
     canvasSelectionController: tab.controllers.canvasSelectionController,
     activeContextObserver: tab.controllers.activeContextObserver,
     conversationController: tab.controllers.conversationController,
+    uiStatePersistence: tab.controllers.uiStatePersistence ?? undefined,
     getInputEl: () => dom.inputEl,
     getInputContainerEl: () => dom.inputContainerEl,
     getWelcomeEl: () => dom.welcomeEl,
@@ -2159,6 +2183,8 @@ export async function destroyTab(tab: TabData): Promise<void> {
   tab.ui.statusPanel = null;
   tab.ui.navigationSidebar?.destroy();
   tab.ui.navigationSidebar = null;
+  await tab.controllers.uiStatePersistence?.dispose();
+  tab.controllers.uiStatePersistence = null;
   tab.renderer?.dispose();
   tab.renderer = null;
 

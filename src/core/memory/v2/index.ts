@@ -1,4 +1,6 @@
+export * from './claimKey';
 export * from './DreamRunner';
+export * from './exportView';
 export * from './MemoryCoordinator';
 export * from './MemoryRepository';
 export * from './MemoryRetriever';

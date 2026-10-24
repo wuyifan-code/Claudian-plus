@@ -2,6 +2,7 @@ import type { MemoryRepository } from './MemoryRepository';
 import type {
   MemoryContextPacket,
   MemoryContextRequest,
+  MemoryFeedbackSummary,
   MemoryRecallEntry,
   MemoryRecord,
 } from './types';
@@ -16,6 +17,18 @@ interface ScoredRecord {
   reason: string;
 }
 
+/** BM25-style IDF: rare query tokens count more than ubiquitous ones. */
+function computeIdf(docFrequencies: Map<string, number>, totalDocs: number): Map<string, number> {
+  const idf = new Map<string, number>();
+  for (const [token, df] of docFrequencies) {
+    idf.set(token, Math.log(1 + (totalDocs - df + 0.5) / (df + 0.5)));
+  }
+  return idf;
+}
+
+const RECENCY_HALF_LIFE_DAYS = 45;
+const RECENCY_MAX_BOOST = 4;
+
 export class MemoryRetriever {
   private readonly repo: MemoryRepository;
 
@@ -27,6 +40,7 @@ export class MemoryRetriever {
     const records = await this.repo.listRecords({ status: 'active' });
     const currentGen = await this.repo.getCurrentGeneration();
     const ledger = await this.repo.getForgetLedger();
+    const feedback = this.repo.getFeedbackSummary();
     const ledgerRevision = `fl_${ledger.length}`;
     const traceId = `trace_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
@@ -77,13 +91,43 @@ export class MemoryRetriever {
       };
     }
 
-    // Phase 2: Scoring
+    // Phase 2: Scoring (IDF-weighted token overlap + boosts)
     const queryTokens = this.tokenize(request.userPrompt);
     const activeFileTokens = request.activeFilePaths.flatMap((p) => Array.from(this.tokenize(p)));
 
+    // Document frequencies across the eligible set drive the IDF weights.
+    // Indexed keywords count as part of the searchable document, while the
+    // content-only token set keeps the two match sources distinguishable.
+    const docFrequencies = new Map<string, number>();
+    const recordTokens = new Map<string, Set<string>>();
+    for (const rec of eligibleRecords) {
+      recordTokens.set(rec.id, this.tokenize(this.recordSearchText(rec)));
+      const searchable = this.tokenize(
+        `${this.recordSearchText(rec)} ${(rec.keywords ?? []).join(' ')}`,
+      );
+      for (const token of searchable) {
+        docFrequencies.set(token, (docFrequencies.get(token) ?? 0) + 1);
+      }
+    }
+    const idf = computeIdf(docFrequencies, eligibleRecords.length);
+
+    const keywordSets = new Map<string, Set<string>>();
+    for (const rec of eligibleRecords) {
+      keywordSets.set(rec.id, new Set(rec.keywords ?? []));
+    }
+
     const scored: ScoredRecord[] = [];
     for (const rec of eligibleRecords) {
-      const { score, reason } = this.scoreRecord(rec, queryTokens, activeFileTokens);
+      const { score, reason } = this.scoreRecord(
+        rec,
+        queryTokens,
+        activeFileTokens,
+        idf,
+        recordTokens.get(rec.id) ?? new Set<string>(),
+        keywordSets.get(rec.id) ?? new Set<string>(),
+        feedback.get(rec.id),
+        request,
+      );
       if (score > 0) {
         scored.push({ record: rec, score, reason });
       }
@@ -142,8 +186,8 @@ export class MemoryRetriever {
       }
     };
 
-    // Sub-budgets (default: profile 200, project 600, lesson 400 within maxTokens)
-    const profileBudget = Math.min(200, Math.floor(maxTokens * 0.25));
+    // Sub-budgets (default: profile 400, project 600, lesson 400 within maxTokens)
+    const profileBudget = Math.min(400, Math.floor(maxTokens * 0.35));
     const projectBudget = Math.min(600, Math.floor(maxTokens * 0.5));
     const lessonBudget = Math.min(400, Math.floor(maxTokens * 0.35));
 
@@ -171,10 +215,19 @@ export class MemoryRetriever {
     };
   }
 
+  private recordSearchText(rec: MemoryRecord): string {
+    return `${rec.claimKey} ${rec.content} ${(rec.conditions ?? []).join(' ')}`;
+  }
+
   private scoreRecord(
     rec: MemoryRecord,
     queryTokens: Set<string>,
     fileTokens: string[],
+    idf: Map<string, number>,
+    recTokens: Set<string>,
+    keywords: Set<string>,
+    feedback: MemoryFeedbackSummary | undefined,
+    request: MemoryContextRequest,
   ): { score: number; reason: string } {
     let score = 0;
     const reasons: string[] = [];
@@ -190,32 +243,62 @@ export class MemoryRetriever {
       score += 1; // Lessons need relevance
     }
 
-    const recTokens = this.tokenize(`${rec.claimKey} ${rec.content} ${(rec.conditions ?? []).join(' ')}`);
-
+    // IDF-weighted relevance: matched query tokens weighted by rarity
     let matchCount = 0;
+    let relevance = 0;
+    let keywordMatchCount = 0;
     for (const token of queryTokens) {
+      const tokenIdf = idf.get(token);
+      if (tokenIdf === undefined) continue;
       if (recTokens.has(token)) {
         matchCount++;
+        relevance += tokenIdf * 2;
+      } else if (keywords.has(token)) {
+        matchCount++;
+        keywordMatchCount++;
+        relevance += tokenIdf * 3; // Keywords are curated for recall
       }
     }
-
     if (matchCount > 0) {
-      score += matchCount * 3;
+      score += relevance;
       reasons.push(`keyword_match:${matchCount}`);
+    }
+    if (keywordMatchCount > 0) {
+      reasons.push(`indexed_keyword:${keywordMatchCount}`);
     }
 
     // Condition / file path match
+    let conditionMatched = false;
     if (rec.conditions && rec.conditions.length > 0) {
       for (const cond of rec.conditions) {
         const condTokens = this.tokenize(cond);
         for (const ct of condTokens) {
           if (queryTokens.has(ct) || fileTokens.includes(ct)) {
             score += 8;
+            conditionMatched = true;
             reasons.push(`condition_match:${ct}`);
             break;
           }
         }
       }
+    }
+
+    // Scope match: same-project records are more relevant than vault-wide ones
+    if (request.projectId && rec.scope.projectId === request.projectId) {
+      score += 4;
+      reasons.push('scope_project');
+    }
+
+    // Recency decay: recent observations stay ahead of equally-relevant old ones
+    const ageDays = Math.max(0, (request.now - rec.observedAt) / (24 * 60 * 60 * 1000));
+    const recencyBoost =
+      RECENCY_MAX_BOOST * Math.exp((-ageDays * Math.LN2) / RECENCY_HALF_LIFE_DAYS);
+    score += recencyBoost;
+
+    // Feedback: referenced memories proved useful in past turns
+    if (feedback && feedback.referenced > 0) {
+      score += 3 + Math.min(feedback.referenced, 5);
+      reasons.push(`feedback_referenced:${feedback.referenced}`);
     }
 
     // Outcome bonus
@@ -224,7 +307,7 @@ export class MemoryRetriever {
     }
 
     // If lesson has no match and score is too low, filter out
-    if (rec.kind === 'lesson' && matchCount === 0 && !reasons.some((r) => r.startsWith('condition_match'))) {
+    if (rec.kind === 'lesson' && matchCount === 0 && !conditionMatched) {
       return { score: 0, reason: 'no_relevance' };
     }
 

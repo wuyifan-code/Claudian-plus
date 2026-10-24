@@ -165,7 +165,11 @@
       },
       "maxChars": {
         "name": "Máximo de caracteres de inyección",
-        "desc": "Máximo de caracteres a inyectar en el prompt del sistema"
+        "desc": "Límite de caracteres para la inyección del archivo de memoria heredado; la memoria recuperada usa el presupuesto de tokens"
+      },
+      "maxTokens": {
+        "name": "Máximo de tokens de inyección",
+        "desc": "Presupuesto de tokens para el contexto de memoria recuperado que se inyecta en el prompt del sistema"
       },
       "manage": {
         "name": "Gestionar memorias",
@@ -201,18 +205,6 @@
       "interval": {
         "name": "Dream interval (hours)",
         "desc": "Minimum time between automatic consolidation runs"
-      },
-      "maxLogDays": {
-        "name": "Log lookback (days)",
-        "desc": "How many recent days of short-term logs to consider"
-      },
-      "inputCap": {
-        "name": "Input budget (chars)",
-        "desc": "Character budget for one dream cycle; older content is truncated"
-      },
-      "maxNewFacts": {
-        "name": "Max new facts per dream",
-        "desc": "Upper bound on long-term memory entries written per cycle"
       },
       "runNow": "Run dream now",
       "runNowDesc": "Consolidate pending short-term memories immediately"
@@ -415,6 +407,10 @@
     "deferMathRenderingDuringStreaming": {
       "name": "Diferir renderizado matemático durante streaming",
       "desc": "Mostrar LaTeX sin procesar mientras se transmite la respuesta y renderizar las fórmulas una vez al completar cada bloque de texto."
+    },
+    "generativeUi": {
+      "name": "Respuestas con interfaz inteligente",
+      "desc": "Permite que el modelo responda con una interfaz interactiva (diagramas, tablas, gráficos, controles) cuando explique o compare mejor que el texto; en el resto, texto plano."
     },
     "expandFileEditsByDefault": {
       "name": "Expandir ediciones de archivo por defecto",

@@ -182,4 +182,32 @@ describe('ActiveContextObserver', () => {
     expect(observer.getSnapshot().document?.path).toBe('Notes/Test.md');
     observer.dispose();
   });
+
+  it('applies persisted per-file modes and writes mode changes through', () => {
+    const mockFile = { path: 'Notes/Secret.md', basename: 'Secret', extension: 'md' };
+    mockApp.workspace.getActiveViewOfType.mockReturnValue({
+      file: mockFile,
+      editor: { getSelection: () => '', getCursor: () => ({ line: 0, ch: 0 }) },
+      getViewType: () => 'markdown',
+    });
+    mockApp.metadataCache.getFileCache.mockReturnValue({ headings: [], tags: [], frontmatter: null });
+
+    const setFileMode = jest.fn();
+    const observer = new ActiveContextObserver(mockApp, {
+      getFileMode: (path) => (path === 'Notes/Secret.md' ? 'ignored' : undefined),
+      setFileMode,
+    });
+    observer.start();
+
+    // The persisted ignored mode wins over the default auto mode.
+    jest.advanceTimersByTime(150);
+    expect(observer.getSnapshot().mode).toBe('ignored');
+    expect(observer.getSnapshot().document).toBeNull();
+
+    // A user-driven mode change writes through to persistence for that file.
+    observer.setMode('auto');
+    expect(setFileMode).toHaveBeenCalledWith('Notes/Secret.md', 'auto');
+
+    observer.dispose();
+  });
 });

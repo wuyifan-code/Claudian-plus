@@ -357,7 +357,7 @@ export class CodexChatRuntime implements ChatRuntime {
     const model = this.resolveModel(queryOptions, providerSettings);
     const promptSettings = this.getSystemPromptSettings();
     const [memoryAppendix, consciousnessAppendix, responseFormatAppendix] = await Promise.all([
-      this.plugin.getMemoryInjectionText(),
+      this.plugin.getMemoryInjectionText(originalTurn.prompt),
       this.plugin.getConsciousnessInjectionText(),
       this.plugin.getResponseFormatInjectionText?.() ?? Promise.resolve(null),
     ]);

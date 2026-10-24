@@ -10,6 +10,12 @@ This provider is independently implemented against official Harness HTTP Remote 
 
 The model menu uses names from the native catalog. After refreshing, the native default option also shows its concrete model name with a Harness default suffix; it continues to follow the native default rather than pinning that model. Refresh again after changing the default in Harness. If the catalog does not identify an available default, the option retains its generic label.
 
+## Profiles and the Desktop app
+
+The provider boots the npm CLI with `--profile web`, so the model menu reflects `$DSH_HOME/profiles/web` (its `llm-pi-ai`/provider plugins and credentials). The Desktop app boots its own `desktop` profile; providers configured inside the Desktop app — including subscription routes such as `opencode-go` — do not appear here until the web profile declares them too. Add the provider to the web profile's `cordis.patch.yml` (or configure it through `dsh web`), then refresh the catalog. Profiles share `$DSH_HOME` credentials but not provider configuration.
+
+The npm CLI and the Desktop app are independent installs and can differ in version and shipped provider catalog. The model menu follows the npm CLI that the plugin launches, not the Desktop runtime.
+
 The provider is disabled by default. Rendering settings does not start Harness. A workspace shares one native Web-profile process across tabs; tabs claim separate sessions. Startup may take tens of seconds. After changing environment or CLI configuration, close DeepSeek tabs and allow the idle Host to stop, or reload the plugin.
 
 ## Supported baseline
