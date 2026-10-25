@@ -39,6 +39,15 @@ DeepSeek Harness (`dsh`) is now a first-class provider, implemented directly aga
 
 ---
 
+## 🌟 What's New in V3.2.1
+
+**A community-review compliance release.** The 3.2.0 listing failed one automated check; this release fixes it.
+
+- **No direct inline style writes in the generative-UI renderer.** All static styling now goes through CSS classes (`is-bordered`, `is-align-*`, `is-italic`, …) and dynamic values (gap, padding, colours) through Obsidian's `setCssProps`, clearing `obsidianmd/no-static-styles-assignment` for `src/features/chat/rendering/ui/components.ts`.
+- **The same rule now runs at error level in local CI**, so a future release cannot ship a flagged assignment unnoticed.
+
+---
+
 ## 🌟 What's New in V3.2.0
 
 **A feature release**, headlined by Intelligent UI: agents can now answer with interactive native-DOM interfaces instead of plain markdown.

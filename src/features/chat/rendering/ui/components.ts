@@ -69,7 +69,7 @@ function readString(element: ResolvedElement, index: number): string | null {
 
 function applyGap(element: HTMLElement, value: unknown): void {
   const gap = readNumberValue(value);
-  if (gap !== null) element.style.gap = `${gap * 4}px`;
+  if (gap !== null) element.setCssProps({ gap: `${gap * 4}px` });
 }
 
 function readNumberValue(value: unknown): number | null {
@@ -80,8 +80,7 @@ function readNumberValue(value: unknown): number | null {
 function applyColor(element: HTMLElement, value: unknown, property: 'color' | 'background'): void {
   const color = safeColor(value);
   if (color === null) return;
-  if (property === 'color') element.style.color = color;
-  else element.style.background = color;
+  element.setCssProps(property === 'color' ? { color } : { background: color });
 }
 
 /** Renders any evaluated value. Elements become DOM, everything else is text. */
@@ -132,25 +131,25 @@ function buildLayout(element: ResolvedElement, ctx: RenderContext): HTMLElement 
       const container = createColumn('claudian-plus-ui-row');
       applyGap(container, element.values[1]);
       const align = readString(element, 2);
-      if (align === 'start') container.style.alignItems = 'flex-start';
-      else if (align === 'center') container.style.alignItems = 'center';
-      else if (align === 'end') container.style.alignItems = 'flex-end';
+      if (align === 'start') container.classList.add('is-align-start');
+      else if (align === 'center') container.classList.add('is-align-center');
+      else if (align === 'end') container.classList.add('is-align-end');
       const justify = readString(element, 3);
-      if (justify === 'between') container.style.justifyContent = 'space-between';
-      else if (justify === 'center') container.style.justifyContent = 'center';
-      else if (justify === 'end') container.style.justifyContent = 'flex-end';
-      if (element.values[4] === true) container.style.flexWrap = 'wrap';
+      if (justify === 'between') container.classList.add('is-justify-between');
+      else if (justify === 'center') container.classList.add('is-justify-center');
+      else if (justify === 'end') container.classList.add('is-justify-end');
+      if (element.values[4] === true) container.classList.add('is-wrap');
       appendChildren(container, element.values[0], ctx);
       return container;
     }
     case 'Box': {
       const container = createColumn('claudian-plus-ui-box');
-      if (element.values[1] === 'row') container.style.flexDirection = 'row';
+      if (element.values[1] === 'row') container.classList.add('is-row');
       applyGap(container, element.values[2]);
       const padding = readNumberValue(element.values[3]);
-      if (padding !== null) container.style.padding = `${padding * 4}px`;
+      if (padding !== null) container.setCssProps({ padding: `${padding * 4}px` });
       applyColor(container, element.values[4], 'background');
-      if (element.values[5] === true) container.style.border = '1px solid var(--claudian-plus-border)';
+      if (element.values[5] === true) container.classList.add('is-bordered');
       appendChildren(container, element.values[0], ctx);
       return container;
     }
@@ -172,9 +171,7 @@ function buildLayout(element: ResolvedElement, ctx: RenderContext): HTMLElement 
       return createDiv({ cls: 'claudian-plus-ui claudian-plus-ui-divider' });
     }
     case 'Spacer': {
-      const spacer = createDiv({ cls: 'claudian-plus-ui claudian-plus-ui-spacer' });
-      spacer.style.flex = '1 1 0';
-      return spacer;
+      return createDiv({ cls: 'claudian-plus-ui claudian-plus-ui-spacer' });
     }
     default:
       return createColumn('claudian-plus-ui-col');
@@ -194,8 +191,9 @@ function buildText(element: ResolvedElement, ctx: RenderContext): HTMLElement {
       const container = createColumn('claudian-plus-ui-text');
       container.dataset.size = readString(element, 1) ?? 'md';
       const weight = readString(element, 3);
-      if (weight !== null) container.style.fontWeight = weight === 'semibold' ? '600' : weight === 'medium' ? '500' : '400';
-      if (element.values[4] === true) container.style.fontStyle = 'italic';
+      if (weight === 'semibold') container.classList.add('is-weight-semibold');
+      else if (weight === 'medium') container.classList.add('is-weight-medium');
+      if (element.values[4] === true) container.classList.add('is-italic');
       appendChildren(container, element.values[0], ctx);
       applyColor(container, element.values[2], 'color');
       return container;
@@ -313,7 +311,7 @@ function buildButton(element: ResolvedElement, ctx: RenderContext): HTMLElement 
   if (element.values[3] === true) {
     button.setAttribute('disabled', 'disabled');
   }
-  if (element.values[4] === true) button.style.width = '100%';
+  if (element.values[4] === true) button.classList.add('is-full-width');
   const action = element.values[1];
   const targetName = readActionTarget(element.args[1]);
   button.addEventListener('click', () => dispatchAction(action, ctx, targetName));

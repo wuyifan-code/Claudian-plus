@@ -26,13 +26,13 @@ describe('component arguments at documented positions', () => {
   it('reads the Box border from the sixth argument', () => {
     const container = renderProgram('root = Box([Text("x")], null, null, null, null, true)');
     const box = container.querySelector<HTMLElement>('.claudian-plus-ui-box');
-    expect(box?.style.border).toContain('var(--claudian-plus-border)');
+    expect(box?.classList.contains('is-bordered')).toBe(true);
   });
 
   it('omits the Box border when the sixth argument is absent', () => {
     const container = renderProgram('root = Box([Text("x")], null, null, null, "#ffffff")');
     const box = container.querySelector<HTMLElement>('.claudian-plus-ui-box');
-    expect(box?.style.border).toBe('');
+    expect(box?.classList.contains('is-bordered')).toBe(false);
   });
 
   it('reads the Grid gap from the third argument', () => {
@@ -45,15 +45,15 @@ describe('component arguments at documented positions', () => {
   it('maps the Row align argument to align-items', () => {
     const end = renderProgram('root = Row([Text("a")], null, "end")')
       .querySelector<HTMLElement>('.claudian-plus-ui-row');
-    expect(end?.style.alignItems).toBe('flex-end');
+    expect(end?.classList.contains('is-align-end')).toBe(true);
 
     const start = renderProgram('root = Row([Text("a")], null, "start")')
       .querySelector<HTMLElement>('.claudian-plus-ui-row');
-    expect(start?.style.alignItems).toBe('flex-start');
+    expect(start?.classList.contains('is-align-start')).toBe(true);
 
     const center = renderProgram('root = Row([Text("a")], null, "center")')
       .querySelector<HTMLElement>('.claudian-plus-ui-row');
-    expect(center?.style.alignItems).toBe('center');
+    expect(center?.classList.contains('is-align-center')).toBe(true);
   });
 
   it('marks a block SegmentedControl with is-block', () => {
@@ -69,7 +69,7 @@ describe('component arguments at documented positions', () => {
   it('reads the Text italic argument from the fifth position', () => {
     const container = renderProgram('root = Text("slanted", null, null, null, true)');
     const text = container.querySelector<HTMLElement>('.claudian-plus-ui-text');
-    expect(text?.style.fontStyle).toBe('italic');
+    expect(text?.classList.contains('is-italic')).toBe(true);
   });
 
   it('reads Button disabled from the fourth argument without stretching full-width', () => {
@@ -83,7 +83,7 @@ describe('component arguments at documented positions', () => {
     const container = renderProgram('root = Button("Go", null, null, null, true)');
     const button = container.querySelector<HTMLButtonElement>('.claudian-plus-ui-button');
     expect(button?.hasAttribute('disabled')).toBe(false);
-    expect(button?.style.width).toBe('100%');
+    expect(button?.classList.contains('is-full-width')).toBe(true);
   });
 
   it('reads the List marker from the second argument', () => {

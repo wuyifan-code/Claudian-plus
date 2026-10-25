@@ -4024,10 +4024,21 @@ body.theme-light .claudian-plus-message-content pre {
   min-width: 0;
 }
 
+.claudian-plus-ui-row.is-align-start { align-items: flex-start; }
+.claudian-plus-ui-row.is-align-center { align-items: center; }
+.claudian-plus-ui-row.is-align-end { align-items: flex-end; }
+.claudian-plus-ui-row.is-justify-between { justify-content: space-between; }
+.claudian-plus-ui-row.is-justify-center { justify-content: center; }
+.claudian-plus-ui-row.is-justify-end { justify-content: flex-end; }
+.claudian-plus-ui-row.is-wrap { flex-wrap: wrap; }
+
 .claudian-plus-ui-box {
   display: flex;
   flex-direction: column;
 }
+
+.claudian-plus-ui-box.is-row { flex-direction: row; }
+.claudian-plus-ui-box.is-bordered { border: 1px solid var(--claudian-plus-border); }
 
 .claudian-plus-ui-grid {
   display: grid;
@@ -4065,6 +4076,7 @@ body.theme-light .claudian-plus-message-content pre {
 
 .claudian-plus-ui-spacer {
   align-self: stretch;
+  flex: 1 1 0;
 }
 
 /* Text ------------------------------------------------------------------- */
@@ -4090,6 +4102,10 @@ body.theme-light .claudian-plus-message-content pre {
 .claudian-plus-ui-text[data-size='sm'] { font-size: var(--font-ui-small); }
 .claudian-plus-ui-text[data-size='md'] { font-size: var(--font-ui-medium); }
 .claudian-plus-ui-text[data-size='lg'] { font-size: var(--font-ui-large); }
+
+.claudian-plus-ui-text.is-weight-semibold { font-weight: 600; }
+.claudian-plus-ui-text.is-weight-medium { font-weight: 500; }
+.claudian-plus-ui-text.is-italic { font-style: italic; }
 
 .claudian-plus-ui-caption {
   font-size: var(--font-ui-smaller);
@@ -4263,9 +4279,12 @@ body.theme-light .claudian-plus-message-content pre {
   transition: background-color 0.12s ease;
 }
 
-.claudian-plus-ui-button:hover {
-  background: var(--claudian-plus-interactive-hover);
+.claudian-plus-ui-button.is-full-width {
+  width: 100%;
 }
+
+.claudian-plus-ui-button:hover {
+  background: var(--claudian-plus-interactive-hover);}
 
 .claudian-plus-ui-button[data-variant='solid'] {
   background: var(--claudian-plus-accent);

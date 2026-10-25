@@ -39,6 +39,15 @@ DeepSeek Harness（`dsh`）现在是一等 Provider。它直接对着官方 Harn
 
 ---
 
+## 🌟 V3.2.1 更新
+
+**社区审阅合规版本。** 3.2.0 的商店条目未通过一项自动检查，本版本修复它。
+
+- **生成式界面渲染器不再直接写内联样式。** 静态样式一律走 CSS 类（`is-bordered`、`is-align-*`、`is-italic` 等），动态值（gap、padding、颜色）走 Obsidian 的 `setCssProps`——`src/features/chat/rendering/ui/components.ts` 的 `obsidianmd/no-static-styles-assignment` 全部清零。
+- **该规则在本地 CI 同步提升为 error 级**，今后发布不会再漏放同类问题。
+
+---
+
 ## 🌟 V3.2.0 更新
 
 **一个功能版本**，主打 Intelligent UI：Agent 现在可以用可交互的原生界面回答，而不只是 Markdown。
