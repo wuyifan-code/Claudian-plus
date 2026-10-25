@@ -168,6 +168,18 @@ if (globalThis.HTMLElement && !Reflect.has(globalThis.HTMLElement.prototype, 'cr
     this.appendChild(el);
     return el;
   };
+  // Mirrors Obsidian's setCssProps: camelCase keys become inline style props.
+  globalThis.HTMLElement.prototype.setCssProps = function (
+    this: HTMLElement,
+    props: Record<string, string>,
+  ) {
+    for (const [key, value] of Object.entries(props)) {
+      const property = key.startsWith('--')
+        ? key
+        : key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
+      this.style.setProperty(property, value);
+    }
+  };
 }
 
 if (globalThis.SVGElement && !Reflect.has(globalThis.SVGElement.prototype, 'createSvg')) {

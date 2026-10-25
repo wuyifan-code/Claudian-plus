@@ -26,7 +26,9 @@ const stagedObsidianRules = {
   'obsidianmd/no-global-this': obsidianRuleSeverity,
   'obsidianmd/no-plugin-as-component': obsidianRuleSeverity,
   'obsidianmd/no-sample-code': obsidianRuleSeverity,
-  'obsidianmd/no-static-styles-assignment': obsidianRuleSeverity,
+  // The community review runs this rule at error level; keep local CI equal so
+  // a release cannot ship a flagged static style assignment.
+  'obsidianmd/no-static-styles-assignment': 'error',
   'obsidianmd/no-tfile-tfolder-cast': obsidianRuleSeverity,
   'obsidianmd/no-unsupported-api': obsidianRuleSeverity,
   'obsidianmd/no-view-references-in-plugin': obsidianRuleSeverity,
