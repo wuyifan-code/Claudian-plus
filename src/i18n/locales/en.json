@@ -118,6 +118,12 @@
       "saveFailed": "Could not save the context capacity."
     }
   },
+  "uiBlock": {
+    "copy": "Copy program",
+    "reset": "Reset state",
+    "expand": "Expand",
+    "close": "Close"
+  },
   "settings": {
     "title": "Claudian Plus Settings",
     "category": {
@@ -433,6 +439,13 @@
     "generativeUi": {
       "name": "Intelligent UI answers",
       "desc": "Let the model answer with an interactive interface (diagrams, tables, charts, controls) when that explains or compares better than text, and keep plain text otherwise."
+    },
+    "uiInsertToNote": {
+      "name": "Write into notes from a UI",
+      "desc": "Allow generated interfaces to ask before inserting markdown at the cursor of the active note. Off by default.",
+      "modalTitle": "Insert into note",
+      "modalBody": "Review the markdown below. Confirming inserts it at the cursor of the active note.",
+      "noActiveNote": "Open a markdown note first."
     },
     "expandFileEditsByDefault": {
       "name": "Expand file edits by default",

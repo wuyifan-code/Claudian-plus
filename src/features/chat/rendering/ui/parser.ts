@@ -32,6 +32,11 @@ export interface UiStatement {
 
 export interface UiProgram {
   statements: Map<string, UiStatement>;
+  /**
+   * Defaults declared as `$name = ...`, kept separately so a named statement
+   * may share the name (e.g. `$day = "..."` alongside `day = DatePicker(...)`).
+   */
+  states: Map<string, UiExpr>;
   /** Declaration order, useful for diagnostics. */
   order: string[];
   errors: string[];
@@ -419,7 +424,7 @@ function parseExpression(cursor: TokenCursor): UiExpr | null {
 
 /** Parses a declarative UI program. Never throws. */
 export function parseUiProgram(source: string): UiProgram {
-  const program: UiProgram = { statements: new Map(), order: [], errors: [] };
+  const program: UiProgram = { statements: new Map(), states: new Map(), order: [], errors: [] };
 
   for (const group of splitStatements(tokenize(source))) {
     const nameToken = group[0];
@@ -442,12 +447,23 @@ export function parseUiProgram(source: string): UiProgram {
 
     if (expr === null) {
       program.errors.push(`could not parse expression for ${name}`);
-      program.statements.set(name, { name, state: isState, expr: null });
+      if (!program.statements.has(name)) {
+        program.statements.set(name, { name, state: isState, expr: null });
+      }
       program.order.push(name);
       continue;
     }
 
-    program.statements.set(name, { name, state: isState, expr });
+    if (isState) {
+      program.states.set(name, expr);
+      // Keep the legacy view of state declarations for diagnostics, but never
+      // let a later `$name` clobber an existing named statement.
+      if (!program.statements.has(name)) {
+        program.statements.set(name, { name, state: true, expr });
+      }
+    } else {
+      program.statements.set(name, { name, state: false, expr });
+    }
     program.order.push(name);
   }
 

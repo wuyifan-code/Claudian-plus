@@ -118,6 +118,12 @@
       "saveFailed": "無法儲存上下文容量設定。"
     }
   },
+  "uiBlock": {
+    "copy": "複製程式",
+    "reset": "重設狀態",
+    "expand": "放大檢視",
+    "close": "關閉"
+  },
   "settings": {
     "title": "Claudian Plus 設定",
     "category": {
@@ -433,6 +439,13 @@
     "generativeUi": {
       "name": "智慧介面回答",
       "desc": "當介面比文字更能說明或比較時，允許模型用可互動介面（示意圖、表格、圖表、控制項）回答；其餘問題仍用純文字。"
+    },
+    "uiInsertToNote": {
+      "name": "允許介面寫入筆記",
+      "desc": "允許生成介面在將 Markdown 插入目前筆記游標處之前請求確認。預設關閉。",
+      "modalTitle": "插入到筆記",
+      "modalBody": "請檢查下方的 Markdown。確認後會插入到目前筆記的游標位置。",
+      "noActiveNote": "請先開啟一篇 Markdown 筆記。"
     },
     "expandFileEditsByDefault": {
       "name": "預設展開檔案編輯",

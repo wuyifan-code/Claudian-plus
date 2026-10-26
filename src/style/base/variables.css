@@ -41,6 +41,24 @@
   --claudian-plus-radius-xl: 16px;
   --claudian-plus-radius-full: 9999px;
 
+  /* Generative UI scale: one ladder per axis so the widget set reads as a
+     single family. The type ladder is absolute on purpose — GenUI must not
+     inherit the em-relative --h1/h2/h3 sizes, which drift with the block
+     font size and collapse md/lg into the same rendered size. */
+  --claudian-plus-ui-space-2xs: 2px;
+  --claudian-plus-ui-space-xs: 4px;
+  --claudian-plus-ui-space-sm: 8px;
+  --claudian-plus-ui-space-md: 12px;
+  --claudian-plus-ui-space-lg: 16px;
+  --claudian-plus-ui-control-h: 28px;
+  --claudian-plus-ui-icon-sm: 14px;
+  --claudian-plus-ui-icon-md: 16px;
+  --claudian-plus-ui-font-caption: var(--font-ui-smaller);
+  --claudian-plus-ui-font-body: var(--font-ui-small);
+  --claudian-plus-ui-font-body-lg: var(--font-ui-medium);
+  --claudian-plus-ui-font-heading: var(--font-ui-large);
+  --claudian-plus-ui-font-display: calc(var(--font-ui-large) * 1.2);
+
   /* Design System Elevation Shadows */
   --claudian-plus-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --claudian-plus-shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.15), 0 2px 6px -1px rgba(0, 0, 0, 0.1);

@@ -1,0 +1,132 @@
+/* One reading style for every markdown surface ---------------------------------
+   Model-authored markdown reaches the DOM from two places: the answer body
+   (.claudian-plus-message-content) and the Markdown/Math widgets
+   (.claudian-plus-ui-markdown, which itself lives inside the body). Obsidian
+   applies none of its reading-view polish here — MarkdownRenderer.render()
+   does not add the `.markdown-rendered` wrapper — so both surfaces would fall
+   back to raw HTML defaults if this file did not own them.
+
+   Widget roots are excluded by class so the component family keeps its own
+   styling: a Table widget inside a message must not inherit the markdown
+   table rules. */
+
+/* Vertical rhythm. */
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) p:not([class*='claudian-plus-ui']),
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) ul:not([class*='claudian-plus-ui']),
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) ol:not([class*='claudian-plus-ui']),
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) blockquote:not([class*='claudian-plus-ui']),
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) pre:not([class*='claudian-plus-ui']),
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) table:not([class*='claudian-plus-ui']),
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) hr:not([class*='claudian-plus-ui']) {
+  margin: 0 0 var(--claudian-plus-ui-space-sm) 0;
+}
+
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) > :first-child { margin-top: 0; }
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) > :last-child { margin-bottom: 0; }
+
+/* Lists. */
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) ul:not([class*='claudian-plus-ui']),
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) ol:not([class*='claudian-plus-ui']) {
+  padding-inline-start: var(--claudian-plus-ui-space-md);
+}
+
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) li:not([class*='claudian-plus-ui']) + li {
+  margin-top: var(--claudian-plus-ui-space-2xs);
+}
+
+/* Headings, on the GenUI type ladder rather than em-relative host sizes. */
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) h1:not([class*='claudian-plus-ui']),
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) h2:not([class*='claudian-plus-ui']),
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) h3:not([class*='claudian-plus-ui']),
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) h4:not([class*='claudian-plus-ui']),
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) h5:not([class*='claudian-plus-ui']),
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) h6:not([class*='claudian-plus-ui']) {
+  margin: var(--claudian-plus-ui-space-md) 0 var(--claudian-plus-ui-space-xs);
+  font-weight: 600;
+  line-height: var(--line-height-tight);
+}
+
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) h1:not([class*='claudian-plus-ui']) { font-size: var(--claudian-plus-ui-font-display); }
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) h2:not([class*='claudian-plus-ui']) { font-size: var(--claudian-plus-ui-font-heading); }
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) h3:not([class*='claudian-plus-ui']) { font-size: var(--claudian-plus-ui-font-body-lg); }
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) h4:not([class*='claudian-plus-ui']),
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) h5:not([class*='claudian-plus-ui']),
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) h6:not([class*='claudian-plus-ui']) { font-size: var(--claudian-plus-ui-font-body); }
+
+/* Links follow the theme so a re-skinned vault keeps its link colour. */
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) a:not([class*='claudian-plus-ui']) {
+  color: var(--link-color, var(--claudian-plus-text-accent));
+}
+
+/* Inline code: tint role, not the host field surface. */
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) code:not([class*='claudian-plus-ui']) {
+  padding: var(--claudian-plus-ui-space-2xs) var(--claudian-plus-ui-space-xs);
+  border-radius: var(--claudian-plus-radius-xs);
+  background: var(--code-background, var(--claudian-plus-surface-secondary));
+  color: var(--code-normal, var(--claudian-plus-text-normal));
+  font-family: var(--font-monospace);
+  font-size: var(--claudian-plus-ui-font-caption);
+}
+
+/* Fenced blocks: this file owns the panel (surface, border, radius, padding).
+   code.css keeps the chrome around it — wrapper positioning, language label,
+   copy button. Do not re-declare surface properties there. */
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) pre:not([class*='claudian-plus-ui']) {
+  padding: var(--claudian-plus-ui-space-sm) var(--claudian-plus-ui-space-md);
+  border: 1px solid var(--claudian-plus-border);
+  border-radius: var(--claudian-plus-radius-md);
+  background: var(--code-background, var(--claudian-plus-surface-secondary));
+  overflow-x: auto;
+  overscroll-behavior: contain;
+}
+
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) pre code:not([class*='claudian-plus-ui']) {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font-size: var(--claudian-plus-ui-font-body);
+}
+
+/* Tables: collapsed grid, tinted header, no zebra stripes. */
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) table:not([class*='claudian-plus-ui']) {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--claudian-plus-ui-font-body);
+}
+
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) th:not([class*='claudian-plus-ui']),
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) td:not([class*='claudian-plus-ui']) {
+  padding: var(--claudian-plus-ui-space-xs) var(--claudian-plus-ui-space-sm);
+  border: 1px solid var(--claudian-plus-border);
+  text-align: start;
+  vertical-align: top;
+}
+
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) th:not([class*='claudian-plus-ui']) {
+  background: var(--claudian-plus-surface-secondary);
+  color: var(--claudian-plus-text-muted);
+  font-weight: 600;
+}
+
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) tr:not([class*='claudian-plus-ui']):hover {
+  background: var(--claudian-plus-surface-hover);
+}
+
+/* Quotes carry a rule, not indentation. */
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) blockquote:not([class*='claudian-plus-ui']) {
+  padding-inline-start: var(--claudian-plus-ui-space-md);
+  border-inline-start: 2px solid var(--claudian-plus-border);
+  color: var(--claudian-plus-text-muted);
+}
+
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) hr:not([class*='claudian-plus-ui']) {
+  margin: var(--claudian-plus-ui-space-md) 0;
+  border: 0;
+  border-top: 1px solid var(--claudian-plus-border);
+}
+
+:is(.claudian-plus-ui-markdown, .claudian-plus-message-content) img:not([class*='claudian-plus-ui']) {
+  max-width: 100%;
+  height: auto;
+}

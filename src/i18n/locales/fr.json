@@ -118,6 +118,12 @@
       "saveFailed": "Impossible d’enregistrer la capacité de contexte."
     }
   },
+  "uiBlock": {
+    "copy": "Copier le programme",
+    "reset": "Réinitialiser l’état",
+    "expand": "Agrandir",
+    "close": "Fermer"
+  },
   "settings": {
     "title": "Paramètres de Claudian Plus",
     "category": {
@@ -411,6 +417,13 @@
     "generativeUi": {
       "name": "Réponses en interface intelligente",
       "desc": "Laisse le modèle répondre avec une interface interactive (diagrammes, tableaux, graphiques, contrôles) quand c'est plus clair que du texte ; sinon, texte simple."
+    },
+    "uiInsertToNote": {
+      "name": "Écrire dans les notes depuis l’interface",
+      "desc": "Autorise les interfaces générées à demander confirmation avant d’insérer du Markdown au curseur de la note active. Désactivé par défaut.",
+      "modalTitle": "Insérer dans la note",
+      "modalBody": "Vérifiez le Markdown ci-dessous. Confirmer l’insère au curseur de la note active.",
+      "noActiveNote": "Ouvrez d’abord une note Markdown."
     },
     "expandFileEditsByDefault": {
       "name": "Développer les modifications de fichiers par défaut",

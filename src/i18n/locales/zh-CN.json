@@ -118,6 +118,12 @@
       "saveFailed": "无法保存上下文容量设置。"
     }
   },
+  "uiBlock": {
+    "copy": "复制程序",
+    "reset": "重置状态",
+    "expand": "放大查看",
+    "close": "关闭"
+  },
   "settings": {
     "title": "Claudian Plus 设置",
     "category": {
@@ -433,6 +439,13 @@
     "generativeUi": {
       "name": "智能界面回答",
       "desc": "当界面比文字更能说明或对比时，允许模型用可交互界面（示意图、表格、图表、控件）回答；其余问题仍用纯文字。"
+    },
+    "uiInsertToNote": {
+      "name": "允许界面写入笔记",
+      "desc": "允许生成界面在把 Markdown 插入当前笔记光标处之前请求确认。默认关闭。",
+      "modalTitle": "插入到笔记",
+      "modalBody": "请检查下面的 Markdown。确认后会插入到当前笔记的光标位置。",
+      "noActiveNote": "请先打开一篇 Markdown 笔记。"
     },
     "expandFileEditsByDefault": {
       "name": "默认展开文件编辑",

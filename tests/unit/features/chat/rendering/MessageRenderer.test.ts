@@ -89,9 +89,14 @@ function createRenderer(
 ) {
   const el = messagesEl ?? createMockEl();
   const comp = createMockComponent();
+  const runtimeState = new Map<string, string>();
   const plugin = {
     app: {},
     settings: { mediaFolder: '', ...settings },
+    getRuntimeStateStore: () => ({
+      get: (key: string) => runtimeState.get(key) ?? null,
+      set: (key: string, value: string) => { runtimeState.set(key, value); },
+    }),
   };
   return {
     renderer: new MessageRenderer(

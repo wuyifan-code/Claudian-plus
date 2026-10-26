@@ -118,6 +118,12 @@
       "saveFailed": "Kontextkapazität konnte nicht gespeichert werden."
     }
   },
+  "uiBlock": {
+    "copy": "Programm kopieren",
+    "reset": "Status zurücksetzen",
+    "expand": "Vergrößern",
+    "close": "Schließen"
+  },
   "settings": {
     "title": "Claudian Plus Einstellungen",
     "category": {
@@ -411,6 +417,13 @@
     "generativeUi": {
       "name": "Antworten mit intelligenter Benutzeroberfläche",
       "desc": "Erlaubt dem Modell, mit einer interaktiven Oberfläche (Diagramme, Tabellen, Charts, Steuerelemente) zu antworten, wenn das besser erklärt oder vergleicht als Text; sonst Klartext."
+    },
+    "uiInsertToNote": {
+      "name": "Aus Oberflächen in Notizen schreiben",
+      "desc": "Erlaubt generierten Oberflächen, vor dem Einfügen von Markdown an der Cursorposition der aktiven Notiz nachzufragen. Standardmäßig aus.",
+      "modalTitle": "In Notiz einfügen",
+      "modalBody": "Prüfe das Markdown unten. Bestätigen fügt es an der Cursorposition der aktiven Notiz ein.",
+      "noActiveNote": "Öffne zuerst eine Markdown-Notiz."
     },
     "expandFileEditsByDefault": {
       "name": "Dateibearbeitungen standardmäßig ausklappen",

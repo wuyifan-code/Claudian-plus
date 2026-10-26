@@ -1,6 +1,6 @@
 import { formatConversationDirectoryTitle } from '../utils/conversationDirectoryTitle';
 
-export type ConversationOutlineKind = 'prompt' | 'heading' | 'tool' | 'thinking';
+export type ConversationOutlineKind = 'prompt' | 'heading' | 'tool' | 'thinking' | 'ui';
 export type ConversationOutlineLevel = 1 | 2 | 3;
 
 export interface ConversationOutlineEntry {
@@ -69,28 +69,63 @@ function getAssistantResponseExcerpt(userMsgEl: HTMLElement): string {
   return '';
 }
 
+function getUiBlockTitle(block: HTMLElement): string {
+  const explicit = block.querySelector<HTMLElement>(
+    '.claudian-plus-ui-title, .claudian-plus-ui-stat-value, .claudian-plus-ui-tab.is-active',
+  );
+  const text = normalizeOutlineText(explicit?.textContent ?? '');
+  if (text.length > 0) return truncateOutlineText(text, 60);
+  const fallback = normalizeOutlineText(block.textContent ?? '');
+  return fallback.length > 0 ? truncateOutlineText(fallback, 60) : 'UI';
+}
+
 /**
- * Extracts outline entries for user questions/prompts in document order from a chat container.
+ * Extracts outline entries for user questions/prompts and generated interface
+ * blocks in document order from a chat container.
  */
 export function extractOutlineEntries(messagesEl: HTMLElement): ConversationOutlineEntry[] {
   const entries: ConversationOutlineEntry[] = [];
   const messageEls = Array.from(
     messagesEl.querySelectorAll<HTMLElement>(
-      '.claudian-plus-message-user, [data-role="user"]'
+      '.claudian-plus-message-user, .claudian-plus-message-assistant, [data-role="user"], [data-role="assistant"]'
     )
   );
+  const seen = new Set<HTMLElement>();
 
   for (const messageEl of messageEls) {
-    const title = getDirectoryTitle(messageEl);
-    if (title) {
+    if (seen.has(messageEl)) continue;
+    seen.add(messageEl);
+    const isUser = messageEl.classList.contains('claudian-plus-message-user')
+      || messageEl.getAttribute('data-role') === 'user';
+
+    if (isUser) {
+      const title = getDirectoryTitle(messageEl);
+      if (title) {
+        entries.push({
+          targetEl: messageEl,
+          messageEl,
+          title,
+          excerpt: getAssistantResponseExcerpt(messageEl),
+          badge: 'Q',
+          kind: 'prompt',
+          level: getOutlineLevelForTitle(title),
+        });
+      }
+      continue;
+    }
+
+    for (const block of messageEl.querySelectorAll<HTMLElement>('.claudian-plus-ui-block')) {
       entries.push({
-        targetEl: messageEl,
+        targetEl: block,
         messageEl,
-        title,
-        excerpt: getAssistantResponseExcerpt(messageEl),
-        badge: 'Q',
-        kind: 'prompt',
-        level: getOutlineLevelForTitle(title),
+        title: getUiBlockTitle(block),
+        excerpt: truncateOutlineText(
+          normalizeOutlineText(block.textContent ?? ''),
+          OUTLINE_EXCERPT_LENGTH,
+        ),
+        badge: 'UI',
+        kind: 'ui',
+        level: 3,
       });
     }
   }

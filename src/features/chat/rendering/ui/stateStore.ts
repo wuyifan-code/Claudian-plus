@@ -34,6 +34,36 @@ export class UiStateStore {
     this.claims.set(scope, ownerId);
   }
 
+  /**
+   * Moves state from one scope to another, keeping values the target already
+   * has. Used when a streaming block (message-id key) settles into a
+   * content-hash key that survives reload and history replay.
+   */
+  adoptScope(from: string, to: string): number {
+    if (from === to) return 0;
+    const prefix = `${from}:`;
+    let moved = 0;
+    for (const key of [...this.values.keys()]) {
+      if (!key.startsWith(prefix)) continue;
+      const name = key.slice(prefix.length);
+      const target = `${to}:${name}`;
+      if (!this.values.has(target)) {
+        this.values.set(target, this.values.get(key));
+        moved += 1;
+      }
+      this.values.delete(key);
+    }
+    const owner = this.claims.get(from);
+    if (owner !== undefined) {
+      if (!this.claims.has(to)) this.claims.set(to, owner);
+      this.claims.delete(from);
+    }
+    if (moved > 0) {
+      for (const listener of this.listeners) listener(to);
+    }
+    return moved;
+  }
+
   /** Snapshot of the scope's current values; undefined values are excluded. */
   scopeEntries(scope: string): Record<string, unknown> {
     const entries: Record<string, unknown> = {};

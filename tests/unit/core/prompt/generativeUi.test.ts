@@ -61,11 +61,35 @@ describe('generative UI instruction', () => {
     expect(GENERATIVE_UI_INSTRUCTION).toContain('Checkbox($value, label?)');
   });
 
-  it('no longer advertises unimplemented parameters', () => {
-    expect(GENERATIVE_UI_INSTRUCTION).not.toContain('format');
+  it('advertises the expanded component vocabulary', () => {
+    for (const signature of [
+      'Table(columns, rows, $sort?, options?)',
+      'Chart(type "bar"|"line"|"area"|"pie"|"donut", data, x?, series?, height?, options?)',
+      'Form(children, submitLabel, prompt)',
+      'Tabs($active, tabs)',
+      'Quiz(question, options, answer, explanation?)',
+      'NoteCard(linktext)',
+      'Image(path, alt?)',
+    ]) {
+      expect(GENERATIVE_UI_INSTRUCTION).toContain(signature);
+    }
+  });
+
+  it('documents the new actions without advertising deferred ones', () => {
+    for (const name of ['@Toggle($name)', '@OpenNote(linktext)', 'Action([']) {
+      expect(GENERATIVE_UI_INSTRUCTION).toContain(name);
+    }
+    expect(GENERATIVE_UI_INSTRUCTION).not.toContain('@InsertToNote');
     expect(GENERATIVE_UI_INSTRUCTION).not.toContain('currency');
-    expect(GENERATIVE_UI_INSTRUCTION).not.toContain('stacked');
-    expect(GENERATIVE_UI_INSTRUCTION).not.toContain('marker?, children?');
-    expect(GENERATIVE_UI_INSTRUCTION).not.toContain('icon?');
+  });
+
+  it('advertises @InsertToNote only when the write setting is enabled', () => {
+    expect(resolveGenerativeUiInstruction(true)).not.toContain('@InsertToNote');
+    expect(resolveGenerativeUiInstruction(true, true)).toContain('@InsertToNote');
+    expect(resolveGenerativeUiInstruction(false, true)).toBeNull();
+  });
+
+  it('stays within the resident prompt budget', () => {
+    expect(GENERATIVE_UI_INSTRUCTION.length).toBeLessThanOrEqual(8000);
   });
 });

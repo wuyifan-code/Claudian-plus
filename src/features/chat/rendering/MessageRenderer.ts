@@ -1,5 +1,5 @@
 import type { App } from 'obsidian';
-import { Component, MarkdownRenderer, Menu, Notice, setIcon } from 'obsidian';
+import { Component, MarkdownRenderer, MarkdownView, Menu, Modal, Notice, setIcon,Setting } from 'obsidian';
 
 import { createBlobEngine } from '@/shared/blob/BlobEngine';
 
@@ -53,13 +53,16 @@ import { renderStoredThinkingBlock } from './ThinkingBlockRenderer';
 import { buildExecutionRunSummary, renderStoredToolCall } from './ToolCallRenderer';
 import { renderStoredToolGroup } from './ToolGroupRenderer';
 import { splitUiFences } from './ui/fenceSplitter';
+import type { UiNoteSummary, UiRenderHost } from './ui/widgets/context';
 import {
   captureUiFocus,
   disposeUiBlocksUnder,
+  hashUiBlockSource,
   renderUiBlock,
   restoreUiFocus,
   type UiBlockCallbacks,
   uiBlockKey,
+  uiContentBlockKey,
 } from './UiBlockRenderer';
 import { renderStoredWriteEdit } from './WriteEditRenderer';
 
@@ -72,6 +75,10 @@ export interface RenderContentOptions {
   allowUi?: boolean;
   /** Stable message identity, used to key generated-UI widget state. */
   messageId?: string;
+  /** True while the answer is still streaming; settled renders use a content key. */
+  streaming?: boolean;
+  /** Settled render of a just-streamed message: migrate its id-keyed widget state. */
+  migrateFromLive?: boolean;
   /** Conversation that owns generated-UI widget state for persistence. */
   ownerId?: string;
   /**
@@ -113,6 +120,61 @@ function runRendererAction(action: () => Promise<void>): void {
   });
 }
 
+/** First meaningful line of a note, without frontmatter or headings. */
+function summarizeNoteExcerpt(text: string): string {
+  const body = text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
+  for (const rawLine of body.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (line.length === 0 || line.startsWith('#')) continue;
+    return line.length > 180 ? `${line.slice(0, 177)}...` : line;
+  }
+  return '';
+}
+
+/** Obsidian's command registry is not part of the public `App` type. */
+interface AppWithCommands {
+  commands?: { executeCommandById(id: string): boolean };
+}
+
+/** Confirmation gate for model-authored markdown that would enter a note. */
+class InsertToNoteModal extends Modal {
+  constructor(
+    app: App,
+    private readonly targetPath: string,
+    private readonly markdown: string,
+    private readonly onConfirm: () => void,
+  ) {
+    super(app);
+  }
+
+  onOpen(): void {
+    this.titleEl.setText(t('settings.uiInsertToNote.modalTitle'));
+    this.contentEl.createEl('p', { text: t('settings.uiInsertToNote.modalBody') });
+    if (this.targetPath.length > 0) {
+      this.contentEl.createEl('p', { cls: 'claudian-plus-insert-target', text: this.targetPath });
+    }
+    const preview = this.contentEl.createEl('pre', { cls: 'claudian-plus-insert-preview' });
+    const shown = this.markdown.length > 2000 ? `${this.markdown.slice(0, 2000)}...` : this.markdown;
+    preview.createEl('code', { text: shown });
+
+    new Setting(this.contentEl)
+      .addButton((button) => button
+        .setButtonText(t('common.cancel'))
+        .onClick(() => this.close()))
+      .addButton((button) => button
+        .setButtonText(t('common.confirm'))
+        .setCta()
+        .onClick(() => {
+          this.onConfirm();
+          this.close();
+        }));
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+  }
+}
+
 /** Accumulates execution runs folded into one collapsible "Execution details" row. */
 interface ExecutionAggregate {
   content: HTMLElement;
@@ -145,6 +207,7 @@ export class MessageRenderer {
 
   private getReadingMode?: () => boolean;
   private uiHost?: UiFeatureHost;
+  private uiRenderHost?: UiRenderHost;
   private uiOwnerId: string | undefined;
 
   constructor(
@@ -520,23 +583,9 @@ export class MessageRenderer {
       if (welcomeMode === 'lite') {
         // Full Bot (blob) - uses BlobWelcomeView
         const newWelcomeEl = this.messagesEl.createDiv({ cls: 'claudian-plus-welcome' });
-        const storage: { get: (k: string) => string | null; set: (k: string, v: string) => void } = {
-          get: (k) => {
-            try {
-              return window.localStorage.getItem(k);
-            } catch {
-              return null;
-            }
-          },
-          set: (k, v) => {
-            try {
-              window.localStorage.setItem(k, v);
-            } catch {
-              // ignore
-            }
-          },
-        };
-        const welcomeService = new WelcomeService(storage);
+        // Onboarding state rides the plugin settings file; the renderer
+        // storage is off-limits for plugin state.
+        const welcomeService = new WelcomeService(this.plugin.getRuntimeStateStore());
         const vaultName = (() => {
           try {
             return (this.app.vault as unknown as { getName?: () => string }).getName?.() ?? 'vault';
@@ -1429,15 +1478,30 @@ export class MessageRenderer {
     // focused widget control (and its caret) across the container swap.
     const uiFocus = captureUiFocus(el);
     el.empty();
+    // Settled messages key widget state by content, so the same transcript
+    // text finds its state after reload and on every provider's replay.
+    const contentHash = options.streaming === true ? null : hashUiBlockSource(markdown);
     let fenceIndex = 0;
     for (const segment of segments) {
       if (segment.kind === 'ui') {
         const uiEl = el.createDiv({ cls: 'claudian-plus-ui-block' });
         const uiOwnerId = options.ownerId ?? this.uiOwnerId;
+        const blockKey = contentHash === null
+          ? uiBlockKey(uiOwnerId, options.messageId, fenceIndex)
+          : uiContentBlockKey(uiOwnerId, contentHash, fenceIndex);
+        const migrateFromKeys = options.migrateFromLive === true
+          ? [
+            uiBlockKey(uiOwnerId, options.messageId, fenceIndex),
+            uiBlockKey(uiOwnerId, 'live', fenceIndex),
+          ]
+          : undefined;
         const rendered = renderUiBlock(uiEl, segment.content, {
-          blockKey: uiBlockKey(uiOwnerId, options.messageId, fenceIndex),
+          blockKey,
           ownerId: uiOwnerId,
           callbacks: this.buildUiCallbacks(),
+          host: this.getUiRenderHost(),
+          migrateFromKeys,
+          streaming: options.streaming === true,
         });
         if (rendered) restoreUiFocus(uiEl, uiFocus);
         // A program the renderer cannot use degrades to plain text rather than
@@ -1459,6 +1523,90 @@ export class MessageRenderer {
     }
   }
 
+  /** Host services a generated widget may call; every capability degrades when absent. */
+  private getUiRenderHost(): UiRenderHost {
+    this.uiRenderHost ??= {
+      renderMarkdown: (el, markdown) => {
+        void this.renderMarkdownContent(el, markdown);
+      },
+      openNote: (linktext) => this.openUiNote(linktext),
+      noteExists: (linktext) => this.app.metadataCache.getFirstLinkpathDest(linktext, '') !== null,
+      openTag: (tag) => this.openUiTag(tag),
+      describeNote: (linktext) => this.describeUiNote(linktext),
+      resolveResource: (path) => this.resolveUiResource(path),
+    };
+    return this.uiRenderHost;
+  }
+
+  private openUiNote(linktext: string): void {
+    void this.app.workspace.openLinkText(linktext, '', false);
+  }
+
+  /** Opens Obsidian's search view for a tag; degrades silently if the API moves. */
+  private openUiTag(tag: string): void {
+    const normalized = tag.trim().replace(/^#/, '');
+    if (normalized.length === 0) return;
+    const query = `tag:#${normalized}`;
+
+    const existing = this.app.workspace.getLeavesOfType('search')[0];
+    if (existing !== undefined) {
+      const view = existing.view as { setQuery?: (value: string) => void };
+      view.setQuery?.(query);
+      void this.app.workspace.revealLeaf(existing);
+      return;
+    }
+
+    const commands = (this.app as App & AppWithCommands).commands;
+    void commands?.executeCommandById('global-search:open');
+    const opened = this.app.workspace.getLeavesOfType('search')[0];
+    const view = opened?.view as { setQuery?: (value: string) => void };
+    view?.setQuery?.(query);
+  }
+
+  private confirmInsertUiMarkdown(markdown: string): void {
+    if (this.plugin.settings.uiInsertToNoteEnabled !== true) return;
+    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (view === null) {
+      new Notice(t('settings.uiInsertToNote.noActiveNote'));
+      return;
+    }
+    new InsertToNoteModal(this.app, view.file?.path ?? '', markdown, () => {
+      view.editor.replaceSelection(markdown);
+    }).open();
+  }
+
+  private async describeUiNote(linktext: string): Promise<UiNoteSummary | null> {
+    const file = this.app.metadataCache.getFirstLinkpathDest(linktext, '');
+    if (file === null) return null;
+    const cache = this.app.metadataCache.getFileCache(file);
+    const tags = (cache?.tags ?? [])
+      .map((tag) => tag.tag)
+      .filter((tag, index, all) => tag.length > 0 && all.indexOf(tag) === index)
+      .slice(0, 8);
+    let excerpt: string;
+    try {
+      excerpt = summarizeNoteExcerpt(await this.app.vault.cachedRead(file));
+    } catch {
+      excerpt = '';
+    }
+    return { title: file.basename, path: file.path, excerpt, tags };
+  }
+
+  private resolveUiResource(path: string): string | null {
+    const trimmed = path.trim();
+    if (trimmed.length === 0) return null;
+    // Vault-relative paths only: no schemes, no absolute paths, no traversal.
+    if (trimmed.includes('..')
+      || trimmed.startsWith('/')
+      || trimmed.startsWith('\\')
+      || /^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
+      return null;
+    }
+    const file = this.app.metadataCache.getFirstLinkpathDest(trimmed, '');
+    if (file === null) return null;
+    return this.app.vault.adapter.getResourcePath(file.path);
+  }
+
   private buildUiCallbacks(): UiBlockCallbacks | undefined {
     if (!this.uiHost) return undefined;
     const host = this.uiHost;
@@ -1466,6 +1614,8 @@ export class MessageRenderer {
       onContinueConversation: (prompt, context) => host.continueConversation(prompt, context),
       onOpenUrl: (url) => host.openExternal(url),
       onCopy: (text) => host.copyText(text),
+      onOpenNote: (linktext) => this.openUiNote(linktext),
+      onInsertToNote: (markdown) => this.confirmInsertUiMarkdown(markdown),
     };
   }
 

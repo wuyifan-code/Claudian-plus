@@ -91,7 +91,7 @@ export class NavigationSidebar {
   }
 
   getEffectiveEnabledKinds(): Set<ConversationOutlineKind> {
-    return new Set<ConversationOutlineKind>(['prompt']);
+    return new Set<ConversationOutlineKind>(['prompt', 'ui']);
   }
 
   setSide(side: 'left' | 'right'): void {

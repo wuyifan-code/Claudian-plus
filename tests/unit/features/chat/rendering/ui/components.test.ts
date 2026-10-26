@@ -7,7 +7,19 @@ import {
   renderUiBlock,
 } from '@/features/chat/rendering/UiBlockRenderer';
 
+import { flushFrame, installManualFrames } from './widgets/frame';
+
 let blockCounter = 0;
+
+let frames: ReturnType<typeof installManualFrames>;
+
+beforeEach(() => {
+  frames = installManualFrames();
+});
+
+afterEach(() => {
+  frames.restore();
+});
 
 function renderProgram(source: string): HTMLElement {
   blockCounter += 1;
@@ -134,6 +146,7 @@ describe('Slider, Select and Checkbox input components', () => {
     expect(uiStateStore.get(`components:${blockCounter}`, 'hours')).toBeUndefined();
 
     slider!.dispatchEvent(new Event('change'));
+    flushFrame();
     expect(uiStateStore.get(`components:${blockCounter}`, 'hours')).toBe(30);
     expect(container.querySelector('.claudian-plus-ui-text')?.textContent).toBe('30');
     expect(container.querySelector<HTMLInputElement>('input[type="range"]')?.value).toBe('30');
@@ -162,6 +175,7 @@ describe('Slider, Select and Checkbox input components', () => {
 
     select!.value = 'fast';
     select!.dispatchEvent(new Event('change'));
+    flushFrame();
     expect(uiStateStore.get(`components:${blockCounter}`, 'mode')).toBe('fast');
     expect(container.querySelector('.claudian-plus-ui-text')?.textContent).toBe('fast');
     expect(container.querySelector<HTMLSelectElement>('select')?.value).toBe('fast');
@@ -177,6 +191,7 @@ describe('Slider, Select and Checkbox input components', () => {
 
     box!.checked = true;
     box!.dispatchEvent(new Event('change'));
+    flushFrame();
     expect(uiStateStore.get(`components:${blockCounter}`, 'done')).toBe(true);
     expect(container.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(true);
     expect(container.querySelector('.claudian-plus-ui-text')?.textContent).toBe('true');
@@ -213,6 +228,7 @@ describe('Slider, Select and Checkbox input components', () => {
 
     input!.value = '42';
     input!.dispatchEvent(new Event('input', { bubbles: true }));
+    flushFrame();
     expect(uiStateStore.get(`components:${blockCounter}`, 'n')).toBe(42);
     expect(container.querySelector('.claudian-plus-ui-text')?.textContent).toBe('42');
   });

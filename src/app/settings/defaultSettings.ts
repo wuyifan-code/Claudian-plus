@@ -87,6 +87,9 @@ export const DEFAULT_CLAUDIAN_PLUS_SETTINGS: ClaudianPlusSettings = {
   // Let the model answer with an interactive UI when the question benefits from one.
   generativeUiEnabled: true,
 
+  // Writing model-authored markdown into a note always requires confirmation.
+  uiInsertToNoteEnabled: false,
+
   // Memory system
   memoryEnabled: true,
   memoryFilePath: DEFAULT_MEMORY_FILE_PATH,

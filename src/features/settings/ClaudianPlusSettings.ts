@@ -1037,6 +1037,27 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
       targetEl: generativeUiSetting.settingEl,
     });
 
+    const insertToNoteSetting = new Setting(card)
+      .setName(t('settings.uiInsertToNote.name'))
+      .setDesc(t('settings.uiInsertToNote.desc'))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.uiInsertToNoteEnabled === true)
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.uiInsertToNoteEnabled = value;
+            });
+          })
+      );
+    this.registerSearchEntry({
+      categoryId: 'appearance',
+      categoryLabel: 'Appearance',
+      settingKey: 'insert-to-note',
+      name: t('settings.uiInsertToNote.name'),
+      desc: t('settings.uiInsertToNote.desc'),
+      targetEl: insertToNoteSetting.settingEl,
+    });
+
     const editSetting = new Setting(card)
       .setName(t('settings.expandFileEditsByDefault.name'))
       .setDesc(t('settings.expandFileEditsByDefault.desc'))
