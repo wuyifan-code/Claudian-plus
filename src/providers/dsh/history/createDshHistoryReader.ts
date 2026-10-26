@@ -15,7 +15,10 @@ function withSignal<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
   return new Promise((resolve, reject) => {
     const aborted = () => reject(cancellationError(signal));
     void promise.then(value => { signal.removeEventListener('abort', aborted); resolve(value); },
-      error => { signal.removeEventListener('abort', aborted); reject(error); });
+      error => {
+        signal.removeEventListener('abort', aborted);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      });
     if (signal.aborted) aborted();
     else signal.addEventListener('abort', aborted, { once: true });
   });

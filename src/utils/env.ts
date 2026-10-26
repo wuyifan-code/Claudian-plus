@@ -8,7 +8,6 @@ import { parsePathEntries, resolveNvmDefaultBin } from './path';
 const isWindows = process.platform === 'win32';
 const PATH_SEPARATOR = isWindows ? ';' : ':';
 const NODE_EXECUTABLE = isWindows ? 'node.exe' : 'node';
-const DEVICE_SETTINGS_STORAGE_KEY = 'claudian.deviceSettingsKey';
 let cachedDeviceSettingsKey: string | null = null;
 
 function getHomeDir(): string {
@@ -345,14 +344,26 @@ export function parseEnvironmentVariables(input: string): Record<string, string>
   return result;
 }
 
-function getDeviceSettingsStorage(): Storage | null {
-  try {
-    return typeof window === 'undefined' ? null : window.localStorage;
-  } catch {
-    return null;
-  }
+/**
+ * Persistence for the opaque per-install device key.
+ *
+ * It used to live in the renderer window storage, which Obsidian flags: state belongs
+ * in the plugin data APIs. The plugin routes this key through its own
+ * persisted state instead; with no store wired (unit tests) it stays in
+ * memory for the lifetime of the process.
+ */
+export interface DeviceSettingsKeyStore {
+  get(): string | null;
+  set(value: string): void;
 }
 
+let deviceSettingsKeyStore: DeviceSettingsKeyStore | null = null;
+
+export function configureDeviceSettingsKeyStore(store: DeviceSettingsKeyStore | null): void {
+  deviceSettingsKeyStore = store;
+  const stored = store?.get()?.trim();
+  if (stored !== undefined && stored.length > 0) cachedDeviceSettingsKey = stored;
+}
 function createOpaqueDeviceSettingsKey(): string {
   const cryptoApi = typeof window === 'undefined' ? null : window.crypto;
   const randomUUID = cryptoApi?.randomUUID?.();
@@ -378,18 +389,17 @@ export function getHostnameKey(): string {
     return cachedDeviceSettingsKey;
   }
 
-  const storage = getDeviceSettingsStorage();
-  const stored = storage?.getItem(DEVICE_SETTINGS_STORAGE_KEY)?.trim();
-  if (stored) {
+  const stored = deviceSettingsKeyStore?.get()?.trim();
+  if (stored !== undefined && stored.length > 0) {
     cachedDeviceSettingsKey = stored;
     return cachedDeviceSettingsKey;
   }
 
   cachedDeviceSettingsKey = createOpaqueDeviceSettingsKey();
   try {
-    storage?.setItem(DEVICE_SETTINGS_STORAGE_KEY, cachedDeviceSettingsKey);
+    deviceSettingsKeyStore?.set(cachedDeviceSettingsKey);
   } catch {
-    // Local storage can be unavailable in restricted renderer contexts.
+    // No store wired (tests): the key lives in memory for this process only.
   }
 
   return cachedDeviceSettingsKey;

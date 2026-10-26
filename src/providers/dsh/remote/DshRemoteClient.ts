@@ -117,7 +117,10 @@ export class DshRemoteClient {
       const aborted = () => reject(new Error('DSH Remote connection cancelled'));
       signal.addEventListener('abort', aborted, { once: true });
       void connecting.then(() => { signal.removeEventListener('abort', aborted); resolve(); },
-        error => { signal.removeEventListener('abort', aborted); reject(error); });
+        error => {
+          signal.removeEventListener('abort', aborted);
+          reject(error instanceof Error ? error : new Error(String(error)));
+        });
     });
   }
 

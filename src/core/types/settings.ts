@@ -118,6 +118,12 @@ export interface ClaudianPlusSettings {
   mediaFolder: string;
   systemPrompt: string;
   persistentExternalContextPaths: string[];
+  /**
+   * Non-preference UI state: onboarding flags and the opaque per-install
+   * device key. Obsidian asks plugins to persist state through their data
+   * APIs rather than the renderer storage, so it lives here.
+   */
+  runtimeState?: Record<string, string>;
   /** Enable the lightweight vault knowledge summary injected into awareness context. */
   vaultKnowledgeEnabled?: boolean;
 
@@ -179,6 +185,12 @@ export interface ClaudianPlusSettings {
    * with an interactive UI when the question benefits from one. Defaults to true.
    */
   generativeUiEnabled?: boolean;
+
+  /**
+   * Allow `@InsertToNote` to ask for confirmation before writing model-authored
+   * markdown at the cursor of the active note. Defaults to false.
+   */
+  uiInsertToNoteEnabled?: boolean;
 
   // Provider command visibility
   hiddenProviderCommands: HiddenProviderCommands;
