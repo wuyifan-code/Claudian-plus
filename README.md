@@ -1,3 +1,7 @@
+<p align="center">
+  <a href="https://github.com/deepseek-ai/deepseek-harness"><img src="https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white" alt="powered by dsh" width="121" height="20"></a>
+</p>
+
 <p align="right">
   <a href="README_ZH.md">简体中文</a> | <b>English</b>
 </p>
@@ -39,6 +43,26 @@ DeepSeek Harness (`dsh`) is now a first-class provider, implemented directly aga
 
 ---
 
+## 🌟 What's New in V3.2.2
+
+**A hardening release for the generated-UI layer, cold start, and plugin health.** Nothing below adds a feature surface; every item was found by measuring the shipped build.
+
+### 1. The generated-UI components are one design family now
+- **A timeline item without a timestamp no longer collapses.** Grid tracks are driven by a row attribute instead of by how many cells a row happened to emit, and the connector is drawn by a rail that stretches with the row. The same content that rendered one glyph per line in a 10px column (1064px tall) now renders at full width in 161px.
+- **Obsidian's element styles stop leaking into widgets.** The host styles `button`, `input`, `select` and `textarea` at a specificity that silently beat component classes: buttons were re-centred and repainted, text fields kept the host skin, and multi-line cards were pinned to the input height so their text spilled out of the border. Every button and form-control rule is element-qualified now, with a reset for the properties no component owns.
+- **One scale for radii, spacing, type and control height.** Title sizes collapse from five to three rendered steps — `md` and `lg` used to render at 20px and 19.8px, and `2xl` and `3xl` were identical — and a panel nested inside another panel degrades to a tint instead of drawing a second border.
+- **One markdown reading style.** `MarkdownRenderer.render()` does not add Obsidian's `.markdown-rendered` wrapper, so code blocks, tables, quotes and rules inside a widget had no reading polish at all. The answer body and the widget now share a single reading layer, and widget roots are excluded by class so a Table component never inherits markdown-table rules.
+- **The 361–479px sidebar tier exists.** Three- and four-column grids degrade to two, table headers may wrap, and badges may break — that width range previously had no rules at all.
+
+### 2. Faster cold start
+- The production bundle is **3.42 MiB instead of 3.68 MiB**, and median cold module evaluation drops from **286.8 ms to ~260–272 ms**. Two build settings did it: emitting UTF-8 instead of `\uXXXX` escapes for the CJK locale bundles, and targeting ES2022 — the minimum supported Obsidian already ships a newer Chromium.
+
+### 3. Plugin-health hardening
+- **No renderer storage.** Onboarding state and the per-install device key live in the plugin data file now. A device key left by an earlier build is adopted when it is unambiguous; settings that travelled between machines are left alone rather than guessed at.
+- **Zero production dependency advisories.** `@modelcontextprotocol/sdk` 1.32.2, `smol-toml` 1.9.1, `zod` 4.6.7 and the pinned `hono` override moved off the vulnerable ranges — `npm audit --omit=dev` reports none.
+- Promise rejections carry `Error` reasons, and a duplicated CSS declaration is gone.
+
+
 ## 🌟 What's New in V3.2.1
 
 **A community-review compliance release.** The 3.2.0 listing failed one automated check; this release fixes it.
@@ -54,8 +78,11 @@ DeepSeek Harness (`dsh`) is now a first-class provider, implemented directly aga
 
 ### 1. Intelligent UI (generative answers)
 - **Agents answer with real interfaces.** A provider may reply with a fenced ` ```claudian-ui ` program that renders as native Obsidian DOM — never an iframe, never `innerHTML` — with byte-for-byte transcript replay on every provider.
-- **A compact declarative language.** 24 components: layout (`Col`, `Row`, `Grid`, `Card`, …), data (`Table`, pure-SVG `Chart`, clickable `Diagram` flows), and inputs (`Input`, `Slider`, `Select`, `Checkbox`, `SegmentedControl`, `Button`). 24 pure `@functions` (`@Sum`, `@Round`, `@Each`, …) and 5 actions (`@Set`, `@Reset`, `@ToAssistant`, `@OpenUrl`, `@Copy`). `@ToAssistant` sends the widget's context back to the agent as the next turn.
-- **Widget state survives reloads.** Slider positions, selections and checkboxes are persisted per conversation (16 KiB per block, 64 KiB per session) and restored when you reopen or reload.
+- **A compact declarative language.** 54 components: layout (`Col`, `Row`, `Grid`, `Card`, …), text (rich `Markdown`, `Icon`, `Math`, `Progress`), data (sortable `Table`, multi-series `Chart`, `Sparkline`, clickable `Diagram` flows with edges), inputs (`Input`, `Slider`, `Select`, `Switch`, `TextArea`, `NumberStepper`, `DatePicker`, `ChoiceCards`, `Form`, …), structure (`Tabs`, `Accordion`, `Steps`, `Timeline`, `Callout`, `Stat`), learning (`Flashcard`, locally graded `Quiz`, `Checklist`), and Obsidian-native widgets (`NoteLink`, `NoteCard`, `Mermaid`, `Tag`, vault-relative `Image`). 24 pure `@functions` (`@Sum`, `@Round`, `@Each`, …) and 7 actions (`@Set`, `@Reset`, `@Toggle`, `@ToAssistant`, `@OpenUrl`, `@Copy`, `@OpenNote`) plus `Action([...])` sequences. `@ToAssistant` sends the widget's context back to the agent as the next turn.
+- **Forms submit once.** `Form` bundles every bound field into exactly one assistant turn; `Quiz` and `Checklist` grade or track progress locally without a model round-trip.
+- **Blocks polish themselves.** Settled blocks fade in once, early streaming frames show a skeleton instead of blank space, and a hover toolbar copies the program, resets widget state, or expands the interface. Generated blocks also appear in the conversation outline (`UI` markers).
+- **Widget state survives reloads and replay.** Slider positions, selections and checkboxes are persisted per conversation (16 KiB per block, 64 KiB per session) under a message-content key, so history replay and a vault reload both find the same state.
+- **Writing into a note is opt-in.** `@InsertToNote` is off by default; when enabled in Settings → Appearance, every use still shows a preview and asks for confirmation before inserting at the cursor.
 - **Focus stays where you type.** Rebuilds triggered by your own keystrokes — including mid-stream re-renders — restore focus and caret on the exact control.
 - **One collapsed row per turn.** Every reasoning-and-tool run folds into a single `Execution details` line with an aggregate summary (tool count, names, failures, thinking time). Click to expand the full detail; no reading-mode toggle needed.
 - **Judge built in.** The language is injected into every provider's system prompt (toggle in Settings → Appearance), the renderer degrades unrenderable programs to text instead of blanking them, and a model that forgets the `claudian-ui` tag on its fence gets a content-sniffing fallback.
@@ -339,5 +366,3 @@ If you encounter any issues, have questions, or want to explore feature ideas:
 - File an Issue: [GitHub Issues](https://github.com/wuyifan-code/Claudian-plus/issues)
 - WeChat Official Account: **「递归识海」**
 - Follow & Updates: [关注公众号：递归识海](https://mp.weixin.qq.com/s/m2AVQl2PdXERGmIrx4jiuA)
-
-[![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)

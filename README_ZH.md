@@ -1,3 +1,7 @@
+<p align="center">
+  <a href="https://github.com/deepseek-ai/deepseek-harness"><img src="https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white" alt="powered by dsh" width="121" height="20"></a>
+</p>
+
 <p align="right">
   <b>简体中文</b> | <a href="README.md">English</a>
 </p>
@@ -39,6 +43,26 @@ DeepSeek Harness（`dsh`）现在是一等 Provider。它直接对着官方 Harn
 
 ---
 
+## 🌟 V3.2.2 更新
+
+**一次针对生成式 UI 层、冷启动与插件健康度的加固发布。** 下面没有任何新功能面，每一条都是把已构建的产物量出来之后发现的。
+
+### 1. 生成式 UI 组件收成一套设计家族
+- **没有时间戳的时间线条目不再塌陷。** 网格轨道改为由行属性驱动，而不是由「这一行恰好输出了几个单元格」决定；连接线由一个随行撑高的轨道列绘制。同一份内容此前被压进 10px 宽的列、逐字竖排、整块高 1064px，现在满宽渲染、高 161px。
+- **Obsidian 的元素样式不再渗进组件。** 宿主对 `button`、`input`、`select`、`textarea` 的规则权重会静默压过组件类：按钮被重新居中并重新上色、输入框沿用宿主皮肤、多行卡片被钉死成输入框高度导致文字溢出边框。现在每条按钮与表单控件规则都做了元素限定，并且对「没有组件归属的属性」做了复位。
+- **圆角、间距、字号、控件高度各一套标尺。** 标题从五档收敛为三个可见档——`md` 与 `lg` 过去渲染成 20px 和 19.8px、`2xl` 与 `3xl` 完全一致；面板嵌套面板时内层降级为浅底，不再画第二道边框。
+- **统一的 markdown 阅读样式。** `MarkdownRenderer.render()` 不会加 Obsidian 的 `.markdown-rendered` 包裹层，所以组件里的代码块、表格、引用、分隔线此前没有任何阅读态排版。现在回答正文与组件共用同一层阅读样式，并按类名排除组件根部，表格组件不会吃到 markdown 表格规则。
+- **补齐 361–479px 这一档。** 三列/四列网格降为两列、表头允许折行、徽标允许换行——这个最典型的侧栏宽度此前一条规则都没有。
+
+### 2. 冷启动更快
+- 生产包从 **3.68 MiB 降到 3.42 MiB**，冷启动模块求值中位数从 **286.8 ms 降到约 260–272 ms**。两处构建设置起作用：CJK 语言包改用 UTF-8 输出而不是 `\uXXXX` 转义；构建目标提到 ES2022——支持的最低 Obsidian 版本早已搭载更新的 Chromium。
+
+### 3. 插件健康度加固
+- **不再使用渲染进程存储。** 引导状态与每安装实例的设备键都改存进插件数据文件。旧版本留在渲染进程存储里的设备键，只在无歧义时才采纳；跨机器同步过的设置不去猜。
+- **生产依赖漏洞归零。** `@modelcontextprotocol/sdk` 1.32.2、`smol-toml` 1.9.1、`zod` 4.6.7，以及被钉死的 `hono` override 全部离开受影响区间——`npm audit --omit=dev` 已无告警。
+- Promise 拒绝原因统一为 `Error`，并清掉了一处重复的 CSS 声明。
+
+
 ## 🌟 V3.2.1 更新
 
 **社区审阅合规版本。** 3.2.0 的商店条目未通过一项自动检查，本版本修复它。
@@ -54,8 +78,11 @@ DeepSeek Harness（`dsh`）现在是一等 Provider。它直接对着官方 Harn
 
 ### 1. Intelligent UI（生成式回答）
 - **Agent 的回答可以是真正的界面。** Provider 可以用 ` ```claudian-ui ` 围栏程序回复，渲染为 Obsidian 原生 DOM——绝不用 iframe、绝不用 `innerHTML`——并且在所有 Provider 的历史重放里逐字节保真。
-- **一门精简的声明式语言。** 24 个组件：布局（`Col`、`Row`、`Grid`、`Card` 等）、数据（`Table`、纯 SVG `Chart`、可点击联动的 `Diagram` 流程）、输入（`Input`、`Slider`、`Select`、`Checkbox`、`SegmentedControl`、`Button`）。24 个纯 `@函数`（`@Sum`、`@Round`、`@Each` 等）与 5 个动作（`@Set`、`@Reset`、`@ToAssistant`、`@OpenUrl`、`@Copy`）。`@ToAssistant` 可把控件上下文作为下一轮对话发回给 Agent。
-- **控件状态跨重载保留。** 滑块位置、下拉选择、勾选状态按会话持久化（单块 16 KiB、全会话 64 KiB），重开会话或重载 Obsidian 后自动恢复。
+- **一门精简的声明式语言。** 54 个组件：布局（`Col`、`Row`、`Grid`、`Card` 等）、文本（`Markdown`、`Icon`、`Math`、`Progress`）、数据（可排序 `Table`、多系列 `Chart`、`Sparkline`、带连线与路径高亮的 `Diagram`）、输入（`Input`、`Slider`、`Select`、`Switch`、`TextArea`、`NumberStepper`、`DatePicker`、`ChoiceCards`、`Form` 等）、结构（`Tabs`、`Accordion`、`Steps`、`Timeline`、`Callout`、`Stat`）、学习（`Flashcard`、本地判分的 `Quiz`、`Checklist`）与 Obsidian 原生组件（`NoteLink`、`NoteCard`、`Mermaid`、`Tag`、vault 相对路径 `Image`）。24 个纯 `@函数`（`@Sum`、`@Round`、`@Each` 等）与 7 个动作（`@Set`、`@Reset`、`@Toggle`、`@ToAssistant`、`@OpenUrl`、`@Copy`、`@OpenNote`），外加 `Action([...])` 多步动作。`@ToAssistant` 可把控件上下文作为下一轮对话发回给 Agent。
+- **表单一次提交。** `Form` 把内部所有绑定字段打包成恰好一个助手回合；`Quiz` 与 `Checklist` 在本地判分/记进度，不触发模型回合。
+- **界面自己会打磨。** 定稿的界面块淡入一次；流式早期帧显示骨架而不是空白；悬停工具条可复制程序、重置控件状态或放大查看。生成的界面也会以 `UI` 标记进入对话大纲。
+- **控件状态跨重载与回放保留。** 滑块位置、下拉选择、勾选状态按会话持久化（单块 16 KiB、全会话 64 KiB），并以消息内容作为键，历史回放与重载都能找回同一份状态。
+- **写入笔记默认关闭。** `@InsertToNote` 需在设置 → 外观中显式开启；即使开启，每次使用仍会显示预览并请求确认，确认后才插入到光标处。
 - **输入焦点不丢。** 由你自己的按键触发的界面重建——包括流式过程中的重渲染——都会精确恢复焦点与光标位置。
 - **每回合只占一行。** 所有思考与工具调用折叠为一行 `Execution details`，汇总显示工具数、名称、失败数与思考时长；点击展开完整细节，无需打开阅读模式。
 - **自带兜底。** 语言规范注入每个 Provider 的系统提示词（设置 → 外观 可开关）；无法渲染的程序降级为文本而不是消失；模型忘写 `claudian-ui` 标签时，渲染端按内容嗅探兜底。
@@ -339,5 +366,3 @@ Claudian Plus 站在两个上游项目之上：
 - 提 Issue 与讨论：[GitHub Issues](https://github.com/wuyifan-code/Claudian-plus/issues)
 - 微信公众号：**「递归识海」**
 - 文章与最新动态：[关注公众号：递归识海](https://mp.weixin.qq.com/s/m2AVQl2PdXERGmIrx4jiuA)
-
-[![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
