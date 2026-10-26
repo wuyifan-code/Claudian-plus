@@ -152,42 +152,7 @@
   margin-top: 8px;
 }
 
-.claudian-plus-message-content p {
-  margin: 0 0 8px 0;
-}
-
-.claudian-plus-message-content p:last-child {
-  margin-bottom: 0;
-}
-
-.claudian-plus-message-content ul,
-.claudian-plus-message-content ol {
-  margin: 8px 0;
-  padding-inline-start: 20px;
-}
-
-/* Full-width tables */
-.claudian-plus-message-content table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 8px 0;
-}
-
-.claudian-plus-message-content th,
-.claudian-plus-message-content td {
-  border: 1px solid var(--background-modifier-border);
-  padding: 6px 10px;
-  text-align: start;
-}
-
-.claudian-plus-message-content th {
-  background: var(--background-secondary);
-  font-weight: 600;
-}
-
-.claudian-plus-message-content tr:hover {
-  background: var(--background-secondary-alt);
-}
+/* Markdown inside an answer is styled by components/markdown-reading.css. */
 
 .claudian-plus-messages::-webkit-scrollbar {
   width: 6px;

@@ -20,6 +20,8 @@ export interface ResolvedAction {
   type: 'action';
   name: string;
   values: unknown[];
+  /** State variables written by `@Set` / `@Reset` / `@Toggle`, resolved from the argument expressions. */
+  targets?: string[];
 }
 
 export interface EvaluationScope {
@@ -34,9 +36,17 @@ export function createScope(program: UiProgram, getState: (name: string) => unkn
   return { program, getState, cache: new Map(), resolving: new Set(), locals: null };
 }
 
-const ACTION_NAMES = new Set(['@Set', '@Reset', '@ToAssistant', '@OpenUrl', '@Copy']);
+const ACTION_NAMES = new Set([
+  '@Set', '@Reset', '@Toggle', '@ToAssistant', '@OpenUrl', '@Copy', '@OpenNote', '@InsertToNote',
+]);
 
-function truthy(value: unknown): boolean {
+/** Actions whose state-variable arguments name write targets. */
+const STATE_WRITING_ACTIONS = new Set(['@Set', '@Reset', '@Toggle']);
+
+/** `Action([@a, @b])` runs several action steps from one gesture. */
+export const ACTION_SEQUENCE = 'Action';
+
+export function truthy(value: unknown): boolean {
   if (value === null || value === undefined) return false;
   if (typeof value === 'boolean') return value;
   if (typeof value === 'number') return value !== 0;
@@ -68,10 +78,16 @@ function compare(left: unknown, right: unknown): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-function formatNumber(value: unknown, style?: unknown): string {
+/** Shared number formatting for `@Format`, table columns and chart ticks. */
+export function formatNumber(value: unknown, style?: unknown): string {
   const amount = asNumber(value);
   if (style === 'percent') return `${Math.round(amount * 10) / 10}%`;
-  if (style === 'currency') return amount.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  if (style === 'compact') {
+    const abs = Math.abs(amount);
+    if (abs >= 1e9) return `${Math.round(amount / 1e8) / 10}B`;
+    if (abs >= 1e6) return `${Math.round(amount / 1e5) / 10}M`;
+    if (abs >= 1e3) return `${Math.round(amount / 1e2) / 10}k`;
+  }
   return amount.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
@@ -197,11 +213,8 @@ function evaluateEach(args: UiExpr[], scope: EvaluationScope): unknown {
 }
 
 function resolveStateDefault(name: string, scope: EvaluationScope): unknown {
-  const declaration = scope.program.statements.get(name);
-  if (declaration?.state && declaration.expr !== null) {
-    return evaluate(declaration.expr, scope);
-  }
-  return null;
+  const declaration = scope.program.states.get(name);
+  return declaration === undefined ? null : evaluate(declaration, scope);
 }
 
 function evaluateReference(name: string, scope: EvaluationScope): unknown {
@@ -227,12 +240,17 @@ function evaluateReference(name: string, scope: EvaluationScope): unknown {
 
 function evaluateCall(name: string, args: UiExpr[], scope: EvaluationScope): unknown {
   if (ACTION_NAMES.has(name)) {
-    // `@Set($x, v)` and `@Reset($x, $y)` name their targets; reading the value
-    // would lose which variable the control writes to.
-    const values = name === '@Set'
-      ? [args[0] === undefined ? null : evaluate(args[0], scope), args[1] === undefined ? null : evaluate(args[1], scope)]
-      : args.map((arg) => evaluate(arg, scope));
-    return { type: 'action', name, values };
+    const values = args.map((arg) => evaluate(arg, scope));
+    const action: ResolvedAction = { type: 'action', name, values };
+    // `@Set($x, v)` / `@Reset($x, $y)` / `@Toggle($x)` name their targets;
+    // the evaluated value alone would lose which variable is written.
+    if (STATE_WRITING_ACTIONS.has(name)) {
+      const targetArgs = name === '@Set' ? args.slice(0, 1) : args;
+      action.targets = targetArgs
+        .map((arg) => readActionTarget(arg))
+        .filter((target): target is string => target !== null);
+    }
+    return action;
   }
 
   if (name === '@Each') {
@@ -343,6 +361,10 @@ export function evaluate(expr: UiExpr, scope: EvaluationScope): unknown {
     case 'call': {
       if (expr.name.startsWith('@')) {
         return evaluateCall(expr.name, expr.args, scope);
+      }
+      if (expr.name === ACTION_SEQUENCE) {
+        const steps = expr.args[0] === undefined ? [] : asList(evaluate(expr.args[0], scope));
+        return { type: 'action', name: ACTION_SEQUENCE, values: [steps] } satisfies ResolvedAction;
       }
       return {
         type: 'element',

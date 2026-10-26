@@ -5,7 +5,7 @@ import {
   type ResolvedElement,
   toDisplayText,
 } from '@/features/chat/rendering/ui/evaluate';
-import { parseUiProgram } from '@/features/chat/rendering/ui/parser';
+import { parseUiProgram, type UiExpr } from '@/features/chat/rendering/ui/parser';
 
 function evaluateSource(source: string, state: Record<string, unknown> = {}): unknown {
   const program = parseUiProgram(source);
@@ -81,6 +81,19 @@ describe('evaluate', () => {
     evaluate(expression ?? { kind: 'literal', value: null }, scope);
 
     expect(expression?.kind === 'call' && readActionTarget(expression.args[0])).toBe('step');
+  });
+
+  it('keeps a state default when a named statement shares its name', () => {
+    const program = parseUiProgram([
+      'root = Col([day])',
+      '$day = "2026-10-25"',
+      'day = DatePicker($day, "Day", "date")',
+    ].join('\n'));
+    const scope = createScope(program, () => undefined);
+    const stateRef: UiExpr = { kind: 'state', name: 'day' };
+
+    expect(evaluate(stateRef, scope)).toBe('2026-10-25');
+    expect(program.statements.get('day')?.state).toBe(false);
   });
 
   it('renders text from scalars and lists', () => {

@@ -118,6 +118,12 @@
       "saveFailed": "コンテキスト容量を保存できませんでした。"
     }
   },
+  "uiBlock": {
+    "copy": "プログラムをコピー",
+    "reset": "状態をリセット",
+    "expand": "拡大表示",
+    "close": "閉じる"
+  },
   "settings": {
     "title": "Claudian Plus 設定",
     "category": {
@@ -411,6 +417,13 @@
     "generativeUi": {
       "name": "インテリジェント UI での回答",
       "desc": "テキストより説明や比較に適する場合、モデルが対話型インターフェース（図・表・チャート・コントロール）で回答することを許可します。それ以外はプレーンテキストのままです。"
+    },
+    "uiInsertToNote": {
+      "name": "インターフェースからノートへ書き込む",
+      "desc": "生成されたインターフェースが、アクティブなノートのカーソル位置に Markdown を挿入する前に確認を求めることを許可します。既定では無効です。",
+      "modalTitle": "ノートに挿入",
+      "modalBody": "下の Markdown を確認してください。確認すると、アクティブなノートのカーソル位置に挿入されます。",
+      "noActiveNote": "先に Markdown ノートを開いてください。"
     },
     "expandFileEditsByDefault": {
       "name": "ファイル編集をデフォルトで展開",

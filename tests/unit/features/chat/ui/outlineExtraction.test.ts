@@ -79,6 +79,27 @@ describe('outlineExtraction', () => {
     expect(promptEntry.excerpt).toContain('To optimize database performance');
   });
 
+  it('extracts generated interface blocks as outline entries in document order', () => {
+    const root = createFixture();
+    const assistantContent = root.querySelectorAll('.claudian-plus-message-content')[1];
+    const ui = document.createElement('div');
+    ui.className = 'claudian-plus-ui-block';
+    const uiTitle = document.createElement('div');
+    uiTitle.className = 'claudian-plus-ui-title';
+    uiTitle.textContent = 'Revenue breakdown';
+    ui.appendChild(uiTitle);
+    assistantContent!.appendChild(ui);
+
+    const entries = extractOutlineEntries(root);
+    expect(entries.map(e => e.kind)).toEqual(['prompt', 'ui', 'prompt']);
+
+    const uiEntry = entries[1];
+    expect(uiEntry).toBeDefined();
+    expect(uiEntry.badge).toBe('UI');
+    expect(uiEntry.title).toBe('Revenue breakdown');
+    expect(uiEntry.level).toBe(3);
+  });
+
   describe('filterEntriesByKinds', () => {
     it('filters outline entries by enabled kinds', () => {
       const root = createFixture();
@@ -89,6 +110,20 @@ describe('outlineExtraction', () => {
 
       const empty = filterEntriesByKinds(entries, new Set<ConversationOutlineKind>(['tool']));
       expect(empty.length).toBe(0);
+    });
+
+    it('can filter to generated interface entries', () => {
+      const root = createFixture();
+      const assistantContent = root.querySelectorAll('.claudian-plus-message-content')[1]!;
+      const ui = document.createElement('div');
+      ui.className = 'claudian-plus-ui-block';
+      ui.textContent = 'chart';
+      assistantContent.appendChild(ui);
+
+      const entries = extractOutlineEntries(root);
+      const uiOnly = filterEntriesByKinds(entries, new Set<ConversationOutlineKind>(['ui']));
+      expect(uiOnly).toHaveLength(1);
+      expect(uiOnly[0]?.kind).toBe('ui');
     });
   });
 });

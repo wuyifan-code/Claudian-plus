@@ -118,6 +118,12 @@
       "saveFailed": "컨텍스트 용량을 저장하지 못했습니다."
     }
   },
+  "uiBlock": {
+    "copy": "프로그램 복사",
+    "reset": "상태 초기화",
+    "expand": "확대",
+    "close": "닫기"
+  },
   "settings": {
     "title": "Claudian Plus 설정",
     "category": {
@@ -411,6 +417,13 @@
     "generativeUi": {
       "name": "지능형 UI 답변",
       "desc": "텍스트보다 설명이나 비교에 유리할 때 모델이 대화형 인터페이스(다이어그램, 표, 차트, 컨트롤)로 답하도록 허용합니다. 그 외에는 일반 텍스트를 유지합니다."
+    },
+    "uiInsertToNote": {
+      "name": "인터페이스에서 노트로 쓰기",
+      "desc": "생성된 인터페이스가 활성 노트의 커서 위치에 Markdown을 삽입하기 전에 확인을 요청하도록 허용합니다. 기본값은 꺼짐입니다.",
+      "modalTitle": "노트에 삽입",
+      "modalBody": "아래 Markdown을 확인하세요. 확인하면 활성 노트의 커서 위치에 삽입됩니다.",
+      "noActiveNote": "먼저 Markdown 노트를 여세요."
     },
     "expandFileEditsByDefault": {
       "name": "파일 편집을 기본적으로 펼치기",

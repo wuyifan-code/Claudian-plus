@@ -541,6 +541,7 @@ export class StreamController {
     const options: RenderContentOptions = {};
     if (mayContainFence) {
       options.allowUi = true;
+      options.streaming = true;
       options.messageId = this.activeAssistantMessageId ?? 'live';
     }
     if (needsDeferredMath) {
@@ -869,18 +870,24 @@ export class StreamController {
     await this.flushPendingTextRender();
 
     if (msg && state.currentTextContent) {
-      if (
-        state.currentTextEl
-        && this.shouldDeferMathRendering()
-        && hasStreamingMathDelimiters(state.currentTextContent)
-      ) {
-        if (mayContainUiFence(state.currentTextContent)) {
-          await renderer.renderContent(state.currentTextEl, state.currentTextContent, {
+      const content = state.currentTextContent;
+      const hasUi = mayContainUiFence(content);
+      const needsFinalMathRender = this.shouldDeferMathRendering()
+        && hasStreamingMathDelimiters(content);
+      if (state.currentTextEl && (hasUi || needsFinalMathRender)) {
+        if (hasUi) {
+          await renderer.renderContent(state.currentTextEl, content, {
             allowUi: true,
             messageId: msg.id,
+            streaming: false,
+            // The streaming frames keyed widget state by message id; move it to
+            // the content key that survives reload and replay.
+            migrateFromLive: true,
           });
         } else {
-          await renderer.renderContent(state.currentTextEl, state.currentTextContent);
+          // Finalize renders math for real; streaming-only escaping must not
+          // leak into the settled text.
+          await renderer.renderContent(state.currentTextEl, content);
         }
       }
       msg.contentBlocks = msg.contentBlocks || [];

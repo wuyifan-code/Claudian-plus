@@ -118,6 +118,12 @@
       "saveFailed": "Não foi possível guardar a capacidade de contexto."
     }
   },
+  "uiBlock": {
+    "copy": "Copiar programa",
+    "reset": "Redefinir estado",
+    "expand": "Ampliar",
+    "close": "Fechar"
+  },
   "settings": {
     "title": "Definições do Claudian Plus",
     "category": {
@@ -411,6 +417,13 @@
     "generativeUi": {
       "name": "Respostas com interface inteligente",
       "desc": "Permite que o modelo responda com uma interface interativa (diagramas, tabelas, gráficos, controles) quando isso explicar ou comparar melhor que texto; caso contrário, texto simples."
+    },
+    "uiInsertToNote": {
+      "name": "Escrever em notas pela interface",
+      "desc": "Permite que interfaces geradas peçam confirmação antes de inserir Markdown no cursor da nota ativa. Desativado por padrão.",
+      "modalTitle": "Inserir na nota",
+      "modalBody": "Revise o Markdown abaixo. Confirmar insere no cursor da nota ativa.",
+      "noActiveNote": "Abra primeiro uma nota Markdown."
     },
     "expandFileEditsByDefault": {
       "name": "Expandir edições de arquivo por padrão",

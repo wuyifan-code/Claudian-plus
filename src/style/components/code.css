@@ -4,21 +4,6 @@
   margin: 8px 0;
 }
 
-/* Code blocks in chat messages */
-.claudian-plus-code-wrapper pre,
-.claudian-plus-message-content pre {
-  background: var(--code-background);
-  padding: 8px 12px;
-  border-radius: var(--claudian-plus-radius-sm);
-  overflow-x: auto;
-  margin: 0;
-}
-
-/* Light mode: use a lighter background so hljs comment colors stay readable */
-body.theme-light .claudian-plus-code-wrapper pre,
-body.theme-light .claudian-plus-message-content pre {
-  background: var(--code-background);
-}
 
 /* Code blocks without language - wrap content */
 .claudian-plus-code-wrapper:not(.has-language) pre {
@@ -27,15 +12,6 @@ body.theme-light .claudian-plus-message-content pre {
   overflow-x: hidden;
 }
 
-/* Unwrapped pre still needs margin */
-.claudian-plus-message-content>pre {
-  margin: 8px 0;
-}
-
-.claudian-plus-message-content code {
-  font-family: var(--font-monospace);
-  font-size: 13px;
-}
 
 /* Clickable language label - positioned outside scroll area */
 .claudian-plus-code-wrapper .claudian-plus-code-lang-label {
