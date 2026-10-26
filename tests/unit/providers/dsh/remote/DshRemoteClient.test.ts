@@ -32,7 +32,9 @@ describe('DshRemoteClient HTTP lifecycle', () => {
       if (request.url?.includes('large')) response.end('x'.repeat(200));
     });
     await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
-    const client = new DshRemoteClient(`http://127.0.0.1:${(server.address() as AddressInfo).port}`, 'session=secret', { requestTimeoutMs: 30, maxResponseBytes: 100 });
+    // 30 ms raced the 200-byte response under full-suite load; keep the timeout
+    // well above localhost latency so the size limit is what this case asserts.
+    const client = new DshRemoteClient(`http://127.0.0.1:${(server.address() as AddressInfo).port}`, 'session=secret', { requestTimeoutMs: 250, maxResponseBytes: 100 });
     try {
       await expect(client.call('large')).rejects.toThrow('limit');
       await expect(client.call('wait')).rejects.toThrow('timed out');

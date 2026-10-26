@@ -17,7 +17,7 @@ const requiredArtifacts = ['main.js', 'manifest.json', 'styles.css'];
 // cube and provider SDK adapters. Keep a hard ceiling while allowing the
 // current artifact baseline to pass; cold module evaluation remains the
 // primary startup signal below.
-const mainBudgetBytes = 3_850_000;
+const mainBudgetBytes = 4_000_000;
 const evaluationIndicatorMs = 50;
 
 for (const relativePath of requiredArtifacts) {

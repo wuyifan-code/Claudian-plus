@@ -19,6 +19,7 @@ import { MarkdownView, Notice, Plugin } from 'obsidian';
 import { ConversationRepository } from './app/conversations/ConversationRepository';
 import { ClaudianPlusProviderHost } from './app/providers/ClaudianPlusProviderHost';
 import { DEFAULT_CLAUDIAN_PLUS_SETTINGS } from './app/settings/defaultSettings';
+import { adoptLegacyDeviceKey, createRuntimeStateStore, RUNTIME_DEVICE_KEY, type RuntimeStateStore } from './app/settings/runtimeState';
 import type { ConditionalSettingsMutation } from './app/settings/SettingsCoordinator';
 import { SettingsCoordinator, type SettingsMutation } from './app/settings/SettingsCoordinator';
 import { SharedStorageService } from './app/storage/SharedStorageService';
@@ -106,6 +107,7 @@ import type { Locale } from './i18n/types';
 import { registerBuiltInProviders } from './providers';
 import { migrateClaudeServiceSettings } from './providers/claude/services/ClaudeServiceMigration';
 import { OPENCODE_PLAN_MODE_ID, OPENCODE_SAFE_MODE_ID } from './providers/opencode/modes';
+import { configureDeviceSettingsKeyStore, getHostnameKey } from './utils/env';
 import { revealWorkspaceLeaf } from './utils/obsidianCompat';
 import { getVaultPath } from './utils/path';
 
@@ -210,6 +212,20 @@ export default class ClaudianPlusPlugin extends Plugin {
         setSharedBackgroundRequestGate(this.getAuxiliaryRequestGate());
       });
       await this.startupCoordinator.advanceToPhase(StartupPhase.Phase0_ShellReady);
+
+      // The device key and the welcome flag used to live in the renderer
+      // storage; Obsidian asks for plugin data instead, so both now ride the
+      // settings file through one synchronous store.
+      configureDeviceSettingsKeyStore({
+        get: () => this.getRuntimeStateStore().get(RUNTIME_DEVICE_KEY),
+        set: (value) => this.getRuntimeStateStore().set(RUNTIME_DEVICE_KEY, value),
+      });
+      if (this.getRuntimeStateStore().get(RUNTIME_DEVICE_KEY) === null) {
+        const adopted = adoptLegacyDeviceKey(this.settings);
+        if (adopted !== null) this.getRuntimeStateStore().set(RUNTIME_DEVICE_KEY, adopted);
+      }
+      // Materialise the key once so every provider resolver sees the same value.
+      void getHostnameKey();
 
       this.registerView(
         VIEW_TYPE_CLAUDIAN_PLUS,
@@ -1472,7 +1488,10 @@ export default class ClaudianPlusPlugin extends Plugin {
    * wired here are not, so the judgement has to travel with each turn.
    */
   async getResponseFormatInjectionText(): Promise<string | null> {
-    return resolveGenerativeUiInstruction(this.settings.generativeUiEnabled !== false);
+    return resolveGenerativeUiInstruction(
+      this.settings.generativeUiEnabled !== false,
+      this.settings.uiInsertToNoteEnabled === true,
+    );
   }
 
   /** Get the memory injection text for system prompt, or null if disabled/empty. */
@@ -1544,6 +1563,16 @@ export default class ClaudianPlusPlugin extends Plugin {
   }
 
   /** Get or create the MindStore instance for Dreaming V3 mind entries. */
+  private runtimeStateStore: RuntimeStateStore | null = null;
+
+  /** Synchronous UI state (onboarding flag, device key) persisted with settings. */
+  getRuntimeStateStore(): RuntimeStateStore {
+    this.runtimeStateStore ??= createRuntimeStateStore(
+      () => this.settings,
+      () => { void this.saveSettings(); },
+    );
+    return this.runtimeStateStore;
+  }
   getMindStore(): MindStore {
     if (!this._mindStore) {
       this._mindStore = new MindStore(this.storage.getAdapter(), {

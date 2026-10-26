@@ -1,3 +1,4 @@
+import type { RuntimeStateStore } from '../app/settings/runtimeState';
 import type { ObsidianMcpServerHandle } from '../core/mcp/ObsidianMcpServer';
 import type {
   ConsciousnessEngine,
@@ -47,6 +48,11 @@ export interface FeatureViewHost extends TabManagerViewHost {
 export interface FeatureHost extends ProviderHost {
   readonly providerHost: ProviderHost;
 
+  /**
+   * Synchronous UI state (onboarding flag, per-install device key) that the
+   * plugin persists with its settings instead of the renderer storage.
+   */
+  getRuntimeStateStore(): RuntimeStateStore;
   /** Get the mind store for legacy mind entries and migration. */
   getMindStore(): MindStore;
 
