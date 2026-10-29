@@ -22,6 +22,11 @@
     "rewind": "되감기"
   },
   "chat": {
+    "effort": {
+      "label": "추론 수준",
+      "faster": "빠름",
+      "stronger": "강함"
+    },
     "interrupt": {
       "label": "중지",
       "tooltip": "생성 중지 (Esc)"

@@ -22,6 +22,11 @@
     "rewind": "Zurückspulen"
   },
   "chat": {
+    "effort": {
+      "label": "Denkaufwand",
+      "faster": "Schneller",
+      "stronger": "Stärker"
+    },
     "interrupt": {
       "label": "Stopp",
       "tooltip": "Generierung stoppen (Esc)"

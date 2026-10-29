@@ -22,6 +22,11 @@
     "rewind": "巻き戻し"
   },
   "chat": {
+    "effort": {
+      "label": "推論レベル",
+      "faster": "速い",
+      "stronger": "強い"
+    },
     "interrupt": {
       "label": "停止",
       "tooltip": "生成を停止 (Esc)"

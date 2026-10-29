@@ -28,43 +28,29 @@
   border-radius: 6px;
 }
 
-/* Current selection (visible when collapsed) */
+/* Current selection: plain accent text that sits right after the model name. */
 .claudian-plus-thinking-current {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   height: 24px;
-  padding: 0 7px;
+  padding: 0 2px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter Variable", Inter, system-ui, sans-serif;
-  font-size: 11.5px;
-  color: var(--text-muted);
-  font-weight: 500;
+  font-size: 12px;
+  color: var(--interactive-accent);
+  font-weight: 600;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 4px;
   white-space: nowrap;
   background: transparent;
-  border: 1px solid transparent;
-  transition: all 0.15s ease;
+  border: none;
+  transition: color 0.15s ease;
   user-select: none;
-}
-
-.claudian-plus-thinking-current::after {
-  content: '▾';
-  display: inline-block;
-  font-size: 10px;
-  opacity: 0.7;
-  transition: transform 0.15s ease;
 }
 
 .claudian-plus-thinking-current:hover,
 .claudian-plus-thinking-gears.is-open .claudian-plus-thinking-current {
-  background-color: var(--background-modifier-hover);
-  color: var(--text-normal);
-  border-color: var(--background-modifier-border);
-}
-
-.claudian-plus-thinking-gears.is-open .claudian-plus-thinking-current::after {
-  transform: rotate(180deg);
+  color: var(--interactive-accent-hover, var(--interactive-accent));
 }
 
 /* Options container - elevated popover */
@@ -93,12 +79,22 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter Variable", Inter, system-ui, sans-serif;
 }
 
-/* Expand on hover or when is-open */
+/* Expand on hover or when is-open (budget lists only; the effort slider opens on click) */
 .claudian-plus-thinking-gears.is-open .claudian-plus-thinking-options,
-.claudian-plus-thinking-gears:hover .claudian-plus-thinking-options {
+.claudian-plus-thinking-gears--budget:hover .claudian-plus-thinking-options {
   opacity: 1;
   visibility: visible;
   transform: translateY(0) scale(1);
+}
+
+/* Effort popover hosts the slider, so it owns its own padding and anchoring. */
+.claudian-plus-thinking-options--effort {
+  left: auto;
+  right: 0;
+  padding: 0;
+  gap: 0;
+  min-width: 0;
+  transform-origin: bottom right;
 }
 
 .claudian-plus-thinking-gear {

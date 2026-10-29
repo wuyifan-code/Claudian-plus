@@ -515,6 +515,22 @@ describe('ModeSelector', () => {
   });
 });
 
+function stubTrackGeometry(parentEl: any, width: number): any {
+  const track = parentEl.querySelector('.claudian-plus-effort-track');
+  track.getBoundingClientRect = () => ({
+    top: 0,
+    left: 0,
+    width,
+    height: 30,
+    right: width,
+    bottom: 30,
+    x: 0,
+    y: 0,
+    toJSON: () => {},
+  });
+  return track;
+}
+
 describe('ThinkingBudgetSelector', () => {
   let parentEl: any;
   let callbacks: ReturnType<typeof createMockCallbacks>;
@@ -549,6 +565,34 @@ describe('ThinkingBudgetSelector', () => {
       expect(current?.textContent).toBe('High');
     });
 
+    it('should roll the slider back when the effort write fails', async () => {
+      const track = stubTrackGeometry(parentEl, 240);
+      (callbacks.onEffortLevelChange as jest.Mock).mockRejectedValueOnce(new Error('write failed'));
+
+      track.dispatchEvent('pointerdown', {
+        button: 0,
+        clientX: 240,
+        pointerId: 1,
+        preventDefault: () => {},
+        stopPropagation: () => {},
+      });
+      track.dispatchEvent('pointerup', { clientX: 240 });
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      // The optimistic rung must not outlive a rejected write.
+      expect(track.getAttribute('aria-valuenow')).toBe('2');
+      expect(track.getAttribute('aria-valuetext')).toBe('High');
+    });
+
+    it('should keep the effort control alive across a re-render', () => {
+      // render() clears the container, so the lazily created slider and current
+      // element have to be released first or they stay bound to detached nodes.
+      (selector as any).render();
+
+      expect(parentEl.querySelector('.claudian-plus-thinking-current')).not.toBeNull();
+      expect(parentEl.querySelector('.claudian-plus-effort-track')).not.toBeNull();
+    });
+
     it('should toggle is-open class on current element click', () => {
       const current = parentEl.querySelector('.claudian-plus-thinking-current');
       const gears = parentEl.querySelector('.claudian-plus-thinking-gears');
@@ -561,22 +605,182 @@ describe('ThinkingBudgetSelector', () => {
       expect(gears?.hasClass('is-open')).toBe(false);
     });
 
-    it('should close on option click', async () => {
-      const current = parentEl.querySelector('.claudian-plus-thinking-current');
-      const gears = parentEl.querySelector('.claudian-plus-thinking-gears');
-      current?.dispatchEvent('click');
-      expect(gears?.hasClass('is-open')).toBe(true);
-
-      const options = parentEl.querySelector('.claudian-plus-thinking-options');
-      const lowOption = options?.children?.find((c: any) => c.textContent === 'Low');
-      expect(lowOption).toBeDefined();
-
-      lowOption?.dispatchEvent('click');
-      expect(gears?.hasClass('is-open')).toBe(false);
-      expect(callbacks.onEffortLevelChange).toHaveBeenCalledWith('low');
+    it('should render a slider instead of an option list', () => {
+      const track = parentEl.querySelector('.claudian-plus-effort-track');
+      expect(track).not.toBeNull();
+      expect(track?.getAttribute('role')).toBe('slider');
+      expect(track?.getAttribute('aria-valuemin')).toBe('0');
+      expect(track?.getAttribute('aria-valuemax')).toBe('3');
+      expect(track?.getAttribute('aria-valuenow')).toBe('2');
+      expect(track?.getAttribute('aria-valuetext')).toBe('High');
+      expect(parentEl.querySelector('.claudian-plus-thinking-gear')).toBeNull();
     });
 
-    it('should render ultra option with dedicated class and allow selection', async () => {
+    it('should label the ladder ends and current value', () => {
+      const label = parentEl.querySelector('.claudian-plus-effort-label');
+      const value = parentEl.querySelector('.claudian-plus-effort-value');
+      const ends = parentEl.querySelectorAll('.claudian-plus-effort-end');
+
+      expect(label?.textContent).toBe('Reasoning effort');
+      expect(value?.textContent).toBe('High');
+      expect(ends.map((end: any) => end.textContent)).toEqual(['Faster', 'Stronger']);
+    });
+
+    it('should commit the nearest rung on release', () => {
+      const track = stubTrackGeometry(parentEl, 240);
+      track.dispatchEvent('pointerdown', {
+        button: 0,
+        clientX: 240,
+        pointerId: 1,
+        preventDefault: () => {},
+        stopPropagation: () => {},
+      });
+      track.dispatchEvent('pointerup', { clientX: 240 });
+
+      expect(callbacks.onEffortLevelChange).toHaveBeenCalledWith('max');
+    });
+
+    it('should keep the popover open after committing', () => {
+      const current = parentEl.querySelector('.claudian-plus-thinking-current');
+      current?.dispatchEvent('click');
+      const gears = parentEl.querySelector('.claudian-plus-thinking-gears');
+      expect(gears?.hasClass('is-open')).toBe(true);
+
+      const track = stubTrackGeometry(parentEl, 240);
+      track.dispatchEvent('pointerdown', {
+        button: 0,
+        clientX: 0,
+        pointerId: 1,
+        preventDefault: () => {},
+        stopPropagation: () => {},
+      });
+      track.dispatchEvent('pointerup', { clientX: 0 });
+
+      expect(callbacks.onEffortLevelChange).toHaveBeenCalledWith('low');
+      expect(gears?.hasClass('is-open')).toBe(true);
+    });
+
+    it('should step through rungs with the keyboard', () => {
+      const track = stubTrackGeometry(parentEl, 240);
+      const key = (name: string) => track.dispatchEvent('keydown', {
+        key: name,
+        preventDefault: () => {},
+        stopPropagation: () => {},
+      });
+
+      key('ArrowRight');
+      expect(callbacks.onEffortLevelChange).toHaveBeenLastCalledWith('max');
+
+      key('Home');
+      expect(callbacks.onEffortLevelChange).toHaveBeenLastCalledWith('low');
+
+      key('End');
+      expect(callbacks.onEffortLevelChange).toHaveBeenLastCalledWith('max');
+    });
+
+    it('should build the matrix once the track has a width', () => {
+      callbacks.getSettings.mockReturnValue({
+        model: 'sonnet',
+        thinkingBudget: 'off',
+        effortLevel: 'max',
+        serviceTier: 'default',
+        permissionMode: 'normal',
+        enableOpus1M: false,
+        enableSonnet1M: false,
+      });
+      selector.updateDisplay();
+
+      // The toolbar is laid out before the view is visible: width 0, no cells.
+      expect(parentEl.querySelectorAll('.claudian-plus-effort-matrix-sq').length).toBe(0);
+
+      stubTrackGeometry(parentEl, 240);
+      selector.updateDisplay();
+
+      expect(parentEl.querySelectorAll('.claudian-plus-effort-matrix-sq').length).toBeGreaterThan(0);
+    });
+
+    it('should adapt to a six-rung ladder and title-case ids', () => {
+      const uiConfig = createMockUIConfig();
+      uiConfig.isAdaptiveReasoningModel.mockReturnValue(true);
+      uiConfig.getReasoningOptions.mockReturnValue([
+        { value: 'minimal', label: 'minimal' },
+        { value: 'low', label: 'low' },
+        { value: 'medium', label: 'medium' },
+        { value: 'high', label: 'high' },
+        { value: 'max', label: 'max' },
+        { value: 'ultra', label: 'ultra' },
+      ]);
+      callbacks.getUIConfig.mockReturnValue(uiConfig);
+      callbacks.getSettings.mockReturnValue({
+        model: 'sonnet',
+        thinkingBudget: 'off',
+        effortLevel: 'ultra',
+        serviceTier: 'default',
+        permissionMode: 'normal',
+        enableOpus1M: false,
+        enableSonnet1M: false,
+      });
+
+      stubTrackGeometry(parentEl, 240);
+      selector.updateDisplay();
+
+      const track = parentEl.querySelector('.claudian-plus-effort-track');
+      expect(track?.getAttribute('aria-valuemax')).toBe('5');
+      expect(track?.getAttribute('aria-valuetext')).toBe('Ultra');
+      expect(parentEl.querySelectorAll('.claudian-plus-effort-tick').length).toBe(6);
+      expect(parentEl.querySelector('.claudian-plus-effort-value')?.textContent).toBe('Ultra');
+      expect(parentEl.querySelector('.claudian-plus-thinking-current')?.textContent).toBe('Ultra');
+      expect(parentEl.querySelector('.claudian-plus-effort')?.getAttribute('data-apex')).toBe('true');
+    });
+
+    it('should title-case a three-rung vendor ladder', () => {
+      const uiConfig = createMockUIConfig();
+      uiConfig.isAdaptiveReasoningModel.mockReturnValue(true);
+      uiConfig.getReasoningOptions.mockReturnValue([
+        { value: 'low', label: 'low' },
+        { value: 'high', label: 'high' },
+        { value: 'max', label: 'max' },
+      ]);
+      callbacks.getUIConfig.mockReturnValue(uiConfig);
+      callbacks.getSettings.mockReturnValue({
+        model: 'sonnet',
+        thinkingBudget: 'off',
+        effortLevel: 'max',
+        serviceTier: 'default',
+        permissionMode: 'normal',
+        enableOpus1M: false,
+        enableSonnet1M: false,
+      });
+
+      stubTrackGeometry(parentEl, 240);
+      selector.updateDisplay();
+
+      expect(parentEl.querySelector('.claudian-plus-thinking-current')?.textContent).toBe('Max');
+      expect(parentEl.querySelector('.claudian-plus-effort-value')?.textContent).toBe('Max');
+      expect(parentEl.querySelectorAll('.claudian-plus-effort-tick').length).toBe(3);
+    });
+
+    it('should paint the apex matrix only on the strongest rung', () => {
+      const root = parentEl.querySelector('.claudian-plus-effort');
+      expect(root?.getAttribute('data-apex')).toBeNull();
+
+      callbacks.getSettings.mockReturnValue({
+        model: 'sonnet',
+        thinkingBudget: 'off',
+        effortLevel: 'max',
+        serviceTier: 'default',
+        permissionMode: 'normal',
+        enableOpus1M: false,
+        enableSonnet1M: false,
+      });
+      selector.updateDisplay();
+
+      const apexRoot = parentEl.querySelector('.claudian-plus-effort');
+      expect(apexRoot?.getAttribute('data-apex')).toBe('true');
+      expect(parentEl.querySelector('.claudian-plus-effort-matrix')).not.toBeNull();
+    });
+
+    it('should mark the ultra trigger', () => {
       const uiConfig = createMockUIConfig();
       uiConfig.isAdaptiveReasoningModel.mockReturnValue(true);
       uiConfig.getReasoningOptions.mockReturnValue([
@@ -585,15 +789,20 @@ describe('ThinkingBudgetSelector', () => {
         { value: 'ultra', label: 'Ultra' },
       ]);
       callbacks.getUIConfig.mockReturnValue(uiConfig);
+      callbacks.getSettings.mockReturnValue({
+        model: 'sonnet',
+        thinkingBudget: 'off',
+        effortLevel: 'ultra',
+        serviceTier: 'default',
+        permissionMode: 'normal',
+        enableOpus1M: false,
+        enableSonnet1M: false,
+      });
       selector.updateDisplay();
 
-      const options = parentEl.querySelector('.claudian-plus-thinking-options');
-      const ultraOption = options?.children?.find((c: any) => c.textContent === 'Ultra');
-      expect(ultraOption).toBeDefined();
-      expect(ultraOption?.hasClass('claudian-plus-thinking-gear--ultra')).toBe(true);
-
-      ultraOption?.dispatchEvent('click');
-      expect(callbacks.onEffortLevelChange).toHaveBeenCalledWith('ultra');
+      const current = parentEl.querySelector('.claudian-plus-thinking-current');
+      expect(current?.textContent).toBe('Ultra');
+      expect(current?.hasClass('is-ultra')).toBe(true);
     });
   });
 

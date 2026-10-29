@@ -1,0 +1,352 @@
+/* Effort slider — draggable reasoning-level control with a pixel-matrix apex state.
+   Timings and keyframe shapes mirror the upstream dsh-claude-style effort picker. */
+
+.claudian-plus-effort {
+  --claudian-plus-effort-apex: var(--interactive-accent);
+  /* Declared twice on purpose: the first value stands when color-mix is missing. */
+  --claudian-plus-effort-apex-flash: var(--interactive-accent-hover, var(--interactive-accent));
+  --claudian-plus-effort-apex-flash: color-mix(
+    in srgb,
+    var(--interactive-accent) 30%,
+    var(--background-primary)
+  );
+  --claudian-plus-effort-duration-surface: 150ms;
+  --claudian-plus-effort-duration-feedback: 120ms;
+  --claudian-plus-effort-duration-move: 200ms;
+  --claudian-plus-effort-duration-fade: 300ms;
+  --claudian-plus-effort-duration-swap: 150ms;
+  --claudian-plus-effort-ease-standard: ease;
+  --claudian-plus-effort-ease-glide: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --claudian-plus-effort-ease-in-out: ease-in-out;
+  --claudian-plus-effort-period-flash: 1450ms;
+  --claudian-plus-effort-period-flow: 4000ms;
+  --claudian-plus-effort-swap-distance: 8px;
+  --claudian-plus-effort-swap-blur: 3px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+  /* Follow the chat panel, which exposes itself as an inline-size container. */
+  width: min(320px, calc(100vw - 16px));
+  width: min(320px, calc(100cqw - 16px));
+  min-width: 0;
+  max-width: 320px;
+  padding: 10px 12px 12px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter Variable", Inter, system-ui, sans-serif;
+  color: var(--text-normal);
+  user-select: none;
+}
+
+.claudian-plus-effort-head {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.claudian-plus-effort-label {
+  color: var(--text-muted);
+}
+
+/* Base label retreats as the incoming rung takes its place. */
+.claudian-plus-effort-value {
+  position: relative;
+  color: var(--text-normal);
+  font-weight: 600;
+  opacity: calc(1 - var(--claudian-plus-effort-swap-progress, 0));
+  transform: translateY(calc(
+    var(--claudian-plus-effort-swap-distance) *
+    var(--claudian-plus-effort-swap-dir, 1) *
+    var(--claudian-plus-effort-swap-progress, 0) * -1
+  ));
+  filter: blur(calc(
+    var(--claudian-plus-effort-swap-blur) *
+    var(--claudian-plus-effort-swap-progress, 0)
+  ));
+  transition:
+    color var(--claudian-plus-effort-duration-feedback) var(--claudian-plus-effort-ease-standard),
+    opacity var(--claudian-plus-effort-duration-move) var(--claudian-plus-effort-ease-glide),
+    transform var(--claudian-plus-effort-duration-move) var(--claudian-plus-effort-ease-glide),
+    filter var(--claudian-plus-effort-duration-move) var(--claudian-plus-effort-ease-glide);
+}
+
+.claudian-plus-effort-value-preview {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: nowrap;
+  pointer-events: none;
+  color: var(--text-normal);
+  font-weight: 600;
+  opacity: var(--claudian-plus-effort-swap-progress, 0);
+  transform: translateY(calc(
+    var(--claudian-plus-effort-swap-distance) *
+    var(--claudian-plus-effort-swap-dir, 1) *
+    var(--claudian-plus-effort-swap-rest, 0)
+  ));
+  filter: blur(calc(
+    var(--claudian-plus-effort-swap-blur) *
+    var(--claudian-plus-effort-swap-rest, 0)
+  ));
+  transition:
+    color var(--claudian-plus-effort-duration-feedback) var(--claudian-plus-effort-ease-standard),
+    opacity var(--claudian-plus-effort-duration-move) var(--claudian-plus-effort-ease-glide),
+    transform var(--claudian-plus-effort-duration-move) var(--claudian-plus-effort-ease-glide),
+    filter var(--claudian-plus-effort-duration-move) var(--claudian-plus-effort-ease-glide);
+}
+
+.claudian-plus-effort[data-apex] .claudian-plus-effort-value,
+.claudian-plus-effort[data-apex] .claudian-plus-effort-value-preview {
+  color: var(--interactive-accent);
+}
+
+.claudian-plus-effort[data-swap-reset] .claudian-plus-effort-value,
+.claudian-plus-effort[data-swap-reset] .claudian-plus-effort-value-preview {
+  transition: none;
+}
+
+.claudian-plus-effort-ends {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--text-faint);
+  transition: color var(--claudian-plus-effort-duration-feedback) var(--claudian-plus-effort-ease-standard);
+}
+
+.claudian-plus-effort-track {
+  position: relative;
+  height: 30px;
+  border-radius: 10px;
+  cursor: pointer;
+  touch-action: none;
+  outline: none;
+}
+
+.claudian-plus-effort-track::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 26px;
+  margin-top: -13px;
+  border-radius: 8px;
+  background: var(--background-modifier-hover);
+}
+
+.claudian-plus-effort-track:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--interactive-accent) 40%, transparent);
+}
+
+/* Progress fill: reaches the knob centre. */
+.claudian-plus-effort-fill {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 26px;
+  margin-top: -13px;
+  border-radius: 8px 0 0 8px;
+  background: color-mix(in srgb, var(--text-normal) 26%, transparent);
+  pointer-events: none;
+  transition:
+    width var(--claudian-plus-effort-duration-move) var(--claudian-plus-effort-ease-glide),
+    opacity var(--claudian-plus-effort-duration-move) var(--claudian-plus-effort-ease-standard);
+}
+
+.claudian-plus-effort[data-apex] .claudian-plus-effort-fill {
+  opacity: 0;
+}
+
+.claudian-plus-effort-ticks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transition: opacity var(--claudian-plus-effort-duration-move) var(--claudian-plus-effort-ease-standard);
+}
+
+.claudian-plus-effort[data-apex] .claudian-plus-effort-ticks {
+  opacity: 0;
+}
+
+.claudian-plus-effort-tick {
+  position: absolute;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin-top: -2px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text-normal) 26%, transparent);
+}
+
+/* Pixel grid: only painted once the strongest rung is selected. */
+.claudian-plus-effort-matrix {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 26px;
+  margin-top: -13px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  overflow: hidden;
+  display: none;
+  pointer-events: none;
+}
+
+.claudian-plus-effort[data-apex] .claudian-plus-effort-matrix {
+  display: grid;
+  grid-auto-flow: row;
+}
+
+.claudian-plus-effort-matrix-cell {
+  animation: claudian-plus-effort-fade-in 150ms ease 0ms both;
+  animation: claudian-plus-effort-fade-in var(--claudian-plus-effort-duration-surface) var(--claudian-plus-effort-ease-standard) var(--claudian-plus-effort-cell-delay, 0ms) both;
+}
+
+/* Entrance flash that sweeps the field once when the apex state appears. */
+.claudian-plus-effort-matrix-sq::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-color: var(--claudian-plus-effort-apex-flash);
+  opacity: 0;
+  animation: claudian-plus-effort-front 150ms ease 0ms both;
+  animation: claudian-plus-effort-front var(--claudian-plus-effort-duration-surface) var(--claudian-plus-effort-ease-standard) var(--claudian-plus-effort-front-delay, 0ms) both;
+}
+
+.claudian-plus-effort-matrix-sq {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 1px;
+  background-color: var(--claudian-plus-effort-apex);
+  --claudian-plus-effort-flash-light: var(--interactive-accent-hover, var(--interactive-accent));
+  --claudian-plus-effort-flash-light: color-mix(
+    in srgb,
+    var(--claudian-plus-effort-apex) var(--claudian-plus-effort-flash-mix, 62%),
+    var(--claudian-plus-effort-apex-flash)
+  );
+  animation: claudian-plus-effort-flash 1450ms ease-in-out 0ms infinite;
+  animation: claudian-plus-effort-flash var(--claudian-plus-effort-flash-duration, 1450ms) var(--claudian-plus-effort-ease-in-out) var(--claudian-plus-effort-flash-delay, 0ms) infinite;
+}
+
+.claudian-plus-effort-matrix-sq::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-color: var(--claudian-plus-effort-apex-flash);
+  opacity: 0;
+  animation: claudian-plus-effort-flow 4000ms linear 0ms infinite;
+  animation: claudian-plus-effort-flow var(--claudian-plus-effort-period-flow) linear var(--claudian-plus-effort-flow-delay, 0ms) infinite;
+}
+
+.claudian-plus-effort-knob {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 16px;
+  height: 30px;
+  margin-top: -15px;
+  border-radius: 5px;
+  background: var(--background-primary);
+  box-shadow:
+    var(--claudian-plus-shadow-sm),
+    0 0 0 1px color-mix(in srgb, var(--text-normal) 8%, transparent);
+  scale: 1;
+  will-change: translate, scale;
+  transition:
+    translate var(--claudian-plus-effort-duration-move) var(--claudian-plus-effort-ease-glide),
+    scale var(--claudian-plus-effort-duration-feedback) var(--claudian-plus-effort-ease-standard),
+    background-color var(--claudian-plus-effort-duration-fade) var(--claudian-plus-effort-ease-standard),
+    box-shadow var(--claudian-plus-effort-duration-fade) var(--claudian-plus-effort-ease-standard);
+}
+
+.claudian-plus-effort[data-apex] .claudian-plus-effort-knob {
+  background: color-mix(in srgb, var(--interactive-accent) 22%, var(--background-primary));
+  box-shadow:
+    0 0 10px color-mix(in srgb, var(--interactive-accent) 60%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--interactive-accent) 35%, transparent);
+}
+
+.claudian-plus-effort[data-dragging] .claudian-plus-effort-knob {
+  scale: 1.1;
+  transition:
+    scale var(--claudian-plus-effort-duration-feedback) var(--claudian-plus-effort-ease-standard),
+    background-color var(--claudian-plus-effort-duration-fade) var(--claudian-plus-effort-ease-standard),
+    box-shadow var(--claudian-plus-effort-duration-fade) var(--claudian-plus-effort-ease-standard);
+}
+
+/* The knob tracks the pointer directly while a drag is in progress. */
+.claudian-plus-effort[data-dragging] .claudian-plus-effort-fill {
+  transition: none;
+}
+
+@keyframes claudian-plus-effort-fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes claudian-plus-effort-front {
+  0% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes claudian-plus-effort-flash {
+  0%,
+  14% {
+    background-color: var(--claudian-plus-effort-apex);
+  }
+  20%,
+  34% {
+    background-color: var(--claudian-plus-effort-flash-light, var(--claudian-plus-effort-apex-flash));
+  }
+  100% {
+    background-color: var(--claudian-plus-effort-apex);
+  }
+}
+
+@keyframes claudian-plus-effort-flow {
+  0% {
+    opacity: 0;
+  }
+  5% {
+    opacity: calc(var(--claudian-plus-effort-flow-strength, 1) * 0.95);
+  }
+  14% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Reduced motion trims the gliding transitions only. The matrix shimmer is
+   opacity/colour on a 26px strip, so it stays: killing it left the apex state
+   looking frozen. */
+@media (prefers-reduced-motion: reduce) {
+  .claudian-plus-effort-fill,
+  .claudian-plus-effort-ticks,
+  .claudian-plus-effort-knob {
+    transition-duration: 0.01ms;
+  }
+}
