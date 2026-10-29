@@ -22,6 +22,11 @@
     "rewind": "Rewind"
   },
   "chat": {
+    "effort": {
+      "label": "Reasoning effort",
+      "faster": "Faster",
+      "stronger": "Stronger"
+    },
     "interrupt": {
       "label": "Stop",
       "tooltip": "Stop generation (Esc)"

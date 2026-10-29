@@ -4,6 +4,7 @@ import * as path from 'path';
 
 import type { McpServerManager } from '../../../core/mcp/McpServerManager';
 import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
+import { normalizeReasoningOptions } from '../../../core/providers/reasoning';
 import type {
   ProviderCapabilities,
   ProviderChatUIConfig,
@@ -21,6 +22,8 @@ import { t } from '../../../i18n/i18n';
 import { appendCheckIcon, appendMcpIcon, createProviderIconSvg } from '../../../shared/icons';
 import { filterValidPaths, findConflictingPath, isDuplicatePath, isValidDirectoryPath, validateDirectoryPath } from '../../../utils/externalContext';
 import { expandHomePath, normalizePathForFilesystem } from '../../../utils/path';
+import { createEffortSlider, type EffortSlider } from './EffortSlider';
+import { computePopoverShift } from './popoverPlacement';
 
 interface ElectronOpenDialogResult {
   canceled: boolean;
@@ -518,12 +521,17 @@ export class ThinkingBudgetSelector {
   private container: HTMLElement;
   private effortEl: HTMLElement | null = null;
   private effortGearsEl: HTMLElement | null = null;
+  private effortCurrentEl: HTMLElement | null = null;
+  private effortOptionsEl: HTMLElement | null = null;
+  private effortSlider: EffortSlider | null = null;
   private budgetEl: HTMLElement | null = null;
   private budgetGearsEl: HTMLElement | null = null;
   private callbacks: ToolbarCallbacks;
   private isOpen = false;
   private onOpenCallback: (() => void) | null = null;
   private documentClickListener: ((e: MouseEvent) => void) | null = null;
+  private containerKeyListener: ((e: KeyboardEvent) => void) | null = null;
+  private effortPopoverObserver: ResizeObserver | null = null;
 
   constructor(parentEl: HTMLElement, callbacks: ToolbarCallbacks) {
     this.callbacks = callbacks;
@@ -543,6 +551,27 @@ export class ThinkingBudgetSelector {
     this.container.addClass('is-open');
     this.effortGearsEl?.addClass('is-open');
     this.budgetGearsEl?.addClass('is-open');
+    this.effortCurrentEl?.setAttribute('aria-expanded', 'true');
+    this.effortSlider?.update();
+    this.positionEffortPopover();
+  }
+
+  /** Keeps the popover inside the chat panel when the sidebar is narrow. */
+  private positionEffortPopover(): void {
+    const popover = this.effortOptionsEl;
+    if (!popover) return;
+
+    popover.setCssProps({ translate: '0px 0px' });
+    const host = this.container.closest<HTMLElement>('.claudian-plus-container') ?? this.container;
+    const hostRect = host?.getBoundingClientRect?.();
+    const rect = popover.getBoundingClientRect?.();
+    if (!hostRect || !rect || hostRect.width === 0 || rect.width === 0) return;
+
+    const shift = computePopoverShift(
+      { left: rect.left, right: rect.right },
+      { left: hostRect.left, right: hostRect.right },
+    );
+    popover.setCssProps({ translate: `${Math.round(shift)}px 0px` });
   }
 
   close() {
@@ -551,6 +580,7 @@ export class ThinkingBudgetSelector {
     this.container.removeClass('is-open');
     this.effortGearsEl?.removeClass('is-open');
     this.budgetGearsEl?.removeClass('is-open');
+    this.effortCurrentEl?.setAttribute('aria-expanded', 'false');
   }
 
   toggle() {
@@ -571,6 +601,14 @@ export class ThinkingBudgetSelector {
     };
     const doc = this.container.ownerDocument ?? activeDocument;
     doc.addEventListener?.('click', this.documentClickListener);
+
+    this.containerKeyListener = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || !this.isOpen) return;
+      e.stopPropagation?.();
+      this.close();
+      this.effortCurrentEl?.focus?.();
+    };
+    this.container.addEventListener('keydown', this.containerKeyListener as EventListener);
   }
 
   destroy() {
@@ -579,76 +617,120 @@ export class ThinkingBudgetSelector {
       doc.removeEventListener?.('click', this.documentClickListener);
       this.documentClickListener = null;
     }
+    if (this.containerKeyListener) {
+      this.container.removeEventListener('keydown', this.containerKeyListener as EventListener);
+      this.containerKeyListener = null;
+    }
+    this.effortSlider?.destroy();
+    this.effortSlider = null;
+    this.effortPopoverObserver?.disconnect();
+    this.effortPopoverObserver = null;
   }
 
   private render() {
+    // The slider owns document listeners and the popover observer, and the lazily
+    // created element references outlive the nodes they point at.
+    this.effortSlider?.destroy();
+    this.effortSlider = null;
+    this.effortCurrentEl = null;
+    this.effortOptionsEl = null;
+    this.effortPopoverObserver?.disconnect();
+    this.effortPopoverObserver = null;
+
     this.container.empty();
 
-    // Effort selector (for adaptive thinking models)
+    // Effort level renders inline next to the model name; the old "Effort:" label
+    // and its control chrome are gone.
     this.effortEl = this.container.createDiv({ cls: 'claudian-plus-thinking-effort' });
-    const effortLabel = this.effortEl.createSpan({ cls: 'claudian-plus-thinking-label-text' });
-    effortLabel.setText('Effort:');
     this.effortGearsEl = this.effortEl.createDiv({ cls: 'claudian-plus-thinking-gears' });
 
     // Legacy budget selector (for custom models)
     this.budgetEl = this.container.createDiv({ cls: 'claudian-plus-thinking-budget' });
     const budgetLabel = this.budgetEl.createSpan({ cls: 'claudian-plus-thinking-label-text' });
     budgetLabel.setText('Thinking:');
-    this.budgetGearsEl = this.budgetEl.createDiv({ cls: 'claudian-plus-thinking-gears' });
+    this.budgetGearsEl = this.budgetEl.createDiv({
+      cls: 'claudian-plus-thinking-gears claudian-plus-thinking-gears--budget',
+    });
 
     this.updateDisplay();
   }
 
-  private renderEffortGears() {
+  private renderEffortControl() {
     if (!this.effortGearsEl) return;
-    this.effortGearsEl.empty();
-    if (this.isOpen) {
-      this.effortGearsEl.addClass('is-open');
-    }
 
-    const currentEffort = this.callbacks.getSettings().effortLevel;
-    const uiConfig = this.callbacks.getUIConfig();
     const settings = this.callbacks.getSettings();
-    const model = settings.model;
-    const options = uiConfig.getReasoningOptions(model, settings);
-    const currentInfo = options.find(e => e.value === currentEffort);
+    const uiConfig = this.callbacks.getUIConfig();
+    const options = normalizeReasoningOptions(uiConfig.getReasoningOptions(settings.model, settings));
+    const currentInfo = options.find(e => e.value === settings.effortLevel);
 
-    const currentEl = this.effortGearsEl.createDiv({ cls: 'claudian-plus-thinking-current' });
-    currentEl.setText(currentInfo?.label || options[0]?.label || 'High');
-    if (currentEffort?.toLowerCase() === 'ultra') {
-      currentEl.addClass('is-ultra');
-    }
-    currentEl.addEventListener('click', (e) => {
-      e?.stopPropagation?.();
-      this.toggle();
-    });
-
-    const optionsEl = this.effortGearsEl.createDiv({ cls: 'claudian-plus-thinking-options' });
-
-    for (const effort of [...options].reverse()) {
-      const isUltra = effort.value.toLowerCase() === 'ultra';
-      const gearEl = optionsEl.createDiv({
-        cls: isUltra
-          ? 'claudian-plus-thinking-gear claudian-plus-thinking-gear--ultra'
-          : 'claudian-plus-thinking-gear',
+    if (!this.effortCurrentEl) {
+      this.effortCurrentEl = this.effortGearsEl.createDiv({
+        cls: 'claudian-plus-thinking-current',
+        attr: {
+          role: 'button',
+          tabindex: '0',
+          'aria-haspopup': 'true',
+          'aria-expanded': 'false',
+        },
       });
-      gearEl.setText(effort.label);
-      if (effort.description) {
-        gearEl.setAttribute('title', effort.description);
-      }
-
-      if (effort.value === currentEffort) {
-        gearEl.addClass('selected');
-      }
-
-      gearEl.addEventListener('click', (e) => {
+      const toggleFromKeyboard = (e: KeyboardEvent) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault?.();
+        e.stopPropagation?.();
+        this.toggle();
+      };
+      this.effortCurrentEl.addEventListener('click', (e) => {
         e?.stopPropagation?.();
-        this.close();
-        runToolbarAction(async () => {
-          await this.callbacks.onEffortLevelChange(effort.value);
-          this.updateDisplay();
-        }, 'Failed to change effort level');
+        this.toggle();
       });
+      this.effortCurrentEl.addEventListener('keydown', toggleFromKeyboard as EventListener);
+    }
+
+    this.effortCurrentEl.setText(currentInfo?.label || options[0]?.label || 'High');
+    this.effortCurrentEl.toggleClass('is-ultra', settings.effortLevel?.toLowerCase() === 'ultra');
+    this.effortCurrentEl.setAttribute('aria-expanded', this.isOpen ? 'true' : 'false');
+
+    if (!this.effortOptionsEl) {
+      this.effortOptionsEl = this.effortGearsEl.createDiv({
+        cls: 'claudian-plus-thinking-options claudian-plus-thinking-options--effort',
+      });
+      this.effortSlider = createEffortSlider(this.effortOptionsEl, {
+        read: () => {
+          const currentSettings = this.callbacks.getSettings();
+          return {
+            options: this.callbacks.getUIConfig().getReasoningOptions(
+              currentSettings.model,
+              currentSettings,
+            ),
+            value: currentSettings.effortLevel,
+          };
+        },
+        onCommit: (value) => {
+          runToolbarAction(async () => {
+            try {
+              await this.callbacks.onEffortLevelChange(value);
+            } catch (error) {
+              this.effortSlider?.cancelPending();
+              throw error;
+            }
+            this.updateDisplay();
+          }, 'Failed to change effort level');
+        },
+      });
+
+      if (typeof ResizeObserver === 'function') {
+        this.effortPopoverObserver = new ResizeObserver(() => {
+          if (this.isOpen) {
+            this.positionEffortPopover();
+          }
+        });
+        this.effortPopoverObserver.observe(this.container);
+      }
+    }
+
+    this.effortSlider?.update();
+    if (this.isOpen) {
+      this.positionEffortPopover();
     }
   }
 
@@ -728,7 +810,7 @@ export class ThinkingBudgetSelector {
     }
 
     if (adaptive) {
-      this.renderEffortGears();
+      this.renderEffortControl();
     } else {
       this.renderBudgetGears();
     }

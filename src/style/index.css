@@ -35,6 +35,7 @@
 @import "./toolbar/model-selector.css";
 @import "./toolbar/mode-selector.css";
 @import "./toolbar/thinking-selector.css";
+@import "./toolbar/effort-slider.css";
 @import "./toolbar/permission-toggle.css";
 @import "./toolbar/service-tier-toggle.css";
 @import "./toolbar/external-context.css";

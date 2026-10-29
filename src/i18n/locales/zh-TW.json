@@ -22,6 +22,11 @@
     "rewind": "回退"
   },
   "chat": {
+    "effort": {
+      "label": "推理等級",
+      "faster": "更快",
+      "stronger": "更強"
+    },
     "interrupt": {
       "label": "中斷",
       "tooltip": "中斷生成 (Esc)"

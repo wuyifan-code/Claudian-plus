@@ -22,6 +22,11 @@
     "rewind": "Rebobinar"
   },
   "chat": {
+    "effort": {
+      "label": "Esfuerzo de razonamiento",
+      "faster": "Más rápido",
+      "stronger": "Más fuerte"
+    },
     "interrupt": {
       "label": "Detener",
       "tooltip": "Detener generación (Esc)"

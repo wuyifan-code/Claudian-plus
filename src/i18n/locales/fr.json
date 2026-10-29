@@ -22,6 +22,11 @@
     "rewind": "Rembobiner"
   },
   "chat": {
+    "effort": {
+      "label": "Effort de raisonnement",
+      "faster": "Plus rapide",
+      "stronger": "Plus fort"
+    },
     "interrupt": {
       "label": "Arrêter",
       "tooltip": "Arrêter la génération (Échap)"

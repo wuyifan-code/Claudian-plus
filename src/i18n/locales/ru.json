@@ -22,6 +22,11 @@
     "rewind": "Откатить"
   },
   "chat": {
+    "effort": {
+      "label": "Уровень рассуждений",
+      "faster": "Быстрее",
+      "stronger": "Сильнее"
+    },
     "interrupt": {
       "label": "Стоп",
       "tooltip": "Остановить генерацию (Esc)"
