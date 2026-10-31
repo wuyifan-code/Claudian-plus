@@ -43,6 +43,44 @@ DeepSeek Harness (`dsh`) is now a first-class provider, implemented directly aga
 
 ---
 
+## 🌟 What's New in V3.2.4
+
+**A navigation and reading release. The conversation rail is rebuilt, the transcript can breathe, and streaming stops re-parsing the whole answer on every frame.**
+
+### 1. The conversation navigator is rebuilt
+
+The old outline scraped the transcript into five declared kinds, of which only two were ever produced. The rail now models the conversation the way a reader does: one tick per question.
+
+- **One tick per question, with a stable identity.** Entries are keyed by message id, so a tick keeps its position, preview and focus while the answer below it streams.
+- **Hover is a peak, not a highlight.** The hovered tick scales to 2.6×, its two neighbours to 1.7× and 1.25×, everything else rests at 1×, with opacity stepping 1 / 0.86 / 0.72 / 0.58. Only the peak takes the body colour.
+- **The rail is virtualized.** Only ticks inside the rail viewport are mounted, so a conversation with a thousand questions costs the same DOM as one with ten.
+- **The active tick comes from the viewport**, resolved by binary search over measured row positions instead of a per-pixel scan.
+- **The preview card answers the question too.** It shows the question and the reply, and distinguishes a reply that is still streaming from one that produced no text.
+- **Jumping respects `prefers-reduced-motion`.**
+- Ported from ZCode's `ConversationTurnNavigator` (Apache-2.0) and re-expressed in plain DOM; attribution is recorded in `NOTICE`.
+
+Removed with it: the old extractor, its unused kind enum, the kind filter chips, and ~1.5k lines of tests for behaviour that no longer exists.
+
+### 2. Transcript padding is yours
+
+Settings → Appearance now has two sliders, **left** and **right**, 0–80 px in steps of 4, applied live.
+
+They are independent because the two sides are not symmetric: the navigator reserves a gutter on whichever side it sits, which left one margin visibly tighter than the other. The gutter is added **on top of** your inset rather than replacing it, so switching the rail's side — or hiding it — only shifts the text by the gutter itself.
+
+### 3. Streaming stops re-parsing the whole answer
+
+Each streaming frame used to empty the message, hand the entire accumulated markdown back to `MarkdownRenderer`, then re-wrap every code block and rebuild its buttons and listeners. Per frame, so a long answer cost time quadratic in its length.
+
+- **Closed blocks render once and keep their DOM.** Each 100 ms frame only re-renders the open tail, so per-frame work drops from O(whole message) to O(open block).
+- **The navigator no longer measures every message on each streaming refresh.** Only the last message can change height while a reply lands, so only that row is re-measured.
+
+### 4. Fixes
+
+- Rail ticks are `div role="button"` instead of `<button>`, so Obsidian's themed button background no longer wraps each tick in a capsule. Enter and Space still activate them.
+- The rail's slower streaming refresh interval now actually applies instead of silently falling back to the fast one.
+
+---
+
 ## 🌟 What's New in V3.2.2
 
 **A hardening release for the generated-UI layer, cold start, and plugin health.** Nothing below adds a feature surface; every item was found by measuring the shipped build.
