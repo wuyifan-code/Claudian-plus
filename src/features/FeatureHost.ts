@@ -37,6 +37,8 @@ export interface FeatureViewHost extends TabManagerViewHost {
   getTabManager(): FeatureTabManagerHost | null;
   refreshModelSelector(): void;
   refreshTabControls(): void;
+  /** Re-applies the transcript inset after the padding settings change. */
+  applyConversationPadding(): void;
   updateHiddenProviderCommands(): void;
   refreshOutlineSide?(): void;
   /** Re-renders the empty-tab welcome animation after the mode setting changes. */

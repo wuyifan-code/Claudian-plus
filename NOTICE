@@ -18,5 +18,21 @@ The following features were ported from Codian and adapted to this codebase:
 - Provider enablement toggle (src/shared/settings/ProviderEnablementToggle.ts)
 - Live Markdown composer (src/features/chat/composer/)
 
+This product also includes logic ported from ZCode
+(https://github.com/zai-org/ZCode), Copyright (c) Z.ai, licensed under the
+Apache License, Version 2.0.
+
+The following features were ported from ZCode and adapted to this codebase:
+
+- Conversation turn navigator (src/features/chat/ui/TurnNavigator.ts,
+  src/features/chat/ui/turnNavigator/model.ts), derived from
+  packages/ui/src/v4/ConversationTurnNavigator.tsx and
+  conversationTurnNavigatorHelpers.ts. The React/Tailwind implementation was
+  re-expressed in plain DOM and the data source adapted to this plugin's
+  transcript.
+
+Apache-2.0 requires retaining this attribution; see
+https://www.apache.org/licenses/LICENSE-2.0 for the license text.
+
 Codian is itself derived from Claudian by Yishen Tu, licensed under the MIT
 License. See LICENSE for the terms governing this distribution.

@@ -161,6 +161,10 @@ export interface ClaudianPlusSettings {
 
   // UI preferences
   maxTabs: number;
+  /** Transcript inset from the left edge, in px. */
+  messagesPaddingLeft: number;
+  /** Transcript inset from the right edge, in px. */
+  messagesPaddingRight: number;
   enableAutoScroll: boolean;
   outlineSide: 'left' | 'right';
   deferMathRenderingDuringStreaming: boolean;

@@ -195,7 +195,7 @@ export class ClaudianPlusView extends ItemView {
   refreshOutlineSide(): void {
     const side = this.plugin.settings.outlineSide ?? 'left';
     for (const tab of this.tabManager?.getAllTabs() ?? []) {
-      tab.ui.navigationSidebar?.setSide(side);
+      tab.ui.turnNavigator?.setSide(side);
     }
   }
 
@@ -258,6 +258,7 @@ export class ClaudianPlusView extends ItemView {
     this.viewContainerEl = container;
     this.viewContainerEl.empty();
     this.viewContainerEl.addClass('claudian-plus-container');
+    this.applyConversationPadding();
 
     const header = this.viewContainerEl.createDiv({ cls: 'claudian-plus-header' });
     this.buildHeader(header);
@@ -825,6 +826,21 @@ export class ClaudianPlusView extends ItemView {
     }
     this.activeInputSlotEl?.empty();
     this.activeInputTabId = null;
+  }
+
+  /**
+   * Pushes the per-side transcript padding onto the container as CSS variables.
+   * The navigator gutter is added on top of these values in messages.css, so a
+   * user-set inset stays visually identical whether or not the rail shows.
+   */
+  applyConversationPadding(): void {
+    if (!this.viewContainerEl) return;
+    const left = Math.max(0, Math.round(this.plugin.settings.messagesPaddingLeft ?? 0));
+    const right = Math.max(0, Math.round(this.plugin.settings.messagesPaddingRight ?? 0));
+    this.viewContainerEl.setCssProps({
+      '--claudian-plus-messages-pad-start': `${left}px`,
+      '--claudian-plus-messages-pad-end': `${right}px`,
+    });
   }
 
   /** Refreshes tab controls after settings that affect tab availability change. */

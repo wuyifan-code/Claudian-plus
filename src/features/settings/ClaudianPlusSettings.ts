@@ -864,6 +864,42 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
       targetEl: maxTabsSetting.settingEl,
     });
 
+    // Transcript padding — independent left and right insets.
+    const renderPaddingSetting = (
+      settingKey: 'messagesPaddingLeft' | 'messagesPaddingRight',
+      searchKey: string,
+    ): void => {
+      const setting = new Setting(card)
+        .setName(t(`settings.${settingKey}.name`))
+        .setDesc(t(`settings.${settingKey}.desc`))
+        .addSlider((slider) => {
+          slider
+            .setLimits(0, 80, 4)
+            .setValue(this.plugin.settings[settingKey] ?? 0)
+            .setDynamicTooltip()
+            .onChange(async (value) => {
+              await this.plugin.mutateSettings((settings) => {
+                settings[settingKey] = value;
+              });
+              for (const view of this.plugin.getAllViews()) {
+                view.applyConversationPadding();
+              }
+            });
+        });
+
+      this.registerSearchEntry({
+        categoryId: 'appearance',
+        categoryLabel: 'Appearance',
+        settingKey: searchKey,
+        name: t(`settings.${settingKey}.name`),
+        desc: t(`settings.${settingKey}.desc`),
+        targetEl: setting.settingEl,
+      });
+    };
+
+    renderPaddingSetting('messagesPaddingLeft', 'messages-padding-left');
+    renderPaddingSetting('messagesPaddingRight', 'messages-padding-right');
+
     // Chat View Placement
     const placementSetting = new Setting(card)
       .setName(t('settings.chatViewPlacement.name'))
