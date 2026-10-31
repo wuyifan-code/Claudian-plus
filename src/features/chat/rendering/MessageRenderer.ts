@@ -44,6 +44,7 @@ import type { WelcomeAnimation, WelcomeAnimationMode } from '../ui/welcomeAnimat
 import { formatConversationDirectoryTitle } from '../utils/conversationDirectoryTitle';
 import { type CollapsibleState,setupCollapsible } from './collapsible';
 import { MessageRenderWindow } from './MessageRenderWindow';
+import { findCommitBoundary } from './streamingMarkdownSplit';
 import { resolveSubagentLifecycleAdapter } from './subagentLifecycleResolution';
 import {
   renderStoredAsyncSubagent,
@@ -195,6 +196,14 @@ export class MessageRenderer {
   private activeImageModal: { close: () => void } | null = null;
   private pendingTimeouts = new Set<RendererTimeout>();
   private pendingAnimationFrames = new Set<RendererAnimationFrame>();
+  /**
+   * Per-element streaming buffers. Closed markdown blocks are rendered once and
+   * kept; only the open tail is re-rendered on each delta.
+   */
+  private streamingBuffers = new WeakMap<
+    HTMLElement,
+    { committedEl: HTMLElement; tailEl: HTMLElement; committedText: string }
+  >();
   private disposed = false;
   private floatingToolbar: FloatingSelectionToolbar | null = null;
   /** Sliding window over the stored (history) message nodes. */
@@ -1477,6 +1486,7 @@ export class MessageRenderer {
     // Streaming frames empty this element and mount a fresh one; carry the
     // focused widget control (and its caret) across the container swap.
     const uiFocus = captureUiFocus(el);
+    this.streamingBuffers.delete(el);
     el.empty();
     // Settled messages key widget state by content, so the same transcript
     // text finds its state after reload and on every provider's replay.
@@ -1632,6 +1642,12 @@ export class MessageRenderer {
     markdown: string,
     options?: RenderContentOptions
   ): Promise<void> {
+    if (options?.streaming === true) {
+      await this.renderStreamingMarkdown(el, markdown, options);
+      return;
+    }
+
+    this.streamingBuffers.delete(el);
     el.empty();
 
     try {
@@ -1730,6 +1746,50 @@ export class MessageRenderer {
         text: 'Failed to render message content.',
       });
     }
+  }
+
+  /**
+   * Streaming path: keeps every closed block's DOM and only re-renders the open
+   * tail. A full re-render of the accumulated message on every delta was O(n²)
+   * and was re-wrapping every code block and listener each frame.
+   */
+  private async renderStreamingMarkdown(
+    el: HTMLElement,
+    markdown: string,
+    options: RenderContentOptions
+  ): Promise<void> {
+    let buffer = this.streamingBuffers.get(el);
+    if (!buffer || !markdown.startsWith(buffer.committedText) || !el.contains(buffer.tailEl)) {
+      el.empty();
+      const committedEl = el.createDiv({ cls: 'claudian-plus-stream-committed' });
+      const tailEl = el.createDiv({ cls: 'claudian-plus-stream-tail' });
+      buffer = { committedEl, tailEl, committedText: '' };
+      this.streamingBuffers.set(el, buffer);
+    }
+
+    const boundary = findCommitBoundary(markdown);
+    if (boundary > buffer.committedText.length) {
+      const pending = markdown.slice(buffer.committedText.length, boundary);
+      const scratch = createDiv({ cls: 'claudian-plus-stream-chunk' });
+      await this.renderMarkdownContent(scratch, pending, {
+        deferMath: options.deferMath,
+        component: options.component,
+      });
+      while (scratch.firstChild) {
+        buffer.committedEl.appendChild(scratch.firstChild);
+      }
+      buffer.committedText = markdown.slice(0, boundary);
+    }
+
+    const tail = markdown.slice(buffer.committedText.length);
+    if (tail.trim().length === 0) {
+      buffer.tailEl.empty();
+      return;
+    }
+    await this.renderMarkdownContent(buffer.tailEl, tail, {
+      deferMath: options.deferMath,
+      component: options.component,
+    });
   }
 
   // ============================================

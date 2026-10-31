@@ -433,6 +433,14 @@
       "desc": "Maximum number of concurrent chat tabs (3-10). Each tab uses a separate Claude session.",
       "warning": "More than 5 tabs may impact performance and memory usage."
     },
+    "messagesPaddingLeft": {
+      "name": "Transcript padding (left)",
+      "desc": "Space between the transcript text and the left edge, in pixels. The navigation rail adds its own gutter on top."
+    },
+    "messagesPaddingRight": {
+      "name": "Transcript padding (right)",
+      "desc": "Space between the transcript text and the right edge, in pixels. The navigation rail adds its own gutter on top."
+    },
     "enableAutoScroll": {
       "name": "Auto-scroll during streaming",
       "desc": "Automatically scroll to the bottom as Claude streams responses. Disable to stay at the top and read from the beginning."

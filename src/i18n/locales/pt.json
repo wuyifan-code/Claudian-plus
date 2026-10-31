@@ -411,6 +411,14 @@
       "desc": "Número máximo de abas de chat simultâneas (3-10). Cada aba usa uma sessão Claude separada.",
       "warning": "Mais de 5 abas pode afetar o desempenho e o uso de memória."
     },
+    "messagesPaddingLeft": {
+      "name": "Margem da conversa (esquerda)",
+      "desc": "Espaço entre o texto e a borda esquerda, em pixels. A trilha de navegação adiciona a própria margem."
+    },
+    "messagesPaddingRight": {
+      "name": "Margem da conversa (direita)",
+      "desc": "Espaço entre o texto e a borda direita, em pixels. A trilha de navegação adiciona a própria margem."
+    },
     "enableAutoScroll": {
       "name": "Rolagem automática durante streaming",
       "desc": "Rolar automaticamente para baixo enquanto o Claude transmite respostas. Desativar para ficar no topo e ler desde o início."

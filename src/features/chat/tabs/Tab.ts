@@ -58,9 +58,9 @@ import { FileContextManager } from '../ui/FileContext';
 import { ImageContextManager } from '../ui/ImageContext';
 import { createInputToolbar } from '../ui/InputToolbar';
 import { InstructionModeManager as InstructionModeManagerClass } from '../ui/InstructionModeManager';
-import { NavigationSidebar } from '../ui/NavigationSidebar';
 import { StatusPanel } from '../ui/StatusPanel';
 import { autoResizeTextarea } from '../ui/textareaResize';
+import { TurnNavigator } from '../ui/TurnNavigator';
 import { isContextWindowPinned, isGptFamilyModelId, recalculateUsageForModel } from '../utils/usageInfo';
 import { getTabProviderId } from './providerResolution';
 import { TabSession } from './TabSession';
@@ -664,7 +664,7 @@ export function createTab(options: TabCreateOptions): TabData {
       bangBashModeManager: null,
       contextUsageMeter: null,
       statusPanel: null,
-      navigationSidebar: null,
+      turnNavigator: null,
       interruptButton: null,
     },
     dom,
@@ -1349,12 +1349,15 @@ export function initializeTabUI(
   );
 
   if (dom.messagesEl.parentElement) {
-    tab.ui.navigationSidebar = new NavigationSidebar(
+    tab.ui.turnNavigator = new TurnNavigator(
       dom.messagesEl.parentElement,
       dom.messagesEl,
-      plugin.settings.outlineSide ?? 'left',
+      {
+        side: plugin.settings.outlineSide ?? 'left',
+        isStreaming: () => state.isStreaming,
+      },
     );
-    tab.ui.navigationSidebar.setReadingModeActive(state.getReadingMode());
+    tab.ui.turnNavigator.setReadingModeActive(state.getReadingMode());
   }
 
   initializeInstructionAndTodo(tab, plugin);
@@ -1366,13 +1369,13 @@ export function initializeTabUI(
       tab.ui.contextUsageMeter?.update(usage);
     },
     onTodosChanged: (todos) => tab.ui.statusPanel?.updateTodos(todos),
-    onReadingModeChanged: (active) => tab.ui.navigationSidebar?.setReadingModeActive(active),
-    onAutoScrollChanged: () => tab.ui.navigationSidebar?.updateVisibility(),
+    onReadingModeChanged: (active) => tab.ui.turnNavigator?.setReadingModeActive(active),
+    onAutoScrollChanged: () => tab.ui.turnNavigator?.updateVisibility(),
   };
 
   // ResizeObserver to detect overflow changes (e.g., content growth)
   const resizeObserver = new ResizeObserver(() => {
-    tab.ui.navigationSidebar?.updateVisibility();
+    tab.ui.turnNavigator?.updateVisibility();
   });
   resizeObserver.observe(dom.messagesEl);
   dom.eventCleanups.push(() => resizeObserver.disconnect());
@@ -2066,7 +2069,7 @@ export function activateTab(tab: TabData, plugin: FeatureHost): void {
   tab.controllers.canvasSelectionController?.start();
   tab.controllers.activeContextObserver?.start();
   // Refresh navigation sidebar visibility (dimensions now available after display)
-  tab.ui.navigationSidebar?.updateVisibility();
+  tab.ui.turnNavigator?.updateVisibility();
 }
 
 /**
@@ -2074,7 +2077,7 @@ export function activateTab(tab: TabData, plugin: FeatureHost): void {
  */
 export function deactivateTab(tab: TabData): void {
   tab.renderer?.pauseWelcomeAnimation();
-  tab.ui.navigationSidebar?.collapse();
+  tab.ui.turnNavigator?.collapse();
   tab.dom.contentEl.addClass('claudian-plus-hidden');
   tab.controllers.selectionController?.stop();
   tab.controllers.browserSelectionController?.stop();
@@ -2181,8 +2184,8 @@ export async function destroyTab(tab: TabData): Promise<void> {
   tab.services.titleGenerationService = null;
   tab.ui.statusPanel?.destroy();
   tab.ui.statusPanel = null;
-  tab.ui.navigationSidebar?.destroy();
-  tab.ui.navigationSidebar = null;
+  tab.ui.turnNavigator?.destroy();
+  tab.ui.turnNavigator = null;
   await tab.controllers.uiStatePersistence?.dispose();
   tab.controllers.uiStatePersistence = null;
   tab.renderer?.dispose();

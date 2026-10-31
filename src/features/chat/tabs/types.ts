@@ -32,8 +32,8 @@ import type {
   ThinkingBudgetSelector,
 } from '../ui/InputToolbar';
 import type { InstructionModeManager } from '../ui/InstructionModeManager';
-import type { NavigationSidebar } from '../ui/NavigationSidebar';
 import type { StatusPanel } from '../ui/StatusPanel';
+import type { TurnNavigator } from '../ui/TurnNavigator';
 import type { RuntimeSupervisor } from './RuntimeSupervisor';
 import type { TabSession } from './TabSession';
 
@@ -150,7 +150,7 @@ export interface TabUIComponents {
   bangBashModeManager: BangBashModeManager | null;
   contextUsageMeter: ContextUsageMeter | null;
   statusPanel: StatusPanel | null;
-  navigationSidebar: NavigationSidebar | null;
+  turnNavigator: TurnNavigator | null;
   interruptButton: InterruptButton | null;
 }
 

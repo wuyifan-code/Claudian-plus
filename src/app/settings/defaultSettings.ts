@@ -72,6 +72,8 @@ export const DEFAULT_CLAUDIAN_PLUS_SETTINGS: ClaudianPlusSettings = {
   lastCustomModel: '',
 
   maxTabs: 3,
+  messagesPaddingLeft: 0,
+  messagesPaddingRight: 0,
   enableAutoScroll: true,
   outlineSide: 'left',
   deferMathRenderingDuringStreaming: true,

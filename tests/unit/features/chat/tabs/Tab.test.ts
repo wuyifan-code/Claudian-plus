@@ -1471,7 +1471,7 @@ describe('Tab - Activation/Deactivation', () => {
       const options = createMockOptions();
       const tab = createTab(options);
       const collapse = jest.fn();
-      tab.ui.navigationSidebar = { collapse } as any;
+      tab.ui.turnNavigator = { collapse } as any;
 
       deactivateTab(tab);
 

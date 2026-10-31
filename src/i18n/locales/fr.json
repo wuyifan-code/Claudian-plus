@@ -411,6 +411,14 @@
       "desc": "Nombre maximum d'onglets de chat simultanés (3-10). Chaque onglet utilise une session Claude séparée.",
       "warning": "Plus de 5 onglets peut affecter les performances et l'utilisation de la mémoire."
     },
+    "messagesPaddingLeft": {
+      "name": "Marge du fil (gauche)",
+      "desc": "Espace entre le texte et le bord gauche, en pixels. Le rail de navigation ajoute sa propre marge."
+    },
+    "messagesPaddingRight": {
+      "name": "Marge du fil (droite)",
+      "desc": "Espace entre le texte et le bord droit, en pixels. Le rail de navigation ajoute sa propre marge."
+    },
     "enableAutoScroll": {
       "name": "Défilement automatique pendant le streaming",
       "desc": "Défiler automatiquement vers le bas pendant que Claude diffuse les réponses. Désactiver pour rester en haut et lire depuis le début."

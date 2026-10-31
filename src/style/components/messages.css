@@ -12,33 +12,44 @@
   flex: 1;
   overflow-y: auto;
   padding: 12px 0 0;
+  padding-inline-start: var(--claudian-plus-messages-pad-start, 0px);
+  padding-inline-end: var(--claudian-plus-messages-pad-end, 0px);
   display: flex;
   flex-direction: column;
   gap: 18px;
 }
 
-/* Floating outline — reserve a gutter so text never overlaps the rail. The
-   gutter clears the 51px wave peak (8px offset + 51px bar + 1px breathing
-   room = 60px). */
+/* Streaming chunks stay layout-transparent so rendered markdown keeps the
+   styles of the text block it belongs to. */
+.claudian-plus-stream-committed,
+.claudian-plus-stream-tail,
+.claudian-plus-stream-chunk {
+  display: contents;
+}
+
+/* Floating turn navigator — reserve a gutter so text never overlaps the rail.
+   The user's inset stays underneath, so toggling the rail only shifts text by
+   the gutter itself. */
 .claudian-plus-messages-wrapper.claudian-plus-has-nav-sidebar .claudian-plus-messages {
-  padding-inline-start: 60px;
+  padding-inline-start: calc(var(--claudian-plus-messages-pad-start, 0px) + 48px);
+  padding-inline-end: var(--claudian-plus-messages-pad-end, 0px);
 }
 
 .claudian-plus-messages-wrapper.claudian-plus-has-nav-sidebar.claudian-plus-nav-outline-right
   .claudian-plus-messages {
-  padding-inline-start: 0;
-  padding-inline-end: 60px;
+  padding-inline-start: var(--claudian-plus-messages-pad-start, 0px);
+  padding-inline-end: calc(var(--claudian-plus-messages-pad-end, 0px) + 48px);
 }
 
 @container claudian-plus-chat (max-width: 479px) {
   .claudian-plus-messages-wrapper.claudian-plus-has-nav-sidebar .claudian-plus-messages {
-    padding-inline-start: 56px;
+    padding-inline-start: calc(var(--claudian-plus-messages-pad-start, 0px) + 44px);
   }
 
   .claudian-plus-messages-wrapper.claudian-plus-has-nav-sidebar.claudian-plus-nav-outline-right
     .claudian-plus-messages {
-    padding-inline-start: 0;
-    padding-inline-end: 56px;
+    padding-inline-start: var(--claudian-plus-messages-pad-start, 0px);
+    padding-inline-end: calc(var(--claudian-plus-messages-pad-end, 0px) + 44px);
   }
 }
 

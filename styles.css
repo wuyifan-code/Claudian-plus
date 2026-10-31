@@ -1125,33 +1125,44 @@ button.claudian-plus-tab-badge-active,
   flex: 1;
   overflow-y: auto;
   padding: 12px 0 0;
+  padding-inline-start: var(--claudian-plus-messages-pad-start, 0px);
+  padding-inline-end: var(--claudian-plus-messages-pad-end, 0px);
   display: flex;
   flex-direction: column;
   gap: 18px;
 }
 
-/* Floating outline — reserve a gutter so text never overlaps the rail. The
-   gutter clears the 51px wave peak (8px offset + 51px bar + 1px breathing
-   room = 60px). */
+/* Streaming chunks stay layout-transparent so rendered markdown keeps the
+   styles of the text block it belongs to. */
+.claudian-plus-stream-committed,
+.claudian-plus-stream-tail,
+.claudian-plus-stream-chunk {
+  display: contents;
+}
+
+/* Floating turn navigator — reserve a gutter so text never overlaps the rail.
+   The user's inset stays underneath, so toggling the rail only shifts text by
+   the gutter itself. */
 .claudian-plus-messages-wrapper.claudian-plus-has-nav-sidebar .claudian-plus-messages {
-  padding-inline-start: 60px;
+  padding-inline-start: calc(var(--claudian-plus-messages-pad-start, 0px) + 48px);
+  padding-inline-end: var(--claudian-plus-messages-pad-end, 0px);
 }
 
 .claudian-plus-messages-wrapper.claudian-plus-has-nav-sidebar.claudian-plus-nav-outline-right
   .claudian-plus-messages {
-  padding-inline-start: 0;
-  padding-inline-end: 60px;
+  padding-inline-start: var(--claudian-plus-messages-pad-start, 0px);
+  padding-inline-end: calc(var(--claudian-plus-messages-pad-end, 0px) + 48px);
 }
 
 @container claudian-plus-chat (max-width: 479px) {
   .claudian-plus-messages-wrapper.claudian-plus-has-nav-sidebar .claudian-plus-messages {
-    padding-inline-start: 56px;
+    padding-inline-start: calc(var(--claudian-plus-messages-pad-start, 0px) + 44px);
   }
 
   .claudian-plus-messages-wrapper.claudian-plus-has-nav-sidebar.claudian-plus-nav-outline-right
     .claudian-plus-messages {
-    padding-inline-start: 0;
-    padding-inline-end: 56px;
+    padding-inline-start: var(--claudian-plus-messages-pad-start, 0px);
+    padding-inline-end: calc(var(--claudian-plus-messages-pad-end, 0px) + 44px);
   }
 }
 
@@ -1460,330 +1471,159 @@ button.claudian-plus-tab-badge-active,
 
 
 /* ============================================
-   components/nav-sidebar.css
+   components/turn-nav.css
    ============================================ */
-/* Floating conversation outline — Wave TOC style rail anchored to the chat
-   wrapper: thin level-based ticks, a gaussian hover wave, and a soft rounded
-   hover bubble. */
+/* Conversation turn navigator: a rail of ticks, one per user query. */
 
-.claudian-plus-messages-wrapper {
-  container-name: claudian-plus-chat;
-  container-type: inline-size;
+.claudian-plus-turn-nav {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  z-index: 10;
+  width: 48px;
+  pointer-events: none;
+  transition: opacity 150ms ease-out, transform 150ms ease-out;
 }
 
-.claudian-plus-nav-sidebar {
-  --cp-nav-tick-gap: 15px;
-  --cp-nav-tick-h: 3px;
-  --cp-nav-tick-w-1: 27px;
-  --cp-nav-tick-w-2: 20px;
-  --cp-nav-tick-w-3: 15px;
+.claudian-plus-turn-nav-right {
+  left: auto;
+  right: 0;
+}
+
+.claudian-plus-turn-nav-hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.claudian-plus-turn-nav-rail {
   position: absolute;
   top: 50%;
-  left: 8px;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  opacity: 0;
-  pointer-events: none;
+  left: 12px;
+  width: 36px;
+  max-height: calc(100% - 6rem);
+  padding: 4px 0;
   transform: translateY(-50%);
-  transition: opacity 200ms ease;
-}
-
-.claudian-plus-nav-sidebar.claudian-plus-nav-outline-right {
-  left: auto;
-  right: 8px;
-}
-
-.claudian-plus-nav-sidebar.visible {
-  opacity: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
   pointer-events: auto;
 }
 
-/* ── Filter chips ── */
-
-.claudian-plus-nav-outline-filters {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  margin-bottom: 6px;
+.claudian-plus-turn-nav-right .claudian-plus-turn-nav-rail {
+  left: auto;
+  right: 12px;
 }
 
-.claudian-plus-nav-outline-chip {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  outline: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 14px;
-  height: 14px;
-  padding: 0 3px;
-  border-radius: var(--claudian-plus-radius-xs);
-  font-size: 9px;
-  font-weight: 600;
-  color: var(--text-faint);
-  cursor: pointer;
-  opacity: 0.5;
-  transition: opacity 120ms ease, color 120ms ease, background-color 120ms ease;
-}
-
-.claudian-plus-nav-outline-chip:hover {
-  opacity: 0.85;
-  color: var(--text-normal);
-  background: var(--background-modifier-hover);
-}
-
-.claudian-plus-nav-outline-chip.is-active {
-  opacity: 1;
-  color: var(--interactive-accent);
-  background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
-}
-
-.claudian-plus-nav-outline-chip.is-disabled {
-  opacity: 0.25;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-/* ── Outline track (tick rail) ── */
-
-.claudian-plus-nav-outline-track {
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  gap: var(--cp-nav-tick-gap);
-  padding: 4px 0;
-  cursor: pointer;
-}
-
-.claudian-plus-nav-outline-right .claudian-plus-nav-outline-track {
-  align-items: flex-end;
-}
-
-.claudian-plus-nav-outline-track:empty {
+.claudian-plus-turn-nav-rail::-webkit-scrollbar {
   display: none;
 }
 
-/* ── Tick markers ── */
-
-button.claudian-plus-nav-outline-marker {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  outline: none;
-  box-sizing: border-box;
+.claudian-plus-turn-nav-spacer {
   position: relative;
-  flex: 0 0 3px;
-  width: 28px;
-  height: 3px;
-  min-height: 3px;
-  max-height: 3px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  --cp-nav-tick-w: var(--cp-nav-tick-w-1);
-  opacity: 0.86;
-  /* Width is driven per-frame by the hover wave via --cp-nav-tick-w, so the
-     only transitioned properties here are color and resting opacity. */
-  transition: opacity 100ms linear;
+  width: 36px;
 }
 
-button.claudian-plus-nav-outline-marker[data-outline-level='2'] {
-  --cp-nav-tick-w: var(--cp-nav-tick-w-2);
-}
-
-button.claudian-plus-nav-outline-marker[data-outline-level='3'] {
-  --cp-nav-tick-w: var(--cp-nav-tick-w-3);
-}
-
-button.claudian-plus-nav-outline-marker::before {
+.claudian-plus-turn-nav-item {
   position: absolute;
   left: 0;
-  top: 50%;
-  width: var(--cp-nav-tick-w);
-  height: var(--cp-nav-tick-h);
-  border-radius: 1px;
-  background: color-mix(in srgb, var(--text-normal) 27%, transparent);
-  content: "";
-  transform: translateY(-50%);
+  top: 0;
+  width: 36px;
+  height: 10px;
+}
+
+.claudian-plus-turn-nav-hit {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 36px;
+  height: 10px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+  outline: none;
+}
+
+.claudian-plus-turn-nav-hit:focus-visible {
+  box-shadow: 0 0 0 2px var(--interactive-accent);
+  border-radius: 2px;
+}
+
+.claudian-plus-turn-nav-bar {
+  display: block;
+  width: 12px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--text-faint);
   transform-origin: left center;
   transition:
-    background-color 160ms ease,
-    opacity 100ms linear;
+    height 150ms ease-out,
+    opacity 150ms ease-out,
+    transform 150ms ease-out,
+    background-color 150ms ease-out;
 }
 
-/* Active state: color deepens without changing tick length */
-button.claudian-plus-nav-outline-marker.is-active {
-  opacity: 1;
-}
-
-button.claudian-plus-nav-outline-marker.is-active::before {
-  background: color-mix(in srgb, var(--text-normal) 88%, transparent);
-}
-
-/* While scanning the rail the hovered tick takes over: the previously active
-   tick softens back to the resting tint instead of staying highlighted. */
-.claudian-plus-nav-sidebar.is-hovering button.claudian-plus-nav-outline-marker.is-active:not(.is-hovered) {
-  opacity: 0.86;
-}
-
-.claudian-plus-nav-sidebar.is-hovering button.claudian-plus-nav-outline-marker.is-active:not(.is-hovered)::before {
-  background: color-mix(in srgb, var(--text-normal) 27%, transparent);
-}
-
-button.claudian-plus-nav-outline-marker.is-hovered,
-button.claudian-plus-nav-outline-marker:focus-visible {
-  opacity: 1;
-}
-
-button.claudian-plus-nav-outline-marker.is-hovered::before,
-button.claudian-plus-nav-outline-marker:focus-visible::before {
+.claudian-plus-turn-nav-bar.is-focus,
+.claudian-plus-turn-nav-bar.is-active {
   background: var(--text-normal);
 }
 
-/* Right-side rail: align tick tails to the inner edge */
-.claudian-plus-nav-outline-right button.claudian-plus-nav-outline-marker::before {
-  left: auto;
-  right: 0;
-  transform-origin: right center;
-}
-
-/* ── Preview bubble (Wave TOC hover card) ── */
-
-.claudian-plus-nav-outline-preview {
-  --cp-preview-shift: -8px;
+.claudian-plus-turn-nav-preview {
   position: fixed;
-  left: var(--claudian-plus-outline-preview-left, 44px);
-  top: var(--claudian-plus-outline-preview-top, 0);
-  z-index: var(--layer-popover);
-  display: flex;
-  flex-direction: column;
+  z-index: 2000;
   box-sizing: border-box;
-  max-width: min(360px, 42vw);
-  padding: 13px 17px;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--text-normal) 12%, transparent);
-  border-radius: 18px;
-  color: var(--text-normal);
-  background: color-mix(in srgb, var(--background-primary) 94%, var(--text-normal) 6%);
+  width: 320px;
+  max-width: calc(100vw - 2rem);
+  padding: 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-primary);
   box-shadow: var(--claudian-plus-shadow-lg);
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transform: translate3d(var(--cp-preview-shift), -50%, 0) scale(0.97);
-  transform-origin: left center;
-  transition:
-    opacity 120ms ease,
-    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 150ms ease-out, visibility 150ms ease-out;
 }
 
-.claudian-plus-nav-outline-preview.is-visible {
+.claudian-plus-turn-nav-preview.is-visible {
   opacity: 1;
-  transform: translate3d(0, -50%, 0) scale(1);
+  visibility: visible;
 }
 
-.claudian-plus-nav-outline-preview.has-preview {
-  width: min(420px, 48vw);
-  max-width: min(420px, 48vw);
-  padding: 15px 18px 16px;
-  border-radius: 20px;
-}
-
-.claudian-plus-nav-outline-right .claudian-plus-nav-outline-preview {
-  --cp-preview-shift: 8px;
-  transform-origin: right center;
-}
-
-.claudian-plus-nav-outline-preview-badge {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 5px;
-  color: var(--text-muted);
-  background: color-mix(in srgb, var(--text-normal) 10%, transparent);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-
-.claudian-plus-nav-outline-preview-excerpt.is-hidden,
-.claudian-plus-nav-outline-preview-badge.is-hidden {
-  display: none;
-}
-
-.claudian-plus-nav-outline-preview-title {
-  min-width: 0;
-  padding-right: 26px;
-  overflow: hidden;
-  color: var(--text-normal);
-  font-size: 15px;
-  font-weight: 650;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.claudian-plus-nav-outline-preview.has-preview
-  .claudian-plus-nav-outline-preview-title {
+.claudian-plus-turn-nav-preview-title {
   display: -webkit-box;
-  padding-right: 30px;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  white-space: normal;
-}
-
-.claudian-plus-nav-outline-preview-excerpt {
-  display: -webkit-box;
-  margin-top: 8px;
   overflow: hidden;
-  color: var(--text-muted);
+  margin-bottom: 8px;
   font-size: 13px;
-  font-weight: 430;
-  line-height: 1.55;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--text-normal);
+  white-space: pre-line;
 }
 
-/* ── Responsive ── */
+.claudian-plus-turn-nav-preview-body {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  white-space: pre-line;
+}
 
-@container claudian-plus-chat (max-width: 479px) {
-  .claudian-plus-nav-sidebar {
-    --cp-nav-tick-w-1: 22px;
-    --cp-nav-tick-w-2: 17px;
-    --cp-nav-tick-w-3: 13px;
-    left: 4px;
-  }
-
-  .claudian-plus-nav-sidebar.claudian-plus-nav-outline-right {
-    left: auto;
-    right: 4px;
-  }
-
-  .claudian-plus-nav-outline-preview {
-    max-width: min(240px, 68vw);
-  }
-
-  .claudian-plus-nav-outline-preview.has-preview {
-    width: min(280px, 72vw);
-    max-width: min(280px, 72vw);
-  }
+.claudian-plus-turn-nav-preview.is-empty .claudian-plus-turn-nav-preview-body {
+  color: var(--text-faint);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .claudian-plus-nav-outline-marker::before,
-  .claudian-plus-nav-outline-preview {
+  .claudian-plus-turn-nav,
+  .claudian-plus-turn-nav-bar,
+  .claudian-plus-turn-nav-preview {
     transition: none;
-    animation: none;
   }
 }
 
