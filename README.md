@@ -20,7 +20,7 @@
 
 Claudian Plus embeds provider-backed coding agents in your Obsidian sidebar. Codex is the default; Claude, Kimi, OpenCode, Pi, Antigravity and DeepSeek Harness run through the same conversation model. When a session ends, its decisions are distilled into `.claudian-plus/memory.md` — plain Markdown inside your vault that you can read, edit or delete.
 
-**3.2.4** — Rebuilt conversation rail, independent transcript padding sliders, and streaming that only re-renders the open block. [Changelog](CHANGELOG.md) · [All releases](https://github.com/wuyifan-code/Claudian-plus/releases)
+**3.2.5** — Generated interfaces now render inside notes, with their space reserved so the note does not jump; streaming appends plain prose instead of re-parsing the tail. [Changelog](CHANGELOG.md) · [All releases](https://github.com/wuyifan-code/Claudian-plus/releases)
 
 ---
 
@@ -52,6 +52,8 @@ An agent can answer with a fenced ` ```claudian-ui ` program that renders as nat
 - **54 components** across layout, text, data, inputs, structure, learning and Obsidian-native widgets — plus 24 pure `@functions` and 8 actions (`@Set`, `@Reset`, `@Toggle`, `@ToAssistant`, `@OpenUrl`, `@Copy`, `@OpenNote`, `@InsertToNote`).
 - **`Form` submits once.** Every bound field arrives as exactly one assistant turn; `Quiz` and `Checklist` grade and track progress locally, without a model round-trip.
 - **State persists.** Slider positions, selections and checkboxes survive a reload and a history replay — 16 KiB per block, 64 KiB per session.
+- **A program can live in a note.** A `claudian-ui` or `openui` fence in a Markdown note renders as the same interface, and the block keeps a private state store, so note widgets never reach conversation state. Programs above 200,000 characters stay plain code.
+- **Embeds do not move the note.** The space a block will occupy is reserved from a layout prediction before the block builds, and the chat toolbar gains an **Insert into note** action.
 - **`@InsertToNote` is off by default.** When enabled, each use still shows a preview and asks for confirmation before writing at the cursor.
 - **Nothing disappears silently.** A program the renderer cannot handle degrades to text, and a fence missing the tag gets a content-sniffing fallback.
 
@@ -62,7 +64,7 @@ An agent can answer with a fenced ` ```claudian-ui ` program that renders as nat
 - **One rail tick per question.** The navigator is virtualized and keyed by message id, so ticks keep their position while the answer below them streams. Hover scales a peak: 2.6× on the hovered tick, 1.7× and 1.25× on its neighbours.
 - **Tool runs fold into one line.** Every contiguous reasoning-and-tool run becomes a single `Execution details` row with tool count, names, failures and thinking time.
 - **Transcript padding is yours.** Settings → Appearance has independent left and right sliders, 0–80 px in steps of 4, applied live.
-- **Streaming does not re-parse the answer.** Closed code blocks render once and keep their DOM; each 100 ms frame touches only the open tail.
+- **Streaming does not re-parse the answer.** Closed blocks render once and keep their DOM; a plain-prose tail grows by appending text instead of being re-parsed, and only a delta that adds a visual line moves the scroll.
 - **The stop button is a 28px circle** with a `Stop generation (Esc)` tooltip, in the corner where your eye already is.
 
 ---
