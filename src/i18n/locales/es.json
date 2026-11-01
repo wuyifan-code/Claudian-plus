@@ -127,7 +127,9 @@
     "copy": "Copiar programa",
     "reset": "Restablecer estado",
     "expand": "Ampliar",
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "embed": "Insertar en la nota",
+    "embedInserted": "Interfaz insertada en la nota"
   },
   "settings": {
     "title": "Ajustes de Claudian Plus",
@@ -426,6 +428,10 @@
     "deferMathRenderingDuringStreaming": {
       "name": "Diferir renderizado matemático durante streaming",
       "desc": "Mostrar LaTeX sin procesar mientras se transmite la respuesta y renderizar las fórmulas una vez al completar cada bloque de texto."
+    },
+    "streamingPlainTextFastPath": {
+      "name": "Añadir texto plano durante el streaming",
+      "desc": "Cuando el bloque en streaming es texto plano, añade el texto nuevo sin volver a analizarlo como Markdown. Desactívalo para forzar un renderizado Markdown completo en cada actualización."
     },
     "generativeUi": {
       "name": "Respuestas con interfaz inteligente",

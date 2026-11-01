@@ -8,6 +8,10 @@
   width: 48px;
   pointer-events: none;
   transition: opacity 150ms ease-out, transform 150ms ease-out;
+  /* Obsidian raises a native aria-label tooltip on any labelled element. The
+     ticks keep aria-label for screen readers and render their own preview
+     card, so the native one is pure, differently themed duplication. */
+  --no-tooltip: true;
 }
 
 .claudian-plus-turn-nav-right {

@@ -17,6 +17,22 @@ export class Component {
   }
 }
 
+/** Minimal render child: the note embed only needs containerEl + unload. */
+export class MarkdownRenderChild {
+  containerEl: HTMLElement;
+  onunload?: () => void;
+  register = jest.fn();
+  addChild = jest.fn();
+
+  constructor(containerEl: HTMLElement) {
+    this.containerEl = containerEl;
+  }
+
+  unload(): void {
+    this.onunload?.();
+  }
+}
+
 export class Plugin {
   app: any;
   manifest: any;
@@ -31,6 +47,7 @@ export class Plugin {
   addSettingTab = jest.fn();
   registerView = jest.fn();
   registerEvent = jest.fn();
+  registerMarkdownCodeBlockProcessor = jest.fn(() => ({ unload: jest.fn() }));
   loadData = jest.fn().mockResolvedValue({});
   saveData = jest.fn().mockResolvedValue(undefined);
 }

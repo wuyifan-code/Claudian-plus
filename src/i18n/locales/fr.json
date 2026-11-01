@@ -127,7 +127,9 @@
     "copy": "Copier le programme",
     "reset": "Réinitialiser l’état",
     "expand": "Agrandir",
-    "close": "Fermer"
+    "close": "Fermer",
+    "embed": "Insérer dans la note",
+    "embedInserted": "Interface insérée dans la note"
   },
   "settings": {
     "title": "Paramètres de Claudian Plus",
@@ -426,6 +428,10 @@
     "deferMathRenderingDuringStreaming": {
       "name": "Différer le rendu mathématique pendant le streaming",
       "desc": "Afficher le LaTeX brut pendant la diffusion, puis rendre les formules une fois chaque bloc de texte terminé."
+    },
+    "streamingPlainTextFastPath": {
+      "name": "Ajouter le texte brut pendant le streaming",
+      "desc": "Lorsqu’un bloc en streaming est du texte simple, ajoute le nouveau texte sans le réanalyser comme Markdown. Désactivez pour forcer un rendu Markdown complet à chaque mise à jour."
     },
     "generativeUi": {
       "name": "Réponses en interface intelligente",

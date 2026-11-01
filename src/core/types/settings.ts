@@ -168,6 +168,12 @@ export interface ClaudianPlusSettings {
   enableAutoScroll: boolean;
   outlineSide: 'left' | 'right';
   deferMathRenderingDuringStreaming: boolean;
+  /**
+   * Appends a streamed delta to the open block's paragraph while that block is
+   * plain prose, instead of re-rendering the whole tail as Markdown each frame.
+   * Optional so configurations written before the setting existed keep working.
+   */
+  streamingPlainTextFastPath?: boolean;
   expandFileEditsByDefault: boolean;
   chatViewPlacement: ChatViewPlacement;
   chatHomeView?: 'chat' | 'sessions';

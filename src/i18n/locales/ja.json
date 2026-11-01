@@ -127,7 +127,9 @@
     "copy": "プログラムをコピー",
     "reset": "状態をリセット",
     "expand": "拡大表示",
-    "close": "閉じる"
+    "close": "閉じる",
+    "embed": "ノートに挿入",
+    "embedInserted": "インターフェースをノートに挿入しました"
   },
   "settings": {
     "title": "Claudian Plus 設定",
@@ -426,6 +428,10 @@
     "deferMathRenderingDuringStreaming": {
       "name": "ストリーミング中の数式レンダリングを遅延",
       "desc": "応答のストリーミング中は生の LaTeX を表示し、各テキストブロックの完了時に一度だけ数式をレンダリングします。"
+    },
+    "streamingPlainTextFastPath": {
+      "name": "ストリーミング中はプレーンテキストを直接追加",
+      "desc": "ストリーミング中のブロックが単なる文章のとき、Markdown として再解析せずに新しい文字を追記します。オフにすると毎回完全な Markdown レンダリングを行います。"
     },
     "generativeUi": {
       "name": "インテリジェント UI での回答",

@@ -127,7 +127,9 @@
     "copy": "复制程序",
     "reset": "重置状态",
     "expand": "放大查看",
-    "close": "关闭"
+    "close": "关闭",
+    "embed": "插入到笔记",
+    "embedInserted": "已把界面插入到笔记"
   },
   "settings": {
     "title": "Claudian Plus 设置",
@@ -448,6 +450,10 @@
     "deferMathRenderingDuringStreaming": {
       "name": "流式传输时延迟渲染数学公式",
       "desc": "响应流式传输时显示原始 LaTeX，并在每个文本块完成后只渲染一次数学公式。"
+    },
+    "streamingPlainTextFastPath": {
+      "name": "流式传输时直接追加纯文本",
+      "desc": "当流式文本块是纯文本段落时，直接追加新文字而不再把整个块重新解析成 Markdown。关闭后每次更新都会走完整 Markdown 渲染。"
     },
     "generativeUi": {
       "name": "智能界面回答",

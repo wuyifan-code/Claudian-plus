@@ -1,8 +1,11 @@
 /* Semantic tokens mapped to Obsidian theme variables.
    Modules must reference these instead of hard-coded values, so community
-   themes re-skin the plugin automatically. Scoped like variables.css. */
+   themes re-skin the plugin automatically. Scoped like variables.css.
+   `.claudian-plus-ui-embed` is the token scope for a generated interface
+   rendered inside a note, where the chat container does not exist. */
 .claudian-plus-container,
-.claudian-plus-settings {
+.claudian-plus-settings,
+.claudian-plus-ui-embed {
   /* Surfaces */
   --claudian-plus-surface-primary: var(--background-primary);
   --claudian-plus-surface-secondary: var(--background-secondary);

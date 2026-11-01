@@ -1,7 +1,7 @@
 # Claudian Plus Code Wiki
 
 > 本文档对 Claudian Plus 仓库进行结构化梳理，覆盖整体架构、模块职责、关键类型/类/函数、依赖关系以及构建运行方式。
-> 仓库版本：`3.1.1`（见 [package.json](../package.json) / [manifest.json](../manifest.json)）。
+> 仓库版本：`3.2.4`（见 [package.json](../package.json) / [manifest.json](../manifest.json)）。
 
 ---
 
@@ -105,6 +105,7 @@
 | `src/features/chat/` | 侧边栏 chat 编排（基于 core 契约） |
 | `src/features/settings/` | 共享 settings shell 与 provider tab 装配 |
 | `src/shared/` | 可复用 UI 组件（dropdown、modal、mention、settings section 等） |
+| `src/utils/` | 纯工具：Markdown 分段与转义、路径/日期/文件链接、`textLayout/`（离屏文字排版预测） |
 | `src/style/` | 模块化 CSS，构建为 `styles.css` |
 | `src/i18n/` | 多语言（en/zh-CN/zh-TW/ja/ko/de/es/fr/pt/ru） |
 | `scripts/` | 构建、CSS 合并、架构边界检查、版本同步、性能检查、测试运行器 |
@@ -469,6 +470,15 @@ Tab 在首次发送前保持冷态；runtime warmup 必须 explicit 且 provider
 ### 7.5 Renderers
 
 `MessageRenderer`（主入口）、`ToolCallRenderer`、`ThinkingBlockRenderer`、`DiffRenderer`、`WriteEditRenderer`、`SubagentRenderer`、`InlineAskUserQuestion` / `InlineExitPlanMode` / `InlineOptionList` / `InlinePlanApproval`（provider 交互 UI）。`collapsible` / `todoUtils` / `subagentLifecycleResolution` 为辅助。
+
+流式渲染分两级省功，二者都可降级：
+
+1. **块级**：`streamingMarkdownSplit.findCommitBoundary` 把已闭合的块一次性渲染并保留，只有尾巴随 delta 重渲染。
+2. **尾巴级**：尾巴仍是纯文本段落时，`streamingTail.canAppendAsText` 允许把新 delta 直接追加到该段落的文本节点，跳过 `MarkdownRenderer`（`streamingPlainTextFastPath`，默认开）。一旦出现内联语法、换行或块标记，本块整体回落到 Markdown 渲染，不再回切。
+
+`MessageRenderer.consumeStreamingVisualChange(el)` 报告这次更新是否改变了块高度：行数由 `src/utils/textLayout/` 在离屏 canvas 上预测（不读 DOM），行数未变时 `StreamController` 跳过 `scrollToBottom`，省掉每帧一次强制 `scrollHeight` 读取；拿不到预测时一律返回 `true`（保持原行为）。
+
+笔记里的 `claudian-ui` 块（`NoteUiEmbed`）走同一套预测：构建前用 `ui/reservation` 从程序文本估算占位高度并写成 `--claudian-plus-ui-embed-reserve`，构建推迟到 `requestIdleCallback`（200ms 上限），因此多块笔记先出占位再逐个落位，不阻塞首屏。
 
 ### 7.6 Tabs
 

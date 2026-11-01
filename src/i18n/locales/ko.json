@@ -127,7 +127,9 @@
     "copy": "프로그램 복사",
     "reset": "상태 초기화",
     "expand": "확대",
-    "close": "닫기"
+    "close": "닫기",
+    "embed": "노트에 삽입",
+    "embedInserted": "인터페이스를 노트에 삽입했습니다"
   },
   "settings": {
     "title": "Claudian Plus 설정",
@@ -426,6 +428,10 @@
     "deferMathRenderingDuringStreaming": {
       "name": "스트리밍 중 수식 렌더링 지연",
       "desc": "응답이 스트리밍되는 동안 원본 LaTeX를 표시하고 각 텍스트 블록이 완료되면 수식을 한 번 렌더링합니다."
+    },
+    "streamingPlainTextFastPath": {
+      "name": "스트리밍 중 일반 텍스트 직접 추가",
+      "desc": "스트리밍되는 블록이 일반 문장일 때 Markdown으로 다시 구문 분석하지 않고 새 텍스트를 덧붙입니다. 끄면 매번 전체 Markdown 렌더링을 수행합니다."
     },
     "generativeUi": {
       "name": "지능형 UI 답변",

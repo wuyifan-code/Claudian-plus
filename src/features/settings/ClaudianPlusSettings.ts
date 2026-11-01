@@ -1052,6 +1052,27 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
       targetEl: mathSetting.settingEl,
     });
 
+    const plainStreamSetting = new Setting(card)
+      .setName(t('settings.streamingPlainTextFastPath.name'))
+      .setDesc(t('settings.streamingPlainTextFastPath.desc'))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.streamingPlainTextFastPath ?? true)
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.streamingPlainTextFastPath = value;
+            });
+          })
+      );
+    this.registerSearchEntry({
+      categoryId: 'appearance',
+      categoryLabel: 'Appearance',
+      settingKey: 'plain-stream',
+      name: t('settings.streamingPlainTextFastPath.name'),
+      desc: t('settings.streamingPlainTextFastPath.desc'),
+      targetEl: plainStreamSetting.settingEl,
+    });
+
     const generativeUiSetting = new Setting(card)
       .setName(t('settings.generativeUi.name'))
       .setDesc(t('settings.generativeUi.desc'))
