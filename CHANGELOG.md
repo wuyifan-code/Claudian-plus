@@ -6,6 +6,26 @@ English | [简体中文](CHANGELOG_ZH.md)
 
 Releases before 3.0.2 live in the git tags and the Releases page.
 
+## [3.2.5] - 2026-11-01
+
+### Added
+
+- Generated interfaces render inside Markdown notes. A `claudian-ui` or `openui` fence is transport only: the note post-processor hands the same bytes to the chat's block renderer, so an embedded layout keeps every widget.
+- Embedded blocks own a private state store, so note widgets never reach conversation state persistence, and their lifetime follows `MarkdownRenderChild`. Actions that need the chat bridge to the plugin and degrade when it is unavailable.
+- Fences above 200,000 characters render as plain code; a pasted megabyte in live preview would otherwise stall the editor on every keystroke.
+- Space is reserved before an embed builds, from a text-layout prediction rather than a measurement, so a note does not jump when the real block appears. The engine is a vendored Pretext copy, declared in `NOTICE`.
+- The chat block toolbar gains **Insert into note**. Embedded blocks keep the three core buttons, because a block inside a note cannot embed itself.
+- `streamingPlainTextFastPath`, on by default: while the open block is plain prose, a delta is appended to the paragraph's text node instead of re-rendering the tail as Markdown. The test for plain prose is conservative — a false negative costs one Markdown render, a false positive would show Markdown source as literal text.
+
+### Changed
+
+- `MessageRenderer` sheds five vault helpers into `ui/vaultUiHost.ts`, shared by chat and note embeds.
+- The scroll follow asks the renderer whether a delta added a visual line, so a frame that cannot move the scroll no longer forces a layout read.
+
+### Fixed
+
+- `features/FeatureHost.ts` imported a type from `app/settings`, which broke the rule that features depend only on core contracts. The interface moved to `core/types/runtimeState.ts` and the app module re-exports it; the boundary check had been red since 3.2.2.
+
 ## [3.2.4] - 2026-10-31
 
 ### Changed
