@@ -34,7 +34,7 @@ Claudian Plus 把编码 Agent 装进 Obsidian 侧边栏。默认使用 Codex，C
 </div>
 
 - **上下文以引用进来。** `@note`、`@folder` 与拖拽文件都解析自你已经打开的那个笔记库。
-- **记忆是一个文件，不是一个服务。** `memory.md` 就躺在你的文件列表中，和笔记排在一起。
+- **记忆落在文件里。** `memory.md` 就在你的文件列表中，和笔记排在一起。
 - **切换 Provider 不会打断会话。** 每个 Provider 各自保留历史，同一段会话可以在 Codex、Claude、Kimi、OpenCode、Antigravity 与 DeepSeek Harness 之间流转。
 
 | 你的需求 | 常见的 AI 插件 | Claudian Plus |
@@ -101,7 +101,7 @@ Agent 可以用 ` ```claudian-ui ` 围栏程序回答，渲染为 Obsidian 原�
 | **OpenCode** | 手动开启 | ACP | 运行在隔离的 sidecar 进程上 |
 | **Pi** | 手动开启 | RPC | 只用 Node 内置模块与打包的 TypeBox，外部工具依赖缺失也能跑 |
 
-**DeepSeek Harness** 是一等 Provider，直接对着官方 Harness 契约实现，没有经过另一个 Agent 协议的转译。会话绑定 Harness 自己的历史；模型来自原生目录而不是写死的列表；同一笔记库下的所有标签页共用一个进程。在你发出第一条消息之前它不会启动，所以渲染它的设置页不会拉起进程。安装步骤与完整能力边界见 [`src/providers/dsh/README.md`](src/providers/dsh/README.md)。
+**DeepSeek Harness** 是一等 Provider，直接对着官方 Harness 契约实现。会话绑定 Harness 自己的历史，模型来自原生目录并且可以在设置页刷新，同一笔记库下的所有标签页共用一个进程。在你发出第一条消息之前它不会启动，所以渲染它的设置页不会拉起进程。安装步骤与完整能力边界见 [`src/providers/dsh/README.md`](src/providers/dsh/README.md)。
 
 各家能力本就不同，且被显式声明——代码层面刻意设计成任何功能都无法悄悄假设对等。
 
@@ -169,7 +169,7 @@ npm ci && npm run typecheck && npm run build
 ```
 
 - **无遥测。** `src/` 下没有任何统计或埋点代码。离开本机的数据只经由你配置的 Provider CLI。
-- **迁移与升级都不毁数据。** 检测到旧版 `.claudian/` 目录时按复制方式迁移，原始文件保留；Provider 自有配置是合并而非覆盖。
+- **迁移与升级都不毁数据。** 检测到旧版 `.claudian/` 目录时按复制方式迁移，原始文件保留；Provider 自有配置采用合并写入，升级会保留你已有的配置。
 
 ---
 
