@@ -34,7 +34,7 @@ Claudian Plus embeds provider-backed coding agents in your Obsidian sidebar. Cod
 </div>
 
 - **Context arrives as references.** `@note`, `@folder` and drag-and-drop resolve against the vault you already have open.
-- **Memory is a file, not a service.** `memory.md` sits in your file list next to your notes.
+- **Memory sits in a file.** `memory.md` is in your file list, next to your notes.
 - **A session survives a provider switch.** Each provider keeps its own history, so one conversation can move between Codex, Claude, Kimi, OpenCode, Antigravity and DeepSeek Harness.
 
 | What you need | A typical AI extension | Claudian Plus |
@@ -101,7 +101,7 @@ Three layers, one direction of dependency: vault context feeds a provider-neutra
 | **OpenCode** | Opt in | ACP | Runs as a sandboxed sidecar process |
 | **Pi** | Opt in | RPC | Node built-ins plus a bundled TypeBox, so it survives missing tool dependencies |
 
-**DeepSeek Harness** is a first-class provider, implemented against the official Harness contracts rather than by adapting another agent's protocol. Sessions bind to the harness's own history, models come from the native catalog instead of a hardcoded list, and every tab in one vault shares a single process. It stays off until you send a turn, so rendering its settings never starts a process. Setup and the exact capability boundary are in [`src/providers/dsh/README.md`](src/providers/dsh/README.md).
+**DeepSeek Harness** is a first-class provider, implemented directly against the official Harness contracts. Sessions bind to the harness's own history, models come from the native catalog and are refreshed from the settings tab, and every tab in one vault shares a single process. It stays off until you send a turn, so rendering its settings never starts a process. Setup and the exact capability boundary are in [`src/providers/dsh/README.md`](src/providers/dsh/README.md).
 
 Capabilities differ per provider and are declared explicitly, because the codebase is written so no feature can silently assume parity.
 
@@ -169,7 +169,7 @@ Everything the plugin knows lives inside your vault:
 ```
 
 - **No telemetry.** There is zero analytics code under `src/`. Data leaves your machine only through the provider CLIs you configure.
-- **Migration and updates are non-destructive.** An existing `.claudian/` directory is detected and copied, with the originals left intact; provider settings are merged rather than clobbered.
+- **Migration and updates are non-destructive.** An existing `.claudian/` directory is detected and copied, with the originals left intact; provider settings are merged, so an upgrade keeps your existing config.
 
 ---
 
