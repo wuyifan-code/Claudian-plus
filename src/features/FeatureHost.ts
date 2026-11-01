@@ -1,4 +1,3 @@
-import type { RuntimeStateStore } from '../core/types/runtimeState';
 import type { ObsidianMcpServerHandle } from '../core/mcp/ObsidianMcpServer';
 import type {
   ConsciousnessEngine,
@@ -18,6 +17,7 @@ import type { ChatRuntime } from '../core/runtime/ChatRuntime';
 import type { AgentSkillRegistry } from '../core/skills/AgentSkillRegistry';
 import type { AgentSkillRepository } from '../core/skills/AgentSkillRepository';
 import type { Conversation, ConversationMeta, SessionMetadata } from '../core/types';
+import type { RuntimeStateStore } from '../core/types/runtimeState';
 import type { ComposerEnhancement } from './chat/composer/types';
 import type { TabData, TabId, TabManagerViewHost } from './chat/tabs/types';
 
