@@ -1,4 +1,4 @@
-import type { RuntimeStateStore } from '../app/settings/runtimeState';
+import type { RuntimeStateStore } from '../core/types/runtimeState';
 import type { ObsidianMcpServerHandle } from '../core/mcp/ObsidianMcpServer';
 import type {
   ConsciousnessEngine,

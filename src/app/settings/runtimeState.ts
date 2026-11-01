@@ -1,13 +1,11 @@
+import type { RuntimeStateStore } from '../../core/types/runtimeState';
 import type { ClaudianPlusSettings } from '../../core/types/settings';
+
+export type { RuntimeStateStore };
 
 /** Onboarding flag and device key live here instead of the renderer storage. */
 export const RUNTIME_ONBOARDING_SEEN = 'blob.onboardingSeen';
 export const RUNTIME_DEVICE_KEY = 'deviceSettingsKey';
-
-export interface RuntimeStateStore {
-  get(key: string): string | null;
-  set(key: string, value: string): void;
-}
 
 /**
  * Synchronous key/value view over `settings.runtimeState`.
