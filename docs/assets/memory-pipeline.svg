@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" width="100%" height="100%" role="img" aria-labelledby="cpPipeTitle cpPipeDesc">
   <title id="cpPipeTitle">Claudian Plus memory lifecycle</title>
-  <desc id="cpPipeDesc">Four dependent stages: a turn ends and the gate opens after three exchanges; an auxiliary query distills the transcript under an 8,000 character input cap; new rules are staged for review rather than written silently; approved memory is injected into later prompts within a 1,500 character budget.</desc>
+  <desc id="cpPipeDesc">Four dependent stages: a turn ends and the gate opens after three exchanges; an auxiliary query distills the transcript under a 6,000 character input cap; new rules are staged for review rather than written silently; approved memory is injected into later prompts within a 1,500 character budget.</desc>
   <defs>
     <style>
       .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Noto Sans", sans-serif; }
@@ -42,7 +42,7 @@
     <text x="20" y="118" class="sans" font-size="18" fill="#736D64">compresses the</text>
     <text x="20" y="142" class="sans" font-size="18" fill="#736D64">transcript into rules.</text>
     <rect x="20" y="158" width="213" height="34" rx="7" fill="#FAF8F5" stroke="#DED6C8" stroke-width="1" />
-    <text x="34" y="181" class="mono" font-size="18" font-weight="600" fill="#1C1B19">8,000 CHAR CAP</text>
+    <text x="34" y="181" class="mono" font-size="18" font-weight="600" fill="#1C1B19">6,000 CHAR CAP</text>
   </g>
 
   <!-- Arrow 2 -->
