@@ -77,6 +77,7 @@ export const DEFAULT_CLAUDIAN_PLUS_SETTINGS: ClaudianPlusSettings = {
   enableAutoScroll: true,
   outlineSide: 'left',
   deferMathRenderingDuringStreaming: true,
+  streamingPlainTextFastPath: true,
   expandFileEditsByDefault: false,
   chatViewPlacement: 'right-sidebar',
   chatHomeView: 'chat',

@@ -127,7 +127,9 @@
     "copy": "Programm kopieren",
     "reset": "Status zurücksetzen",
     "expand": "Vergrößern",
-    "close": "Schließen"
+    "close": "Schließen",
+    "embed": "In Notiz einfügen",
+    "embedInserted": "Oberfläche in die Notiz eingefügt"
   },
   "settings": {
     "title": "Claudian Plus Einstellungen",
@@ -426,6 +428,10 @@
     "deferMathRenderingDuringStreaming": {
       "name": "Mathe-Rendering während Streaming aufschieben",
       "desc": "LaTeX während des Streamings roh anzeigen und Mathematik einmal rendern, wenn der Textblock abgeschlossen ist."
+    },
+    "streamingPlainTextFastPath": {
+      "name": "Klartext beim Streamen direkt anhängen",
+      "desc": "Hängt bei reinem Fließtext den neuen Text direkt an, statt den Block erneut als Markdown zu parsen. Ausschalten erzwingt bei jeder Aktualisierung einen vollständigen Markdown-Durchlauf."
     },
     "generativeUi": {
       "name": "Antworten mit intelligenter Benutzeroberfläche",

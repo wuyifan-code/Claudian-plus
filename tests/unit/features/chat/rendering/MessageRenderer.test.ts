@@ -2869,5 +2869,70 @@ describe('MessageRenderer', () => {
       expect(renderCalls[renderCalls.length - 1][4]).toBe(component);
     });
   });
+
+  // ============================================
+  // Generated UI note embedding
+  // ============================================
+
+  describe('generated UI note embedding', () => {
+    const FENCE = String.fromCharCode(96).repeat(3);
+
+    function createEmbedRenderer() {
+      const editor = {
+        getCursor: jest.fn(() => ({ line: 3, ch: 0 })),
+        getLine: jest.fn(() => ''),
+        replaceRange: jest.fn(),
+        setCursor: jest.fn(),
+      };
+      const app = {
+        workspace: {
+          getActiveViewOfType: () => ({ editor }),
+          getMostRecentLeaf: () => null,
+          getLeavesOfType: () => [],
+        },
+      };
+      const renderer = new MessageRenderer(
+        { app, settings: { mediaFolder: '' } } as any,
+        createMockComponent() as any,
+        createMockEl(),
+      );
+      return { renderer, editor };
+    }
+
+    it('inserts the block program as a claudian-ui fence at the cursor', () => {
+      const { renderer, editor } = createEmbedRenderer();
+
+      (renderer as any).embedUiProgram('root = Text("hi")');
+
+      const inserted = editor.replaceRange.mock.calls[0]![0] as string;
+      expect(inserted.startsWith(FENCE + 'claudian-ui\n')).toBe(true);
+      expect(inserted).toContain('root = Text("hi")');
+      expect(inserted.endsWith(FENCE + '\n')).toBe(true);
+      expect(editor.replaceRange.mock.calls[0]![1]).toEqual({ line: 3, ch: 0 });
+    });
+
+    it('adds a separating blank line when the cursor line has content', () => {
+      const { renderer, editor } = createEmbedRenderer();
+      editor.getLine.mockReturnValue('some text');
+
+      (renderer as any).embedUiProgram('root = Text("hi")');
+
+      const inserted = editor.replaceRange.mock.calls[0]![0] as string;
+      expect(inserted.startsWith('\n\n' + FENCE)).toBe(true);
+    });
+
+    it('explains instead of writing when no note is open', async () => {
+      const { Notice } = await import('obsidian');
+      const renderer = new MessageRenderer(
+        { app: {}, settings: { mediaFolder: '' } } as any,
+        createMockComponent() as any,
+        createMockEl(),
+      );
+
+      (renderer as any).embedUiProgram('root = Text("hi")');
+
+      expect(Notice).toHaveBeenCalled();
+    });
+  });
 });
 

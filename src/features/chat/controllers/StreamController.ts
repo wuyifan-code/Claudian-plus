@@ -994,7 +994,11 @@ export class StreamController {
           await renderer.renderContent(textEl, content);
         }
         if (renderGeneration === this.textRenderGeneration) {
-          this.scrollToBottom();
+          // A delta that does not add a visual line cannot move the scroll
+          // position; asking to follow anyway would force a layout read per frame.
+          if (renderer.consumeStreamingVisualChange(textEl)) {
+            this.scrollToBottom();
+          }
         }
       }
     } catch {

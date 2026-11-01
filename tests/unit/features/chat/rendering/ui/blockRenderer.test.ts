@@ -637,4 +637,24 @@ describe('renderUiBlock', () => {
     expect(container.textContent).toContain('value=now');
   });
 
+  it('offers the embed action only when the host can write to a note', () => {
+    const onEmbedToNote = jest.fn();
+    const withEmbed = createContainer();
+    renderUiBlock(withEmbed, SIMPLE_PROGRAM, {
+      blockKey: 'embed:0',
+      callbacks: { onEmbedToNote },
+    });
+
+    const buttons = withEmbed.querySelectorAll<HTMLButtonElement>('.claudian-plus-ui-toolbar-button');
+    expect(buttons).toHaveLength(4);
+
+    buttons[3]!.click();
+
+    expect(onEmbedToNote).toHaveBeenCalledWith(SIMPLE_PROGRAM);
+
+    const withoutEmbed = createContainer();
+    renderUiBlock(withoutEmbed, SIMPLE_PROGRAM, { blockKey: 'embed:1' });
+    expect(withoutEmbed.querySelectorAll('.claudian-plus-ui-toolbar-button')).toHaveLength(3);
+  });
+
 });

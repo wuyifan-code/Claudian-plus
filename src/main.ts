@@ -100,6 +100,10 @@ import { LivePreviewComposerEnhancement } from './features/chat/composer/LivePre
 import type { ComposerEnhancement } from './features/chat/composer/types';
 import { registerFileMenu } from './features/chat/fileMenu';
 import { QuickAgentInputModal } from './features/chat/QuickAgentInputModal';
+import {
+  type NoteUiEmbedHandle,
+  registerNoteUiEmbed,
+} from './features/chat/rendering/NoteUiEmbed';
 import { InlineEditModal, InlineEditService } from './features/inline-edit';
 import { ClaudianPlusSettingTab } from './features/settings/ClaudianPlusSettings';
 import { localeText, setLocale } from './i18n/i18n';
@@ -197,6 +201,7 @@ export default class ClaudianPlusPlugin extends Plugin {
   private obsidianToolBridge: ObsidianToolBridge | null = null;
   private obsidianMcpServer: ObsidianMcpServer | null = null;
   private obsidianMcpServerHandle: ObsidianMcpServerHandle | null = null;
+  private noteUiEmbed: NoteUiEmbedHandle | null = null;
 
   async onload() {
     StartupProfiler.startOnload();
@@ -239,6 +244,17 @@ export default class ClaudianPlusPlugin extends Plugin {
         getView: () => this.getView(),
         registerEvent: (eventRef) => this.registerEvent(eventRef),
         sendPromptToChat: (prompt) => this.sendPromptToChat(prompt),
+      });
+
+      // Generated interfaces embedded in notes render through the chat's own
+      // block renderer; settings are already loaded by Phase 0 above.
+      this.noteUiEmbed = registerNoteUiEmbed({
+        app: this.app,
+        registerCodeBlockProcessor: (language, handler) => (
+          this.registerMarkdownCodeBlockProcessor(language, handler)
+        ),
+        getSettings: () => this.settings,
+        prefillChat: (prompt) => { void this.sendPromptToChat(prompt); },
       });
 
       this.addRibbonIcon('bot', 'Open Claudian Plus', () => {
@@ -587,6 +603,8 @@ export default class ClaudianPlusPlugin extends Plugin {
   onunload(): void {
     setSharedBackgroundRequestGate(null);
     this.isUnloading = true;
+    this.noteUiEmbed?.dispose();
+    this.noteUiEmbed = null;
     this.startupCoordinator.dispose();
     this.idleScheduler.dispose();
     this._idleActivityObserver?.stop();

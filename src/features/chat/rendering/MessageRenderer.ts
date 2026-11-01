@@ -26,9 +26,11 @@ import {
   escapeMathDelimitersForStreaming,
   normalizeLatexMathDelimiters,
 } from '../../../utils/markdownMath';
+import { createTextLayoutEngine, resolveTextStyle } from '../../../utils/textLayout';
 import type { FeatureHost } from '../../FeatureHost';
 import {
   createLinkedNote,
+  getActiveMarkdownEditor,
   getSelectedTextWithin,
   insertAtCursor,
   insertCodeBlockAtCursor,
@@ -45,6 +47,7 @@ import { formatConversationDirectoryTitle } from '../utils/conversationDirectory
 import { type CollapsibleState,setupCollapsible } from './collapsible';
 import { MessageRenderWindow } from './MessageRenderWindow';
 import { findCommitBoundary } from './streamingMarkdownSplit';
+import { canAppendAsText } from './streamingTail';
 import { resolveSubagentLifecycleAdapter } from './subagentLifecycleResolution';
 import {
   renderStoredAsyncSubagent,
@@ -54,7 +57,9 @@ import { renderStoredThinkingBlock } from './ThinkingBlockRenderer';
 import { buildExecutionRunSummary, renderStoredToolCall } from './ToolCallRenderer';
 import { renderStoredToolGroup } from './ToolGroupRenderer';
 import { splitUiFences } from './ui/fenceSplitter';
-import type { UiNoteSummary, UiRenderHost } from './ui/widgets/context';
+import { buildUiEmbedFence, buildUiEmbedInsertion } from './ui/noteFence';
+import { createVaultUiRenderHost } from './ui/vaultUiHost';
+import type { UiRenderHost } from './ui/widgets/context';
 import {
   captureUiFocus,
   disposeUiBlocksUnder,
@@ -115,26 +120,46 @@ interface RendererAnimationFrame {
   ownerEl: HTMLElement;
 }
 
+/**
+ * Per-element streaming state.
+ *
+ * Closed markdown blocks are rendered once and kept; only the open tail is
+ * re-rendered. A tail made of plain prose can instead be grown by appending the
+ * delta to its paragraph, which is the same DOM without a Markdown pass, so the
+ * buffer also remembers the text it currently shows and whether the last update
+ * changed the block's visual height (used to gate scroll-to-bottom).
+ */
+interface StreamingBuffer {
+  committedEl: HTMLElement;
+  tailEl: HTMLElement;
+  committedText: string;
+  /** Paragraph the plain-text fast path appends into; null when unusable. */
+  tailParagraph: HTMLElement | null;
+  /** Text the tail currently shows; the next delta is derived from it. */
+  tailText: string;
+  /** Predicted line count of `tailText`; null when prediction is unavailable. */
+  tailLines: number | null;
+  /** Set when the last update grew the block, so callers must follow it. */
+  visualChange: boolean;
+}
+
+/**
+ * Above this size the layout prediction costs more than the scroll it gates,
+ * so the renderer falls back to the unconditional follow-the-stream behaviour.
+ */
+const MAX_LAYOUT_PREDICTION_CHARS = 8000;
+
+/**
+ * Reading `clientWidth` right after appending text forces a layout; the column
+ * width cannot change 10 times a second during a stream, so predictions reuse
+ * the last reading for this long.
+ */
+const CONTENT_WIDTH_CACHE_MS = 500;
+
 function runRendererAction(action: () => Promise<void>): void {
   void action().catch(() => {
     // UI actions already surface expected failures locally.
   });
-}
-
-/** First meaningful line of a note, without frontmatter or headings. */
-function summarizeNoteExcerpt(text: string): string {
-  const body = text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
-  for (const rawLine of body.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (line.length === 0 || line.startsWith('#')) continue;
-    return line.length > 180 ? `${line.slice(0, 177)}...` : line;
-  }
-  return '';
-}
-
-/** Obsidian's command registry is not part of the public `App` type. */
-interface AppWithCommands {
-  commands?: { executeCommandById(id: string): boolean };
 }
 
 /** Confirmation gate for model-authored markdown that would enter a note. */
@@ -200,10 +225,11 @@ export class MessageRenderer {
    * Per-element streaming buffers. Closed markdown blocks are rendered once and
    * kept; only the open tail is re-rendered on each delta.
    */
-  private streamingBuffers = new WeakMap<
-    HTMLElement,
-    { committedEl: HTMLElement; tailEl: HTMLElement; committedText: string }
-  >();
+  private streamingBuffers = new WeakMap<HTMLElement, StreamingBuffer>();
+  /** Off-DOM layout predictions for the streaming tail. */
+  private readonly textLayout = createTextLayoutEngine();
+  /** Last content width read per streaming block, with the time it was read. */
+  private readonly streamingWidths = new WeakMap<HTMLElement, { width: number; at: number }>();
   private disposed = false;
   private floatingToolbar: FloatingSelectionToolbar | null = null;
   /** Sliding window over the stored (history) message nodes. */
@@ -1535,42 +1561,14 @@ export class MessageRenderer {
 
   /** Host services a generated widget may call; every capability degrades when absent. */
   private getUiRenderHost(): UiRenderHost {
-    this.uiRenderHost ??= {
+    this.uiRenderHost ??= createVaultUiRenderHost(this.app, {
+      sourcePath: '',
+      component: this.component,
       renderMarkdown: (el, markdown) => {
         void this.renderMarkdownContent(el, markdown);
       },
-      openNote: (linktext) => this.openUiNote(linktext),
-      noteExists: (linktext) => this.app.metadataCache.getFirstLinkpathDest(linktext, '') !== null,
-      openTag: (tag) => this.openUiTag(tag),
-      describeNote: (linktext) => this.describeUiNote(linktext),
-      resolveResource: (path) => this.resolveUiResource(path),
-    };
+    });
     return this.uiRenderHost;
-  }
-
-  private openUiNote(linktext: string): void {
-    void this.app.workspace.openLinkText(linktext, '', false);
-  }
-
-  /** Opens Obsidian's search view for a tag; degrades silently if the API moves. */
-  private openUiTag(tag: string): void {
-    const normalized = tag.trim().replace(/^#/, '');
-    if (normalized.length === 0) return;
-    const query = `tag:#${normalized}`;
-
-    const existing = this.app.workspace.getLeavesOfType('search')[0];
-    if (existing !== undefined) {
-      const view = existing.view as { setQuery?: (value: string) => void };
-      view.setQuery?.(query);
-      void this.app.workspace.revealLeaf(existing);
-      return;
-    }
-
-    const commands = (this.app as App & AppWithCommands).commands;
-    void commands?.executeCommandById('global-search:open');
-    const opened = this.app.workspace.getLeavesOfType('search')[0];
-    const view = opened?.view as { setQuery?: (value: string) => void };
-    view?.setQuery?.(query);
   }
 
   private confirmInsertUiMarkdown(markdown: string): void {
@@ -1585,36 +1583,20 @@ export class MessageRenderer {
     }).open();
   }
 
-  private async describeUiNote(linktext: string): Promise<UiNoteSummary | null> {
-    const file = this.app.metadataCache.getFirstLinkpathDest(linktext, '');
-    if (file === null) return null;
-    const cache = this.app.metadataCache.getFileCache(file);
-    const tags = (cache?.tags ?? [])
-      .map((tag) => tag.tag)
-      .filter((tag, index, all) => tag.length > 0 && all.indexOf(tag) === index)
-      .slice(0, 8);
-    let excerpt: string;
-    try {
-      excerpt = summarizeNoteExcerpt(await this.app.vault.cachedRead(file));
-    } catch {
-      excerpt = '';
+  /**
+   * Puts this block's program into the active note as a fenced interface.
+   * Insertion is a plain editor edit, so the user can undo it immediately.
+   */
+  private embedUiProgram(program: string): void {
+    const fence = buildUiEmbedFence(program);
+    if (fence.length === 0) return;
+    const editor = getActiveMarkdownEditor(this.app);
+    if (editor === null) {
+      new Notice(t('settings.uiInsertToNote.noActiveNote'));
+      return;
     }
-    return { title: file.basename, path: file.path, excerpt, tags };
-  }
-
-  private resolveUiResource(path: string): string | null {
-    const trimmed = path.trim();
-    if (trimmed.length === 0) return null;
-    // Vault-relative paths only: no schemes, no absolute paths, no traversal.
-    if (trimmed.includes('..')
-      || trimmed.startsWith('/')
-      || trimmed.startsWith('\\')
-      || /^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
-      return null;
-    }
-    const file = this.app.metadataCache.getFirstLinkpathDest(trimmed, '');
-    if (file === null) return null;
-    return this.app.vault.adapter.getResourcePath(file.path);
+    const text = buildUiEmbedInsertion(editor.getLine(editor.getCursor().line) ?? '', fence);
+    insertAtCursor(this.app, text, { customNotice: t('uiBlock.embedInserted') });
   }
 
   private buildUiCallbacks(): UiBlockCallbacks | undefined {
@@ -1624,8 +1606,11 @@ export class MessageRenderer {
       onContinueConversation: (prompt, context) => host.continueConversation(prompt, context),
       onOpenUrl: (url) => host.openExternal(url),
       onCopy: (text) => host.copyText(text),
-      onOpenNote: (linktext) => this.openUiNote(linktext),
+      onOpenNote: (linktext) => {
+        void this.app.workspace.openLinkText(linktext, '', false);
+      },
       onInsertToNote: (markdown) => this.confirmInsertUiMarkdown(markdown),
+      onEmbedToNote: (program) => this.embedUiProgram(program),
     };
   }
 
@@ -1752,6 +1737,10 @@ export class MessageRenderer {
    * Streaming path: keeps every closed block's DOM and only re-renders the open
    * tail. A full re-render of the accumulated message on every delta was O(n²)
    * and was re-wrapping every code block and listener each frame.
+   *
+   * The tail itself is only re-parsed when it stops being plain prose: while it
+   * is one paragraph of text without Markdown syntax, the delta is appended to
+   * that paragraph's text node, which is the same DOM without a Markdown pass.
    */
   private async renderStreamingMarkdown(
     el: HTMLElement,
@@ -1763,12 +1752,13 @@ export class MessageRenderer {
       el.empty();
       const committedEl = el.createDiv({ cls: 'claudian-plus-stream-committed' });
       const tailEl = el.createDiv({ cls: 'claudian-plus-stream-tail' });
-      buffer = { committedEl, tailEl, committedText: '' };
+      buffer = this.createStreamingBuffer(committedEl, tailEl);
       this.streamingBuffers.set(el, buffer);
     }
 
     const boundary = findCommitBoundary(markdown);
-    if (boundary > buffer.committedText.length) {
+    const committed = boundary > buffer.committedText.length;
+    if (committed) {
       const pending = markdown.slice(buffer.committedText.length, boundary);
       const scratch = createDiv({ cls: 'claudian-plus-stream-chunk' });
       await this.renderMarkdownContent(scratch, pending, {
@@ -1784,12 +1774,127 @@ export class MessageRenderer {
     const tail = markdown.slice(buffer.committedText.length);
     if (tail.trim().length === 0) {
       buffer.tailEl.empty();
+      buffer.tailParagraph = null;
+      buffer.tailText = '';
+      buffer.tailLines = 0;
+      buffer.visualChange = committed;
       return;
     }
-    await this.renderMarkdownContent(buffer.tailEl, tail, {
-      deferMath: options.deferMath,
-      component: options.component,
-    });
+
+    if (!this.appendPlainTailDelta(buffer, tail)) {
+      await this.renderMarkdownContent(buffer.tailEl, tail, {
+        deferMath: options.deferMath,
+        component: options.component,
+      });
+      buffer.tailText = tail;
+      buffer.tailParagraph = this.singleParagraphOf(buffer.tailEl, tail);
+    }
+
+    this.recordTailGeometry(el, buffer, tail, committed);
+  }
+
+  private createStreamingBuffer(committedEl: HTMLElement, tailEl: HTMLElement): StreamingBuffer {
+    return {
+      committedEl,
+      tailEl,
+      committedText: '',
+      tailParagraph: null,
+      tailText: '',
+      tailLines: null,
+      visualChange: true,
+    };
+  }
+
+  /** True when `streamingPlainTextFastPath` is on (default). */
+  private isPlainStreamingEnabled(): boolean {
+    return this.plugin.settings?.streamingPlainTextFastPath !== false;
+  }
+
+  /**
+   * Appends the new delta to the tail's paragraph when that is provably the
+   * same DOM a Markdown pass would produce. Returns false to fall back.
+   */
+  private appendPlainTailDelta(buffer: StreamingBuffer, tail: string): boolean {
+    if (!this.isPlainStreamingEnabled()) return false;
+    const paragraph = buffer.tailParagraph;
+    if (paragraph === null || paragraph.isConnected === false) return false;
+    // The paragraph must still be the tail's only child: anything else means the
+    // previous render produced a block structure the fast path cannot extend.
+    if (buffer.tailEl.children.length !== 1) return false;
+    if (!tail.startsWith(buffer.tailText)) return false;
+    const delta = tail.slice(buffer.tailText.length);
+    if (!canAppendAsText(buffer.tailText, delta)) return false;
+    paragraph.appendText(delta);
+    buffer.tailText = tail;
+    return true;
+  }
+
+  /**
+   * The single paragraph a plain tail rendered into, or null.
+   *
+   * Two things must hold before appended text can produce the same DOM: the
+   * paragraph is the tail's only child (no list, table, or code block around
+   * it), and its text is exactly the source. Renderers normalise some whitespace
+   * — a trailing space, for instance — so verifying once here keeps the fast
+   * path from silently swallowing a character.
+   */
+  private singleParagraphOf(tailEl: HTMLElement, tail: string): HTMLElement | null {
+    const children = tailEl.children;
+    if (children.length !== 1) return null;
+    const only = children[0] as HTMLElement | undefined;
+    if (only === undefined || only.tagName !== 'P') return null;
+    return only.textContent === tail ? only : null;
+  }
+
+  /** Predicts the tail's line count and records whether the block grew. */
+  private recordTailGeometry(
+    el: HTMLElement,
+    buffer: StreamingBuffer,
+    tail: string,
+    committed: boolean,
+  ): void {
+    const lines = this.predictTailLines(el, tail);
+    // Unknown geometry must never suppress a scroll: fall back to the previous
+    // unconditional behaviour instead of guessing.
+    buffer.visualChange = committed
+      || lines === null
+      || buffer.tailLines === null
+      || lines !== buffer.tailLines;
+    buffer.tailLines = lines;
+  }
+
+  private predictTailLines(el: HTMLElement, tail: string): number | null {
+    if (tail.length === 0) return 0;
+    if (tail.length > MAX_LAYOUT_PREDICTION_CHARS) return null;
+    const style = resolveTextStyle(el);
+    if (style === null) return null;
+    const width = this.contentWidthOf(el);
+    if (!(width > 0)) return null;
+    const prediction = this.textLayout.predict(tail, style, width);
+    return prediction === null ? null : prediction.lineCount;
+  }
+
+  /** Content width for predictions, re-read at most every {@link CONTENT_WIDTH_CACHE_MS}. */
+  private contentWidthOf(el: HTMLElement): number {
+    const now = performance.now();
+    const cached = this.streamingWidths.get(el);
+    if (cached !== undefined && now - cached.at < CONTENT_WIDTH_CACHE_MS) return cached.width;
+    const width = el.clientWidth ?? 0;
+    this.streamingWidths.set(el, { width, at: now });
+    return width;
+  }
+
+  /**
+   * Reports whether the last streaming update changed the block's height and
+   * clears the flag. Returns true for unknown elements so callers keep the
+   * unconditional follow-the-stream behaviour.
+   */
+  consumeStreamingVisualChange(el: HTMLElement): boolean {
+    const buffer = this.streamingBuffers.get(el);
+    if (buffer === undefined) return true;
+    const changed = buffer.visualChange;
+    buffer.visualChange = false;
+    return changed;
   }
 
   // ============================================

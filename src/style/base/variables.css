@@ -1,6 +1,9 @@
-/* Brand & semantic color tokens & design system variables */
+/* Brand & semantic color tokens & design system variables.
+   `.claudian-plus-ui-embed` lets a generated interface rendered inside a note
+   read the same ladder without inheriting the chat container's layout rules. */
 .claudian-plus-container,
-.claudian-plus-settings {
+.claudian-plus-settings,
+.claudian-plus-ui-embed {
   /* Provider Brands */
   --claudian-plus-brand: #D97757;
   --claudian-plus-brand-rgb: 217, 119, 87;

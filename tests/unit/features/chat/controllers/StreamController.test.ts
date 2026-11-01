@@ -139,6 +139,7 @@ function createMockDeps(): StreamControllerDeps {
     renderer: {
       renderContent: jest.fn(),
       addTextCopyButton: jest.fn(),
+      consumeStreamingVisualChange: jest.fn().mockReturnValue(true),
     } as any,
     subagentManager: {
       isAsyncTask: jest.fn().mockReturnValue(false),
@@ -1366,6 +1367,32 @@ describe('StreamController - Text Content', () => {
       await controller.handleStreamChunk({ type: 'text', content: 'Hello' }, msg);
 
       expect(messagesEl.scrollTop).toBe(0);
+    });
+
+    it('skips the follow-up scroll when the streamed block did not change height', async () => {
+      const scrollSpy = jest.spyOn(controller as any, 'scrollToBottom');
+      deps.state.currentTextEl = createMockEl();
+      (deps.renderer.consumeStreamingVisualChange as jest.Mock).mockReturnValue(false);
+
+      await controller.appendText('Hello');
+      jest.advanceTimersByTime(16);
+      await Promise.resolve();
+
+      expect(deps.renderer.renderContent).toHaveBeenCalledTimes(1);
+      expect(deps.renderer.consumeStreamingVisualChange).toHaveBeenCalledWith(deps.state.currentTextEl);
+      expect(scrollSpy).not.toHaveBeenCalled();
+    });
+
+    it('follows the stream when the block changed height', async () => {
+      const scrollSpy = jest.spyOn(controller as any, 'scrollToBottom');
+      deps.state.currentTextEl = createMockEl();
+      (deps.renderer.consumeStreamingVisualChange as jest.Mock).mockReturnValue(true);
+
+      await controller.appendText('Hello');
+      jest.advanceTimersByTime(16);
+      await Promise.resolve();
+
+      expect(scrollSpy).toHaveBeenCalled();
     });
   });
 

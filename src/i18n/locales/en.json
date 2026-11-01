@@ -127,7 +127,9 @@
     "copy": "Copy program",
     "reset": "Reset state",
     "expand": "Expand",
-    "close": "Close"
+    "close": "Close",
+    "embed": "Insert into note",
+    "embedInserted": "Interface inserted into the note"
   },
   "settings": {
     "title": "Claudian Plus Settings",
@@ -448,6 +450,10 @@
     "deferMathRenderingDuringStreaming": {
       "name": "Defer math rendering during streaming",
       "desc": "Show raw LaTeX while responses stream, then render math once when each text block completes."
+    },
+    "streamingPlainTextFastPath": {
+      "name": "Append plain text while streaming",
+      "desc": "While a streamed block is plain prose, append new text without re-parsing the block as Markdown. Turn off to force a full Markdown pass on every update."
     },
     "generativeUi": {
       "name": "Intelligent UI answers",

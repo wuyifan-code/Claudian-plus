@@ -34,5 +34,15 @@ The following features were ported from ZCode and adapted to this codebase:
 Apache-2.0 requires retaining this attribution; see
 https://www.apache.org/licenses/LICENSE-2.0 for the license text.
 
+This product includes a vendored copy of the Pretext text-layout engine, taken
+from the `obsidian-pretext` plugin (https://github.com/wuyifan-code/
+Obsidian-pretext), Copyright (c) wuyifan-code, licensed under the MIT License.
+
+- src/utils/textLayout/vendor/ (analysis, measurement, bidi, line-break, layout)
+
+The vendored engine is used only inside this plugin's own UI: the chat panel's
+streaming renderer and generated interfaces embedded in notes. See
+src/utils/textLayout/NOTICE.md for provenance and the local changes.
+
 Codian is itself derived from Claudian by Yishen Tu, licensed under the MIT
 License. See LICENSE for the terms governing this distribution.

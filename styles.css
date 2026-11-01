@@ -5,9 +5,12 @@
 /* ============================================
    base/variables.css
    ============================================ */
-/* Brand & semantic color tokens & design system variables */
+/* Brand & semantic color tokens & design system variables.
+   `.claudian-plus-ui-embed` lets a generated interface rendered inside a note
+   read the same ladder without inheriting the chat container's layout rules. */
 .claudian-plus-container,
-.claudian-plus-settings {
+.claudian-plus-settings,
+.claudian-plus-ui-embed {
   /* Provider Brands */
   --claudian-plus-brand: #D97757;
   --claudian-plus-brand-rgb: 217, 119, 87;
@@ -140,9 +143,12 @@ body.theme-light .claudian-plus-settings,
    ============================================ */
 /* Semantic tokens mapped to Obsidian theme variables.
    Modules must reference these instead of hard-coded values, so community
-   themes re-skin the plugin automatically. Scoped like variables.css. */
+   themes re-skin the plugin automatically. Scoped like variables.css.
+   `.claudian-plus-ui-embed` is the token scope for a generated interface
+   rendered inside a note, where the chat container does not exist. */
 .claudian-plus-container,
-.claudian-plus-settings {
+.claudian-plus-settings,
+.claudian-plus-ui-embed {
   /* Surfaces */
   --claudian-plus-surface-primary: var(--background-primary);
   --claudian-plus-surface-secondary: var(--background-secondary);
@@ -1483,6 +1489,10 @@ button.claudian-plus-tab-badge-active,
   width: 48px;
   pointer-events: none;
   transition: opacity 150ms ease-out, transform 150ms ease-out;
+  /* Obsidian raises a native aria-label tooltip on any labelled element. The
+     ticks keep aria-label for screen readers and render their own preview
+     card, so the native one is pure, differently themed duplication. */
+  --no-tooltip: true;
 }
 
 .claudian-plus-turn-nav-right {
@@ -3960,6 +3970,26 @@ button.claudian-plus-ui-expanded-close {
   }
 
   .claudian-plus-ui-toolbar { transition: none; }
+}
+
+/* Note embed. The token scope sits on the wrapper; the block keeps the chat
+   geometry (relative positioning for the toolbar, inline-size for container
+   queries) so an embedded interface measures the note width, not the window. */
+.claudian-plus-ui-embed {
+  display: block;
+  margin: var(--claudian-plus-ui-space-sm) 0;
+  font-family: var(--font-interface);
+}
+
+/* An embed builds at idle time so a note with many interfaces still paints
+   first; the reserved height keeps the note from reflowing when the real block
+   replaces the placeholder. NoteUiEmbed writes the reserve per block. */
+.claudian-plus-ui-embed.is-pending {
+  min-height: var(--claudian-plus-ui-embed-reserve, 0px);
+}
+
+.claudian-plus-ui-embed > .claudian-plus-ui-block {
+  margin: 0;
 }
 
 .claudian-plus-ui {

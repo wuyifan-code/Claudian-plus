@@ -109,3 +109,6 @@ CLAUDE.local.md
 # session-local runtime dirs
 .jupyter-runtime/
 .zcode/
+
+# meow-memory database (workspace-local; deleting it is unrecoverable)
+.dsh-meow/

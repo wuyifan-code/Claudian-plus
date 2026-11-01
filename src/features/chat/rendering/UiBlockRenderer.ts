@@ -41,6 +41,8 @@ export interface UiBlockCallbacks {
   onOpenNote?(linktext: string): void;
   /** `@InsertToNote`: confirm, then insert model-authored markdown into a note. */
   onInsertToNote?(markdown: string): void;
+  /** Toolbar action: insert this program as a `claudian-ui` fence in the active note. */
+  onEmbedToNote?(program: string): void;
 }
 
 export interface UiBlockOptions {
@@ -227,6 +229,15 @@ function createBlockToolbar(container: HTMLElement, slot: ContainerSlot): HTMLEl
     if (slot.root === null) return;
     openExpandedPreview(container, slot.root);
   });
+  // Only hosts that can write to a note offer the embed action; an embedded
+  // block inside a note therefore keeps the three core buttons.
+  if (slot.inputs?.options.callbacks?.onEmbedToNote !== undefined) {
+    addButton('file-plus', t('uiBlock.embed'), () => {
+      const inputs = slot.inputs;
+      if (inputs === null) return;
+      inputs.options.callbacks?.onEmbedToNote?.(inputs.source);
+    });
+  }
   return toolbar;
 }
 

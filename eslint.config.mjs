@@ -59,7 +59,14 @@ const stagedObsidianRules = {
 
 export default defineConfig([
   {
-    ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'main.js'],
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      'coverage/**',
+      'main.js',
+      // Vendored engine code, copied as-is; see src/utils/textLayout/NOTICE.md.
+      'src/utils/textLayout/vendor/**',
+    ],
   },
   js.configs.recommended,
   {

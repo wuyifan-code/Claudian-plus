@@ -127,7 +127,9 @@
     "copy": "複製程式",
     "reset": "重設狀態",
     "expand": "放大檢視",
-    "close": "關閉"
+    "close": "關閉",
+    "embed": "插入到筆記",
+    "embedInserted": "已把介面插入到筆記"
   },
   "settings": {
     "title": "Claudian Plus 設定",
@@ -448,6 +450,10 @@
     "deferMathRenderingDuringStreaming": {
       "name": "串流傳輸時延遲渲染數學公式",
       "desc": "回應串流傳輸時顯示原始 LaTeX，並在每個文字區塊完成後只渲染一次數學公式。"
+    },
+    "streamingPlainTextFastPath": {
+      "name": "串流時直接追加純文字",
+      "desc": "當串流文字區塊是純文字段落時，直接追加新文字而不再把整個區塊重新解析成 Markdown。關閉後每次更新都會走完整 Markdown 渲染。"
     },
     "generativeUi": {
       "name": "智慧介面回答",

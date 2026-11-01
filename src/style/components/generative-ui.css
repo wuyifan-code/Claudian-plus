@@ -173,6 +173,26 @@ button.claudian-plus-ui-expanded-close {
   .claudian-plus-ui-toolbar { transition: none; }
 }
 
+/* Note embed. The token scope sits on the wrapper; the block keeps the chat
+   geometry (relative positioning for the toolbar, inline-size for container
+   queries) so an embedded interface measures the note width, not the window. */
+.claudian-plus-ui-embed {
+  display: block;
+  margin: var(--claudian-plus-ui-space-sm) 0;
+  font-family: var(--font-interface);
+}
+
+/* An embed builds at idle time so a note with many interfaces still paints
+   first; the reserved height keeps the note from reflowing when the real block
+   replaces the placeholder. NoteUiEmbed writes the reserve per block. */
+.claudian-plus-ui-embed.is-pending {
+  min-height: var(--claudian-plus-ui-embed-reserve, 0px);
+}
+
+.claudian-plus-ui-embed > .claudian-plus-ui-block {
+  margin: 0;
+}
+
 .claudian-plus-ui {
   display: flex;
   flex-direction: column;
