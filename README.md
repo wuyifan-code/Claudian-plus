@@ -18,254 +18,72 @@
   <img src="https://img.shields.io/badge/telemetry-none-262626?style=flat-square" alt="No telemetry">
 </p>
 
-<p align="center">
-  <strong>Your notes remember. Now your AI does too.</strong><br>
-  Seven coding agents in one Obsidian vault, with a memory file you own.
-</p>
+Claudian Plus embeds provider-backed coding agents in your Obsidian sidebar. Codex is the default; Claude, Kimi, OpenCode, Pi, Antigravity and DeepSeek Harness run through the same conversation model. When a session ends, its decisions are distilled into `.claudian-plus/memory.md` — plain Markdown inside your vault that you can read, edit or delete.
 
-Claudian Plus embeds provider-backed coding agents directly into your Obsidian sidebar. Codex is the default; Claude, Kimi, OpenCode, Pi, Antigravity, and DeepSeek Harness plug into the same conversation model. When a session ends, its decisions do not evaporate — they are distilled into `.claudian-plus/memory.md`, a plain Markdown file inside your vault that you can read, edit, or delete.
+**3.2.4** — Rebuilt conversation rail, independent transcript padding sliders, and streaming that only re-renders the open block. [Changelog](CHANGELOG.md) · [All releases](https://github.com/wuyifan-code/Claudian-plus/releases)
 
 ---
 
-## 🐋 DeepSeek Harness
-
-DeepSeek Harness (`dsh`) is now a first-class provider, implemented directly against the official Harness HTTP Remote and WebSocket mux contracts rather than by adapting another agent's protocol.
-
-- **Sessions bind to native Harness history.** A conversation survives a plugin reload and resumes after the harness process restarts, because replay reads the harness's own session files instead of a copy.
-- **What streams is what the harness sends.** Text and reasoning streams, tool calls and results, one-shot tool approval, and an explicit Stop.
-- **Models come from the harness, not from a hardcoded list.** Refresh the native catalog in Settings and the picker lists the provider/model pairs Harness actually advertises, plus the reasoning efforts it declares. The native default keeps following the native default instead of pinning a model. Local title generation spends no model credits.
-- **One harness process per workspace.** Tabs claim separate native sessions against a single Web-profile process.
-- **Off by default, and quiet until asked.** Rendering provider settings never starts Harness. First launch can take tens of seconds.
-
-**Requirements:** the official npm CLI [`@deepseek-ai/dsh`](https://github.com/deepseek-ai/deepseek-harness) (`npm install -g @deepseek-ai/dsh`), with Node.js on `PATH`. The Desktop executable is not supported. In Settings, leave the CLI path empty to let discovery find the `dsh` shim, or point it at `dsh.cmd`/`dsh.ps1` or its JavaScript entry. Set `DSH_HOME` in the provider environment if your profiles live outside the default location.
-
-**What it deliberately does not do:** images, fork, rewind, steering, provider slash commands, shared MCP/skill management, and autonomous background subagents are not exposed. Unknown context capacity is reported as unknown rather than invented as a token count. The full boundary is in [`src/providers/dsh/README.md`](src/providers/dsh/README.md).
-
----
-
-## 🌟 What's New in V3.2.4
-
-**A navigation and reading release. The conversation rail is rebuilt, the transcript can breathe, and streaming stops re-parsing the whole answer on every frame.**
-
-### 1. The conversation navigator is rebuilt
-
-The old outline scraped the transcript into five declared kinds, of which only two were ever produced. The rail now models the conversation the way a reader does: one tick per question.
-
-- **One tick per question, with a stable identity.** Entries are keyed by message id, so a tick keeps its position, preview and focus while the answer below it streams.
-- **Hover is a peak, not a highlight.** The hovered tick scales to 2.6×, its two neighbours to 1.7× and 1.25×, everything else rests at 1×, with opacity stepping 1 / 0.86 / 0.72 / 0.58. Only the peak takes the body colour.
-- **The rail is virtualized.** Only ticks inside the rail viewport are mounted, so a conversation with a thousand questions costs the same DOM as one with ten.
-- **The active tick comes from the viewport**, resolved by binary search over measured row positions instead of a per-pixel scan.
-- **The preview card answers the question too.** It shows the question and the reply, and distinguishes a reply that is still streaming from one that produced no text.
-- **Jumping respects `prefers-reduced-motion`.**
-- Ported from ZCode's `ConversationTurnNavigator` (Apache-2.0) and re-expressed in plain DOM; attribution is recorded in `NOTICE`.
-
-Removed with it: the old extractor, its unused kind enum, the kind filter chips, and ~1.5k lines of tests for behaviour that no longer exists.
-
-### 2. Transcript padding is yours
-
-Settings → Appearance now has two sliders, **left** and **right**, 0–80 px in steps of 4, applied live.
-
-They are independent because the two sides are not symmetric: the navigator reserves a gutter on whichever side it sits, which left one margin visibly tighter than the other. The gutter is added **on top of** your inset rather than replacing it, so switching the rail's side — or hiding it — only shifts the text by the gutter itself.
-
-### 3. Streaming stops re-parsing the whole answer
-
-Each streaming frame used to empty the message, hand the entire accumulated markdown back to `MarkdownRenderer`, then re-wrap every code block and rebuild its buttons and listeners. Per frame, so a long answer cost time quadratic in its length.
-
-- **Closed blocks render once and keep their DOM.** Each 100 ms frame only re-renders the open tail, so per-frame work drops from O(whole message) to O(open block).
-- **The navigator no longer measures every message on each streaming refresh.** Only the last message can change height while a reply lands, so only that row is re-measured.
-
-### 4. Fixes
-
-- Rail ticks are `div role="button"` instead of `<button>`, so Obsidian's themed button background no longer wraps each tick in a capsule. Enter and Space still activate them.
-- The rail's slower streaming refresh interval now actually applies instead of silently falling back to the fast one.
-
----
-
-## 🌟 What's New in V3.2.2
-
-**A hardening release for the generated-UI layer, cold start, and plugin health.** Nothing below adds a feature surface; every item was found by measuring the shipped build.
-
-### 1. The generated-UI components are one design family now
-- **A timeline item without a timestamp no longer collapses.** Grid tracks are driven by a row attribute instead of by how many cells a row happened to emit, and the connector is drawn by a rail that stretches with the row. The same content that rendered one glyph per line in a 10px column (1064px tall) now renders at full width in 161px.
-- **Obsidian's element styles stop leaking into widgets.** The host styles `button`, `input`, `select` and `textarea` at a specificity that silently beat component classes: buttons were re-centred and repainted, text fields kept the host skin, and multi-line cards were pinned to the input height so their text spilled out of the border. Every button and form-control rule is element-qualified now, with a reset for the properties no component owns.
-- **One scale for radii, spacing, type and control height.** Title sizes collapse from five to three rendered steps — `md` and `lg` used to render at 20px and 19.8px, and `2xl` and `3xl` were identical — and a panel nested inside another panel degrades to a tint instead of drawing a second border.
-- **One markdown reading style.** `MarkdownRenderer.render()` does not add Obsidian's `.markdown-rendered` wrapper, so code blocks, tables, quotes and rules inside a widget had no reading polish at all. The answer body and the widget now share a single reading layer, and widget roots are excluded by class so a Table component never inherits markdown-table rules.
-- **The 361–479px sidebar tier exists.** Three- and four-column grids degrade to two, table headers may wrap, and badges may break — that width range previously had no rules at all.
-
-### 2. Faster cold start
-- The production bundle is **3.42 MiB instead of 3.68 MiB**, and median cold module evaluation drops from **286.8 ms to ~260–272 ms**. Two build settings did it: emitting UTF-8 instead of `\uXXXX` escapes for the CJK locale bundles, and targeting ES2022 — the minimum supported Obsidian already ships a newer Chromium.
-
-### 3. Plugin-health hardening
-- **No renderer storage.** Onboarding state and the per-install device key live in the plugin data file now. A device key left by an earlier build is adopted when it is unambiguous; settings that travelled between machines are left alone rather than guessed at.
-- **Zero production dependency advisories.** `@modelcontextprotocol/sdk` 1.32.2, `smol-toml` 1.9.1, `zod` 4.6.7 and the pinned `hono` override moved off the vulnerable ranges — `npm audit --omit=dev` reports none.
-- Promise rejections carry `Error` reasons, and a duplicated CSS declaration is gone.
-
-
-## 🌟 What's New in V3.2.1
-
-**A community-review compliance release.** The 3.2.0 listing failed one automated check; this release fixes it.
-
-- **No direct inline style writes in the generative-UI renderer.** All static styling now goes through CSS classes (`is-bordered`, `is-align-*`, `is-italic`, …) and dynamic values (gap, padding, colours) through Obsidian's `setCssProps`, clearing `obsidianmd/no-static-styles-assignment` for `src/features/chat/rendering/ui/components.ts`.
-- **The same rule now runs at error level in local CI**, so a future release cannot ship a flagged assignment unnoticed.
-
----
-
-## 🌟 What's New in V3.2.0
-
-**A feature release**, headlined by Intelligent UI: agents can now answer with interactive native-DOM interfaces instead of plain markdown.
-
-### 1. Intelligent UI (generative answers)
-- **Agents answer with real interfaces.** A provider may reply with a fenced ` ```claudian-ui ` program that renders as native Obsidian DOM — never an iframe, never `innerHTML` — with byte-for-byte transcript replay on every provider.
-- **A compact declarative language.** 54 components: layout (`Col`, `Row`, `Grid`, `Card`, …), text (rich `Markdown`, `Icon`, `Math`, `Progress`), data (sortable `Table`, multi-series `Chart`, `Sparkline`, clickable `Diagram` flows with edges), inputs (`Input`, `Slider`, `Select`, `Switch`, `TextArea`, `NumberStepper`, `DatePicker`, `ChoiceCards`, `Form`, …), structure (`Tabs`, `Accordion`, `Steps`, `Timeline`, `Callout`, `Stat`), learning (`Flashcard`, locally graded `Quiz`, `Checklist`), and Obsidian-native widgets (`NoteLink`, `NoteCard`, `Mermaid`, `Tag`, vault-relative `Image`). 24 pure `@functions` (`@Sum`, `@Round`, `@Each`, …) and 7 actions (`@Set`, `@Reset`, `@Toggle`, `@ToAssistant`, `@OpenUrl`, `@Copy`, `@OpenNote`) plus `Action([...])` sequences. `@ToAssistant` sends the widget's context back to the agent as the next turn.
-- **Forms submit once.** `Form` bundles every bound field into exactly one assistant turn; `Quiz` and `Checklist` grade or track progress locally without a model round-trip.
-- **Blocks polish themselves.** Settled blocks fade in once, early streaming frames show a skeleton instead of blank space, and a hover toolbar copies the program, resets widget state, or expands the interface. Generated blocks also appear in the conversation outline (`UI` markers).
-- **Widget state survives reloads and replay.** Slider positions, selections and checkboxes are persisted per conversation (16 KiB per block, 64 KiB per session) under a message-content key, so history replay and a vault reload both find the same state.
-- **Writing into a note is opt-in.** `@InsertToNote` is off by default; when enabled in Settings → Appearance, every use still shows a preview and asks for confirmation before inserting at the cursor.
-- **Focus stays where you type.** Rebuilds triggered by your own keystrokes — including mid-stream re-renders — restore focus and caret on the exact control.
-- **One collapsed row per turn.** Every reasoning-and-tool run folds into a single `Execution details` line with an aggregate summary (tool count, names, failures, thinking time). Click to expand the full detail; no reading-mode toggle needed.
-- **Judge built in.** The language is injected into every provider's system prompt (toggle in Settings → Appearance), the renderer degrades unrenderable programs to text instead of blanking them, and a model that forgets the `claudian-ui` tag on its fence gets a content-sniffing fallback.
-
-### 2. Memory & consciousness V2
-- The memory subsystem is rewritten as a single V2 pipeline (dream jobs, repository maintenance, claim keys, export views) with no new dependencies. Injection budgets are now token-aware.
-
-### 3. DeepSeek Harness hardening
-- **Catalog refresh failures are visible and non-destructive.** A native catalog that returns nothing or fails per provider now reports diagnostics instead of silently wiping your saved models.
-- `scripts/sync-dsh-profiles.mjs` syncs model-provider config between DSH profiles (Desktop ⇄ web) without touching credentials.
-
-### 4. Developer experience
-- `npm run build` now deploys the built artifacts straight into a sibling vault checkout's `.obsidian/plugins/claudian-plus/` (no-op outside that layout), so build-to-test is one command.
-- Bundle budget raised to 3.85 MB for the new surface; the release build stays at 3.62 MiB.
-
----
-
-## 🌟 What's New in V3.1.1
-
-**A hardening release.** Every item below is a defect found by auditing the 3.1.0 tree, not a new feature.
-
-### 1. Fixes
-- **A prompt could land in the wrong conversation.** Sending to chat from the file menu, a command, or the quick-input modal while the tab limit was reached wrote the text into whatever live conversation was active. It now stops and explains the limit instead.
-- **Context usage was wrong for several providers.**
-  - Antigravity's Gemini models reported against a 200K denominator while running with a 1M window, so long sessions pinned the meter at 100%. The window is now resolved per model family (Gemini 1M; Claude- and GPT-OSS-hosted models stay conservative), and a model id it does not recognise keeps the safe default.
-  - The context-capacity selector was a no-op for Antigravity: the value was stored under one model-id spelling and looked up under another, so the percentage snapped back on the next turn. Both spellings now resolve to the same setting.
-  - A capacity you picked could not be undone. The meter menu gained **Provider's default**, which clears the override.
-- **"Obsidian tools unavailable" on every Claude turn.** When the MCP SDK is not present in a build, the failure was retried and reported once per message. It is now reported once and only re-attempted when you explicitly reload MCP servers.
-- **A console window flashed for `!` commands.** Local `!` command execution on Windows is now spawned hidden, like every other subprocess the plugin starts.
-- **Claude CLI detection could break entirely.** A permission error while probing the npm global prefix escaped as an exception and aborted CLI resolution; it now degrades to "not found there" and keeps searching.
-- **Multi-step turns rendered as many collapsed blocks.** A contiguous run of reasoning and tool calls is now one execution phase with a single summary line until expanded.
-- **Injected memory context appeared as your own words.** Reference material injected into the user turn for ACP-based providers (Kimi, OpenCode, Pi), DeepSeek, Antigravity and Codex no longer shows up when a conversation is replayed from history.
-- **The header mark borrowed Claude's colour.** The provider icon is now monochrome for every provider except Claude, which keeps its own brand colour.
-
-### 2. Notes
-- **#11 (terminal console flash) is still open.** 3.1.0's fix removed the plugin's own proxy-probe leak. The `where.exe` call seen in the bundle is not plugin code — it is inlined from the upstream Claude Agent SDK — and the remaining once-per-process flash needs one more data point from the reporter.
-- **Tab bar.** The tab strip stays hidden by design; the new-tab button remains visible and disabled at the limit, and the limit is explained in a notice.
-
----
-
-## 🌟 V3.1.0
-
-**DeepSeek Harness returns, rebuilt on the current architecture.** It is joined by three fixes reported on the issue tracker.
-
-### 1. DeepSeek Harness Provider
-- **Layered transport, not an adapter.** `DshHost` owns the `dsh serve` process, `DshSubprocess` owns its stdio, `DshNativeConnection` speaks the harness' WebSocket mux and HTTP remote contract, and `DshRemoteClient` puts a typed surface on both. Nothing is translated through another agent's protocol.
-- **Sessions bind to the harness' own history.** A reload, a tab switch, or a process restart resumes the same conversation with its full turn history.
-- **Models come from the harness.** The model list is read from the native catalog and refreshed on demand from the settings tab — no hard-coded snapshot — and reasoning effort is exposed per model.
-- **One process per workspace.** Every tab in the same vault shares one host, so a second conversation does not pay for a second cold start.
-- **Off until you turn it on.** Selecting the provider does not spawn anything by itself; a host starts on the first turn.
-- **Boundaries stated up front.** Images, fork, rewind, steering, slash commands, shared MCP/skill management, and background subagents are not exposed. Unknown context capacity is reported as unknown rather than invented as a token count.
-
-### 2. Fixes
-- **Caret colour in dark themes (#9).** The composer and the live-preview editor now inherit `--text-normal` for `caret-color`, so the caret inverts with the theme instead of staying dark.
-- **Scrambled history layout (#10).** Opening a session from the conversation list no longer creates a second tab for the same id, and consecutive Antigravity assistant messages merge into one content block instead of one block each.
-- **Terminal flash on every turn (#11).** Registry probing for the system proxy now passes `windowsHide`, removing the plugin's own per-turn console leak. A residual once-per-process flash is still tracked in #11 and is not fixed by this release.
-- **Codex fork on long threads.** Forking passes an inclusive `lastTurnId` checkpoint to `thread/fork` instead of forking the whole thread and rolling back, which paginated threads reject.
-
----
-
-## 🌟 V3.0.2
-
-In **V3.0.2**, we introduced major architectural improvements, network resilience, and modern design enhancements:
-
-### 1. Smart Tool Grouping & Auto-Collapse
-- **Eliminate Chat Stream Clutter**: When an agent executes a sequence of multiple tool operations (e.g. 10+ consecutive file reads, bash commands, diff edits), tool items no longer overwhelm the screen vertically.
-- **Dynamic Live Expansion with Auto-Collapse**: Tool calls expand smoothly during streaming execution so you can track live operations. Once the tool chain completes, the entire group automatically collapses into a compact ~28px summary bar.
-- **Full Status Overview**: The summary bar displays the total call count (e.g., `13 calls`), distinct tool names, and an aggregated health indicator (green for full success, red if any tool fails). One click re-expands the list to inspect parameter details and code diffs.
-- **Zero Overhead for Single Calls**: Single tool invocations remain displayed as clean, single-line items without unnecessary collapse nesting.
-
-### 2. Antigravity (Gemini) System Proxy Tunneling & Network Resilience
-- **Root-Cause Fix for Idle Disconnects (`WSAECONNRESET 10054`)**: Go CLIs (`agy.exe`) do not natively inspect the Windows Registry for Internet proxy settings. Under VPN / Clash TUN Fake-IP routing, idle TCP connections during extended multi-minute thinking turns were routinely severed by TUN idle timeouts after 4m 30s.
-- **Zero-Config Automatic Registry Proxy Detection**: Claudian Plus now features an integrated Windows Registry system proxy sniffer (`resolveSystemProxyEnvironment`) that silently injects `HTTP_PROXY` into the child process. The CLI automatically routes via loopback tunnels to your local proxy, providing bulletproof connection stability without manual user configuration.
-- **Official Brand Assets & Full Gemini Spectrum**: Shipped with official Antigravity SVG icons and comprehensive support for Gemini 3.1 Pro, 3.7 Flash, 3.8, and Thinking budget tuning.
-
-### 3. Modern Minimalist Stop Button
-- **Flagship AI Interface Parity**: Replaced the bulky, reddish rectangular Stop badge with a sleek, borderless circular stop button (`28px × 28px`) matching ChatGPT / DeepSeek design standards.
-- **Adaptive High-Contrast Dual Theme**: High-contrast white circle with a dark rounded square in dark mode; solid dark circle with a white rounded square in light mode. Features tactile micro-motion (`scale(1.06)` hover, `scale(0.94)` active press) with native `Stop generation (Esc)` tooltip.
-
-### 4. Layout & UI Polish
-- **Header Icon Alignment**: Corrected the vertical drift on the provider icon in the header, preventing visual clipping at the top edge of the window.
-- **About & Community Hub**: Integrated developer WeChat channel and issue feedback directly into the settings view.
-
----
-
-## 01 / Watch it work
-
-A 30-second animated overview of how the pieces fit together:
+## 01 / What it does
 
 <div align="center">
   <a href="docs/assets/claudian-plus-demo.mp4">
     <img src="docs/assets/claudian-plus-demo.gif" alt="Claudian Plus animated overview: vault context, local memory, and multiple agent providers" width="100%" style="border-radius: 8px; border: 1px solid #E6DFD5;">
   </a>
-  <p><em>Click for the full-quality 30s 720p version.</em></p>
+  <p><em>30-second overview. Click for the 720p video.</em></p>
 </div>
 
-### Three things worth noticing
+- **Context arrives as references.** `@note`, `@folder` and drag-and-drop resolve against the vault you already have open.
+- **Memory is a file, not a service.** `memory.md` sits in your file list next to your notes.
+- **A session survives a provider switch.** Each provider keeps its own history, so one conversation can move between Codex, Claude, Kimi, OpenCode, Antigravity and DeepSeek Harness.
 
-- **Context arrives as references, not pasted text.** `@note`, `@folder`, and drag-and-drop resolve against the vault you already have open.
-- **Memory lands in a file you can open.** No database, no sync service — just `memory.md` sitting in your file list next to your notes.
-- **The provider switches without the conversation breaking.** Each provider keeps its own session history, so a session can move between Codex, Claude, Kimi, OpenCode, Antigravity, and DeepSeek Harness.
-
----
-
-## 02 / Why it is different
-
-Most AI plugins treat conversation history as disposable text. Claudian Plus treats a session as a working record: context enters, decisions distill into memory, and the result stays searchable weeks later.
-
-| What you need | Typical AI extension | Claudian Plus |
+| What you need | A typical AI extension | Claudian Plus |
 | :--- | :--- | :--- |
-| **Continuity across sessions** | Erased when the window closes | Memory distilled into `memory.md`, injected into later prompts |
-| **Provider choice** | Locked to one vendor's web assumptions | Codex by default, plus Claude, Kimi, OpenCode, Pi, Antigravity, and DeepSeek Harness |
-| **Vault context** | Manual copy-paste into a chat box | `@note`, `@folder`, drag-and-drop, Canvas, frontmatter queries |
-| **Data sovereignty** | Sessions indexed on someone else's server | Every prompt, session, and memory stays under `.claudian-plus/` |
-| **Long-session focus** | A wall of tool calls and reasoning noise | Smart Tool Grouping & auto-collapse keeps the stream clean and readable |
+| **Continuity across sessions** | Erased when the window closes | Distilled into `memory.md` and injected into later prompts |
+| **Provider choice** | One vendor's model | Codex by default, plus six more over the same session |
+| **Data sovereignty** | Sessions indexed on someone else's server | Prompts, sessions and memory stay under `.claudian-plus/` |
 
 ---
 
-## 03 / What this is not
+## 02 / Generated answers
 
-- **Not a cloud service.** No telemetry or analytics code ships in this plugin. Network calls are made by the provider CLI you configure, from your machine.
-- **Not a chat window bolted onto a note app.** Your memory is a Markdown file in your vault, not a row in someone's database.
-- **Not a promise that every provider behaves the same.** Capabilities differ per provider and are declared explicitly, because the codebase is written so no feature can silently assume parity.
+An agent can answer with a fenced ` ```claudian-ui ` program that renders as native Obsidian DOM. No iframe, no `innerHTML`, and replay is byte-for-byte on every provider.
+
+- **54 components** across layout, text, data, inputs, structure, learning and Obsidian-native widgets — plus 24 pure `@functions` and 8 actions (`@Set`, `@Reset`, `@Toggle`, `@ToAssistant`, `@OpenUrl`, `@Copy`, `@OpenNote`, `@InsertToNote`).
+- **`Form` submits once.** Every bound field arrives as exactly one assistant turn; `Quiz` and `Checklist` grade and track progress locally, without a model round-trip.
+- **State persists.** Slider positions, selections and checkboxes survive a reload and a history replay — 16 KiB per block, 64 KiB per session.
+- **`@InsertToNote` is off by default.** When enabled, each use still shows a preview and asks for confirmation before writing at the cursor.
+- **Nothing disappears silently.** A program the renderer cannot handle degrades to text, and a fence missing the tag gets a content-sniffing fallback.
 
 ---
 
-## 04 / How memory actually works
+## 03 / Long sessions
 
-Conversations end; memory continues. The pipeline is deliberately boring — four steps, no timers, and nothing written behind your back.
+- **One rail tick per question.** The navigator is virtualized and keyed by message id, so ticks keep their position while the answer below them streams. Hover scales a peak: 2.6× on the hovered tick, 1.7× and 1.25× on its neighbours.
+- **Tool runs fold into one line.** Every contiguous reasoning-and-tool run becomes a single `Execution details` row with tool count, names, failures and thinking time.
+- **Transcript padding is yours.** Settings → Appearance has independent left and right sliders, 0–80 px in steps of 4, applied live.
+- **Streaming does not re-parse the answer.** Closed code blocks render once and keep their DOM; each 100 ms frame touches only the open tail.
+- **The stop button is a 28px circle** with a `Stop generation (Esc)` tooltip, in the corner where your eye already is.
+
+---
+
+## 04 / How memory works
 
 <p align="center">
-  <img src="docs/assets/memory-pipeline.svg" alt="Memory lifecycle: a turn ends and the gate opens after three exchanges; an auxiliary query distills the transcript under an 8,000 character input cap; new rules are staged for review; approved memory is injected into later prompts within a 1,500 character budget." width="100%">
+  <img src="docs/assets/memory-pipeline.svg" alt="Memory lifecycle: a turn ends and the gate opens after three exchanges; an auxiliary query distills the transcript under a 6,000 character input cap; new rules are staged for review; approved memory is injected into later prompts within a 1,500 character budget." width="100%">
 </p>
 
-- **It is gated on real usage, not on a stopwatch.** Distillation is evaluated when a turn completes, and only once a session has at least **3 exchanges**. A separate hourly check consolidates older logs when a full interval has passed, and startup consolidates anything accumulated while Obsidian was closed.
-- **Input is capped before the model sees it.** The transcript handed to the auxiliary query is truncated at **8,000 characters**, so distillation cost stays bounded on long sessions.
-- **Nothing is written silently.** Newly extracted preferences and decisions surface as a notice and wait in Settings for you to accept.
-- **Output is capped before it reaches your prompt.** Approved memory is injected within a **1,500 character** budget by default, split across a 350-character profile layer and a 500-character project layer. All three are adjustable in **Settings → Memory & Consciousness**.
-- **You can always pull the plug.** `Open memory file` shows you exactly what has been distilled, and the file is plain Markdown.
+- **Gated on real usage.** Distillation is evaluated when a turn completes, and only once a session has at least **3 exchanges**. An hourly check consolidates older logs, and startup consolidates anything accumulated while Obsidian was closed.
+- **Input is capped.** The transcript handed to the auxiliary query is truncated at **6,000 characters**, so cost stays bounded on long sessions.
+- **Nothing is written silently.** Extracted preferences and decisions surface as a notice and wait in Settings for you to accept.
+- **Output is capped.** Approved memory is injected within a **1,500 character** budget by default, adjustable in Settings → Memory & Consciousness.
+- **You can pull the plug.** `Open memory file` shows exactly what was distilled, and the file is plain Markdown.
 
-> **Memory is opt-in.** `memoryEnabled` defaults to on, but the consciousness and auto-memory switches — the ones that send a transcript to an auxiliary query — default to **off** on new installations, because distilled memory contains personal context. Turn them on in **Settings → Memory & Consciousness** when you want it.
+> **Memory is opt-in.** `memoryEnabled` defaults to on, but the switches that send a transcript to an auxiliary query default to **off** on new installations, because distilled memory contains personal context.
 
 ---
 
-## 05 / Providers and the dependency rule
+## 05 / Providers
 
 Three layers, one direction of dependency: vault context feeds a provider-neutral core, which dispatches to provider adaptors. Feature code depends on core contracts, never on provider internals.
 
@@ -273,68 +91,70 @@ Three layers, one direction of dependency: vault context feeds a provider-neutra
   <img src="docs/assets/architecture-diagram.svg" alt="Three layers: vault context, a provider-neutral core runtime holding Dreaming V3, the session bus and the vault guard, and provider adaptors with Codex as the default." width="100%">
 </p>
 
-- **Codex CLI — enabled by default.** Default model `gpt-5.6-sol`, with native streaming output over `codex app-server`.
-- **Claude Code — enabled by default.** Thinking-chain folding, permission modes, and native project history replay.
-- **Antigravity (Gemini) — opt in.** Deep integration with automatic system proxy tunneling, multi-model selection, and official brand assets.
-- **DeepSeek Harness — opt in.** Native HTTP Remote + WebSocket mux integration with durable history, provider-advertised models and reasoning efforts, one-shot tool approval, and one shared process per workspace. Needs Node.js on `PATH`; the Desktop build is not supported. Setup and the exact capability boundary live in [`src/providers/dsh/README.md`](src/providers/dsh/README.md).
-- **Kimi — opt in.** ACP integration with dynamic model and command discovery, per-tool approval dialogs, and multimodal image attachments.
-- **OpenCode — opt in.** ACP agent over a sandboxed sidecar process.
-- **Pi — opt in.** RPC-mode sidecar that runs on Node built-ins and a bundled TypeBox, so it still works when external tool dependencies are missing.
+| Provider | Access | Transport | Detail |
+| :--- | :--- | :--- | :--- |
+| **Codex CLI** | Enabled by default | `codex app-server` | Default model `gpt-5.6-sol`, native streaming |
+| **Claude Code** | Enabled by default | Claude Agent SDK | Thinking-chain folding, permission modes, project history |
+| **Antigravity (Gemini)** | Opt in | `agy` CLI | Registry proxy detection, multi-model, thinking budget |
+| **DeepSeek Harness** | Opt in | HTTP Remote + WebSocket mux | Needs Node.js on `PATH`; Desktop build unsupported |
+| **Kimi** | Opt in | ACP | Model and command discovery, per-tool approval, image attachments |
+| **OpenCode** | Opt in | ACP | Runs as a sandboxed sidecar process |
+| **Pi** | Opt in | RPC | Node built-ins plus a bundled TypeBox, so it survives missing tool dependencies |
+
+**DeepSeek Harness** is a first-class provider, implemented against the official Harness contracts rather than by adapting another agent's protocol. Sessions bind to the harness's own history, models come from the native catalog instead of a hardcoded list, and every tab in one vault shares a single process. It stays off until you send a turn, so rendering its settings never starts a process. Setup and the exact capability boundary are in [`src/providers/dsh/README.md`](src/providers/dsh/README.md).
+
+Capabilities differ per provider and are declared explicitly, because the codebase is written so no feature can silently assume parity.
 
 ---
 
 ## 06 / Installation
 
-### Method 1: Install from Release (Recommended)
+### Method 1: Install from a release (recommended)
 
-1. Download `main.js`, `manifest.json`, and `styles.css` from the [Latest Release (v3.0.2)](https://github.com/wuyifan-code/Claudian-plus/releases/latest).
-2. Create a folder named `.obsidian/plugins/claudian-plus/` inside your vault.
-3. Copy the three downloaded files into that folder.
-4. In Obsidian, go to **Settings → Community plugins**, refresh the installed list, and toggle **Claudian Plus** on.
+1. Download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/wuyifan-code/Claudian-plus/releases/latest).
+2. Create `.obsidian/plugins/claudian-plus/` inside your vault.
+3. Copy the three files into that folder.
+4. In Obsidian, open **Settings → Community plugins**, refresh the installed list, and toggle **Claudian Plus** on.
 
-> **Requirements:** Obsidian **1.11.4 or later**, desktop only. Claudian Plus communicates with local agent CLI processes and requires desktop filesystem access.
+> **Requirements:** Obsidian **1.11.4 or later**, desktop only. Claudian Plus talks to local agent CLI processes and needs filesystem access.
 
 ### Method 2: Build from source
 
-Requires **Node.js 24**, plus at least one provider CLI installed locally: [Codex](https://github.com/openai/codex), [Claude Code](https://claude.ai/claude-code), [Antigravity](https://github.com/google/antigravity), [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), [Kimi](https://github.com/MoonshotAI/kimi-cli), [OpenCode](https://opencode.ai/), or [Pi](https://github.com/badlogic/pi-mono).
+Requires **Node.js 24** and at least one provider CLI: [Codex](https://github.com/openai/codex), [Claude Code](https://claude.ai/claude-code), [Antigravity](https://github.com/google/antigravity), [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), [Kimi](https://github.com/MoonshotAI/kimi-cli), [OpenCode](https://opencode.ai/) or [Pi](https://github.com/badlogic/pi-mono).
 
 ```bash
-git clone https://github.com/wuyifan-code/Claudian-plus.git
-cd Claudian-plus
-
-npm ci
-npm run typecheck
-npm run build
+git clone https://github.com/wuyifan-code/Claudian-plus.git && cd Claudian-plus
+npm ci && npm run typecheck && npm run build
 ```
 
-*Tip: Set `OBSIDIAN_VAULT=D:\Obsidian\My Vault` in `.env.local` so `npm run build` copies the build output directly to your vault.*
+Set `OBSIDIAN_VAULT` in `.env.local` and `npm run build` copies the output straight into your vault. Full script list is in [09 / Development](#09--development).
 
 ---
 
-## 07 / Commands reference
+## 07 / Commands
 
 | Command | Purpose |
 | :--- | :--- |
 | `Open chat view` | Open the Claudian Plus sidebar workspace |
-| `Quick agent input` | Send a targeted instruction using current editor selection |
+| `Quick agent input` | Send a targeted instruction using the current editor selection |
 | `New tab` | Open a new session tab |
 | `New session (in current tab)` | Start a new conversation in the active tab |
 | `Close current tab` | Close the active session tab |
 | `Inline edit with AI` | Edit selected text in place |
 | `Summarize current note` | Produce a structured summary of the active note |
-| `Suggest tags for current note` | Suggest relevant tags based on note content |
+| `Suggest tags for current note` | Suggest tags from the note's content |
 | `Create MOC for topic` | Generate a Map of Content note for a topic |
 | `Open memory file` | Open the Markdown file distilled by Dreaming V3 |
 | `Cleanup expired short-term memories` | Remove expired short-term memory entries |
-| `Dream: consolidate short-term memories` | Manually trigger a memory consolidation pass |
+| `Dream: consolidate memories` | Run a memory consolidation pass now |
 | `Scan vault knowledge` | Rebuild the local knowledge index |
 | `Undo last canvas write` | Revert the most recent approved Canvas modification |
-| `Check provider CLI health` | Inspect provider CLIs for missing binaries, outdated versions, or configuration errors |
-| `Copy startup diagnostics` | Copy startup diagnostics for filing issues |
+| `Check provider CLI health` | Inspect provider CLIs for missing binaries, outdated versions or configuration errors |
+| `Copy startup diagnostics` | Copy startup diagnostics for filing an issue |
 
 ---
 
-## 08 / Privacy & Storage Layout
+## 08 / Privacy and storage
 
 Everything the plugin knows lives inside your vault:
 
@@ -343,64 +163,55 @@ Everything the plugin knows lives inside your vault:
 ├── .claudian-plus/
 │   ├── claudian-plus-settings.json    # Shared settings + provider configs
 │   ├── memory.md                      # Distilled memory injected into prompts
-│   └── sessions/
-│       └── *.meta.json                # Session metadata
+│   └── sessions/*.meta.json           # Session metadata
 ├── .claudian/                         # Legacy Claudian data, read-only migration
-└── .obsidian/plugins/claudian-plus/
-    ├── main.js
-    ├── manifest.json
-    └── styles.css
+└── .obsidian/plugins/claudian-plus/   # main.js, manifest.json, styles.css
 ```
 
-- **No telemetry.** There is zero analytics code under `src/`. Data leaves your machine only via the provider CLIs you configure.
-- **Data safety during migration.** Existing `.claudian/` directories are detected and migrated non-destructively; original files remain intact.
-- **Settings merge cleanly.** Provider settings are merged rather than clobbered, preserving existing configs across updates.
+- **No telemetry.** There is zero analytics code under `src/`. Data leaves your machine only through the provider CLIs you configure.
+- **Migration and updates are non-destructive.** An existing `.claudian/` directory is detected and copied, with the originals left intact; provider settings are merged rather than clobbered.
 
 ---
 
-## 09 / Development & Testing
+## 09 / Development
 
 ```bash
 npm run dev                  # Build CSS + start esbuild in watch mode
 npm run typecheck            # TypeScript type check
 npm run lint                 # ESLint checks
-npm run test                 # Run all unit and integration tests
-npm run test:watch           # Run tests in watch mode
-npm run test:coverage        # Generate test coverage report
+npm run test                 # Unit and integration tests
+npm run test:watch           # Re-run tests on change
+npm run test:coverage        # Coverage report
 npm run test:architecture    # Architecture boundary enforcement
 npm run check:performance    # Bundle size and startup performance check
 ```
 
 ---
 
-## 10 / Upstream Projects
+## 10 / Upstream projects
 
-Claudian Plus is built upon two upstream open-source projects:
+Claudian Plus is built on two upstream open-source projects.
 
 | Project | Author | License | Contribution |
 | :--- | :--- | :--- | :--- |
-| **[Claudian](https://github.com/YishenTu/claudian)** | [Yishen Tu](https://github.com/YishenTu) | MIT | Obsidian Agent workspace, provider abstraction, foundational session architecture |
-| **[Codian](https://github.com/BCS1037/codian)** | [BCS1037 / BCS](https://github.com/BCS1037) | AGPL-3.0 | Live Composer, file browser actions, unified skills management, provider settings |
+| **[Claudian](https://github.com/YishenTu/claudian)** | [Yishen Tu](https://github.com/YishenTu) | MIT | Obsidian agent workspace, provider abstraction, session architecture |
+| **[Codian](https://github.com/BCS1037/codian)** | [BCS1037 / BCS](https://github.com/BCS1037) | AGPL-3.0 | Live Composer, file browser actions, skills management, provider settings |
 
-*Original and Claudian-derived code is licensed under **MIT**; Codian-derived code retains **AGPL-3.0** obligations. See [LICENSE](LICENSE) and [NOTICE](NOTICE).*
+*Original and Claudian-derived code is **MIT**; Codian-derived code retains **AGPL-3.0** obligations. See [LICENSE](LICENSE) and [NOTICE](NOTICE).*
 
-### Community contributors
-
-Diagnostics that changed the implementation, credited where the fix landed:
+Community contributors, credited where the fix landed:
 
 | Contributor | Reported in | Contribution |
 | :--- | :--- | :--- |
-| **[Mofusigil](https://github.com/Mofusigil)** | [PR #5](https://github.com/wuyifan-code/Claudian-plus/pull/5) | Traced the Codex fork failure to `thread/rollback` being rejected for paginated threads, and verified the inclusive `lastTurnId` boundary against `thread_processor.rs` and `thread_rollout_truncation.rs`. Shipped in 3.1.0 as `5ac19e8e`. |
+| **[Mofusigil](https://github.com/Mofusigil)** | [PR #5](https://github.com/wuyifan-code/Claudian-plus/pull/5) | Traced the Codex fork failure to `thread/rollback` being rejected on paginated threads, and verified the inclusive `lastTurnId` boundary against `thread_processor.rs`. Shipped in 3.1.0 as `5ac19e8e`. |
 | **[miemiecaigou](https://github.com/miemiecaigou)** | [#9](https://github.com/wuyifan-code/Claudian-plus/issues/9), [#10](https://github.com/wuyifan-code/Claudian-plus/issues/10), [#11](https://github.com/wuyifan-code/Claudian-plus/issues/11), [#12](https://github.com/wuyifan-code/Claudian-plus/issues/12), [#13](https://github.com/wuyifan-code/Claudian-plus/issues/13) | Located the caret-colour specificity conflict, the duplicate-tab and split-block causes of the scrambled history layout, the cold-start console window, and the Antigravity usage-window normalisation path. |
 
 ---
 
-## 💡 Community & Follow
+## 11 / Community
 
-> **在递归中遇见更深的自己 (Discovering a deeper self within recursion)**
+> **在递归中遇见更深的自己** (Discovering a deeper self within recursion)
 
-If you encounter any issues, have questions, or want to explore feature ideas:
-
-- File an Issue: [GitHub Issues](https://github.com/wuyifan-code/Claudian-plus/issues)
-- WeChat Official Account: **「递归识海」**
-- Follow & Updates: [关注公众号：递归识海](https://mp.weixin.qq.com/s/m2AVQl2PdXERGmIrx4jiuA)
+- **Issues and feature ideas:** [GitHub Issues](https://github.com/wuyifan-code/Claudian-plus/issues)
+- **WeChat Official Account:** 「递归识海」
+- **Articles and updates:** [Follow 递归识海](https://mp.weixin.qq.com/s/m2AVQl2PdXERGmIrx4jiuA)

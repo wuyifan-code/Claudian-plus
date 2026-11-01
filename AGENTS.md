@@ -99,6 +99,7 @@ The feature layer depends on `core/` contracts, not provider internals. Provider
 - Preserve user data and provider-native files. Settings writers should merge with existing provider-owned data instead of clobbering it.
 - Put non-committed notes, handoff files, traces, and throwaway scripts in `.context/`.
 - Do not add new production dependencies without a clear need and an explicit tradeoff.
+- Release history lives in `CHANGELOG.md` and `CHANGELOG_ZH.md`. Both READMEs document current behaviour only, and must be edited in lockstep.
 
 ## TDD Workflow
 
