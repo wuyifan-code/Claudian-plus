@@ -1,8 +1,10 @@
 // @ts-nocheck
 // Vendored from Pretext (via obsidian-pretext by wuyifan-code, MIT).
 // See ../NOTICE.md for provenance and local changes.
-// Local changes: TypeScript file extension and extensionless ESM specifiers.
+// Local changes: TypeScript file extension, extensionless ESM specifiers, and
+// review-driven replacements of browser sniffing and direct style assignment.
 
+import { Platform } from 'obsidian';
 import { isCJK } from './analysis';
 let measureContext = null;
 const segmentMetricCaches = new Map();
@@ -47,7 +49,8 @@ export function getSegmentMetrics(seg, cache) {
 export function getEngineProfile() {
     if (cachedEngineProfile !== null)
         return cachedEngineProfile;
-    if (typeof navigator === 'undefined') {
+    const platform = typeof Platform === 'undefined' ? null : Platform;
+    if (!platform || typeof platform.isSafari !== 'boolean') {
         cachedEngineProfile = {
             lineFitEpsilon: 0.005,
             carryCJKAfterClosingQuote: false,
@@ -56,19 +59,8 @@ export function getEngineProfile() {
         };
         return cachedEngineProfile;
     }
-    const ua = navigator.userAgent;
-    const vendor = navigator.vendor;
-    const isSafari = vendor === 'Apple Computer, Inc.' &&
-        ua.includes('Safari/') &&
-        !ua.includes('Chrome/') &&
-        !ua.includes('Chromium/') &&
-        !ua.includes('CriOS/') &&
-        !ua.includes('FxiOS/') &&
-        !ua.includes('EdgiOS/');
-    const isChromium = ua.includes('Chrome/') ||
-        ua.includes('Chromium/') ||
-        ua.includes('CriOS/') ||
-        ua.includes('Edg/');
+    const isSafari = platform.isSafari;
+    const isChromium = !isSafari;
     cachedEngineProfile = {
         lineFitEpsilon: isSafari ? 1 / 64 : 0.005,
         carryCJKAfterClosingQuote: isChromium,
@@ -105,10 +97,12 @@ function getEmojiCorrection(font, fontSize) {
         typeof document !== 'undefined' &&
         document.body !== null) {
         const span = document.createElement('span');
-        span.style.font = font;
-        span.style.display = 'inline-block';
-        span.style.visibility = 'hidden';
-        span.style.position = 'absolute';
+        span.setCssProps({
+            font,
+            display: 'inline-block',
+            visibility: 'hidden',
+            position: 'absolute',
+        });
         span.textContent = '\u{1F600}';
         document.body.appendChild(span);
         const domW = span.getBoundingClientRect().width;
