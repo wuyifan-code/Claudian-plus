@@ -6,6 +6,14 @@ English | [简体中文](CHANGELOG_ZH.md)
 
 Releases before 3.0.2 live in the git tags and the Releases page.
 
+## [3.2.6] - 2026-11-02
+
+### Fixed
+
+- Community directory review of 3.2.5: the vendored text-layout engine no longer reads `navigator.userAgent` to pick its engine profile. It asks `Platform.isSafari`, so Safari keeps the same line-fitting profile and every other target keeps the Chromium one.
+- The engine's emoji probe positions its hidden span with `setCssProps` instead of assigning `style.*`, and the bidi lint directive now has a `--` description. These were the five review risks that failed the 3.2.5 release.
+- `npm run test` now includes a check that keeps the vendored layout code free of browser sniffing, direct style assignment, and undescribed lint directives.
+
 ## [3.2.5] - 2026-11-01
 
 ### Added

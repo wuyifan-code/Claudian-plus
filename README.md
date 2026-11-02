@@ -20,7 +20,7 @@
 
 Claudian Plus embeds provider-backed coding agents in your Obsidian sidebar. Codex is the default; Claude, Kimi, OpenCode, Pi, Antigravity and DeepSeek Harness run through the same conversation model. When a session ends, its decisions are distilled into `.claudian-plus/memory.md` — plain Markdown inside your vault that you can read, edit or delete.
 
-**3.2.5** — Generated interfaces now render inside notes, with their space reserved so the note does not jump; streaming appends plain prose instead of re-parsing the tail. [Changelog](CHANGELOG.md) · [All releases](https://github.com/wuyifan-code/Claudian-plus/releases)
+**3.2.6** — Fixes the community directory review findings from 3.2.5: the text-layout engine now reads Obsidian's `Platform` API instead of the user agent and styles its probe through `setCssProps`. Generated interfaces in notes are unchanged. [Changelog](CHANGELOG.md) · [All releases](https://github.com/wuyifan-code/Claudian-plus/releases)
 
 ---
 
