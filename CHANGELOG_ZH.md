@@ -6,6 +6,14 @@ Claudian Plus 的发布历史，自 3.0.2 起。[Releases 页面](https://github
 
 3.0.2 之前的历史保留在 git tag 与 Releases 页面。
 
+## [3.2.6] - 2026-11-02
+
+### 修复
+
+- 3.2.5 的社区目录审查：vendored 的排版引擎不再读取 `navigator.userAgent` 判断引擎类型，改为询问 `Platform.isSafari`。Safari 保持原来的行拟合参数，其余目标保持 Chromium 那一套。
+- 引擎的表情探测用 `setCssProps` 定位隐藏 span，不再直接给 `style.*` 赋值；bidi 的 lint 指令补上了 `--` 说明。社区目录把这两类问题连同上面的 navigator 用法一起记为 5 条风险，导致 3.2.5 未通过审查。
+- `npm run test` 新增一项检查，保证 vendored 排版代码里没有浏览器嗅探、直接样式赋值和缺少说明的 lint 指令。
+
 ## [3.2.5] - 2026-11-01
 
 ### 新增
