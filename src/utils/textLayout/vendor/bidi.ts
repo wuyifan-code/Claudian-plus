@@ -68,7 +68,7 @@ function computeBidiLevels(str) {
     const len = str.length;
     if (len === 0)
         return null;
-    // eslint-disable-next-line unicorn/no-new-array
+    // eslint-disable-next-line unicorn/no-new-array -- Preallocate a dense array whose length is known, then fill it by index.
     const types = new Array(len);
     let numBidi = 0;
     for (let i = 0; i < len; i++) {

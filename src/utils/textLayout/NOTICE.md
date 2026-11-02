@@ -17,7 +17,11 @@ Local changes, applied when copying:
 3. `// @ts-nocheck` header; the code is vendored as-is and is not re-typed.
    `eslint.config.mjs` ignores `src/utils/textLayout/vendor/**`.
 4. One header comment naming this notice.
+5. Community-directory review compliance: `measurement.ts` uses Obsidian's
+   `Platform.isSafari` instead of `navigator.userAgent`, and the emoji probe
+   sets its styles through `setCssProps`; `bidi.ts` documents its lint
+   directive. Behaviour on every Obsidian target is unchanged.
 
-Do not edit vendored files. Adapt instead in `../vendorBridge.ts`, which is the
-only module that calls into them and the only place that must change if the
-upstream engine API moves.
+Do not edit vendored files for other reasons. Adapt instead in
+`../vendorBridge.ts`, which is the only module that calls into them and the
+only place that must change if the upstream engine API moves.
