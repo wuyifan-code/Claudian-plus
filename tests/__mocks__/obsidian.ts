@@ -336,6 +336,7 @@ export class Menu {
 
   items: MockMenuItem[] = [];
   showAtMouseEvent = jest.fn();
+  showAtPosition = jest.fn();
 
   constructor() {
     Menu.instances.push(this);

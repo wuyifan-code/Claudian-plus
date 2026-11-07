@@ -1,4 +1,4 @@
-import { Notice, setIcon } from 'obsidian';
+import { setIcon } from 'obsidian';
 import * as os from 'os';
 import * as path from 'path';
 
@@ -19,6 +19,7 @@ import type {
   UsageInfo,
 } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
+import { feedbackBus } from '../../../shared/feedback/FeedbackBus';
 import { appendCheckIcon, appendMcpIcon, createProviderIconSvg } from '../../../shared/icons';
 import { filterValidPaths, findConflictingPath, isDuplicatePath, isValidDirectoryPath, validateDirectoryPath } from '../../../utils/externalContext';
 import { expandHomePath, normalizePathForFilesystem } from '../../../utils/path';
@@ -38,7 +39,7 @@ interface ElectronRemoteApi {
 
 function runToolbarAction(action: () => Promise<void>, failureMessage: string): void {
   void action().catch(() => {
-    new Notice(failureMessage);
+    feedbackBus.retryable('toolbar.action.failed', failureMessage, action);
   });
 }
 
@@ -1045,7 +1046,7 @@ export class ExternalContextSelector {
     // If invalid paths were removed, notify user and save updated list
     if (invalidPaths.length > 0) {
       const pathNames = invalidPaths.map(p => this.shortenPath(p)).join(', ');
-      new Notice(`Removed ${invalidPaths.length} invalid external context path(s): ${pathNames}`, 5000);
+      feedbackBus.info('external-context.removed-invalid', `Removed ${invalidPaths.length} invalid external context path(s): ${pathNames}`);
       this.onPersistenceChangeCallback?.([...this.persistentPaths]);
     }
   }
@@ -1057,7 +1058,7 @@ export class ExternalContextSelector {
     } else {
       // Validate path still exists before persisting
       if (!isValidDirectoryPath(path)) {
-        new Notice(`Cannot persist "${this.shortenPath(path)}" - directory no longer exists`, 4000);
+        feedbackBus.blocked('external-context.missing-dir', `Cannot persist "${this.shortenPath(path)}" - directory no longer exists`);
         return;
       }
       this.persistentPaths.add(path);
@@ -1226,14 +1227,14 @@ export class ExternalContextSelector {
 
         // Check for duplicate (normalized comparison for cross-platform support)
         if (isDuplicatePath(selectedPath, this.externalContextPaths)) {
-          new Notice('This folder is already added as an external context.', 3000);
+          feedbackBus.info('external-context.duplicate', 'This folder is already added as an external context.');
           return;
         }
 
         // Check for nested/overlapping paths
         const conflict = findConflictingPath(selectedPath, this.externalContextPaths);
         if (conflict) {
-          new Notice(this.formatConflictMessage(selectedPath, conflict), 5000);
+          feedbackBus.info('external-context.conflict', this.formatConflictMessage(selectedPath, conflict));
           return;
         }
 
@@ -1245,7 +1246,7 @@ export class ExternalContextSelector {
       }
     } catch {
       if (this.destroyed || contextGeneration !== this.contextGeneration) return;
-      new Notice('Unable to open folder picker.', 5000);
+      feedbackBus.blocked('external-context.picker.failed', 'Unable to open folder picker.');
     }
   }
 
@@ -1612,6 +1613,8 @@ export class ContextUsageMeter {
   private container: HTMLElement;
   private buttonEl: HTMLElement | null = null;
   private menuEl: HTMLElement | null = null;
+  private cardEl: HTMLElement | null = null;
+  private latestUsage: UsageInfo | null = null;
   private fillPath: SVGPathElement | null = null;
   private percentEl: HTMLElement | null = null;
   private circumference: number = 0;
@@ -1794,53 +1797,77 @@ export class ContextUsageMeter {
     });
     menu.addEventListener('click', (event: MouseEvent) => event.stopPropagation());
 
-    menu.createDiv({
-      cls: 'claudian-plus-context-meter-menu-title',
-      text: t('chat.contextCapacity.title'),
-    });
+    this.renderUsageInto(menu);
+    menu.createDiv({ cls: 'claudian-plus-context-card-divider' });
 
     const activeWindow = this.callbacks.getContextWindow();
     const isPinned = this.callbacks.hasOverride?.() ?? false;
-    for (const tokens of CONTEXT_CAPACITY_OPTIONS) {
-      const option = menu.createDiv({ cls: 'claudian-plus-context-meter-option' });
-      option.setAttribute('data-context-window', String(tokens));
-      option.setAttribute('role', 'menuitem');
-      if (isPinned && tokens === activeWindow) {
-        option.addClass('is-active');
-      }
-      option.createSpan({
-        cls: 'claudian-plus-context-meter-option-label',
-        text: formatContextCapacity(tokens),
-      });
-      option.addEventListener('click', (event: MouseEvent) => {
-        event.stopPropagation();
-        void this.selectCapacity(tokens);
-      });
-    }
 
-    // Clearing the pin is the only way back to the provider's own window; the
-    // presets alone made a mistaken choice permanent.
-    const defaultOption = menu.createDiv({
-      cls: 'claudian-plus-context-meter-option is-default',
-      attr: { 'data-context-window': 'default', role: 'menuitem' },
+    // One row instead of four: the presets and "provider default" are stops on
+    // the same slider, which is what keeps the whole popover short.
+    const capacityRow = menu.createDiv({ cls: 'claudian-plus-context-capacity-row' });
+    capacityRow.createSpan({
+      cls: 'claudian-plus-context-capacity-label',
+      text: t('chat.contextCapacity.title'),
+      attr: { title: t('chat.contextCapacity.hint') },
     });
-    if (!isPinned) {
-      defaultOption.addClass('is-active');
-    }
-    defaultOption.createSpan({
-      cls: 'claudian-plus-context-meter-option-label',
-      text: t('chat.contextCapacity.providerDefault'),
+
+    const pinnedIndex = isPinned ? CONTEXT_CAPACITY_OPTIONS.indexOf(activeWindow as 300_000 | 600_000 | 1_000_000) : -1;
+    const slider = capacityRow.createEl('input', {
+      cls: 'claudian-plus-context-capacity-slider',
+      attr: {
+        type: 'range',
+        min: '0',
+        max: String(CONTEXT_CAPACITY_OPTIONS.length),
+        step: '1',
+        'aria-label': t('chat.contextCapacity.title'),
+        'aria-description': t('chat.contextCapacity.hint'),
+      },
     });
-    defaultOption.addEventListener('click', (event: MouseEvent) => {
+    const initialIndex = pinnedIndex >= 0 ? pinnedIndex + 1 : 0;
+    slider.value = String(initialIndex);
+
+    const capacityValue = capacityRow.createSpan({
+      cls: 'claudian-plus-context-capacity-value',
+      text: this.capacityLabel(initialIndex),
+    });
+
+    const readIndex = (): number => {
+      const raw = Number(slider.value);
+      return Number.isFinite(raw) ? Math.min(CONTEXT_CAPACITY_OPTIONS.length, Math.max(0, raw)) : 0;
+    };
+    // A plain range input has no fill on its own; this variable paints the
+    // track up to the thumb so the control reads as "how much", at a glance.
+    const paint = (): void => {
+      const max = CONTEXT_CAPACITY_OPTIONS.length;
+      const percent = max > 0 ? (readIndex() / max) * 100 : 0;
+      slider.setCssProps({ '--fill': `${percent}%` });
+    };
+    paint();
+    slider.addEventListener('input', () => {
+      paint();
+      capacityValue.setText(this.capacityLabel(readIndex()));
+    });
+    // Commit on release: dragging must not persist a setting per pixel.
+    slider.addEventListener('change', (event: Event) => {
       event.stopPropagation();
-      void this.selectCapacity(null);
+      const index = readIndex();
+      void this.selectCapacity(index === 0 ? null : CONTEXT_CAPACITY_OPTIONS[index - 1]);
     });
 
-    menu.createDiv({ cls: 'claudian-plus-context-meter-menu-hint', text: t('chat.contextCapacity.hint') });
     this.menuEl = menu;
     this.container.addClass('is-open');
     this.buttonEl?.setAttribute('aria-expanded', 'true');
     this.addOutsideClickListener();
+  }
+
+  /** Position 0 is the provider's own window; 1..N are the presets. */
+  private capacityLabel(index: number): string {
+    if (index <= 0) {
+      return t('chat.contextCapacity.providerDefault');
+    }
+    const tokens = CONTEXT_CAPACITY_OPTIONS[index - 1];
+    return tokens ? formatContextCapacity(tokens) : t('chat.contextCapacity.providerDefault');
   }
 
   private async selectCapacity(tokens: number | null): Promise<void> {
@@ -1851,11 +1878,12 @@ export class ContextUsageMeter {
     try {
       await this.callbacks.onContextWindowChange(tokens);
     } catch {
-      new Notice(t('chat.contextCapacity.saveFailed'));
+      feedbackBus.retryable('contextCapacity.save.failed', t('chat.contextCapacity.saveFailed'), () => { void this.callbacks?.onContextWindowChange(tokens); });
     }
   }
 
   update(usage: UsageInfo | null): void {
+    this.latestUsage = usage;
     // The ring doubles as the capacity selector, so it stays mounted even with
     // no usage yet (providers such as dsh never report token counts). Only the
     // gauge is blanked; the menu remains reachable.
@@ -1884,16 +1912,66 @@ export class ContextUsageMeter {
     }
 
     // Set tooltip with detailed usage
-    let tooltip = `${this.formatTokens(usage.contextTokens)} / ${this.formatTokens(usage.contextWindow)}`;
-    if (usage.percentage > 80) {
-      tooltip += ' (Approaching limit, run `/compact` to continue)';
-    }
-    this.container.setAttribute('data-tooltip', tooltip);
   }
 
-  private formatTokens(tokens: number): string {
+  /**
+   * Usage block at the top of the capacity popover: what is in the window, then
+   * the capacity choices underneath. Providers that never report token counts
+   * (dsh) get an explanation instead of a blank bar.
+   */
+  private renderUsageInto(parent: HTMLElement): void {
+    const usage = this.latestUsage;
+    const block = parent.createDiv({ cls: 'claudian-plus-context-card' });
+
+    if (!usage || usage.contextTokens <= 0) {
+      block.createDiv({
+        cls: 'claudian-plus-context-card-unavailable',
+        text: t('chat.contextUsage.unavailable'),
+      });
+      return;
+    }
+
+    const used = usage.contextTokens;
+    const limit = usage.contextWindow;
+    const free = Math.max(0, limit - used);
+    const percent = Math.min(100, Math.max(0, usage.percentage));
+
+    const head = block.createDiv({ cls: 'claudian-plus-context-card-head' });
+    const title = head.createSpan({ cls: 'claudian-plus-context-card-title' });
+    title.appendText(`${t('chat.contextUsage.title')} `);
+    title.createSpan({ cls: 'claudian-plus-context-card-percent', text: `${percent}%` });
+    head.createSpan({
+      cls: 'claudian-plus-context-card-amount',
+      text: `~${this.formatCompactTokens(used)} / ${this.formatCompactTokens(limit)}`,
+    });
+
+    const bar = block.createDiv({ cls: 'claudian-plus-context-card-bar' });
+    bar.createDiv({ cls: 'claudian-plus-context-card-bar-used' })
+      .setCssProps({ width: `${percent}%` });
+
+    this.appendCardRow(block, 'used', t('chat.contextUsage.used'), `~${this.formatCompactTokens(used)}`);
+    this.appendCardRow(block, 'free', t('chat.contextUsage.free'), `~${this.formatCompactTokens(free)}`);
+
+    if (percent > 80) {
+      block.createDiv({ cls: 'claudian-plus-context-card-hint', text: t('chat.contextUsage.nearLimit') });
+    }
+  }
+
+  private appendCardRow(parent: HTMLElement, tone: 'used' | 'free', label: string, value: string): void {
+    const row = parent.createDiv({ cls: 'claudian-plus-context-card-row' });
+    row.createSpan({ cls: `claudian-plus-context-card-dot is-${tone}` });
+    row.createSpan({ cls: 'claudian-plus-context-card-label', text: label });
+    row.createSpan({ cls: 'claudian-plus-context-card-value', text: value });
+  }
+
+  /** `~656K` / `1M` — the same shape the card header uses. */
+  private formatCompactTokens(tokens: number): string {
+    if (tokens >= 1_000_000) {
+      const millions = tokens / 1_000_000;
+      return `${Number.isInteger(millions) ? millions : millions.toFixed(1)}M`;
+    }
     if (tokens >= 1000) {
-      return `${Math.round(tokens / 1000)}k`;
+      return `${Math.round(tokens / 1000)}K`;
     }
     return String(tokens);
   }
@@ -1914,7 +1992,6 @@ export class ContextUsageMeter {
     }
     this.percentEl?.setText('');
     this.container.removeClass('warning');
-    this.container.removeAttribute('data-tooltip');
   }
 }
 

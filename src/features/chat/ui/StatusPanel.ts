@@ -1,9 +1,10 @@
-import { Notice, setIcon } from 'obsidian';
+import { setIcon } from 'obsidian';
 
 import type { TodoItem } from '../../../core/tools/todo';
 import { getToolIcon } from '../../../core/tools/toolIcons';
 import { TOOL_TODO_WRITE } from '../../../core/tools/toolNames';
 import { t } from '../../../i18n/i18n';
+import { feedbackBus } from '../../../shared/feedback/FeedbackBus';
 import { renderTodoItems } from '../rendering/todoUtils';
 
 export interface PanelBashOutput {
@@ -475,7 +476,7 @@ export class StatusPanel {
     try {
       await navigator.clipboard.writeText(text);
     } catch {
-      new Notice(t('chat.bangBash.copyFailed'));
+      feedbackBus.retryable('bangBash.copy.failed', t('chat.bangBash.copyFailed'), () => this.copyLatestBashOutput());
     }
   }
 

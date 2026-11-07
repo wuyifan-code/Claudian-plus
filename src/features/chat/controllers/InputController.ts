@@ -1,4 +1,4 @@
-import { Notice, setIcon } from 'obsidian';
+import { setIcon } from 'obsidian';
 
 import {
   type BuiltInCommand,
@@ -33,6 +33,7 @@ import { TOOL_EXIT_PLAN_MODE } from '../../../core/tools/toolNames';
 import type { ApprovalDecision, ChatMessage, ExitPlanModeDecision, StreamChunk } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
 import { ResumeSessionDropdown } from '../../../shared/components/ResumeSessionDropdown';
+import { feedbackBus } from '../../../shared/feedback/FeedbackBus';
 import { InstructionModal } from '../../../shared/modals/InstructionConfirmModal';
 import type { BrowserSelectionContext } from '../../../utils/browser';
 import type { CanvasSelectionContext } from '../../../utils/canvas';
@@ -251,17 +252,17 @@ export class InputController {
       const result = await coordinator.handleExplicitCommand(message, { vaultId });
       if (result.handled) {
         if (result.action === 'remember' || result.action === 'correct') {
-          new Notice(t('settings.memory.saved'));
+          feedbackBus.success('memory.saved', t('settings.memory.saved'));
         } else if (result.action === 'forget') {
           if (result.unmatched) {
-            new Notice(t('settings.memory.alreadyEmpty'));
+            feedbackBus.info('memory.forget.empty', t('settings.memory.alreadyEmpty'));
           } else {
-            new Notice(result.removedCount === 1
+            feedbackBus.success('memory.forget.removed', result.removedCount === 1
               ? t('settings.memory.removed')
               : t('settings.memory.removedMultiple').replace('{count}', String(result.removedCount)));
           }
         } else if (result.action === 'list') {
-          new Notice(t('settings.memory.listCount').replace('{count}', String(result.total)));
+          feedbackBus.info('memory.list', t('settings.memory.listCount').replace('{count}', String(result.total)));
         }
       }
     } catch {
@@ -474,7 +475,7 @@ export class InputController {
     if (this.deps.ensureServiceInitialized) {
       const ready = await this.deps.ensureServiceInitialized();
       if (!ready) {
-        new Notice('Failed to initialize agent service. Please try again.');
+        feedbackBus.retryable('agent.init.failed', 'Failed to initialize agent service. Please try again.', () => this.sendMessage());
         this.restoreMessageToInput(this.createQueuedMessage(displayContent, turnRequest));
         this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
         this.activeStreamingAssistantMessage = null;
@@ -485,7 +486,7 @@ export class InputController {
 
     const agentService = this.getAgentService();
     if (!agentService) {
-      new Notice('Agent service not available. Please reload the plugin.');
+      feedbackBus.blocked('agent.service.missing', 'Agent service not available. Please reload the plugin.');
       this.restoreMessageToInput(this.createQueuedMessage(displayContent, turnRequest));
       this.rollbackFailedTurn(messagesBeforeTurn, hadPendingConversationSave);
       this.activeStreamingAssistantMessage = null;
@@ -568,7 +569,7 @@ export class InputController {
               : resolution === 'preserved'
               ? 'The provider session no longer exists. Claudian Plus preserved its record because the remaining history could not be verified.'
                 : 'The provider session no longer exists. Send again to start a new session.';
-          new Notice(notice);
+          feedbackBus.retryable('provider.session.gone', notice, () => this.sendMessage());
           wasInvalidated = true;
           break;
         }
@@ -1203,7 +1204,7 @@ export class InputController {
       });
     } catch {
       this.restoreQueuedMessageAfterSteerFailure(queuedMessage);
-      new Notice('Failed to steer the queued Codex message. It is still available.');
+      feedbackBus.retryable('steer.failed', 'Failed to steer the queued Codex message. It is still available.', () => this.sendMessage());
     }
   }
 
@@ -1544,7 +1545,7 @@ export class InputController {
                 );
               });
 
-              new Notice('Instruction added to custom system prompt');
+              feedbackBus.success('instruction.added', 'Instruction added to custom system prompt');
               instructionModeManager?.clear();
             })();
           },
@@ -1565,7 +1566,6 @@ export class InputController {
               if (result.error === 'Cancelled') {
                 return;
               }
-              new Notice(result.error || 'Failed to process response');
               modal?.showError(result.error || 'Failed to process response');
               return;
             }
@@ -1596,7 +1596,6 @@ export class InputController {
           instructionModeManager?.clear();
           return;
         }
-        new Notice(result.error || 'Failed to refine instruction');
         modal.showError(result.error || 'Failed to refine instruction');
         instructionModeManager?.clear();
         return;
@@ -1607,13 +1606,11 @@ export class InputController {
       } else if (result.refinedInstruction) {
         modal.showConfirmation(result.refinedInstruction);
       } else {
-        new Notice('No instruction received');
         modal.showError('No instruction received');
         instructionModeManager?.clear();
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      new Notice(`Error: ${errorMsg}`);
       modal?.showError(errorMsg);
       instructionModeManager?.clear();
     }
@@ -1703,7 +1700,7 @@ export class InputController {
     const selected = Object.values(result)[0];
     const selectedValue = Array.isArray(selected) ? selected[0] : selected;
     if (typeof selectedValue !== 'string') {
-      new Notice(`Unexpected approval selection: "${String(selectedValue)}"`);
+      feedbackBus.info('approval.unexpected-selection', `Unexpected approval selection: "${String(selectedValue)}"`);
       return 'cancel';
     }
 
@@ -1913,7 +1910,7 @@ export class InputController {
     const capabilities = this.getActiveCapabilities();
 
     if (!isBuiltInCommandSupported(command, capabilities)) {
-      new Notice(`/${command.name} is not supported by this provider.`);
+      feedbackBus.blocked('command.unsupported', `/${command.name} is not supported by this provider.`);
       return;
     }
 
@@ -1924,14 +1921,14 @@ export class InputController {
       case 'add-dir': {
         const externalContextSelector = this.deps.getExternalContextSelector();
         if (!externalContextSelector) {
-          new Notice('External context selector not available.');
+          feedbackBus.blocked('external-context.missing', 'External context selector not available.');
           return;
         }
         const result = externalContextSelector.addExternalContext(args);
         if (result.success) {
-          new Notice(`Added external context: ${result.normalizedPath}`);
+          feedbackBus.success('external-context.added', `Added external context: ${result.normalizedPath}`);
         } else {
-          new Notice(result.error);
+          feedbackBus.blocked('external-context.failed', result.error);
         }
         break;
       }
@@ -1940,11 +1937,11 @@ export class InputController {
         break;
       case 'fork': {
         if (!this.getActiveCapabilities().supportsFork) {
-          new Notice('Fork is not supported by this provider.');
+          feedbackBus.blocked('fork.unsupported', 'Fork is not supported by this provider.');
           return;
         }
         if (!this.deps.onForkAll) {
-          new Notice('Fork not available.');
+          feedbackBus.blocked('fork.unavailable', 'Fork not available.');
           return;
         }
         await this.deps.onForkAll();
@@ -1953,7 +1950,7 @@ export class InputController {
       case 'remember': {
         const ruleContent = args.trim();
         if (!ruleContent) {
-          new Notice('Please specify a rule to remember: /remember <rule>');
+          feedbackBus.info('memory.remember.missing-rule', 'Please specify a rule to remember: /remember <rule>');
           return;
         }
         try {
@@ -1961,38 +1958,38 @@ export class InputController {
           if (coordinator) {
             const vaultId = this.deps.plugin.app?.vault?.getName() || 'default-vault';
             await coordinator.handleExplicitCommand(`remember: ${ruleContent}`, { vaultId });
-            new Notice(`Remembered: "${ruleContent}"`);
+            feedbackBus.success('memory.remember.done', `Remembered: "${ruleContent}"`);
           } else {
-            new Notice('Memory system is unavailable.');
+            feedbackBus.blocked('memory.unavailable', 'Memory system is unavailable.');
           }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          new Notice(`Failed to save memory: ${msg}`);
+          feedbackBus.retryable('memory.save.failed', `Failed to save memory: ${msg}`, () => { void this.deps.plugin.getMemoryCoordinator?.()?.handleExplicitCommand(`remember: ${ruleContent}`, { vaultId: this.deps.plugin.app?.vault?.getName() || 'default-vault' }); });
         }
         break;
       }
       case 'forget': {
         const keyword = args.trim();
         if (!keyword) {
-          new Notice('Please specify a keyword or rule to forget: /forget <keyword>');
+          feedbackBus.info('memory.forget.missing-keyword', 'Please specify a keyword or rule to forget: /forget <keyword>');
           return;
         }
         try {
           const coordinator = this.deps.plugin.getMemoryCoordinator?.();
           if (!coordinator) {
-            new Notice('Memory system is unavailable.');
+            feedbackBus.blocked('memory.unavailable', 'Memory system is unavailable.');
             return;
           }
           const vaultId = this.deps.plugin.app?.vault?.getName() || 'default-vault';
           const result = await coordinator.handleExplicitCommand(`forget: ${keyword}`, { vaultId });
           if (result.handled && result.action === 'forget' && !result.unmatched && result.removedCount > 0) {
-            new Notice(`Forgot ${result.removedCount} memor${result.removedCount > 1 ? 'ies' : 'y'} matching "${keyword}"`);
+            feedbackBus.success('memory.forget.done', `Forgot ${result.removedCount} memor${result.removedCount > 1 ? 'ies' : 'y'} matching "${keyword}"`);
           } else {
-            new Notice(`No matching memory found for "${keyword}"`);
+            feedbackBus.info('memory.forget.none', `No matching memory found for "${keyword}"`);
           }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          new Notice(`Failed to forget rule: ${msg}`);
+          feedbackBus.retryable('memory.forget.failed', `Failed to forget rule: ${msg}`, () => { void this.deps.plugin.getMemoryCoordinator?.()?.handleExplicitCommand(`forget: ${keyword}`, { vaultId: this.deps.plugin.app?.vault?.getName() || 'default-vault' }); });
         }
         break;
       }
@@ -2001,7 +1998,7 @@ export class InputController {
         const unknownAction = typeof (command as { action?: unknown }).action === 'string'
           ? (command as { action: string }).action
           : 'unknown';
-        new Notice(`Unknown command: ${unknownAction}`);
+        feedbackBus.info('command.unknown', `Unknown command: ${unknownAction}`);
         break;
       }
     }
@@ -2035,7 +2032,7 @@ export class InputController {
 
     const conversations = plugin.getConversationList();
     if (conversations.length === 0) {
-      new Notice('No conversations to resume');
+      feedbackBus.info('resume.empty', 'No conversations to resume');
       return;
     }
 
@@ -2052,7 +2049,7 @@ export class InputController {
           this.destroyResumeDropdown();
           openConversation(id).catch((err: unknown) => {
             const msg = err instanceof Error ? err.message : String(err);
-            new Notice(`Failed to open conversation: ${msg}`);
+            feedbackBus.retryable('conversation.open.failed', `Failed to open conversation: ${msg}`, () => openConversation(id));
           });
         },
         onDismiss: () => {

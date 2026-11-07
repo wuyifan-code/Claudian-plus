@@ -104,7 +104,7 @@
 | `src/providers/*/` | Provider 适配器、provider-owned 运行时协议、历史、storage、settings、UI |
 | `src/features/chat/` | 侧边栏 chat 编排（基于 core 契约） |
 | `src/features/settings/` | 共享 settings shell 与 provider tab 装配 |
-| `src/shared/` | 可复用 UI 组件（dropdown、modal、mention、settings section 等） |
+| `src/shared/` | 可复用 UI 组件（dropdown、modal、mention、settings section 等）；`feedback/` 是聊天面的反馈总线与宿主（toast、活动抽屉、脱敏诊断） |
 | `src/utils/` | 纯工具：Markdown 分段与转义、路径/日期/文件链接、`textLayout/`（离屏文字排版预测） |
 | `src/style/` | 模块化 CSS，构建为 `styles.css` |
 | `src/i18n/` | 多语言（en/zh-CN/zh-TW/ja/ko/de/es/fr/pt/ru） |
@@ -187,6 +187,16 @@ export function registerBuiltInProviders(): void {
   builtInProvidersRegistered = true;
 }
 ```
+
+### 3.6 体验打磨（UX Program，3.2.7 – 3.2.20）
+
+十四个版本的体验打磨期：只补外壳（反馈、导航、上手、文案、尺度），不新增功能面。
+
+- 入口：[`docs/ux/README.md`](ux/README.md)（状态、接手方式、DoR/DoD）
+- 契约：[`docs/ux/contract.md`](ux/contract.md)
+- 路线图：[`docs/ux/roadmap.md`](ux/roadmap.md)
+- 基线：[`docs/ux/baseline.md`](ux/baseline.md)
+- 当前版本卡：[`docs/ux/releases/3.2.7.md`](ux/releases/3.2.7.md)
 
 ---
 

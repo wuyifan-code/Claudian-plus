@@ -36,6 +36,16 @@
   outline-offset: 2px;
 }
 
+.claudian-plus-feedback-toast-close:focus-visible,
+.claudian-plus-feedback-drawer-close:focus-visible,
+.claudian-plus-feedback-action:focus-visible,
+.claudian-plus-feedback-filter:focus-visible,
+.claudian-plus-feedback-drawer-clear:focus-visible,
+.claudian-plus-feedback-drawer-copy:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .claudian-plus-inline-spinner {
     animation: none;

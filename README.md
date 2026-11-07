@@ -36,6 +36,8 @@ Claudian Plus embeds provider-backed coding agents in your Obsidian sidebar. Cod
 - **Context arrives as references.** `@note`, `@folder` and drag-and-drop resolve against the vault you already have open.
 - **Memory sits in a file.** `memory.md` is in your file list, next to your notes.
 - **A session survives a provider switch.** Each provider keeps its own history, so one conversation can move between Codex, Claude, Kimi, OpenCode, Antigravity and DeepSeek Harness.
+- **Nothing fails silently.** A failure becomes a log entry with a reason and a next step, not a toast that vanishes; it also stays under the turn that produced it.
+- **Windows and conversations are separate.** A window chip in the header lists every open window for switching and closing, and closing one keeps its conversation with a one-click reopen.
 
 | What you need | A typical AI extension | Claudian Plus |
 | :--- | :--- | :--- |

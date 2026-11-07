@@ -5,6 +5,7 @@ import { InputController, type InputControllerDeps } from '@/features/chat/contr
 import { ChatState } from '@/features/chat/state/ChatState';
 import { encodeClaudeTurn } from '@/providers/claude/prompt/ClaudeTurnEncoder';
 import { ResumeSessionDropdown } from '@/shared/components/ResumeSessionDropdown';
+import { feedbackBus } from '@/shared/feedback/FeedbackBus';
 
 jest.mock('@/shared/components/ResumeSessionDropdown', () => ({
   ResumeSessionDropdown: jest.fn(),
@@ -18,6 +19,12 @@ beforeAll(() => {
 });
 
 const mockNotice = Notice as jest.Mock;
+
+// The feedback bus is process-wide and de-duplicates repeats of the same key,
+// so every test starts from an empty log to keep the Notice fallback observable.
+beforeEach(() => {
+  feedbackBus.clear();
+});
 
 function createMockInputEl() {
   return {
@@ -3209,7 +3216,9 @@ describe('InputController - Message Queue', () => {
 
       await controller.handleInstructionSubmit('empty result');
 
-      expect(mockNotice).toHaveBeenCalledWith('No instruction received');
+      // The instruction modal already shows the error inline; a toast would be
+      // a second, shorter-lived copy of the same message.
+      expect(mockNotice).not.toHaveBeenCalled();
       expect(mockInstructionModeManager.clear).toHaveBeenCalled();
     });
 
@@ -3252,7 +3261,7 @@ describe('InputController - Message Queue', () => {
 
       await controller.handleInstructionSubmit('error instruction');
 
-      expect(mockNotice).toHaveBeenCalledWith('API Error');
+      expect(mockNotice).not.toHaveBeenCalled();
       expect(mockInstructionModeManager.clear).toHaveBeenCalled();
     });
 
@@ -3271,7 +3280,7 @@ describe('InputController - Message Queue', () => {
 
       await controller.handleInstructionSubmit('error instruction');
 
-      expect(mockNotice).toHaveBeenCalledWith('Error: Unexpected error');
+      expect(mockNotice).not.toHaveBeenCalled();
       expect(mockInstructionModeManager.clear).toHaveBeenCalled();
     });
   });

@@ -3,6 +3,7 @@ import { Menu, Notice } from 'obsidian';
 
 import { ConversationController, type ConversationControllerDeps } from '@/features/chat/controllers/ConversationController';
 import { ChatState } from '@/features/chat/state/ChatState';
+import { feedbackBus } from '@/shared/feedback/FeedbackBus';
 import { confirm } from '@/shared/modals/ConfirmModal';
 import { formatConversationTimestamp } from '@/utils/date';
 
@@ -11,6 +12,12 @@ jest.mock('@/shared/modals/ConfirmModal', () => ({
 }));
 
 const mockNotice = Notice as jest.Mock;
+
+// The feedback bus de-duplicates repeats across tests; reset it so the
+// Notice fallback stays observable.
+beforeEach(() => {
+  feedbackBus.clear();
+});
 
 function createMockDeps(overrides: Partial<ConversationControllerDeps> = {}): ConversationControllerDeps {
   const state = new ChatState();

@@ -36,6 +36,8 @@ Claudian Plus 把编码 Agent 装进 Obsidian 侧边栏。默认使用 Codex，C
 - **上下文以引用进来。** `@note`、`@folder` 与拖拽文件都解析自你已经打开的那个笔记库。
 - **记忆落在文件里。** `memory.md` 就在你的文件列表中，和笔记排在一起。
 - **切换 Provider 不会打断会话。** 每个 Provider 各自保留历史，同一段会话可以在 Codex、Claude、Kimi、OpenCode、Antigravity 与 DeepSeek Harness 之间流转。
+- **不会静默失败。** 失败会变成一条带原因和下一步的记录，而不是一闪而过的提示；它还会留在产生它的那一回合下方。
+- **窗口和对话是两回事。** 头部一枚窗口 chip 列出所有窗口，可切换、可逐个关闭；关掉之后对话仍可一键重开。
 
 | 你的需求 | 常见的 AI 插件 | Claudian Plus |
 | :--- | :--- | :--- |

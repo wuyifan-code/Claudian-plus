@@ -1,7 +1,8 @@
 import type { App, EventRef } from 'obsidian';
-import { Notice, TFile, TFolder } from 'obsidian';
+import { TFile, TFolder } from 'obsidian';
 
 import { t } from '../../i18n/i18n';
+import { feedbackBus } from '../../shared/feedback/FeedbackBus';
 
 interface FileMenuViewHost {
   appendToActiveInput(text: string): boolean;
@@ -19,10 +20,10 @@ async function addFileToClaudianPlus(host: FileMenuHost, file: TFile): Promise<b
   try {
     await host.activateView();
     const appended = host.getView()?.appendToActiveInput(`@${file.path} `) ?? false;
-    if (!appended) new Notice(t('chat.fileMenu.notReady'));
+    if (!appended) feedbackBus.blocked('fileMenu.notReady', t('chat.fileMenu.notReady'));
     return appended;
   } catch {
-    new Notice(t('chat.fileMenu.failed'));
+    feedbackBus.blocked('fileMenu.failed', t('chat.fileMenu.failed'));
     return false;
   }
 }
@@ -31,10 +32,10 @@ async function addFolderToClaudianPlus(host: FileMenuHost, folder: TFolder): Pro
   try {
     await host.activateView();
     const appended = host.getView()?.appendToActiveInput(`@${folder.path}/ `) ?? false;
-    if (!appended) new Notice(t('chat.fileMenu.notReady'));
+    if (!appended) feedbackBus.blocked('fileMenu.notReady', t('chat.fileMenu.notReady'));
     return appended;
   } catch {
-    new Notice(t('chat.fileMenu.failed'));
+    feedbackBus.blocked('fileMenu.failed', t('chat.fileMenu.failed'));
     return false;
   }
 }
@@ -86,21 +87,21 @@ export function registerFileMenu(host: FileMenuHost): void {
         .setTitle('Ask Claudian Plus about this file')
         .setIcon('help-circle')
         .onClick(() => {
-          askAboutFile(host, file).catch(() => new Notice('Failed to send ask command'));
+          askAboutFile(host, file).catch(() => { feedbackBus.retryable('fileMenu.ask.failed', 'Failed to send ask command', () => askAboutFile(host, file)); });
         }));
 
       menu.addItem(item => item
         .setTitle('Summarize with Claudian Plus')
         .setIcon('align-left')
         .onClick(() => {
-          summarizeFile(host, file).catch(() => new Notice('Failed to send summarize command'));
+          summarizeFile(host, file).catch(() => { feedbackBus.retryable('fileMenu.summarize.failed', 'Failed to send summarize command', () => summarizeFile(host, file)); });
         }));
 
       menu.addItem(item => item
         .setTitle('Suggest tags with Claudian Plus')
         .setIcon('tags')
         .onClick(() => {
-          suggestTagsForFile(host, file).catch(() => new Notice('Failed to send tags command'));
+          suggestTagsForFile(host, file).catch(() => { feedbackBus.retryable('fileMenu.tags.failed', 'Failed to send tags command', () => suggestTagsForFile(host, file)); });
         }));
     }
   }));

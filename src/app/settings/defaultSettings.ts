@@ -25,8 +25,11 @@ export const DEFAULT_CLAUDIAN_PLUS_SETTINGS: ClaudianPlusSettings = {
   userName: '',
 
   // A fresh install must not grant an agent approval-free access to the whole
-  // machine. Users can still opt into YOLO explicitly from the toolbar.
+  // machine. Users can still opt into full access explicitly from the toolbar.
   permissionMode: 'normal',
+
+  // A fresh install starts inside the vault; `full` is still an explicit choice.
+  sandboxMode: 'workspace',
 
   model: ENHANCED_DEFAULT_CODEX_MODEL,
   thinkingBudget: 'off',

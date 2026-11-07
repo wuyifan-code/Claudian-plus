@@ -1,4 +1,4 @@
-import { Notice } from 'obsidian';
+import { feedbackBus } from '../../../shared/feedback/FeedbackBus';
 
 export interface TriggerModeManagerCallbacks {
   onSubmit: (rawText: string) => Promise<void>;
@@ -121,7 +121,7 @@ export abstract class TriggerModeManager {
       await this.callbacks.onSubmit(rawText);
     } catch (error) {
       if (this.options.showSubmitError) {
-        new Notice(`Command failed: ${error instanceof Error ? error.message : String(error)}`);
+        feedbackBus.retryable('trigger.command.failed', `Command failed: ${error instanceof Error ? error.message : String(error)}`, () => this.submit());
       }
     } finally {
       this.isSubmitting = false;

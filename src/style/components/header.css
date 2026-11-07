@@ -181,6 +181,158 @@ button.claudian-plus-view-switcher-btn.is-active {
   height: 16px;
 }
 
+/* Window chip + popover. Carries switching and closing without a permanent
+   badge row, which was explicitly rejected. */
+.claudian-plus-tab-chip-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.claudian-plus-tab-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--claudian-plus-ui-space-2xs);
+  height: var(--claudian-plus-ui-control-h);
+  padding: 0 var(--claudian-plus-ui-space-sm);
+  border: 1px solid var(--claudian-plus-border);
+  border-radius: var(--claudian-plus-radius-full);
+  background: transparent;
+  color: var(--claudian-plus-text-muted);
+  font-size: var(--claudian-plus-ui-font-caption);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.claudian-plus-tab-chip:hover,
+.claudian-plus-tab-chip[aria-expanded="true"] {
+  background: var(--claudian-plus-surface-hover);
+  border-color: var(--claudian-plus-border-hover);
+  color: var(--claudian-plus-text-normal);
+}
+
+.claudian-plus-tab-chip svg {
+  width: var(--claudian-plus-ui-icon-sm);
+  height: var(--claudian-plus-ui-icon-sm);
+}
+
+.claudian-plus-tab-chip-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.claudian-plus-tab-popover {
+  display: none;
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-end: 0;
+  margin-block-start: var(--claudian-plus-ui-space-sm);
+  z-index: 100;
+  min-width: 220px;
+  max-width: 320px;
+  padding: var(--claudian-plus-ui-space-xs);
+  border: 1px solid var(--claudian-plus-border);
+  border-radius: var(--claudian-plus-radius-md);
+  background: var(--claudian-plus-surface-secondary);
+  box-shadow: var(--claudian-plus-shadow-lg);
+}
+
+.claudian-plus-tab-popover.visible {
+  display: flex;
+  flex-direction: column;
+  gap: var(--claudian-plus-ui-space-2xs);
+}
+
+.claudian-plus-tab-popover-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--claudian-plus-ui-space-2xs);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.claudian-plus-tab-popover-row {
+  display: flex;
+  align-items: center;
+  gap: var(--claudian-plus-ui-space-2xs);
+  border-radius: var(--claudian-plus-radius-sm);
+}
+
+.claudian-plus-tab-popover-row.is-active {
+  background: var(--claudian-plus-surface-hover);
+}
+
+/* Obsidian styles bare `button`s with a border and an interactive background.
+   These live inside a menu, so the reset has to win outright. */
+.claudian-plus-tab-popover-switch,
+.claudian-plus-tab-popover-close {
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: var(--claudian-plus-text-normal) !important;
+  font-family: var(--font-interface) !important;
+  cursor: pointer !important;
+}
+
+.claudian-plus-tab-popover-switch {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--claudian-plus-ui-space-xs) var(--claudian-plus-ui-space-sm) !important;
+  border-radius: var(--claudian-plus-radius-sm);
+  font-size: var(--claudian-plus-ui-font-body) !important;
+  text-align: start;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.claudian-plus-tab-popover-switch:hover {
+  background: var(--claudian-plus-surface-hover) !important;
+}
+
+.claudian-plus-tab-popover-close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--claudian-plus-ui-icon-md);
+  height: var(--claudian-plus-ui-icon-md);
+  padding: 0 !important;
+  border-radius: var(--claudian-plus-radius-xs);
+  color: var(--claudian-plus-text-faint) !important;
+}
+
+.claudian-plus-tab-popover-close:hover {
+  background: var(--claudian-plus-surface-hover) !important;
+  color: var(--claudian-plus-text-normal) !important;
+}
+
+.claudian-plus-tab-popover-close svg {
+  width: var(--claudian-plus-ui-icon-sm);
+  height: var(--claudian-plus-ui-icon-sm);
+}
+
+.claudian-plus-tab-popover-rename {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--claudian-plus-ui-icon-md);
+  padding: 0 var(--claudian-plus-ui-space-2xs);
+  border: 1px solid var(--claudian-plus-border-focus);
+  border-radius: var(--claudian-plus-radius-xs);
+  background: var(--claudian-plus-surface-primary);
+  color: var(--claudian-plus-text-normal);
+  font-size: var(--claudian-plus-ui-font-body);
+}
+
+.claudian-plus-tab-chip:focus-visible,
+.claudian-plus-tab-popover-switch:focus-visible,
+.claudian-plus-tab-popover-close:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
 .claudian-plus-sessions-view-host {
   display: flex;
   flex: 1 1 auto;

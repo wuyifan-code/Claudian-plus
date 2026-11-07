@@ -14,7 +14,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import type { Editor, WorkspaceLeaf } from 'obsidian';
-import { MarkdownView, Notice, Plugin } from 'obsidian';
+import { MarkdownView, Notice, Platform, Plugin } from 'obsidian';
 
 import { ConversationRepository } from './app/conversations/ConversationRepository';
 import { ClaudianPlusProviderHost } from './app/providers/ClaudianPlusProviderHost';
@@ -95,6 +95,7 @@ import {
   VIEW_TYPE_CLAUDIAN_PLUS,
 } from './core/types';
 import type { ChatViewPlacement, EnvironmentScope } from './core/types/settings';
+import { openPluginSettings } from './features/chat/actions/ActionableOutputController';
 import { ClaudianPlusView } from './features/chat/ClaudianPlusView';
 import { LivePreviewComposerEnhancement } from './features/chat/composer/LivePreviewComposerEnhancement';
 import type { ComposerEnhancement } from './features/chat/composer/types';
@@ -106,11 +107,12 @@ import {
 } from './features/chat/rendering/NoteUiEmbed';
 import { InlineEditModal, InlineEditService } from './features/inline-edit';
 import { ClaudianPlusSettingTab } from './features/settings/ClaudianPlusSettings';
-import { localeText, setLocale } from './i18n/i18n';
+import { getLocale, localeText, setLocale } from './i18n/i18n';
 import type { Locale } from './i18n/types';
 import { registerBuiltInProviders } from './providers';
 import { migrateClaudeServiceSettings } from './providers/claude/services/ClaudeServiceMigration';
 import { OPENCODE_PLAN_MODE_ID, OPENCODE_SAFE_MODE_ID } from './providers/opencode/modes';
+import { feedbackBus } from './shared/feedback/FeedbackBus';
 import { configureDeviceSettingsKeyStore, getHostnameKey } from './utils/env';
 import { revealWorkspaceLeaf } from './utils/obsidianCompat';
 import { getVaultPath } from './utils/path';
@@ -237,6 +239,18 @@ export default class ClaudianPlusPlugin extends Plugin {
         (leaf) => new ClaudianPlusView(leaf, this)
       );
 
+      // Feedback chrome (toast/drawer) lives in the panel; the bus needs the
+      // host-side hooks it must not import itself.
+      feedbackBus.configure({
+        openSettings: () => openPluginSettings(this.app),
+        env: () => ({
+          version: this.manifest.version,
+          locale: getLocale(),
+          theme: activeDocument.body.classList.contains('theme-dark') ? 'dark' : 'light',
+          platform: Platform.isWin ? 'windows' : Platform.isMacOS ? 'macos' : 'linux',
+        }),
+      });
+
       // Register file explorer "Add to Claudian Plus" context menu action.
       registerFileMenu({
         app: this.app,
@@ -266,6 +280,14 @@ export default class ClaudianPlusPlugin extends Plugin {
         name: 'Open chat view',
         callback: () => {
           void this.activateView();
+        },
+      });
+
+      this.addCommand({
+        id: 'open-feedback-log',
+        name: 'Open activity log',
+        callback: () => {
+          void this.activateView().then(() => feedbackBus.openLog());
         },
       });
 

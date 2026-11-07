@@ -23,6 +23,20 @@ Do not assume provider parity. Check each provider's `capabilities.ts`, `registr
   - `src/providers/pi/AGENTS.md`
   - `src/style/AGENTS.md`
 
+## UX Program (3.2.7 – 3.2.20)
+
+The plugin is in a 14-release UX polish program: no new feature surface, no major version bump.
+
+- **Entry point:** [`docs/ux/README.md`](docs/ux/README.md) — status, 30-second handoff, DoR/DoD.
+- **Contract:** [`docs/ux/contract.md`](docs/ux/contract.md) — 10 rules every UI change must satisfy.
+- **Roadmap:** [`docs/ux/roadmap.md`](docs/ux/roadmap.md) — per-version scope, schedule, acceptance.
+- **Baseline:** [`docs/ux/baseline.md`](docs/ux/baseline.md) — ratchet limits; counts may only decrease.
+- **Current release:** [`docs/ux/releases/3.2.8.md`](docs/ux/releases/3.2.8.md) (not started) — 3.2.7 shipped 2026-11-06.
+
+Before changing UI, read the contract and the current release card. Work outside that version's theme goes to `docs/ux/backlog.md`, not into the same change.
+
+Feedback for the chat surface goes through `src/shared/feedback/` (`feedbackBus`), never a raw `new Notice(`; `tests/unit/ux/notice-ratchet.test.ts` enforces the ceilings in `tests/fixtures/ux-baseline.json`. Lower a file's ceiling in the same change that migrates it.
+
 ## Commands
 
 ```bash

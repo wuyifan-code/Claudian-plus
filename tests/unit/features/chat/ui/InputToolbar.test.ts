@@ -1417,28 +1417,42 @@ describe('ContextUsageMeter', () => {
     expect(container?.hasClass('warning')).toBe(false);
   });
 
-  it('should set tooltip with formatted token counts', () => {
-    meter.update(makeUsage({ contextTokens: 50000, contextWindow: 200000, percentage: 25 }));
-    const container = parentEl.querySelector('.claudian-plus-context-meter');
-    expect(container?.getAttribute('data-tooltip')).toBe('50k / 200k');
-  });
+  describe('usage block in the capacity popover', () => {
+    function openPopover(usage: ReturnType<typeof makeUsage> | null) {
+      const localParent = createMockEl();
+      const localMeter = new ContextUsageMeter(localParent, {
+        onContextWindowChange: jest.fn().mockResolvedValue(undefined),
+        getContextWindow: () => 1_000_000,
+        hasOverride: () => false,
+      });
+      if (usage) localMeter.update(usage);
+      localParent.querySelector('.claudian-plus-context-meter-button')?.click();
+      return localParent;
+    }
 
-  it('should format small token counts without k suffix', () => {
-    meter.update(makeUsage({ contextTokens: 500, contextWindow: 200000, percentage: 0 }));
-    const container = parentEl.querySelector('.claudian-plus-context-meter');
-    expect(container?.getAttribute('data-tooltip')).toBe('500 / 200k');
-  });
+    it('renders the percent, the budget and the used/free split', () => {
+      const localParent = openPopover(makeUsage({ contextTokens: 656000, contextWindow: 1000000, percentage: 63 }));
 
-  it('should add compact reminder to tooltip when usage > 80%', () => {
-    meter.update(makeUsage({ contextTokens: 170000, contextWindow: 200000, percentage: 85 }));
-    const container = parentEl.querySelector('.claudian-plus-context-meter');
-    expect(container?.getAttribute('data-tooltip')).toBe('170k / 200k (Approaching limit, run `/compact` to continue)');
-  });
+      const card = localParent.querySelector('.claudian-plus-context-card');
+      expect(card).not.toBeNull();
+      expect(card?.querySelector('.claudian-plus-context-card-percent')?.textContent).toBe('63%');
+      expect(card?.querySelector('.claudian-plus-context-card-amount')?.textContent).toBe('~656K / 1M');
+      const values = card?.querySelectorAll('.claudian-plus-context-card-value') ?? [];
+      expect(values.map((value: any) => value.textContent)).toEqual(['~656K', '~344K']);
+    });
 
-  it('should not add compact reminder to tooltip when usage ≤ 80%', () => {
-    meter.update(makeUsage({ contextTokens: 160000, contextWindow: 200000, percentage: 80 }));
-    const container = parentEl.querySelector('.claudian-plus-context-meter');
-    expect(container?.getAttribute('data-tooltip')).toBe('160k / 200k');
+    it('adds the compaction hint only above 80%', () => {
+      const localParent = openPopover(makeUsage({ contextTokens: 170000, contextWindow: 200000, percentage: 85 }));
+
+      expect(localParent.querySelector('.claudian-plus-context-card-hint')).not.toBeNull();
+    });
+
+    it('explains when the provider reports no usage', () => {
+      const localParent = openPopover(null);
+
+      expect(localParent.querySelector('.claudian-plus-context-card-unavailable')).not.toBeNull();
+      expect(localParent.querySelector('.claudian-plus-context-card-bar')).toBeNull();
+    });
   });
 });
 
@@ -1462,8 +1476,16 @@ describe('ContextUsageMeter capacity selector', () => {
     button!.click();
   }
 
-  function capacityOptions(parentEl: any) {
-    return parentEl.querySelectorAll('.claudian-plus-context-meter-option');
+  function capacitySlider(parentEl: any) {
+    return parentEl.querySelector('.claudian-plus-context-capacity-slider');
+  }
+
+  async function pickStop(parentEl: any, stop: number) {
+    const slider = capacitySlider(parentEl);
+    expect(slider).not.toBeNull();
+    slider!.value = String(stop);
+    slider!.dispatchEvent({ type: 'change', stopPropagation: () => {} });
+    await Promise.resolve();
   }
 
   it('exposes the meter as a button that opens a capacity menu', () => {
@@ -1475,39 +1497,31 @@ describe('ContextUsageMeter capacity selector', () => {
     expect(parentEl.querySelector('.claudian-plus-context-meter-menu')).not.toBeNull();
   });
 
-  it('offers exactly 300K, 600K and 1M', () => {
-    const { parentEl } = createMeter();
+  it('maps every preset onto one slider stop', () => {
+    const { parentEl } = createMeter(1_000_000);
     openMenu(parentEl);
 
-    const options = capacityOptions(parentEl)
-      .filter((el: any) => el.getAttribute('data-context-window') !== 'default');
-    expect(options).toHaveLength(CAPACITY_OPTIONS.length);
-    expect(options.map((option: any) => option.getAttribute('data-context-window')))
-      .toEqual(CAPACITY_OPTIONS.map(String));
+    const slider = capacitySlider(parentEl);
+    expect(slider).not.toBeNull();
+    expect(slider!.getAttribute('max')).toBe(String(CAPACITY_OPTIONS.length));
+    expect(parentEl.querySelector('.claudian-plus-context-capacity-value')?.textContent).toBe('1M');
   });
 
-  it('offers a reset entry that clears the pin', async () => {
+  it('the first stop clears the pin', async () => {
     const { parentEl, onContextWindowChange } = createMeter(300_000);
     openMenu(parentEl);
 
-    const reset = capacityOptions(parentEl)
-      .find((el: any) => el.getAttribute('data-context-window') === 'default');
-    expect(reset).toBeDefined();
-
-    reset!.click();
-    await Promise.resolve();
+    await pickStop(parentEl, 0);
 
     expect(onContextWindowChange).toHaveBeenCalledWith(null);
     expect(parentEl.querySelector('.claudian-plus-context-meter-menu')).toBeNull();
   });
 
-  it('marks the reset entry active when nothing is pinned', () => {
+  it('sits on the default stop when nothing is pinned', () => {
     const { parentEl } = createMeter(1_000_000, false);
     openMenu(parentEl);
 
-    const active = capacityOptions(parentEl).filter((el: any) => el.hasClass('is-active'));
-    expect(active).toHaveLength(1);
-    expect(active[0].getAttribute('data-context-window')).toBe('default');
+    expect(capacitySlider(parentEl)!.value).toBe('0');
   });
 
   it('closes the menu when clicking outside the meter', () => {
@@ -1553,32 +1567,24 @@ describe('ContextUsageMeter capacity selector', () => {
     const { parentEl, onContextWindowChange } = createMeter();
     openMenu(parentEl);
 
-    const option = capacityOptions(parentEl)
-      .find((el: any) => el.getAttribute('data-context-window') === '600000');
-    expect(option).toBeDefined();
-    option!.click();
-    await Promise.resolve();
+    await pickStop(parentEl, 2);
 
     expect(onContextWindowChange).toHaveBeenCalledWith(600_000);
     expect(parentEl.querySelector('.claudian-plus-context-meter-menu')).toBeNull();
   });
 
-  it('marks the active capacity in the menu', () => {
+  it('sits on the pinned stop and labels it', () => {
     const { parentEl } = createMeter(300_000);
     openMenu(parentEl);
 
-    const active = capacityOptions(parentEl).filter((el: any) => el.hasClass('is-active'));
-    expect(active).toHaveLength(1);
-    expect(active[0].getAttribute('data-context-window')).toBe('300000');
+    expect(capacitySlider(parentEl)!.value).toBe('1');
+    expect(parentEl.querySelector('.claudian-plus-context-capacity-value')?.textContent).toBe('300K');
   });
-  it('marks nothing active when the window is not one of the presets', () => {
+  it('falls back to the default stop when the window is not a preset', () => {
     const { parentEl } = createMeter(200_000);
     openMenu(parentEl);
 
-    const presetActive = capacityOptions(parentEl)
-      .filter((el: any) => el.getAttribute('data-context-window') !== 'default')
-      .filter((el: any) => el.hasClass('is-active'));
-    expect(presetActive).toHaveLength(0);
+    expect(capacitySlider(parentEl)!.value).toBe('0');
   });
 
   it('stays usable when no usage has arrived yet', () => {

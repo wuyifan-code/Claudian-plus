@@ -6,6 +6,41 @@ const record = (seq: number, type: string, data: unknown) => ({
 const message = (id: string, role: string, content: unknown[], source = { kind: role === 'assistant' ? 'model' : 'user' }) => ({ id, role, content, source });
 
 describe('DSH official record normalization', () => {
+  it('surfaces the token usage the harness reports on a committed message', () => {
+    const normalizer = new DshStreamNormalizer();
+    const chunks = normalizer.accept(record(1, 'assistant/message', {
+      turn: 1,
+      step: 1,
+      stream: [],
+      message: message('a', 'assistant', [{ type: 'text', text: 'Hi' }]),
+      usage: { inputTokens: 12345, outputTokens: 67, totalTokens: 12412 },
+    }));
+
+    const usage = chunks.find(chunk => chunk.type === 'usage');
+    expect(usage).toEqual({
+      type: 'usage',
+      usage: {
+        inputTokens: 12345,
+        contextWindow: 0,
+        contextWindowIsAuthoritative: false,
+        contextTokens: 12345,
+        percentage: 0,
+      },
+    });
+  });
+
+  it('omits the usage chunk when the harness sends none', () => {
+    const normalizer = new DshStreamNormalizer();
+    const chunks = normalizer.accept(record(1, 'assistant/message', {
+      turn: 1,
+      step: 1,
+      stream: [],
+      message: message('a', 'assistant', [{ type: 'text', text: 'Hi' }]),
+    }));
+
+    expect(chunks.some(chunk => chunk.type === 'usage')).toBe(false);
+  });
+
   it('projects committed messages, coalesces fragments and preserves tool order without retry duplication', () => {
     const committed = record(3, 'assistant/message', {
       turn: 1, step: 1, stream: [], message: message('a', 'assistant', [

@@ -1,10 +1,11 @@
-import { Menu, Notice, setIcon } from 'obsidian';
+import { Menu, setIcon } from 'obsidian';
 
 import type { TitleGenerationService } from '../../../core/providers/types';
 import type { ChatRuntime } from '../../../core/runtime/ChatRuntime';
 import type { ChatRewindMode } from '../../../core/runtime/types';
 import type { Conversation } from '../../../core/types';
 import { localeText, t } from '../../../i18n/i18n';
+import { feedbackBus } from '../../../shared/feedback/FeedbackBus';
 import { confirm } from '../../../shared/modals/ConfirmModal';
 import { extractUserDisplayContent } from '../../../utils/context';
 import { formatConversationTimestamp } from '../../../utils/date';
@@ -22,7 +23,7 @@ import type { StatusPanel } from '../ui/StatusPanel';
 
 function runConversationAction(action: () => Promise<void>, failureMessage: string): void {
   void action().catch(() => {
-    new Notice(failureMessage);
+    feedbackBus.retryable('conversation.action.failed', failureMessage, action);
   });
 }
 
@@ -320,30 +321,30 @@ export class ConversationController {
 
     const agentServiceForCheck = this.getAgentService();
     if (agentServiceForCheck && !agentServiceForCheck.getCapabilities().supportsRewind) {
-      new Notice(t('chat.rewind.failed', { error: 'Rewind is not supported by this provider.' }));
+      feedbackBus.blocked('rewind.unsupported', t('chat.rewind.failed', { error: 'Rewind is not supported by this provider.' }));
       return;
     }
 
     if (state.isStreaming) {
-      new Notice(t('chat.rewind.unavailableStreaming'));
+      feedbackBus.info('rewind.unavailable.streaming', t('chat.rewind.unavailableStreaming'));
       return;
     }
 
     const msgs = state.messages;
     const userIdx = msgs.findIndex(m => m.id === userMessageId);
     if (userIdx === -1) {
-      new Notice(t('chat.rewind.failed', { error: 'Message not found' }));
+      feedbackBus.blocked('rewind.unavailable.notFound', t('chat.rewind.failed', { error: 'Message not found' }));
       return;
     }
     const userMsg = msgs[userIdx];
     if (!userMsg.userMessageId) {
-      new Notice(t('chat.rewind.unavailableNoUuid'));
+      feedbackBus.blocked('rewind.unavailable.noUuid', t('chat.rewind.unavailableNoUuid'));
       return;
     }
 
     const rewindCtx = findRewindContext(msgs, userIdx);
     if (!rewindCtx.hasResponse) {
-      new Notice(t('chat.rewind.unavailableNoUuid'));
+      feedbackBus.blocked('rewind.unavailable.noUuid', t('chat.rewind.unavailableNoUuid'));
       return;
     }
     const prevAssistantUuid = rewindCtx.prevAssistantUuid;
@@ -358,13 +359,13 @@ export class ConversationController {
     if (!confirmed) return;
 
     if (state.isStreaming) {
-      new Notice(t('chat.rewind.unavailableStreaming'));
+      feedbackBus.info('rewind.unavailable.streaming', t('chat.rewind.unavailableStreaming'));
       return;
     }
 
     const agentService = this.getAgentService();
     if (!agentService) {
-      new Notice(t('chat.rewind.failed', { error: 'Agent service not available' }));
+      feedbackBus.blocked('rewind.unavailable.noAgent', t('chat.rewind.failed', { error: 'Agent service not available' }));
       return;
     }
 
@@ -372,11 +373,11 @@ export class ConversationController {
     try {
       result = await agentService.rewind(userMsg.userMessageId, prevAssistantUuid, mode);
     } catch (e) {
-      new Notice(t('chat.rewind.failed', { error: e instanceof Error ? e.message : 'Unknown error' }));
+      feedbackBus.retryable('rewind.failed', t('chat.rewind.failed', { error: e instanceof Error ? e.message : 'Unknown error' }), () => { void agentService.rewind(userMsg.userMessageId as string, prevAssistantUuid, mode); });
       return;
     }
     if (!result.canRewind) {
-      new Notice(t('chat.rewind.cannot', { error: result.error ?? 'Unknown error' }));
+      feedbackBus.blocked('rewind.refused', t('chat.rewind.cannot', { error: result.error ?? 'Unknown error' }));
       return;
     }
 
@@ -402,7 +403,8 @@ export class ConversationController {
     }
 
     if (saveError) {
-      new Notice(
+      feedbackBus.blocked(
+        'rewind.save.failed',
         mode === 'conversation'
           ? t('chat.rewind.noticeConversationOnlySaveFailed', { error: saveError })
           : t('chat.rewind.noticeSaveFailed', { count: String(filesChanged), error: saveError })
@@ -410,7 +412,8 @@ export class ConversationController {
       return;
     }
 
-    new Notice(
+    feedbackBus.success(
+      'rewind.done',
       mode === 'conversation'
         ? t('chat.rewind.noticeConversationOnly')
         : t('chat.rewind.notice', { count: String(filesChanged) })
@@ -966,7 +969,7 @@ export class ConversationController {
     try {
       await action();
     } catch {
-      new Notice(errorMessage);
+      feedbackBus.retryable('history.action.failed', errorMessage, action);
     }
   }
 
@@ -1065,7 +1068,7 @@ export class ConversationController {
         await this.deps.plugin.renameConversation(convId, newTitle);
         this.updateHistoryDropdown();
       } catch {
-        new Notice('Failed to rename conversation');
+        feedbackBus.retryable('conversation.rename.failed', 'Failed to rename conversation', () => this.deps.plugin.renameConversation(convId, input.value.trim() || currentTitle));
       }
     };
 

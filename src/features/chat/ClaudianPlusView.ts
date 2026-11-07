@@ -1,5 +1,5 @@
 import type { EventRef, WorkspaceLeaf } from 'obsidian';
-import { ItemView, Notice, Scope, setIcon } from 'obsidian';
+import { ItemView, Menu, Scope, setIcon } from 'obsidian';
 
 import { StartupProfiler } from '../../core/performance/StartupProfiler';
 import { getHiddenProviderCommandSet } from '../../core/providers/commands/hiddenCommands';
@@ -13,6 +13,9 @@ import { type AppTabManagerState, DEFAULT_CHAT_PROVIDER_ID, type ProviderId } fr
 import { VIEW_TYPE_CLAUDIAN_PLUS } from '../../core/types';
 import { t } from '../../i18n/i18n';
 import { localeText } from '../../i18n/i18n';
+import { feedbackBus } from '../../shared/feedback/FeedbackBus';
+import { FeedbackHost } from '../../shared/feedback/FeedbackHost';
+import type { FeedbackState } from '../../shared/feedback/types';
 import { createProviderIconSvg } from '../../shared/icons';
 import {
   cancelScheduledAnimationFrame,
@@ -25,6 +28,7 @@ import { MentionCacheCoordinator } from './services/MentionCacheCoordinator';
 import { TabStatePersistenceCoordinator } from './services/TabStatePersistenceCoordinator';
 import {
   getTabProviderId,
+  getTabTitle,
   onProviderAvailabilityChanged,
   refreshTabProviderSelectors,
   sendTabInputMessageFromExplicitEnterShortcut,
@@ -32,7 +36,7 @@ import {
 } from './tabs/Tab';
 import { TabBar } from './tabs/TabBar';
 import { TabManager } from './tabs/TabManager';
-import { clampMaxTabs, type TabData, type TabId } from './tabs/types';
+import { clampMaxTabs, type TabBarItem, type TabData, type TabId } from './tabs/types';
 import { SessionsView } from './ui/SessionsView';
 import { isContextWindowPinned, recalculateUsageForModel } from './utils/usageInfo';
 
@@ -74,6 +78,16 @@ export class ClaudianPlusView extends ItemView {
   private historyRenderAbortController: AbortController | null = null;
   private stagingBadgeEl: HTMLElement | null = null;
   private stagingDrawerEl: HTMLElement | null = null;
+  private feedbackHost: FeedbackHost | null = null;
+  private feedbackBtnEl: HTMLElement | null = null;
+  private feedbackCountEl: HTMLElement | null = null;
+  private unsubscribeFeedback: (() => void) | null = null;
+  private tabChipContainerEl: HTMLElement | null = null;
+  private tabChipEl: HTMLElement | null = null;
+  private tabChipCountEl: HTMLElement | null = null;
+  private tabPopoverEl: HTMLElement | null = null;
+  private tabPopoverOpen = false;
+  private outsideClickHandler: ((event: MouseEvent) => void) | null = null;
   private isStagingDrawerOpen = false;
   private unsubscribeStaging: (() => void) | null = null;
 
@@ -266,6 +280,7 @@ export class ClaudianPlusView extends ItemView {
     this.navRowContent = this.buildNavRowContent();
     this.tabContentEl = this.viewContainerEl.createDiv({ cls: 'claudian-plus-tab-content-container' });
     this.buildInputFooter();
+    this.mountFeedbackHost();
 
     const initialView = this.plugin.settings.chatHomeView ?? 'chat';
     if (initialView === 'sessions') {
@@ -366,9 +381,20 @@ export class ClaudianPlusView extends ItemView {
 
     this.unsubscribeStaging?.();
     this.unsubscribeStaging = null;
+    this.unsubscribeFeedback?.();
+    this.unsubscribeFeedback = null;
+    this.feedbackBtnEl = null;
+    this.feedbackCountEl = null;
     this.closeStagingDrawer();
     this.stagingDrawerEl?.remove();
     this.stagingDrawerEl = null;
+
+    this.feedbackHost?.unmount();
+    this.feedbackHost = null;
+    this.unbindOutsideClick();
+    this.tabPopoverOpen = false;
+    this.tabPopoverEl?.remove();
+    this.tabPopoverEl = null;
 
     try {
       await this.persistTabStateImmediate();
@@ -421,6 +447,29 @@ export class ClaudianPlusView extends ItemView {
 
     const headerActionsEl = header.createDiv({ cls: 'claudian-plus-header-actions' });
 
+    // Window switcher: a chip that opens a popover. This replaces the
+    // persistent badge row, which was explicitly rejected.
+    const tabChipContainer = headerActionsEl.createDiv({ cls: 'claudian-plus-tab-chip-container' });
+    this.tabChipContainerEl = tabChipContainer;
+
+    const tabChip = tabChipContainer.createEl('button', {
+      cls: 'claudian-plus-tab-chip claudian-plus-hidden',
+      attr: {
+        type: 'button',
+        'aria-haspopup': 'true',
+        'aria-expanded': 'false',
+        'aria-label': t('chat.tabs.windows'),
+        title: t('chat.tabs.windows'),
+      },
+    });
+    setIcon(tabChip, 'app-window');
+    this.tabChipCountEl = tabChip.createSpan({ cls: 'claudian-plus-tab-chip-count' });
+    this.tabChipEl = tabChip;
+    tabChip.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.toggleTabPopover();
+    });
+
     const stagingBadgeEl = headerActionsEl.createDiv({
       cls: 'claudian-plus-header-action-btn claudian-plus-mind-staging-badge claudian-plus-hidden',
       attr: {
@@ -440,21 +489,65 @@ export class ClaudianPlusView extends ItemView {
       this.updateStagingBadge();
     }) ?? null;
 
+    const feedbackBtn = headerActionsEl.createDiv({
+      cls: 'claudian-plus-header-action-btn claudian-plus-feedback-bell claudian-plus-hidden',
+      attr: {
+        'aria-label': t('feedback.drawerOpen'),
+        title: t('feedback.drawerOpen'),
+        role: 'button',
+        tabindex: '0',
+      },
+    });
+    setIcon(feedbackBtn, 'bell');
+    this.feedbackBtnEl = feedbackBtn;
+    this.feedbackCountEl = feedbackBtn.createSpan({ cls: 'claudian-plus-feedback-bell-count claudian-plus-hidden' });
+    feedbackBtn.addEventListener('click', () => {
+      feedbackBus.openLog();
+    });
+    this.unsubscribeFeedback = feedbackBus.subscribe(state => {
+      this.syncFeedbackEntry(state);
+    });
+
     const newSessionBtn = headerActionsEl.createDiv({
-      cls: 'claudian-plus-header-action-btn claudian-plus-header-new-btn',
-      attr: { 'aria-label': 'New conversation', role: 'button', tabindex: '0' },
+      cls: 'claudian-plus-header-action-btn claudian-plus-header-new-btn claudian-plus-new-tab-btn',
+      attr: {
+        'aria-label': t('chat.tabs.newWindow'),
+        title: t('chat.tabs.newWindow'),
+        role: 'button',
+        tabindex: '0',
+      },
     });
     setIcon(newSessionBtn, 'plus');
+    // Single entry point for "another window": the composer row used to carry
+    // a second one, which made the header and the input row say the same thing.
+    this.newTabButtonEl = newSessionBtn;
     newSessionBtn.addEventListener('click', () => {
       void (async () => {
         await this.whenReady();
         if (this.currentHomeView !== 'chat') {
           this.switchHomeView('chat');
         }
-        await this.tabManager?.createNewConversation();
+        // A plus button means "another one of these": another window, not
+        // another conversation inside the window the user is already in.
+        await this.createNewTab();
         this.updateHistoryDropdown();
-      })().catch(() => new Notice('Failed to create conversation'));
+      })().catch(() => { feedbackBus.retryable('tab.create.failed', 'Failed to create conversation', () => { void this.createNewTab(); }); });
     });
+  }
+
+  private syncFeedbackEntry(state: FeedbackState): void {
+    if (!this.feedbackBtnEl) return;
+    this.feedbackBtnEl.toggleClass('claudian-plus-hidden', state.entries.length === 0);
+
+    const countEl = this.feedbackCountEl;
+    if (!countEl) return;
+    if (state.unread > 0) {
+      countEl.removeClass('claudian-plus-hidden');
+      countEl.setText(String(state.unread));
+    } else {
+      countEl.addClass('claudian-plus-hidden');
+      countEl.setText('');
+    }
   }
 
   private updateStagingBadge(): void {
@@ -704,7 +797,7 @@ export class ClaudianPlusView extends ItemView {
         void this.handleTabClose(tabId);
       },
       onNewTab: () => {
-        void this.createNewTab().catch(() => new Notice('Failed to create tab'));
+        void this.createNewTab().catch(() => { feedbackBus.retryable('tab.create.failed', 'Failed to create tab', () => { void this.createNewTab(); }); });
       },
       onTabReorder: (tabId, toIndex) => {
         this.tabManager?.moveTab(tabId, toIndex);
@@ -716,22 +809,28 @@ export class ClaudianPlusView extends ItemView {
 
     const navActionsEl = wrapper.createDiv({ cls: 'claudian-plus-input-nav-actions' });
 
-    this.newTabButtonEl = navActionsEl.createDiv({ cls: 'claudian-plus-input-nav-btn claudian-plus-new-tab-btn' });
-    setIcon(this.newTabButtonEl, 'square-plus');
-    this.newTabButtonEl.setAttribute('aria-label', 'New tab');
-    this.newTabButtonEl.addEventListener('click', () => {
-      void this.createNewTab().catch(() => new Notice('Failed to create tab'));
-    });
-
     const newBtn = navActionsEl.createDiv({ cls: 'claudian-plus-input-nav-btn' });
     setIcon(newBtn, 'square-pen');
-    newBtn.setAttribute('aria-label', 'New conversation');
+    newBtn.setAttribute('aria-label', t('chat.tabs.newConversationHere'));
+    newBtn.setAttribute('title', t('chat.tabs.newConversationHere'));
     newBtn.addEventListener('click', () => {
       void (async () => {
         await this.whenReady();
+        const previousId = this.tabManager?.getActiveTab()?.conversationId ?? null;
         await this.tabManager?.createNewConversation();
         this.updateHistoryDropdown();
-      })().catch(() => new Notice('Failed to create conversation'));
+        this.updateTabBar();
+        if (previousId) {
+          const savedId = previousId;
+          feedbackBus.info('tabs.conversation.replaced', t('chat.tabs.replacedSaved'), {
+            actions: [{
+              id: 'reopen-previous',
+              label: t('chat.tabs.reopenPrevious'),
+              run: () => this.openHistoryConversation(savedId),
+            }],
+          });
+        }
+      })().catch(() => { feedbackBus.retryable('tab.create.failed', 'Failed to create conversation', () => { void this.createNewTab(); }); });
     });
 
     this.readingModeBtn = navActionsEl.createDiv({
@@ -855,20 +954,260 @@ export class ClaudianPlusView extends ItemView {
   private handleTabClick(tabId: TabId): void {
     void this.whenReady()
       .then(() => this.tabManager?.switchToTab(tabId))
-      .catch(() => new Notice('Failed to switch tab'));
+      .catch(() => { feedbackBus.retryable('tab.switch.failed', 'Failed to switch tab', () => { void this.tabManager?.switchToTab(tabId); }); });
   }
 
   private async handleTabClose(tabId: TabId): Promise<void> {
     try {
       await this.whenReady();
       const tab = this.tabManager?.getTab(tabId);
+      const conversationId = tab?.conversationId ?? null;
+      const title = tab ? getTabTitle(tab, this.plugin) : '';
       // If streaming, treat close like user interrupt (force close cancels the stream)
       const force = tab?.state.isStreaming ?? false;
       await this.tabManager?.closeTab(tabId, force);
       this.updateTabBarVisibility();
+
+      // Closing a window must never feel like deleting a conversation.
+      if (conversationId) {
+        const savedId = conversationId;
+        feedbackBus.info(
+          'tabs.closed.saved',
+          t('chat.tabs.closedSaved'),
+          {
+            detail: title,
+            actions: [{
+              id: 'reopen',
+              label: t('chat.tabs.reopen'),
+              run: () => this.openHistoryConversation(savedId),
+            }],
+          },
+        );
+      }
     } catch {
-      new Notice('Failed to close tab');
+      feedbackBus.retryable('tab.close.failed', 'Failed to close tab', () => { void this.handleTabClose(tabId); });
     }
+  }
+
+  private async closeOtherTabs(keepTabId: TabId): Promise<void> {
+    const others = (this.tabManager?.getTabBarItems() ?? [])
+      .map(item => item.id)
+      .filter(id => id !== keepTabId);
+    for (const id of others) {
+      await this.handleTabClose(id);
+    }
+  }
+
+  private async renameTab(tabId: TabId, nextTitle: string): Promise<void> {
+    const tab = this.tabManager?.getTab(tabId);
+    if (!tab?.conversationId) return;
+    await this.plugin.renameConversation(tab.conversationId, nextTitle);
+    this.updateTabBar();
+    this.updateHistoryDropdown();
+  }
+
+  /**
+   * Header chip that carries window switching without a permanent badge row.
+   * Hidden below two windows: with one window there is nothing to switch.
+   */
+  private updateTabChip(): void {
+    if (!this.tabChipEl || !this.tabManager) return;
+    const count = this.tabManager.getTabCount();
+    this.tabChipEl.toggleClass('claudian-plus-hidden', count < 2);
+    this.tabChipCountEl?.setText(String(count));
+    this.tabChipEl.setAttribute('aria-label', `${t('chat.tabs.windows')} (${count})`);
+    this.tabChipEl.setAttribute('title', `${t('chat.tabs.windows')} (${count})`);
+    if (count < 2) this.closeTabPopover();
+  }
+
+  private toggleTabPopover(): void {
+    if (this.tabPopoverOpen) {
+      this.closeTabPopover();
+      return;
+    }
+    this.openTabPopover();
+  }
+
+  private openTabPopover(): void {
+    if (!this.tabChipContainerEl) return;
+    if (!this.tabPopoverEl) {
+      this.tabPopoverEl = this.tabChipContainerEl.createDiv({
+        cls: 'claudian-plus-tab-popover',
+        attr: { role: 'dialog', 'aria-label': t('chat.tabs.windows') },
+      });
+    }
+    this.tabPopoverOpen = true;
+    this.tabChipEl?.setAttribute('aria-expanded', 'true');
+    this.tabPopoverEl.addClass('visible');
+    this.renderTabPopover();
+    this.bindOutsideClick();
+  }
+
+  private closeTabPopover(): void {
+    if (!this.tabPopoverOpen) return;
+    this.tabPopoverOpen = false;
+    this.tabChipEl?.setAttribute('aria-expanded', 'false');
+    this.tabPopoverEl?.removeClass('visible');
+    this.unbindOutsideClick();
+  }
+
+  private bindOutsideClick(): void {
+    if (this.outsideClickHandler || !this.containerEl) return;
+    const doc = this.containerEl.ownerDocument;
+    this.outsideClickHandler = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (target && this.tabChipContainerEl?.contains(target)) return;
+      this.closeTabPopover();
+    };
+    doc.addEventListener('mousedown', this.outsideClickHandler, true);
+  }
+
+  private unbindOutsideClick(): void {
+    if (!this.containerEl) return;
+    const doc = this.containerEl.ownerDocument;
+    if (this.outsideClickHandler) {
+      doc.removeEventListener('mousedown', this.outsideClickHandler, true);
+      this.outsideClickHandler = null;
+    }
+  }
+
+  private renderTabPopover(): void {
+    if (!this.tabPopoverEl || !this.tabPopoverOpen) return;
+    const popover = this.tabPopoverEl;
+    popover.empty();
+
+    const list = popover.createDiv({ cls: 'claudian-plus-tab-popover-list' });
+    for (const item of this.tabManager?.getTabBarItems() ?? []) {
+      this.renderTabPopoverRow(list, item);
+    }
+  }
+
+  private renderTabPopoverRow(list: HTMLElement, item: TabBarItem): void {
+    const row = list.createDiv({
+      cls: `claudian-plus-tab-popover-row${item.isActive ? ' is-active' : ''}`,
+      attr: { 'data-tab-id': item.id },
+    });
+
+    const switchBtn = row.createEl('button', {
+      cls: 'claudian-plus-tab-popover-switch',
+      text: item.title,
+      attr: { type: 'button', 'aria-current': item.isActive ? 'true' : 'false' },
+    });
+    switchBtn.addEventListener('click', () => {
+      this.handleTabClick(item.id);
+      this.closeTabPopover();
+    });
+
+    if (item.canClose) {
+      const closeBtn = row.createEl('button', {
+        cls: 'claudian-plus-tab-popover-close',
+        attr: { type: 'button', 'aria-label': t('chat.tabs.closeAria', { title: item.title }) },
+      });
+      setIcon(closeBtn, 'x');
+      closeBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        void this.handleTabClose(item.id);
+      });
+    }
+
+    row.addEventListener('contextmenu', (event: MouseEvent) => {
+      this.showTabContextMenu(event, item);
+    });
+  }
+
+  private showTabContextMenu(event: MouseEvent, item: TabBarItem): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const menu = new Menu();
+    menu.addItem(entry => entry
+      .setTitle(t('chat.tabs.close'))
+      .setDisabled(!item.canClose)
+      .onClick(() => {
+        void this.handleTabClose(item.id);
+      }));
+    menu.addItem(entry => entry
+      .setTitle(t('chat.tabs.closeOthers'))
+      .setDisabled((this.tabManager?.getTabCount() ?? 1) <= 1)
+      .onClick(() => {
+        void this.closeOtherTabs(item.id);
+      }));
+    menu.addItem(entry => entry
+      .setTitle(t('chat.tabs.rename'))
+      .onClick(() => this.startTabRename(item.id)));
+    menu.showAtMouseEvent(event);
+  }
+
+  private startTabRename(tabId: TabId): void {
+    const row = this.tabPopoverEl?.querySelector<HTMLElement>(`[data-tab-id="${tabId}"]`);
+    const titleEl = row?.querySelector<HTMLElement>('.claudian-plus-tab-popover-switch');
+    if (!row || !titleEl) return;
+
+    const current = titleEl.textContent ?? '';
+    const input = row.createEl('input', { cls: 'claudian-plus-tab-popover-rename', type: 'text' });
+    input.value = current;
+    titleEl.replaceWith(input);
+    input.focus();
+    input.select();
+
+    let settled = false;
+    const finish = (commit: boolean): void => {
+      if (settled) return;
+      settled = true;
+      const next = input.value.trim();
+      input.replaceWith(titleEl);
+      if (commit && next.length > 0 && next !== current) {
+        void this.renameTab(tabId, next);
+      }
+    };
+
+    input.addEventListener('blur', () => finish(true));
+    input.addEventListener('keydown', (event: KeyboardEvent) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        finish(true);
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        finish(false);
+      }
+    });
+  }
+
+  /**
+   * Replaces the dead "tab limit reached" toast with an actionable chooser:
+   * the user picks a window to close and the new one opens immediately.
+   */
+  private openTabLimitChooser(): void {
+    const items = this.tabManager?.getTabBarItems() ?? [];
+    const menu = new Menu();
+
+    menu.addItem(entry => entry
+      .setTitle(t('chat.tabs.limitChooserTitle', { count: String(this.getMaxTabs()) }))
+      .setDisabled(true));
+
+    for (const item of items) {
+      menu.addItem(entry => entry
+        .setTitle(item.title)
+        .setIcon('square-x')
+        .onClick(() => {
+          void this.closeTabAndCreateNew(item.id);
+        }));
+    }
+
+    menu.addItem(entry => entry
+      .setTitle(t('feedback.actionOpenSettings'))
+      .onClick(() => feedbackBus.getConfig().openSettings?.()));
+
+    const anchor = this.newTabButtonEl ?? this.viewContainerEl;
+    const rect = anchor?.getBoundingClientRect();
+    menu.showAtPosition({ x: rect?.left ?? 0, y: rect?.bottom ?? 0 });
+  }
+
+  private async closeTabAndCreateNew(tabId: TabId): Promise<void> {
+    await this.whenReady();
+    await this.tabManager?.closeTab(tabId, true);
+    this.updateTabBar();
+    await this.createNewTab();
   }
 
   /**
@@ -882,7 +1221,7 @@ export class ClaudianPlusView extends ItemView {
     // allocated when nothing can be reused.
     const tab = await this.tabManager?.createTab(undefined, undefined, { reuseBlank: true });
     if (!tab) {
-      new Notice(t('chat.tabLimit.newTabNotice', { count: String(this.getMaxTabs()) }));
+      this.openTabLimitChooser();
       this.updateTabBarVisibility();
       return false;
     }
@@ -909,19 +1248,34 @@ export class ClaudianPlusView extends ItemView {
       const items = this.tabManager.getTabBarItems();
       this.tabBar.update(items);
       this.updateTabBarVisibility();
+      if (this.tabPopoverOpen) this.renderTabPopover();
     }, this.containerEl.ownerDocument.defaultView ?? null);
   }
 
   private updateTabBarVisibility(): void {
     if (!this.tabBarContainerEl || !this.tabManager) return;
 
-    // The bar is intentionally never shown. The tab-limit affordances (the
-    // new-tab button staying clickable with an explanation, blank-tab reuse,
-    // and refusing to overwrite the live conversation) carry the same
-    // protection without a persistent badge row.
+    // The bar is intentionally never shown: a persistent badge row was
+    // explicitly rejected. Window switching and closing live in the header
+    // chip popover instead, so the capability costs no permanent chrome.
     this.tabBarContainerEl.toggleClass('claudian-plus-hidden', true);
 
+    this.updateTabChip();
     this.updateNewTabButtonVisibility();
+  }
+
+  private mountFeedbackHost(): void {
+    if (!this.inputFooterEl || !this.viewContainerEl) return;
+    this.feedbackHost = new FeedbackHost({
+      bus: feedbackBus,
+      toastAnchor: this.inputFooterEl,
+      drawerAnchor: this.viewContainerEl,
+      onCopyDiagnostics: () => {
+        void feedbackBus.copyDiagnostics();
+      },
+    });
+    this.feedbackHost.mount();
+    this.feedbackHost.setTrigger(this.feedbackBtnEl);
   }
 
   private updateNewTabButtonVisibility(): void {
@@ -941,7 +1295,7 @@ export class ClaudianPlusView extends ItemView {
     this.newTabButtonEl.removeAttribute('aria-hidden');
 
     const label = canCreateTab
-      ? t('chat.tabLimit.newTabLabel')
+      ? t('chat.tabs.newWindow')
       : t('chat.tabLimit.newTabDisabledHint', { count: String(this.getMaxTabs()) });
     this.newTabButtonEl.setAttribute('aria-label', label);
     this.newTabButtonEl.setAttribute('title', label);
@@ -1155,7 +1509,7 @@ export class ClaudianPlusView extends ItemView {
               }
             })
             .catch((error: unknown) => {
-              new Notice(error instanceof Error ? error.message : 'Failed to change permission mode.');
+              feedbackBus.blocked('permission.change.failed', error instanceof Error ? error.message : 'Failed to change permission mode.');
             });
         } else {
           activeTab.state.prePlanPermissionMode = current;
@@ -1167,7 +1521,7 @@ export class ClaudianPlusView extends ItemView {
             if (activeMode !== 'plan') {
               activeTab.state.prePlanPermissionMode = null;
             }
-            new Notice(error instanceof Error ? error.message : 'Failed to change permission mode.');
+            feedbackBus.blocked('permission.change.failed', error instanceof Error ? error.message : 'Failed to change permission mode.');
           });
         }
       }
@@ -1178,6 +1532,12 @@ export class ClaudianPlusView extends ItemView {
     this.scope = new Scope(this.app.scope);
     this.scope.register([], 'Escape', (e: KeyboardEvent) => {
       if (e.isComposing) return;
+      // An open popover owns Escape; it must not also stop a stream.
+      if (this.tabPopoverOpen) {
+        this.closeTabPopover();
+        this.tabChipEl?.focus();
+        return false;
+      }
       if (!e.defaultPrevented) {
         const activeTab = this.tabManager?.getActiveTab();
         if (activeTab?.state.isStreaming) {
@@ -1275,7 +1635,7 @@ export class ClaudianPlusView extends ItemView {
 
       void this.restoreOrCreateTabs()
         .catch((error: unknown) => {
-          new Notice(`Failed to restore Claudian Plus tabs: ${error instanceof Error ? error.message : String(error)}`);
+          feedbackBus.retryable('tabs.restore.failed', `Failed to restore Claudian Plus tabs: ${error instanceof Error ? error.message : String(error)}`, () => { void this.restoreOrCreateTabs(); });
         })
         .finally(() => {
           if (this.initialTabRestoreResolve === resolveRestore) {

@@ -1,7 +1,8 @@
 import type { App, EventRef } from 'obsidian';
-import { Notice, TFile, TFolder } from 'obsidian';
+import { TFile, TFolder } from 'obsidian';
 
 import type { McpServerManager } from '../../../core/mcp/McpServerManager';
+import { feedbackBus } from '../../../shared/feedback/FeedbackBus';
 import type { AgentMentionProvider } from '../../../shared/mention/MentionDropdownController';
 import { MentionDropdownController } from '../../../shared/mention/MentionDropdownController';
 import { VaultMentionDataProvider } from '../../../shared/mention/VaultMentionDataProvider';
@@ -84,13 +85,13 @@ export class FileContextManager {
         void (async (): Promise<void> => {
           const file = this.app.vault.getAbstractFileByPath(filePath);
           if (!(file instanceof TFile)) {
-            new Notice(`Could not open file: ${filePath}`);
+            feedbackBus.blocked('file.open.failed', `Could not open file: ${filePath}`);
             return;
           }
           try {
             await this.app.workspace.getLeaf().openFile(file);
           } catch (error) {
-            new Notice(`Failed to open file: ${error instanceof Error ? error.message : String(error)}`);
+            feedbackBus.retryable('file.open.threw', `Failed to open file: ${error instanceof Error ? error.message : String(error)}`, () => this.app.workspace.getLeaf().openFile(file));
           }
         })();
       },
