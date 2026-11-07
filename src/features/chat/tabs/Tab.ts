@@ -1,5 +1,5 @@
 import type { Component } from 'obsidian';
-import { Notice, Platform, TFile, TFolder } from 'obsidian';
+import { Platform, TFile, TFolder } from 'obsidian';
 
 import { ActiveContextObserver } from '../../../core/context/ActiveContextObserver';
 import { getHiddenProviderCommandSet } from '../../../core/providers/commands/hiddenCommands';
@@ -29,6 +29,7 @@ import { TOOL_AGENT_OUTPUT } from '../../../core/tools/toolNames';
 import type { ChatMessage, ClaudianPlusSettings, Conversation, StreamChunk } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
 import { SlashCommandDropdown } from '../../../shared/components/SlashCommandDropdown';
+import { feedbackBus } from '../../../shared/feedback/FeedbackBus';
 import { buildCanvasActionPrompt, type CanvasContextAction, type CanvasSelectionContext } from '../../../utils/canvas';
 import { getEnhancedPath } from '../../../utils/env';
 import { getVaultPath } from '../../../utils/path';
@@ -1078,7 +1079,7 @@ function initializeInputToolbar(
         || tab.state.isCreatingConversation
         || tab.state.isSwitchingConversation
       ) {
-        new Notice('Cannot change model while a conversation is active.');
+        feedbackBus.info('model.change.blocked', 'Cannot change model while a conversation is active.');
         return;
       }
 
@@ -1124,7 +1125,7 @@ function initializeInputToolbar(
       const boundProvider = tab.providerId;
       const modelProvider = getProviderForModel(model, plugin.settings);
       if (modelProvider !== boundProvider) {
-        new Notice('Cannot switch provider on a bound session. Start a new tab instead.');
+        feedbackBus.blocked('provider.switch.bound', 'Cannot switch provider on a bound session. Start a new tab instead.');
         tab.ui.modelSelector?.updateDisplay();
         return;
       }
@@ -1438,7 +1439,7 @@ function resolveForkSource(tab: TabData, plugin: FeatureHost): ForkSource | null
       .resolveSessionIdForConversation(conversation);
 
   if (!sourceSessionId) {
-    new Notice(t('chat.fork.failed', { error: t('chat.fork.errorNoSession') }));
+    feedbackBus.blocked('fork.noSession', t('chat.fork.failed', { error: t('chat.fork.errorNoSession') }));
     return null;
   }
 
@@ -1465,30 +1466,30 @@ async function handleForkRequest(
   const { state } = tab;
 
   if (!getTabCapabilities(tab, plugin).supportsFork) {
-    new Notice('Fork is not supported by this provider.');
+    feedbackBus.blocked('fork.unsupported', 'Fork is not supported by this provider.');
     return;
   }
 
   if (state.isStreaming) {
-    new Notice(t('chat.fork.unavailableStreaming'));
+    feedbackBus.info('fork.unavailable.streaming', t('chat.fork.unavailableStreaming'));
     return;
   }
 
   const msgs = state.messages;
   const userIdx = msgs.findIndex(m => m.id === userMessageId);
   if (userIdx === -1) {
-    new Notice(t('chat.fork.failed', { error: t('chat.fork.errorMessageNotFound') }));
+    feedbackBus.blocked('fork.messageNotFound', t('chat.fork.failed', { error: t('chat.fork.errorMessageNotFound') }));
     return;
   }
 
   if (!msgs[userIdx].userMessageId) {
-    new Notice(t('chat.fork.unavailableNoUuid'));
+    feedbackBus.blocked('fork.noUuid', t('chat.fork.unavailableNoUuid'));
     return;
   }
 
   const rewindCtx = findRewindContext(msgs, userIdx);
   if (!rewindCtx.hasResponse || !rewindCtx.prevAssistantUuid) {
-    new Notice(t('chat.fork.unavailableNoResponse'));
+    feedbackBus.blocked('fork.noResponse', t('chat.fork.unavailableNoResponse'));
     return;
   }
 
@@ -1516,18 +1517,18 @@ async function handleForkAll(
   const { state } = tab;
 
   if (!getTabCapabilities(tab, plugin).supportsFork) {
-    new Notice('Fork is not supported by this provider.');
+    feedbackBus.blocked('fork.unsupported', 'Fork is not supported by this provider.');
     return;
   }
 
   if (state.isStreaming) {
-    new Notice(t('chat.fork.unavailableStreaming'));
+    feedbackBus.info('fork.unavailable.streaming', t('chat.fork.unavailableStreaming'));
     return;
   }
 
   const msgs = state.messages;
   if (msgs.length === 0) {
-    new Notice(t('chat.fork.commandNoMessages'));
+    feedbackBus.info('fork.command.noMessages', t('chat.fork.commandNoMessages'));
     return;
   }
 
@@ -1540,7 +1541,7 @@ async function handleForkAll(
   }
 
   if (!lastAssistantUuid) {
-    new Notice(t('chat.fork.commandNoAssistantUuid'));
+    feedbackBus.blocked('fork.command.noAssistantUuid', t('chat.fork.commandNoAssistantUuid'));
     return;
   }
 
@@ -1820,7 +1821,7 @@ export function initializeTabControllers(
         applyProviderUIGating(tab, plugin);
         return true;
       } catch (error) {
-        new Notice(error instanceof Error ? error.message : 'Failed to initialize chat service');
+        feedbackBus.blocked('chat.service.init.failed', error instanceof Error ? error.message : 'Failed to initialize chat service');
         return false;
       }
     },
@@ -1988,7 +1989,7 @@ export function wireTabInputEvents(tab: TabData, plugin: FeatureHost): void {
     input.setRangeText(mentionText, start, end, 'end');
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.focus();
-    new Notice(`Added ${items.length} vault item${items.length === 1 ? '' : 's'} to context.`);
+    feedbackBus.success('vault.context.added', `Added ${items.length} vault item${items.length === 1 ? '' : 's'} to context.`);
   };
 
   dropTarget.addEventListener('dragenter', dragEnterHandler);
@@ -2146,7 +2147,7 @@ export async function destroyTab(tab: TabData): Promise<void> {
     try {
       await tab.controllers.conversationController?.save(false);
     } catch {
-      new Notice('Background task state could not be saved before closing the tab.');
+      feedbackBus.blocked('tab.backgroundState.saveFailed', 'Background task state could not be saved before closing the tab.');
     }
   }
   tab.services.subagentManager.clear();
@@ -2342,7 +2343,7 @@ export function setupServiceCallbacks(tab: TabData, plugin: FeatureHost): void {
           if (capturedPrePlanMode && getTabPermissionMode(tab, plugin) !== 'plan') {
             tab.state.prePlanPermissionMode = null;
           }
-          new Notice(error instanceof Error ? error.message : 'Failed to change permission mode.');
+          feedbackBus.blocked('permission.change.failed', error instanceof Error ? error.message : 'Failed to change permission mode.');
         });
       }
     });

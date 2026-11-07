@@ -7,33 +7,198 @@
   gap: 4px;
   margin-inline-start: 8px;
   cursor: default;
+  /* Obsidian raises a native tooltip for any aria-labelled element; this card
+     replaces it, so suppress the native one. */
+  --no-tooltip: true;
 }
 
-/* Custom tooltip */
-.claudian-plus-context-meter::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-bottom: 6px;
-  padding: 4px 8px;
-  font-size: 11px;
-  color: var(--text-normal);
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--claudian-plus-radius-xs);
+/* Usage block, rendered at the top of the capacity popover. */
+.claudian-plus-context-card {
+  padding: var(--claudian-plus-ui-space-sm) var(--claudian-plus-ui-space-sm) var(--claudian-plus-ui-space-xs);
+  font-size: var(--claudian-plus-ui-font-body);
+  color: var(--claudian-plus-text-normal);
+}
+
+.claudian-plus-context-card-unavailable {
+  color: var(--claudian-plus-text-muted);
+  font-size: var(--claudian-plus-ui-font-caption);
+  line-height: 1.5;
+}
+
+.claudian-plus-context-card-divider {
+  height: 1px;
+  margin: var(--claudian-plus-ui-space-2xs) 0;
+  background: var(--claudian-plus-border);
+}
+
+/* Capacity: one slider row replaces the four option rows, so the popover stays
+   short. Stop 0 is "provider default". */
+.claudian-plus-context-capacity-row {
+  display: flex;
+  align-items: center;
+  gap: var(--claudian-plus-ui-space-sm);
+  padding: var(--claudian-plus-ui-space-xs) var(--claudian-plus-ui-space-sm);
+}
+
+.claudian-plus-context-capacity-label {
+  flex: 0 0 auto;
+  color: var(--claudian-plus-text-muted);
+  font-size: var(--claudian-plus-ui-font-caption);
   white-space: nowrap;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.15s ease, visibility 0.15s ease;
-  pointer-events: none;
-  z-index: 100;
 }
 
-.claudian-plus-context-meter:hover::after {
-  opacity: 1;
-  visibility: visible;
+/* A trimmed version of the effort slider's feel: filled track, visible thumb,
+   hover/drag feedback — no matrix, no glide animations. */
+.claudian-plus-context-capacity-slider {
+  --fill: 0%;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--claudian-plus-ui-space-lg);
+  margin: 0;
+  padding: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Segmented track borrowed from the effort slider but re-tuned: the bars encode
+   how much window is requested, not thinking intensity, so they stay a uniform
+   ladder. The fill is a stripe layer clipped to --fill, so no extra DOM. */
+.claudian-plus-context-capacity-slider::-webkit-slider-runnable-track {
+  height: var(--claudian-plus-ui-icon-md);
+  border-radius: var(--claudian-plus-radius-full);
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      var(--claudian-plus-accent) 0 var(--claudian-plus-ui-space-2xs),
+      transparent var(--claudian-plus-ui-space-2xs) var(--claudian-plus-ui-space-xs)
+    ),
+    repeating-linear-gradient(
+      to right,
+      var(--claudian-plus-surface-hover) 0 var(--claudian-plus-ui-space-2xs),
+      transparent var(--claudian-plus-ui-space-2xs) var(--claudian-plus-ui-space-xs)
+    );
+  background-size: var(--fill) 100%, 100% 100%;
+  background-repeat: no-repeat, no-repeat;
+}
+
+/* A pill knob wraps the current bar, so the track and the knob read as one piece. */
+.claudian-plus-context-capacity-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  width: var(--claudian-plus-ui-space-lg);
+  height: var(--claudian-plus-ui-icon-md);
+  margin-block-start: 0;
+  border: 2px solid var(--claudian-plus-accent);
+  border-radius: var(--claudian-plus-radius-full);
+  background: var(--claudian-plus-surface-primary);
+  box-shadow: var(--claudian-plus-shadow-sm);
+  transition: transform var(--claudian-plus-transition-fast);
+}
+
+.claudian-plus-context-capacity-slider:hover::-webkit-slider-thumb {
+  transform: scale(1.12);
+}
+
+.claudian-plus-context-capacity-slider:active::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+
+.claudian-plus-context-capacity-slider:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+  border-radius: var(--claudian-plus-radius-sm);
+}
+
+.claudian-plus-context-capacity-value {
+  flex: 0 0 auto;
+  min-width: 56px;
+  color: var(--claudian-plus-text-normal);
+  font-size: var(--claudian-plus-ui-font-caption);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.claudian-plus-context-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--claudian-plus-ui-space-sm);
+  margin-block-end: var(--claudian-plus-ui-space-sm);
+}
+
+.claudian-plus-context-card-title {
+  color: var(--claudian-plus-text-muted);
+}
+
+.claudian-plus-context-card-percent {
+  color: var(--claudian-plus-text-normal);
+  font-weight: var(--font-semibold, 600);
+}
+
+.claudian-plus-context-card-amount {
+  color: var(--claudian-plus-text-faint);
+  font-size: var(--claudian-plus-ui-font-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.claudian-plus-context-card-bar {
+  height: var(--claudian-plus-ui-space-xs);
+  border-radius: var(--claudian-plus-radius-full);
+  background: var(--claudian-plus-surface-hover);
+  overflow: hidden;
+}
+
+.claudian-plus-context-card-bar-used {
+  height: 100%;
+  border-radius: var(--claudian-plus-radius-full);
+  background: var(--claudian-plus-accent);
+  transition: width var(--claudian-plus-transition-normal);
+}
+
+.claudian-plus-context-meter.warning .claudian-plus-context-card-bar-used {
+  background: var(--claudian-plus-error);
+}
+
+.claudian-plus-context-card-row {
+  display: flex;
+  align-items: center;
+  gap: var(--claudian-plus-ui-space-sm);
+  margin-block-start: var(--claudian-plus-ui-space-sm);
+}
+
+.claudian-plus-context-card-dot {
+  flex: 0 0 auto;
+  width: var(--claudian-plus-ui-space-sm);
+  height: var(--claudian-plus-ui-space-sm);
+  border-radius: var(--claudian-plus-radius-xs);
+}
+
+.claudian-plus-context-card-dot.is-used {
+  background: var(--claudian-plus-accent);
+}
+
+.claudian-plus-context-card-dot.is-free {
+  background: var(--claudian-plus-surface-hover);
+}
+
+.claudian-plus-context-card-label {
+  flex: 1 1 auto;
+  color: var(--claudian-plus-text-normal);
+}
+
+.claudian-plus-context-card-value {
+  color: var(--claudian-plus-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.claudian-plus-context-card-hint {
+  margin-block-start: var(--claudian-plus-ui-space-sm);
+  padding-block-start: var(--claudian-plus-ui-space-xs);
+  border-block-start: 1px solid var(--claudian-plus-border);
+  color: var(--claudian-plus-warning);
+  font-size: var(--claudian-plus-ui-font-caption);
 }
 
 .claudian-plus-context-meter-gauge {

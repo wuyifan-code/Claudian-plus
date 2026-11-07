@@ -197,6 +197,8 @@ export class DshStreamNormalizer {
         if (this.invalidated) return chunks;
       }
       if (active) active.settled = true;
+      const usageChunk = this.usageChunk(data.usage);
+      if (usageChunk) chunks.push(usageChunk);
       return chunks;
     }
     if (event.type === 'tool/call') return this.toolChunk(data);
@@ -208,6 +210,29 @@ export class DshStreamNormalizer {
 
   private matchesAttempt(data: Record<string, unknown>): boolean {
     return this.attempt !== undefined && this.attempt.turn === data.turn && this.attempt.step === data.step;
+  }
+
+  /**
+   * `assistant/message` carries the same `TokenUsage` the Harness UI reports.
+   * Dropping it left the context meter empty for this provider; `inputTokens`
+   * is the prompt size, which is what fills the window.
+   */
+  private usageChunk(raw: unknown): StreamChunk | null {
+    if (!isDshObject(raw)) return null;
+    const inputTokens = typeof raw.inputTokens === 'number' && Number.isFinite(raw.inputTokens)
+      ? raw.inputTokens
+      : 0;
+    if (inputTokens <= 0) return null;
+    return {
+      type: 'usage',
+      usage: {
+        inputTokens,
+        contextWindow: 0,
+        contextWindowIsAuthoritative: false,
+        contextTokens: inputTokens,
+        percentage: 0,
+      },
+    };
   }
 
   private acceptFrame(frame: Record<string, unknown>): StreamChunk[] {

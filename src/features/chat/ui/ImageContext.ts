@@ -1,7 +1,7 @@
-import { Notice } from 'obsidian';
 import * as path from 'path';
 
 import type { ImageAttachment, ImageMediaType } from '../../../core/types';
+import { feedbackBus } from '../../../shared/feedback/FeedbackBus';
 import { ComposerContextTray } from './ComposerContextTray';
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
@@ -261,7 +261,7 @@ export class ImageContextManager {
   private async addImageFromFile(file: File, source: 'paste' | 'drop'): Promise<boolean> {
     if (this.destroyed) return false;
     if (!this.enabled) {
-      new Notice('Image attachments are not supported by this provider.');
+      feedbackBus.blocked('image.unsupported', 'Image attachments are not supported by this provider.');
       return false;
     }
 
@@ -399,6 +399,6 @@ export class ImageContextManager {
         userMessage = `${message} (Permission denied)`;
       }
     }
-    new Notice(userMessage);
+    feedbackBus.blocked('image.rejected', userMessage);
   }
 }

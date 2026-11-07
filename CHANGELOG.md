@@ -6,6 +6,25 @@ English | [简体中文](CHANGELOG_ZH.md)
 
 Releases before 3.0.2 live in the git tags and the Releases page.
 
+## [3.2.7] - 2026-11-06
+
+### Added
+
+- A feedback log for the chat panel. Failures become entries with a level, a reason, and at least one actionable next step, instead of a toast that disappears. The panel shows up to three at a time above the composer, keeps a full reverse-chronological list behind the header bell, and announces errors through an assertive live region while quieter entries use a polite one.
+- Repeats of the same failure collapse into one entry with a count, so a retry storm cannot flood the panel.
+- A failure stays under the turn that produced it until the next turn starts, so "it failed and I missed it" is no longer possible.
+- **Copy diagnostics** produces a redacted report: absolute paths, `sk-` tokens, bearer headers, and named secrets are stripped before anything reaches the clipboard.
+- A window chip in the header, from the second window onward: it opens a popover listing every window, with a close button per row, right-click for close / close others / rename, and two footer actions (new window, new conversation here). The persistent badge row stays gone, as requested.
+- Hitting the window limit now opens a "close one, then open a new one" chooser instead of a toast that vanishes. The setting is still one entry away.
+- Closing a window reports *window closed · conversation saved* with a **Reopen** action, and starting a new conversation in place offers **Back to the previous conversation**.
+- New command **Open activity log** (`open-feedback-log`), bound to nothing by default.
+
+### Changed
+
+- The context ring now opens a usage card on hover: percent used, the exact token budget, and the used/free split. Clicking it still picks a capacity.
+- The header **+** now opens a new task window. "Start a new conversation here" moved to the composer toolbar and says what it does.
+- 140 chat-surface `new Notice(` calls migrated to the feedback bus; the chat feature no longer calls `Notice` directly. Errors already shown inline by a modal dropped their duplicate toast instead of being migrated.
+
 ## [3.2.6] - 2026-11-02
 
 ### Fixed

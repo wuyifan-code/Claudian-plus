@@ -1,6 +1,7 @@
-import { type App, Notice, setIcon } from 'obsidian';
+import { type App, setIcon } from 'obsidian';
 
 import { localeText } from '../../../i18n/i18n';
+import { feedbackBus } from '../../../shared/feedback/FeedbackBus';
 import {
   createLinkedNote,
   insertAtCursor,
@@ -116,7 +117,7 @@ export class FloatingSelectionToolbar {
       e.stopPropagation();
       if (!this.activeSelectionText) return;
       void navigator.clipboard.writeText(this.activeSelectionText).then(() => {
-        new Notice(localeText('已复制选区到剪贴板', 'Copied selection to clipboard'));
+        feedbackBus.success('selection.copied', localeText('已复制选区到剪贴板', 'Copied selection to clipboard'));
       }).catch(() => {
         // clipboard may fail in non-secure contexts
       });

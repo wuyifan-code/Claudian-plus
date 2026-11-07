@@ -21,7 +21,43 @@
     "refresh": "Actualizar",
     "rewind": "Rebobinar"
   },
+  "feedback": {
+    "dismiss": "Dismiss",
+    "count": "×{count}",
+    "drawerTitle": "Activity",
+    "drawerOpen": "Open activity log",
+    "drawerEmpty": "Nothing to report yet",
+    "clear": "Clear",
+    "filterAll": "All",
+    "filterError": "Errors",
+    "filterWarning": "Warnings",
+    "filterInfo": "Info",
+    "actionRetry": "Retry",
+    "actionOpenSettings": "Open settings",
+    "actionCopyDiagnostics": "Copy diagnostics",
+    "diagnosticsCopied": "Diagnostics copied",
+    "diagnosticsFailed": "Could not copy diagnostics",
+    "retryFailed": "Retry failed"
+  },
   "chat": {
+    "tabs": {
+      "close": "Close window",
+      "closeOthers": "Close other windows",
+      "rename": "Rename",
+      "closeAria": "Close window {title}",
+      "newWindow": "New task window",
+      "newConversationHere": "Start a new conversation here",
+      "windows": "Task windows",
+      "historyTitle": "Conversation history",
+      "closedSaved": "Window closed · conversation saved",
+      "reopen": "Reopen",
+      "replacedSaved": "New conversation started · previous one saved",
+      "reopenPrevious": "Back to the previous conversation",
+      "limitChooserTitle": "Window limit reached ({count})",
+      "limitChooserDesc": "Close one window, then a new one opens",
+      "limitChoose": "Close and open a new one"
+    },
+
     "effort": {
       "label": "Esfuerzo de razonamiento",
       "faster": "Más rápido",
@@ -114,6 +150,13 @@
         "tools": "Herramientas",
         "thinking": "Pensamiento"
       }
+    },
+    "contextUsage": {
+      "title": "Context used",
+      "used": "Used",
+      "free": "Free",
+      "unavailable": "This provider does not report context usage.",
+      "nearLimit": "Approaching the limit; run /compact to continue"
     },
     "contextCapacity": {
       "label": "Capacidad de contexto",

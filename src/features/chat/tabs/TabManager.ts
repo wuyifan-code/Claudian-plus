@@ -1,4 +1,3 @@
-import { Notice } from 'obsidian';
 
 import { StartupProfiler } from '../../../core/performance/StartupProfiler';
 import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
@@ -12,6 +11,7 @@ import type {
 import type { ChatRuntime } from '../../../core/runtime/ChatRuntime';
 import type { Conversation, SlashCommand } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
+import { feedbackBus } from '../../../shared/feedback/FeedbackBus';
 import { chooseForkTarget } from '../../../shared/modals/ForkTargetModal';
 import { scheduleAnimationFrame } from '../../../utils/animationFrame';
 import { revealWorkspaceLeaf } from '../../../utils/obsidianCompat';
@@ -712,7 +712,7 @@ export class TabManager implements TabManagerInterface {
       // An explicit "open in new tab" request must never degrade into replacing
       // the conversation the user is currently reading.
       if (!this.canCreateTab()) {
-        new Notice(t('chat.tabLimit.newTabNotice', { count: String(this.getMaxTabs()) }));
+        feedbackBus.blocked('tabLimit.reached', t('chat.tabLimit.newTabNotice', { count: String(this.getMaxTabs()) }));
         return;
       }
       targetTab = await this.createTab(conversationId, undefined, { activate });
@@ -720,7 +720,7 @@ export class TabManager implements TabManagerInterface {
         // Only reachable when a pending creation reserved the last slot between
         // the canCreateTab check and createTab. Kept so the no-degrade
         // guarantee above holds unconditionally.
-        new Notice(t('chat.tabLimit.newTabNotice', { count: String(this.getMaxTabs()) }));
+        feedbackBus.blocked('tabLimit.reached', t('chat.tabLimit.newTabNotice', { count: String(this.getMaxTabs()) }));
         return;
       }
     } else {
@@ -846,17 +846,17 @@ export class TabManager implements TabManagerInterface {
       const tab = await this.forkToNewTab(context);
       if (!tab) {
         const maxTabs = this.getMaxTabs();
-        new Notice(t('chat.fork.maxTabsReached', { count: String(maxTabs) }));
+        feedbackBus.blocked('fork.maxTabsReached', t('chat.fork.maxTabsReached', { count: String(maxTabs) }));
         return;
       }
-      new Notice(t('chat.fork.notice'));
+      feedbackBus.success('fork.created', t('chat.fork.notice'));
     } else {
       const success = await this.forkInCurrentTab(context);
       if (!success) {
-        new Notice(t('chat.fork.failed', { error: t('chat.fork.errorNoActiveTab') }));
+        feedbackBus.blocked('fork.failed', t('chat.fork.failed', { error: t('chat.fork.errorNoActiveTab') }));
         return;
       }
-      new Notice(t('chat.fork.noticeCurrentTab'));
+      feedbackBus.success('fork.created.inPlace', t('chat.fork.noticeCurrentTab'));
     }
   }
 

@@ -21,7 +21,43 @@
     "refresh": "重新整理",
     "rewind": "回退"
   },
+  "feedback": {
+    "dismiss": "關閉",
+    "count": "×{count}",
+    "drawerTitle": "活動記錄",
+    "drawerOpen": "開啟活動記錄",
+    "drawerEmpty": "暫時沒有需要回報的事項",
+    "clear": "清空",
+    "filterAll": "全部",
+    "filterError": "錯誤",
+    "filterWarning": "提醒",
+    "filterInfo": "資訊",
+    "actionRetry": "重試",
+    "actionOpenSettings": "開啟設定",
+    "actionCopyDiagnostics": "複製診斷資訊",
+    "diagnosticsCopied": "診斷資訊已複製",
+    "diagnosticsFailed": "複製診斷資訊失敗",
+    "retryFailed": "重試失敗"
+  },
   "chat": {
+    "tabs": {
+      "close": "關閉窗口",
+      "closeOthers": "關閉其他窗口",
+      "rename": "重命名",
+      "closeAria": "關閉窗口 {title}",
+      "newWindow": "新建任務窗口",
+      "newConversationHere": "在此窗口開新對話",
+      "windows": "任務視窗",
+      "historyTitle": "歷史對話",
+      "closedSaved": "窗口已關閉，對話已儲存",
+      "reopen": "重新開啟",
+      "replacedSaved": "已開始新對話，上一個對話已儲存",
+      "reopenPrevious": "回到上一個對話",
+      "limitChooserTitle": "已達到 {count} 個窗口上限",
+      "limitChooserDesc": "先關一個，再新建",
+      "limitChoose": "關閉並新建"
+    },
+
     "effort": {
       "label": "推理等級",
       "faster": "更快",
@@ -114,6 +150,13 @@
         "tools": "工具",
         "thinking": "思考"
       }
+    },
+    "contextUsage": {
+      "title": "上下文已用",
+      "used": "已用",
+      "free": "剩餘",
+      "unavailable": "此 provider 不上報上下文用量。",
+      "nearLimit": "接近上限，可執行 /compact 繼續"
     },
     "contextCapacity": {
       "label": "上下文容量",

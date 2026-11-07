@@ -1,6 +1,6 @@
-import { Notice } from 'obsidian';
 
 import { t } from '../../../i18n/i18n';
+import { feedbackBus } from '../../../shared/feedback/FeedbackBus';
 import { LivePreviewInputBridge } from './LivePreviewInputBridge';
 import type {
   ComposerEnhancement,
@@ -22,7 +22,7 @@ export class LivePreviewComposerEnhancement implements ComposerEnhancement {
       context.sourceEl,
       {
         onReferencesDropped: references => context.onReferencesDropped(references),
-        onInvalidDrop: () => new Notice(t('chat.drop.invalid')),
+        onInvalidDrop: () => feedbackBus.info('composer.drop.invalid', t('chat.drop.invalid')),
       },
     );
     context.setReferenceSink(references => bridge.setReferences(references));

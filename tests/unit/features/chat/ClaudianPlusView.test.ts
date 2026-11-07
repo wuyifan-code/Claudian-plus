@@ -1,7 +1,8 @@
 import { createMockEl } from '@test/helpers/mockElement';
-import { Notice, Platform, Scope } from 'obsidian';
+import { Menu, Notice, Platform, Scope } from 'obsidian';
 
 import { ClaudianPlusView } from '@/features/chat/ClaudianPlusView';
+import { feedbackBus } from '@/shared/feedback/FeedbackBus';
 
 const MockScope = Scope as typeof Scope & { instances: Scope[] };
 
@@ -11,9 +12,13 @@ function createViewHarness(options: {
   hasReusableBlankTab?: boolean;
 }): {
   newTabButtonEl: ReturnType<typeof createMockEl>;
+  tabChipEl: ReturnType<typeof createMockEl>;
+  tabChipCountEl: ReturnType<typeof createMockEl>;
   view: any;
 } {
   const newTabButtonEl = createMockEl();
+  const tabChipEl = createMockEl();
+  const tabChipCountEl = createMockEl();
   const view = Object.create(ClaudianPlusView.prototype) as any;
 
   view.plugin = {
@@ -27,8 +32,11 @@ function createViewHarness(options: {
   view.tabBarContainerEl = createMockEl();
   view.logoEl = createMockEl();
   view.newTabButtonEl = newTabButtonEl;
+  view.tabChipEl = tabChipEl;
+  view.tabChipCountEl = tabChipCountEl;
+  view.tabPopoverOpen = false;
 
-  return { newTabButtonEl, view };
+  return { newTabButtonEl, tabChipEl, tabChipCountEl, view };
 }
 
 describe('ClaudianPlusView tab controls', () => {
@@ -87,20 +95,66 @@ describe('ClaudianPlusView tab controls', () => {
 
     many.view.refreshTabControls();
 
+    // A persistent badge row was explicitly rejected; the header chip is the
+    // switching affordance instead.
     expect(many.view.tabBarContainerEl.hasClass('claudian-plus-hidden')).toBe(true);
   });
 
-  it('does not create a tab and warns through a Notice when at capacity', async () => {
+  it('shows the window chip only from the second window on', () => {
+    const single = createViewHarness({ canCreateTab: true, tabCount: 1 });
+    single.view.refreshTabControls();
+
+    expect(single.tabChipEl.hasClass('claudian-plus-hidden')).toBe(true);
+
+    const many = createViewHarness({ canCreateTab: true, tabCount: 5 });
+    many.tabChipEl.addClass('claudian-plus-hidden');
+
+    many.view.refreshTabControls();
+
+    expect(many.tabChipEl.hasClass('claudian-plus-hidden')).toBe(false);
+    expect(many.tabChipCountEl.textContent).toBe('5');
+  });
+
+  it('opens a close-one chooser instead of a toast when at capacity', async () => {
     const { view } = createViewHarness({ canCreateTab: false });
     view.whenReady = jest.fn().mockResolvedValue(undefined);
     view.tabManager.createTab = jest.fn().mockResolvedValue(null);
-    view.tabManager.getMaxTabs = jest.fn().mockReturnValue(3);
+    view.tabManager.getTabBarItems = jest.fn().mockReturnValue([
+      { id: 'tab-1', index: 1, title: 'First window', providerId: 'claude', isActive: true, isStreaming: false, needsAttention: false, canClose: true, canRename: true },
+      { id: 'tab-2', index: 2, title: 'Second window', providerId: 'codex', isActive: false, isStreaming: false, needsAttention: false, canClose: true, canRename: true },
+    ]);
+    const noticesBefore = (Notice as unknown as jest.Mock).mock.calls.length;
 
     await view.createNewTab();
 
-    expect(view.tabManager.createTab).toHaveBeenCalled();
-    expect(Notice).toHaveBeenCalledTimes(1);
-    expect(String((Notice as unknown as jest.Mock).mock.calls[0][0])).toContain('3');
+    expect((Notice as unknown as jest.Mock).mock.calls.length).toBe(noticesBefore);
+    const menuInstances = (Menu as unknown as { instances: Array<{ items: Array<{ title: string }> }> }).instances;
+    const menu = menuInstances[menuInstances.length - 1];
+    const titles = menu.items.map(item => item.title);
+    expect(titles).toEqual(expect.arrayContaining(['First window', 'Second window']));
+  });
+
+  it('announces a saved conversation and offers a reopen action when a window closes', async () => {
+    feedbackBus.clear();
+    const { view } = createViewHarness({ canCreateTab: true, tabCount: 2 });
+    view.whenReady = jest.fn().mockResolvedValue(undefined);
+    view.plugin.getConversationSync = jest.fn().mockReturnValue({ title: 'Old chat' });
+    view.tabManager.getTab = jest.fn().mockReturnValue({
+      conversationId: 'conv-1',
+      state: { isStreaming: false },
+    });
+    view.tabManager.closeTab = jest.fn().mockResolvedValue(true);
+    view.openHistoryConversation = jest.fn().mockResolvedValue(undefined);
+
+    await view.handleTabClose('tab-1');
+
+    const [entry] = feedbackBus.getState().entries;
+    expect(entry.key).toBe('tabs.closed.saved');
+    expect(entry.actions?.map(action => action.id)).toContain('reopen');
+
+    await entry.actions?.find(action => action.id === 'reopen')?.run();
+    expect(view.openHistoryConversation).toHaveBeenCalledWith('conv-1');
+    feedbackBus.clear();
   });
 
   it('shows the new-tab button when another tab can be created', () => {
@@ -513,6 +567,23 @@ describe('ClaudianPlusView Escape handling', () => {
     const result = escapeHandler.func({ key: 'Escape', isComposing: false } as KeyboardEvent);
 
     expect(cancelStreaming).toHaveBeenCalledTimes(1);
+    expect(result).toBe(false);
+  });
+
+  it('closes the window popover on scoped Escape without stopping the stream', () => {
+    const { cancelStreaming, view } = createEscapeHarness({ isStreaming: true });
+    view.tabPopoverOpen = true;
+    view.closeTabPopover = jest.fn(() => {
+      view.tabPopoverOpen = false;
+    });
+    view.tabChipEl = createMockEl();
+
+    view.wireEventHandlers();
+    const escapeHandler = view.scope.handlers.find((handler: any) => handler.key === 'Escape');
+    const result = escapeHandler.func({ key: 'Escape', isComposing: false } as KeyboardEvent);
+
+    expect(view.closeTabPopover).toHaveBeenCalledTimes(1);
+    expect(cancelStreaming).not.toHaveBeenCalled();
     expect(result).toBe(false);
   });
 

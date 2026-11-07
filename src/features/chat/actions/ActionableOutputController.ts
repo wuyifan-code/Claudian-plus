@@ -1,7 +1,8 @@
-import { type App, type Editor, MarkdownView, Notice, type TFile } from 'obsidian';
+import { type App, type Editor, MarkdownView, type TFile } from 'obsidian';
 
 import type { AmbientFocusContext } from '../../../core/context/types';
 import { localeText } from '../../../i18n/i18n';
+import { feedbackBus } from '../../../shared/feedback/FeedbackBus';
 import { DiffReviewModal } from './DiffReviewModal';
 
 interface WorkspaceWithLeaf {
@@ -121,7 +122,7 @@ export function insertAtCursor(
 ): boolean {
   const editor = getActiveMarkdownEditor(app);
   if (!editor) {
-    new Notice(localeText('未找到活动的编辑器来插入内容。', 'No active editor found to insert content.'));
+    feedbackBus.blocked('editor.missing.insert', localeText('未找到活动的编辑器来插入内容。', 'No active editor found to insert content.'));
     return false;
   }
 
@@ -137,7 +138,7 @@ export function insertAtCursor(
   const defaultNotice = options?.isSelection
     ? localeText('已插入选区到光标处', 'Inserted selection at cursor')
     : localeText('已插入到光标处', 'Inserted at cursor');
-  new Notice(options?.customNotice ?? defaultNotice);
+  feedbackBus.success('editor.inserted', options?.customNotice ?? defaultNotice);
   return true;
 }
 
@@ -161,7 +162,7 @@ export function replaceSelection(
 ): boolean {
   const editor = getActiveMarkdownEditor(app);
   if (!editor) {
-    new Notice(localeText('未找到活动的编辑器来替换内容。', 'No active editor found to replace content.'));
+    feedbackBus.blocked('editor.missing.replace', localeText('未找到活动的编辑器来替换内容。', 'No active editor found to replace content.'));
     return false;
   }
 
@@ -173,7 +174,7 @@ export function replaceSelection(
         ? localeText('已用选区替换笔记内容', 'Replaced with selection')
         : localeText('已替换选区内容', 'Replaced active selection')
     );
-    new Notice(notice);
+    feedbackBus.success('editor.replaced', notice);
     return true;
   }
 
@@ -181,13 +182,13 @@ export function replaceSelection(
     const from = { line: Math.max(0, focusContext.range.startLine - 1), ch: 0 };
     const to = { line: Math.min(editor.lineCount() - 1, focusContext.range.endLine), ch: 0 };
     editor.replaceRange(text, from, to);
-    new Notice(options?.customNotice ?? localeText('已替换当前章节内容', 'Replaced focused section'));
+    feedbackBus.success('editor.replaced.section', options?.customNotice ?? localeText('已替换当前章节内容', 'Replaced focused section'));
     return true;
   }
 
   // Fallback: replace whole document or insert at cursor
   editor.setValue(text);
-  new Notice(options?.customNotice ?? localeText('已替换文档内容', 'Replaced document content'));
+  feedbackBus.success('editor.replaced.document', options?.customNotice ?? localeText('已替换文档内容', 'Replaced document content'));
   return true;
 }
 
@@ -242,10 +243,10 @@ export async function createLinkedNote(
       await leaf.openFile(newFile);
     }
 
-    new Notice(localeText(`已创建笔记：${newFile.basename}`, `Created note: ${newFile.basename}`));
+    feedbackBus.success('note.created', localeText(`已创建笔记：${newFile.basename}`, `Created note: ${newFile.basename}`));
     return newFile.path;
   } catch (error) {
-    new Notice(localeText(`创建笔记失败：${String(error)}`, `Failed to create note: ${String(error)}`));
+    feedbackBus.blocked('note.create.failed', localeText(`创建笔记失败：${String(error)}`, `Failed to create note: ${String(error)}`));
     return null;
   }
 }
@@ -269,10 +270,10 @@ export function openDiffReview(
     onApply: (appliedContent: string) => {
       if (editor) {
         editor.setValue(appliedContent);
-        new Notice(localeText('已将更改应用到文档', 'Applied changes to document'));
+        feedbackBus.success('edit.applied.document', localeText('已将更改应用到文档', 'Applied changes to document'));
       } else if (activeFile) {
         void app.vault.modify(activeFile, appliedContent).then(() => {
-          new Notice(localeText('已将更改应用到文件', 'Applied changes to file'));
+          feedbackBus.success('edit.applied.file', localeText('已将更改应用到文件', 'Applied changes to file'));
         });
       }
     },
@@ -280,6 +281,20 @@ export function openDiffReview(
 
   modal.open();
   return true;
+}
+
+/** Opens the Claudian Plus settings tab without selecting a category. */
+export function openPluginSettings(app: App): void {
+  const setting = (app as unknown as {
+    setting?: {
+      open: () => void;
+      openTabById: (id: string) => void;
+    };
+  }).setting;
+
+  if (!setting) return;
+  setting.open();
+  setting.openTabById('claudian-plus');
 }
 
 export function openMindSettings(app: App): void {

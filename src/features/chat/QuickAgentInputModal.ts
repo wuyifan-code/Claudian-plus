@@ -1,6 +1,7 @@
-import { type App,Modal, Notice, Setting } from 'obsidian';
+import { type App, Modal, Setting } from 'obsidian';
 
 import { localeText } from '../../i18n/i18n';
+import { feedbackBus } from '../../shared/feedback/FeedbackBus';
 
 /**
  * A lightweight floating modal for quick agent queries.
@@ -77,7 +78,7 @@ export class QuickAgentInputModal extends Modal {
   private async submit(): Promise<void> {
     const trimmed = this.promptValue.trim();
     if (!trimmed) {
-      new Notice(localeText('提示词不能为空。', 'Prompt cannot be empty.'));
+      feedbackBus.info('quickAgent.empty-prompt', localeText('提示词不能为空。', 'Prompt cannot be empty.'));
       return;
     }
     this.close();

@@ -30,6 +30,7 @@
 @import "./components/generative-ui.css";
 @import "./components/markdown-reading.css";
 @import "./components/staging-drawer.css";
+@import "./components/feedback.css";
 
 /* Toolbar */
 @import "./toolbar/model-selector.css";

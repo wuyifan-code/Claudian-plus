@@ -1,5 +1,5 @@
 import type { App } from 'obsidian';
-import { Component, MarkdownRenderer, MarkdownView, Menu, Modal, Notice, setIcon,Setting } from 'obsidian';
+import { Component, MarkdownRenderer, MarkdownView, Menu, Modal, setIcon,Setting } from 'obsidian';
 
 import { createBlobEngine } from '@/shared/blob/BlobEngine';
 
@@ -16,6 +16,7 @@ import {
 import { extractToolResultContent } from '../../../core/tools/toolResultContent';
 import type { ChatMessage, ImageAttachment, SubagentInfo, ToolCallInfo } from '../../../core/types';
 import { localeText, t } from '../../../i18n/i18n';
+import { feedbackBus } from '../../../shared/feedback/FeedbackBus';
 import { extractUserDisplayContent } from '../../../utils/context';
 import { formatDurationMmSs } from '../../../utils/date';
 import { processFileLinks, registerFileLinkHandler } from '../../../utils/fileLink';
@@ -42,6 +43,7 @@ import { FloatingSelectionToolbar } from '../actions/FloatingSelectionToolbar';
 import { findRewindContext } from '../rewind';
 import { WelcomeService } from '../services/WelcomeService';
 import { BlobWelcomeView } from '../ui/BlobWelcomeView';
+import { TurnErrorSlot } from '../ui/TurnErrorSlot';
 import type { WelcomeAnimation, WelcomeAnimationMode } from '../ui/welcomeAnimation';
 import { formatConversationDirectoryTitle } from '../utils/conversationDirectoryTitle';
 import { type CollapsibleState,setupCollapsible } from './collapsible';
@@ -232,6 +234,7 @@ export class MessageRenderer {
   private readonly streamingWidths = new WeakMap<HTMLElement, { width: number; at: number }>();
   private disposed = false;
   private floatingToolbar: FloatingSelectionToolbar | null = null;
+  private turnErrorSlot: TurnErrorSlot | null = null;
   /** Sliding window over the stored (history) message nodes. */
   private messageWindow: MessageRenderWindow;
   /** Per-message markdown scopes keyed by the message's top-level nodes. */
@@ -288,6 +291,12 @@ export class MessageRenderer {
     });
     this.messageWindow.setContainer(messagesEl);
     this.initFloatingToolbar();
+    this.turnErrorSlot = new TurnErrorSlot(messagesEl, feedbackBus);
+  }
+
+  /** Drops the previous turn's failure row; called when the next turn starts. */
+  clearTurnError(): void {
+    this.turnErrorSlot?.clear();
   }
 
   private initFloatingToolbar(): void {
@@ -320,13 +329,13 @@ export class MessageRenderer {
           confidence: 0.9,
         });
         if (entry) {
-          new Notice(localeText('已添加到心智草稿箱，可在设置中审阅', 'Added to Mind staging queue for review'));
+          feedbackBus.success('mind.staging.added', localeText('已添加到心智草稿箱，可在设置中审阅', 'Added to Mind staging queue for review'));
         } else {
-          new Notice(localeText('心智库中已存在相同规则', 'Rule already exists in Mind store'));
+          feedbackBus.info('mind.staging.duplicate', localeText('心智库中已存在相同规则', 'Rule already exists in Mind store'));
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        new Notice(`Failed to pin rule: ${msg}`);
+        feedbackBus.blocked('mind.pin.failed', `Failed to pin rule: ${msg}`);
       }
     })();
   }
@@ -349,6 +358,8 @@ export class MessageRenderer {
     this.cancelPendingUiCallbacks();
     this.destroyWelcomeCube();
     this.closeActiveImageModal();
+    this.turnErrorSlot?.dispose();
+    this.turnErrorSlot = null;
     this.messageWindow.dispose();
     this.releaseAllStoredScopes();
     this.floatingToolbar?.destroy();
@@ -887,7 +898,7 @@ export class MessageRenderer {
           .setIcon('copy')
           .onClick(() => {
             void navigator.clipboard.writeText(selectedText).then(() => {
-              new Notice(localeText('已复制选区到剪贴板', 'Copied selection to clipboard'));
+              feedbackBus.success('selection.copied', localeText('已复制选区到剪贴板', 'Copied selection to clipboard'));
             }).catch(() => {});
           });
       });
@@ -1575,7 +1586,7 @@ export class MessageRenderer {
     if (this.plugin.settings.uiInsertToNoteEnabled !== true) return;
     const view = this.app.workspace.getActiveViewOfType(MarkdownView);
     if (view === null) {
-      new Notice(t('settings.uiInsertToNote.noActiveNote'));
+      feedbackBus.blocked('note.insert.noActiveNote', t('settings.uiInsertToNote.noActiveNote'));
       return;
     }
     new InsertToNoteModal(this.app, view.file?.path ?? '', markdown, () => {
@@ -1592,7 +1603,7 @@ export class MessageRenderer {
     if (fence.length === 0) return;
     const editor = getActiveMarkdownEditor(this.app);
     if (editor === null) {
-      new Notice(t('settings.uiInsertToNote.noActiveNote'));
+      feedbackBus.blocked('note.insert.noActiveNote', t('settings.uiInsertToNote.noActiveNote'));
       return;
     }
     const text = buildUiEmbedInsertion(editor.getLine(editor.getCursor().line) ?? '', fence);
@@ -2078,11 +2089,11 @@ export class MessageRenderer {
               if (mindStore) {
                 await mindStore.updateDurable(entry.id, { state: 'stale' });
                 itemEl.addClass('is-stale');
-                new Notice(localeText(`已停用规则: "${entry.content}"`, `Deactivated rule: "${entry.content}"`));
+                feedbackBus.success('mind.rule.deactivated', localeText(`已停用规则: "${entry.content}"`, `Deactivated rule: "${entry.content}"`));
               }
             } catch (err) {
               const msg = err instanceof Error ? err.message : String(err);
-              new Notice(`Failed to deactivate rule: ${msg}`);
+              feedbackBus.blocked('mind.deactivate.failed', `Failed to deactivate rule: ${msg}`);
             }
           })();
         });
@@ -2253,7 +2264,7 @@ export class MessageRenderer {
             try {
               await this.rewindCallback?.(messageId, mode);
             } catch (err) {
-              new Notice(t('chat.rewind.failed', { error: err instanceof Error ? err.message : 'Unknown error' }));
+              feedbackBus.retryable('rewind.failed', t('chat.rewind.failed', { error: err instanceof Error ? err.message : 'Unknown error' }), () => { void this.rewindCallback?.(messageId, mode); });
             }
           });
         });
@@ -2273,7 +2284,7 @@ export class MessageRenderer {
         try {
           await this.forkCallback?.(messageId);
         } catch (err) {
-          new Notice(t('chat.fork.failed', { error: err instanceof Error ? err.message : 'Unknown error' }));
+          feedbackBus.retryable('fork.failed', t('chat.fork.failed', { error: err instanceof Error ? err.message : 'Unknown error' }), () => { void this.forkCallback?.(messageId); });
         }
       });
     });

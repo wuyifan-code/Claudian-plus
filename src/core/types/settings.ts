@@ -73,6 +73,16 @@ export interface InstructionRefineResult {
 /** Permission mode for tool execution. */
 export type PermissionMode = 'yolo' | 'plan' | 'normal';
 
+/**
+ * Sandbox axis, separate from the approval axis above.
+ *
+ * `full` keeps the exact behavior of `permissionMode: 'yolo'` (no prompts at
+ * all); `workspace` writes inside the vault only; `read` never writes. Absent
+ * on settings saved before the axis existed — read it through
+ * `resolveSandboxMode`, never directly.
+ */
+export type SandboxMode = 'read' | 'workspace' | 'full';
+
 /** Scope for environment variable storage and snippets. */
 export type EnvironmentScope = 'shared' | `provider:${string}`;
 
@@ -104,6 +114,8 @@ export interface ClaudianPlusSettings {
 
   // Security
   permissionMode: PermissionMode;
+  /** Optional: settings saved before the sandbox axis existed omit it. */
+  sandboxMode?: SandboxMode;
 
   // Model & thinking (provider interprets values)
   model: string;

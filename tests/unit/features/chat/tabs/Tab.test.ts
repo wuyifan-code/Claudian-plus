@@ -31,6 +31,7 @@ import {
   wireTabInputEvents,
 } from '@/features/chat/tabs/Tab';
 import { TEXTAREA_BASE_MIN_HEIGHT } from '@/features/chat/ui/textareaResize';
+import { feedbackBus } from '@/shared/feedback/FeedbackBus';
 import * as envUtils from '@/utils/env';
 
 // Mock ResizeObserver (not available in jsdom)
@@ -3569,6 +3570,12 @@ describe('Tab - Controller Configuration', () => {
 });
 
 const mockNotice = Notice as jest.Mock;
+
+// The feedback bus de-duplicates repeats across tests; reset it so the
+// Notice fallback stays observable.
+beforeEach(() => {
+  feedbackBus.clear();
+});
 
 describe('Tab - handleForkRequest', () => {
 

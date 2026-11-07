@@ -1,9 +1,10 @@
-import { type App, type Editor,Modal, Notice, setIcon, TFile } from 'obsidian';
+import { type App, type Editor, Modal, setIcon, TFile } from 'obsidian';
 
 import { applyCanvasWritePlan, type CanvasData, type CanvasNode, type CanvasWritePlan, diffCanvasWritePlan, readCanvas } from '../../core/obsidian/canvas';
 import { buildCanvasNeighborWritePlan } from '../../core/obsidian/canvasNeighborPlan';
 import { buildCanvasNeighborSuggestions, type CanvasNeighborSuggestion } from '../../core/obsidian/canvasNeighbors';
 import { commitCanvasWrite, undoLastCanvasWrite } from '../../core/obsidian/CanvasWriteHistory';
+import { feedbackBus } from '../../shared/feedback/FeedbackBus';
 import { confirm } from '../../shared/modals/ConfirmModal';
 import type { CanvasSelectionContext } from '../../utils/canvas';
 
@@ -195,7 +196,7 @@ export class CanvasNeighborsModal extends Modal {
   private openNote(path: string): void {
     const file = this.app.vault.getAbstractFileByPath(path);
     if (!(file instanceof TFile)) {
-      new Notice(`Could not open ${path}`);
+      feedbackBus.blocked('canvas.neighbor.open.failed', `Could not open ${path}`);
       return;
     }
     void this.app.workspace.getLeaf().openFile(file);
@@ -205,12 +206,12 @@ export class CanvasNeighborsModal extends Modal {
     const activeEditor = this.app.workspace.activeEditor;
     const editor = activeEditor?.editor;
     if (!editor) {
-      new Notice('Open a Markdown note before inserting a neighbor link.');
+      feedbackBus.blocked('canvas.neighbor.noNote', 'Open a Markdown note before inserting a neighbor link.');
       return;
     }
     const destination = this.app.vault.getAbstractFileByPath(path);
     if (!(destination instanceof TFile)) {
-      new Notice(`Could not resolve ${path}`);
+      feedbackBus.blocked('canvas.neighbor.resolve.failed', `Could not resolve ${path}`);
       return;
     }
     const linkText = this.app.metadataCache.fileToLinktext(
@@ -226,7 +227,7 @@ export class CanvasNeighborsModal extends Modal {
       editor.replaceRange(link, editor.getCursor());
     }
     this.clearBatchUndo();
-    new Notice(`Inserted link: ${link}`);
+    feedbackBus.success('canvas.neighbor.link.inserted', `Inserted link: ${link}`);
   }
 
   /** Insert all currently visible candidates as one guarded editor operation. */
@@ -235,7 +236,7 @@ export class CanvasNeighborsModal extends Modal {
     const editor = activeEditor?.editor;
     const sourcePath = activeEditor?.file?.path;
     if (!editor || !sourcePath) {
-      new Notice('Open a Markdown note before inserting neighbor links.');
+      feedbackBus.blocked('canvas.neighbor.noNote.batch', 'Open a Markdown note before inserting neighbor links.');
       return;
     }
 
@@ -252,7 +253,7 @@ export class CanvasNeighborsModal extends Modal {
       .filter((link): link is string => link !== null);
 
     if (links.length === 0) {
-      new Notice('No new neighbor links are available to insert.');
+      feedbackBus.info('canvas.neighbor.nothingNew', 'No new neighbor links are available to insert.');
       return;
     }
 
@@ -264,7 +265,7 @@ export class CanvasNeighborsModal extends Modal {
     );
     if (!confirmed) return;
     if (editor.getValue() !== beforeValue) {
-      new Notice('The note changed while waiting for confirmation; nothing was inserted.');
+      feedbackBus.info('canvas.neighbor.noteChanged', 'The note changed while waiting for confirmation; nothing was inserted.');
       return;
     }
 
@@ -274,7 +275,7 @@ export class CanvasNeighborsModal extends Modal {
     const afterValue = editor.getValue();
     this.lastBatchInsert = { editor, beforeValue, afterValue };
     this.batchUndoButton?.toggleClass('claudian-plus-hidden', false);
-    new Notice(`Inserted ${links.length} neighbor link${links.length === 1 ? '' : 's'}.`);
+    feedbackBus.success('canvas.neighbor.links.inserted', `Inserted ${links.length} neighbor link${links.length === 1 ? '' : 's'}.`);
   }
 
   /** Undo only when the editor still contains exactly the post-insert value. */
@@ -283,15 +284,15 @@ export class CanvasNeighborsModal extends Modal {
     if (!batch) return;
     if (batch.editor.getValue() !== batch.afterValue) {
       this.clearBatchUndo();
-      new Notice('The note changed after batch insert; the operation was not undone.');
+      feedbackBus.info('canvas.neighbor.noteChanged.afterInsert', 'The note changed after batch insert; the operation was not undone.');
       return;
     }
 
     batch.editor.undo();
     if (batch.editor.getValue() === batch.beforeValue) {
-      new Notice('Batch neighbor links undone.');
+      feedbackBus.success('canvas.neighbor.links.undone', 'Batch neighbor links undone.');
     } else {
-      new Notice('Obsidian could not undo the batch insert safely.');
+      feedbackBus.blocked('canvas.neighbor.undo.failed', 'Obsidian could not undo the batch insert safely.');
     }
     this.clearBatchUndo();
   }
@@ -304,14 +305,14 @@ export class CanvasNeighborsModal extends Modal {
   private async addSuggestionsToCanvas(suggestions: CanvasNeighborSuggestion[]): Promise<void> {
     const current = this.canvasData;
     if (!current) {
-      new Notice('Canvas data is not ready; reopen the neighbor panel and try again.');
+      feedbackBus.retryable('canvas.neighbor.notReady', 'Canvas data is not ready; reopen the neighbor panel and try again.', () => this.onOpen());
       return;
     }
     const candidates = suggestions.filter(suggestion => (
       !this.addedToCanvasPaths.has(this.normalizePath(suggestion.path))
     ));
     if (candidates.length === 0) {
-      new Notice('All selected neighbors are already on this canvas.');
+      feedbackBus.info('canvas.neighbor.alreadyPresent', 'All selected neighbors are already on this canvas.');
       return;
     }
 
@@ -319,11 +320,11 @@ export class CanvasNeighborsModal extends Modal {
     try {
       write = buildCanvasNeighborWritePlan(current, this.context.nodeIds, candidates, { avoidCollisions: true });
     } catch (error) {
-      new Notice(error instanceof Error ? error.message : String(error));
+      feedbackBus.blocked('canvas.write.failed', error instanceof Error ? error.message : String(error));
       return;
     }
     if (write.plan.nodeOps.length === 0 && write.plan.edgeOps.length === 0) {
-      new Notice('No new canvas nodes or edges are needed.');
+      feedbackBus.info('canvas.neighbor.nothingToWrite', 'No new canvas nodes or edges are needed.');
       return;
     }
 
@@ -342,10 +343,10 @@ export class CanvasNeighborsModal extends Modal {
       for (const path of write.addedPaths) this.addedToCanvasPaths.add(this.normalizePath(path));
       this.canvasData = cloneCanvasData(after);
       this.clearBatchUndo();
-      new Notice(`Added ${write.addedPaths.length} neighbor${write.addedPaths.length === 1 ? '' : 's'} to canvas.`);
+      feedbackBus.success('canvas.neighbor.written', `Added ${write.addedPaths.length} neighbor${write.addedPaths.length === 1 ? '' : 's'} to canvas.`);
       this.render();
     } catch (error) {
-      new Notice(`Canvas write failed safely: ${error instanceof Error ? error.message : String(error)}`);
+      feedbackBus.blocked('canvas.write.aborted', `Canvas write failed safely: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -357,10 +358,10 @@ export class CanvasNeighborsModal extends Modal {
       this.canvasData = cloneCanvasData(write.before);
       for (const path of write.addedPaths) this.addedToCanvasPaths.delete(this.normalizePath(path));
       this.lastCanvasWrite = null;
-      new Notice('Canvas neighbor write undone.');
+      feedbackBus.success('canvas.write.undone', 'Canvas neighbor write undone.');
       this.render();
     } catch (error) {
-      new Notice(`Canvas write was not undone: ${error instanceof Error ? error.message : String(error)}`);
+      feedbackBus.blocked('canvas.undo.failed', `Canvas write was not undone: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

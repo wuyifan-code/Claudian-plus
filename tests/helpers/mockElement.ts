@@ -399,7 +399,13 @@ export function createMockEl(tag = 'div'): any {
     },
     click() {
       const handlers = eventListeners.get('click') || [];
-      handlers.forEach(h => h({ type: 'click', target: element, stopPropagation: () => {} }));
+      handlers.forEach(h => h({
+        type: 'click',
+        target: element,
+        button: 0,
+        preventDefault: () => {},
+        stopPropagation: () => {},
+      }));
     },
     getEventListenerCount(event: string) {
       return eventListeners.get(event)?.length ?? 0;

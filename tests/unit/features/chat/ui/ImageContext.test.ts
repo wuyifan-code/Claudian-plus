@@ -3,6 +3,7 @@ import { Notice } from 'obsidian';
 
 import type { ImageAttachment } from '@/core/types';
 import { ImageContextManager } from '@/features/chat/ui/ImageContext';
+import { feedbackBus } from '@/shared/feedback/FeedbackBus';
 
 jest.mock('obsidian', () => ({
   Notice: jest.fn(),
@@ -60,6 +61,7 @@ describe('ImageContextManager', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    feedbackBus.clear();
     const { container: c } = createContainerWithInputWrapper();
     container = c;
     inputEl = createMockTextArea();
@@ -269,6 +271,7 @@ describe('ImageContextManager - Private Helpers', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    feedbackBus.clear();
     const { container } = createContainerWithInputWrapper();
     const inputEl = createMockTextArea();
     const callbacks = createMockCallbacks();

@@ -439,6 +439,158 @@ button.claudian-plus-view-switcher-btn.is-active {
   height: 16px;
 }
 
+/* Window chip + popover. Carries switching and closing without a permanent
+   badge row, which was explicitly rejected. */
+.claudian-plus-tab-chip-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.claudian-plus-tab-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--claudian-plus-ui-space-2xs);
+  height: var(--claudian-plus-ui-control-h);
+  padding: 0 var(--claudian-plus-ui-space-sm);
+  border: 1px solid var(--claudian-plus-border);
+  border-radius: var(--claudian-plus-radius-full);
+  background: transparent;
+  color: var(--claudian-plus-text-muted);
+  font-size: var(--claudian-plus-ui-font-caption);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.claudian-plus-tab-chip:hover,
+.claudian-plus-tab-chip[aria-expanded="true"] {
+  background: var(--claudian-plus-surface-hover);
+  border-color: var(--claudian-plus-border-hover);
+  color: var(--claudian-plus-text-normal);
+}
+
+.claudian-plus-tab-chip svg {
+  width: var(--claudian-plus-ui-icon-sm);
+  height: var(--claudian-plus-ui-icon-sm);
+}
+
+.claudian-plus-tab-chip-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.claudian-plus-tab-popover {
+  display: none;
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-end: 0;
+  margin-block-start: var(--claudian-plus-ui-space-sm);
+  z-index: 100;
+  min-width: 220px;
+  max-width: 320px;
+  padding: var(--claudian-plus-ui-space-xs);
+  border: 1px solid var(--claudian-plus-border);
+  border-radius: var(--claudian-plus-radius-md);
+  background: var(--claudian-plus-surface-secondary);
+  box-shadow: var(--claudian-plus-shadow-lg);
+}
+
+.claudian-plus-tab-popover.visible {
+  display: flex;
+  flex-direction: column;
+  gap: var(--claudian-plus-ui-space-2xs);
+}
+
+.claudian-plus-tab-popover-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--claudian-plus-ui-space-2xs);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.claudian-plus-tab-popover-row {
+  display: flex;
+  align-items: center;
+  gap: var(--claudian-plus-ui-space-2xs);
+  border-radius: var(--claudian-plus-radius-sm);
+}
+
+.claudian-plus-tab-popover-row.is-active {
+  background: var(--claudian-plus-surface-hover);
+}
+
+/* Obsidian styles bare `button`s with a border and an interactive background.
+   These live inside a menu, so the reset has to win outright. */
+.claudian-plus-tab-popover-switch,
+.claudian-plus-tab-popover-close {
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: var(--claudian-plus-text-normal) !important;
+  font-family: var(--font-interface) !important;
+  cursor: pointer !important;
+}
+
+.claudian-plus-tab-popover-switch {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--claudian-plus-ui-space-xs) var(--claudian-plus-ui-space-sm) !important;
+  border-radius: var(--claudian-plus-radius-sm);
+  font-size: var(--claudian-plus-ui-font-body) !important;
+  text-align: start;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.claudian-plus-tab-popover-switch:hover {
+  background: var(--claudian-plus-surface-hover) !important;
+}
+
+.claudian-plus-tab-popover-close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--claudian-plus-ui-icon-md);
+  height: var(--claudian-plus-ui-icon-md);
+  padding: 0 !important;
+  border-radius: var(--claudian-plus-radius-xs);
+  color: var(--claudian-plus-text-faint) !important;
+}
+
+.claudian-plus-tab-popover-close:hover {
+  background: var(--claudian-plus-surface-hover) !important;
+  color: var(--claudian-plus-text-normal) !important;
+}
+
+.claudian-plus-tab-popover-close svg {
+  width: var(--claudian-plus-ui-icon-sm);
+  height: var(--claudian-plus-ui-icon-sm);
+}
+
+.claudian-plus-tab-popover-rename {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--claudian-plus-ui-icon-md);
+  padding: 0 var(--claudian-plus-ui-space-2xs);
+  border: 1px solid var(--claudian-plus-border-focus);
+  border-radius: var(--claudian-plus-radius-xs);
+  background: var(--claudian-plus-surface-primary);
+  color: var(--claudian-plus-text-normal);
+  font-size: var(--claudian-plus-ui-font-body);
+}
+
+.claudian-plus-tab-chip:focus-visible,
+.claudian-plus-tab-popover-switch:focus-visible,
+.claudian-plus-tab-popover-close:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
 .claudian-plus-sessions-view-host {
   display: flex;
   flex: 1 1 auto;
@@ -3280,33 +3432,198 @@ button.claudian-plus-tab-badge-active,
   gap: 4px;
   margin-inline-start: 8px;
   cursor: default;
+  /* Obsidian raises a native tooltip for any aria-labelled element; this card
+     replaces it, so suppress the native one. */
+  --no-tooltip: true;
 }
 
-/* Custom tooltip */
-.claudian-plus-context-meter::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-bottom: 6px;
-  padding: 4px 8px;
-  font-size: 11px;
-  color: var(--text-normal);
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--claudian-plus-radius-xs);
+/* Usage block, rendered at the top of the capacity popover. */
+.claudian-plus-context-card {
+  padding: var(--claudian-plus-ui-space-sm) var(--claudian-plus-ui-space-sm) var(--claudian-plus-ui-space-xs);
+  font-size: var(--claudian-plus-ui-font-body);
+  color: var(--claudian-plus-text-normal);
+}
+
+.claudian-plus-context-card-unavailable {
+  color: var(--claudian-plus-text-muted);
+  font-size: var(--claudian-plus-ui-font-caption);
+  line-height: 1.5;
+}
+
+.claudian-plus-context-card-divider {
+  height: 1px;
+  margin: var(--claudian-plus-ui-space-2xs) 0;
+  background: var(--claudian-plus-border);
+}
+
+/* Capacity: one slider row replaces the four option rows, so the popover stays
+   short. Stop 0 is "provider default". */
+.claudian-plus-context-capacity-row {
+  display: flex;
+  align-items: center;
+  gap: var(--claudian-plus-ui-space-sm);
+  padding: var(--claudian-plus-ui-space-xs) var(--claudian-plus-ui-space-sm);
+}
+
+.claudian-plus-context-capacity-label {
+  flex: 0 0 auto;
+  color: var(--claudian-plus-text-muted);
+  font-size: var(--claudian-plus-ui-font-caption);
   white-space: nowrap;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.15s ease, visibility 0.15s ease;
-  pointer-events: none;
-  z-index: 100;
 }
 
-.claudian-plus-context-meter:hover::after {
-  opacity: 1;
-  visibility: visible;
+/* A trimmed version of the effort slider's feel: filled track, visible thumb,
+   hover/drag feedback — no matrix, no glide animations. */
+.claudian-plus-context-capacity-slider {
+  --fill: 0%;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--claudian-plus-ui-space-lg);
+  margin: 0;
+  padding: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Segmented track borrowed from the effort slider but re-tuned: the bars encode
+   how much window is requested, not thinking intensity, so they stay a uniform
+   ladder. The fill is a stripe layer clipped to --fill, so no extra DOM. */
+.claudian-plus-context-capacity-slider::-webkit-slider-runnable-track {
+  height: var(--claudian-plus-ui-icon-md);
+  border-radius: var(--claudian-plus-radius-full);
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      var(--claudian-plus-accent) 0 var(--claudian-plus-ui-space-2xs),
+      transparent var(--claudian-plus-ui-space-2xs) var(--claudian-plus-ui-space-xs)
+    ),
+    repeating-linear-gradient(
+      to right,
+      var(--claudian-plus-surface-hover) 0 var(--claudian-plus-ui-space-2xs),
+      transparent var(--claudian-plus-ui-space-2xs) var(--claudian-plus-ui-space-xs)
+    );
+  background-size: var(--fill) 100%, 100% 100%;
+  background-repeat: no-repeat, no-repeat;
+}
+
+/* A pill knob wraps the current bar, so the track and the knob read as one piece. */
+.claudian-plus-context-capacity-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  width: var(--claudian-plus-ui-space-lg);
+  height: var(--claudian-plus-ui-icon-md);
+  margin-block-start: 0;
+  border: 2px solid var(--claudian-plus-accent);
+  border-radius: var(--claudian-plus-radius-full);
+  background: var(--claudian-plus-surface-primary);
+  box-shadow: var(--claudian-plus-shadow-sm);
+  transition: transform var(--claudian-plus-transition-fast);
+}
+
+.claudian-plus-context-capacity-slider:hover::-webkit-slider-thumb {
+  transform: scale(1.12);
+}
+
+.claudian-plus-context-capacity-slider:active::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+
+.claudian-plus-context-capacity-slider:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+  border-radius: var(--claudian-plus-radius-sm);
+}
+
+.claudian-plus-context-capacity-value {
+  flex: 0 0 auto;
+  min-width: 56px;
+  color: var(--claudian-plus-text-normal);
+  font-size: var(--claudian-plus-ui-font-caption);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.claudian-plus-context-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--claudian-plus-ui-space-sm);
+  margin-block-end: var(--claudian-plus-ui-space-sm);
+}
+
+.claudian-plus-context-card-title {
+  color: var(--claudian-plus-text-muted);
+}
+
+.claudian-plus-context-card-percent {
+  color: var(--claudian-plus-text-normal);
+  font-weight: var(--font-semibold, 600);
+}
+
+.claudian-plus-context-card-amount {
+  color: var(--claudian-plus-text-faint);
+  font-size: var(--claudian-plus-ui-font-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.claudian-plus-context-card-bar {
+  height: var(--claudian-plus-ui-space-xs);
+  border-radius: var(--claudian-plus-radius-full);
+  background: var(--claudian-plus-surface-hover);
+  overflow: hidden;
+}
+
+.claudian-plus-context-card-bar-used {
+  height: 100%;
+  border-radius: var(--claudian-plus-radius-full);
+  background: var(--claudian-plus-accent);
+  transition: width var(--claudian-plus-transition-normal);
+}
+
+.claudian-plus-context-meter.warning .claudian-plus-context-card-bar-used {
+  background: var(--claudian-plus-error);
+}
+
+.claudian-plus-context-card-row {
+  display: flex;
+  align-items: center;
+  gap: var(--claudian-plus-ui-space-sm);
+  margin-block-start: var(--claudian-plus-ui-space-sm);
+}
+
+.claudian-plus-context-card-dot {
+  flex: 0 0 auto;
+  width: var(--claudian-plus-ui-space-sm);
+  height: var(--claudian-plus-ui-space-sm);
+  border-radius: var(--claudian-plus-radius-xs);
+}
+
+.claudian-plus-context-card-dot.is-used {
+  background: var(--claudian-plus-accent);
+}
+
+.claudian-plus-context-card-dot.is-free {
+  background: var(--claudian-plus-surface-hover);
+}
+
+.claudian-plus-context-card-label {
+  flex: 1 1 auto;
+  color: var(--claudian-plus-text-normal);
+}
+
+.claudian-plus-context-card-value {
+  color: var(--claudian-plus-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.claudian-plus-context-card-hint {
+  margin-block-start: var(--claudian-plus-ui-space-sm);
+  padding-block-start: var(--claudian-plus-ui-space-xs);
+  border-block-start: 1px solid var(--claudian-plus-border);
+  color: var(--claudian-plus-warning);
+  font-size: var(--claudian-plus-ui-font-caption);
 }
 
 .claudian-plus-context-meter-gauge {
@@ -6091,6 +6408,397 @@ button.claudian-plus-ui-diagram-node {
   font-weight: 600;
   border-radius: 2px;
   padding: 0 2px;
+}
+
+
+/* ============================================
+   components/feedback.css
+   ============================================ */
+/* Feedback: toast stack above the composer + the activity drawer.
+   Every value comes from the shared token ladder so third-party themes re-skin
+   these surfaces like the rest of the plugin. */
+
+.claudian-plus-feedback-layer {
+  position: absolute;
+  inset-inline: 0;
+  bottom: calc(100% + var(--claudian-plus-ui-space-sm));
+  display: flex;
+  flex-direction: column;
+  gap: var(--claudian-plus-ui-space-xs);
+  pointer-events: none;
+  z-index: 60;
+}
+
+/* Announced by screen readers only; never visible or reachable by Tab. */
+.claudian-plus-feedback-sr {
+  position: absolute;
+  width: var(--claudian-plus-ui-space-2xs);
+  height: var(--claudian-plus-ui-space-2xs);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.claudian-plus-feedback-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--claudian-plus-ui-space-xs);
+  pointer-events: none;
+}
+
+.claudian-plus-feedback-stack.claudian-plus-hidden {
+  display: none;
+}
+
+.claudian-plus-feedback-toast {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--claudian-plus-ui-space-2xs);
+  padding: var(--claudian-plus-ui-space-sm) var(--claudian-plus-ui-space-md);
+  border: 1px solid var(--claudian-plus-border);
+  border-inline-start: var(--claudian-plus-ui-space-2xs) solid var(--claudian-plus-text-faint);
+  border-radius: var(--claudian-plus-radius-md);
+  background-color: var(--claudian-plus-surface-secondary);
+  box-shadow: var(--claudian-plus-shadow-md);
+  font-size: var(--claudian-plus-ui-font-body);
+  color: var(--claudian-plus-text-normal);
+  animation: claudian-plus-feedback-in var(--claudian-plus-transition-normal);
+}
+
+.claudian-plus-feedback-toast--error {
+  border-inline-start-color: var(--claudian-plus-error);
+}
+
+.claudian-plus-feedback-toast--warning {
+  border-inline-start-color: var(--claudian-plus-warning);
+}
+
+.claudian-plus-feedback-toast--success {
+  border-inline-start-color: var(--claudian-plus-success);
+}
+
+.claudian-plus-feedback-toast-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--claudian-plus-ui-space-sm);
+}
+
+.claudian-plus-feedback-toast-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: var(--font-medium, 600);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.claudian-plus-feedback-toast-count,
+.claudian-plus-feedback-entry-count {
+  flex: 0 0 auto;
+  padding-inline: var(--claudian-plus-ui-space-2xs);
+  border-radius: var(--claudian-plus-radius-xs);
+  background-color: var(--claudian-plus-interactive-normal);
+  color: var(--claudian-plus-text-muted);
+  font-size: var(--claudian-plus-ui-font-caption);
+}
+
+.claudian-plus-feedback-toast-close,
+.claudian-plus-feedback-drawer-close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--claudian-plus-ui-control-h);
+  height: var(--claudian-plus-ui-control-h);
+  padding: 0;
+  border: none;
+  border-radius: var(--claudian-plus-radius-sm);
+  background: transparent;
+  color: var(--claudian-plus-text-muted);
+  cursor: pointer;
+}
+
+.claudian-plus-feedback-toast-close:hover,
+.claudian-plus-feedback-drawer-close:hover {
+  background-color: var(--claudian-plus-surface-hover);
+  color: var(--claudian-plus-text-normal);
+}
+
+.claudian-plus-feedback-toast-close svg,
+.claudian-plus-feedback-drawer-close svg {
+  width: var(--claudian-plus-ui-icon-sm);
+  height: var(--claudian-plus-ui-icon-sm);
+}
+
+.claudian-plus-feedback-toast-detail {
+  color: var(--claudian-plus-text-muted);
+  font-size: var(--claudian-plus-ui-font-caption);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.claudian-plus-feedback-toast-actions,
+.claudian-plus-feedback-entry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--claudian-plus-ui-space-sm);
+  margin-block-start: var(--claudian-plus-ui-space-2xs);
+}
+
+.claudian-plus-feedback-action {
+  padding: var(--claudian-plus-ui-space-2xs) var(--claudian-plus-ui-space-sm);
+  border: 1px solid var(--claudian-plus-border);
+  border-radius: var(--claudian-plus-radius-sm);
+  background-color: var(--claudian-plus-interactive-normal);
+  color: var(--claudian-plus-text-normal);
+  font-size: var(--claudian-plus-ui-font-caption);
+  cursor: pointer;
+}
+
+.claudian-plus-feedback-action:hover {
+  background-color: var(--claudian-plus-interactive-hover);
+  border-color: var(--claudian-plus-border-hover);
+}
+
+/* Turn failure row: the durable half of a failure report. The toast reminds;
+   this row stays until the next turn or an explicit dismiss. */
+
+.claudian-plus-turn-error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--claudian-plus-ui-space-2xs);
+  margin-block: var(--claudian-plus-ui-space-md);
+  padding: var(--claudian-plus-ui-space-sm) var(--claudian-plus-ui-space-md);
+  border: 1px solid var(--claudian-plus-border);
+  border-inline-start: var(--claudian-plus-ui-space-2xs) solid var(--claudian-plus-error);
+  border-radius: var(--claudian-plus-radius-md);
+  background-color: var(--claudian-plus-surface-secondary);
+  font-size: var(--claudian-plus-ui-font-body);
+  color: var(--claudian-plus-text-normal);
+}
+
+.claudian-plus-turn-error--warning {
+  border-inline-start-color: var(--claudian-plus-warning);
+}
+
+.claudian-plus-turn-error-head {
+  display: flex;
+  align-items: center;
+  gap: var(--claudian-plus-ui-space-sm);
+}
+
+.claudian-plus-turn-error-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.claudian-plus-turn-error-count {
+  flex: 0 0 auto;
+  padding-inline: var(--claudian-plus-ui-space-2xs);
+  border-radius: var(--claudian-plus-radius-xs);
+  background-color: var(--claudian-plus-interactive-normal);
+  color: var(--claudian-plus-text-muted);
+  font-size: var(--claudian-plus-ui-font-caption);
+}
+
+.claudian-plus-turn-error-dismiss {
+  flex: 0 0 auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--claudian-plus-text-muted);
+  cursor: pointer;
+  font-size: var(--claudian-plus-ui-font-caption);
+}
+
+.claudian-plus-turn-error-detail {
+  color: var(--claudian-plus-text-muted);
+  font-size: var(--claudian-plus-ui-font-caption);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.claudian-plus-turn-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--claudian-plus-ui-space-sm);
+  margin-block-start: var(--claudian-plus-ui-space-2xs);
+}
+
+/* Header bell: appears only when something was reported, carries the unread count. */
+.claudian-plus-feedback-bell {
+  position: relative;
+}
+
+.claudian-plus-feedback-bell-count {
+  position: absolute;
+  inset-block-start: calc(-1 * var(--claudian-plus-ui-space-2xs));
+  inset-inline-end: calc(-1 * var(--claudian-plus-ui-space-2xs));
+  min-width: var(--claudian-plus-ui-icon-sm);
+  padding-inline: var(--claudian-plus-ui-space-2xs);
+  border-radius: var(--claudian-plus-radius-full);
+  background-color: var(--claudian-plus-error);
+  color: var(--claudian-plus-text-on-accent);
+  font-size: var(--claudian-plus-ui-font-caption);
+  line-height: 1.2;
+  text-align: center;
+}
+
+/* Activity drawer. Mirrors the staging drawer's geometry so the two overlays
+   feel like the same surface; they are mutually exclusive. */
+
+.claudian-plus-feedback-drawer {
+  position: absolute;
+  inset-block-start: calc(var(--claudian-plus-ui-space-lg) * 3);
+  inset-inline: 0;
+  inset-block-end: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--claudian-plus-surface-primary);
+  border-block-start: 1px solid var(--claudian-plus-border);
+  z-index: 89;
+}
+
+.claudian-plus-feedback-drawer-header {
+  display: flex;
+  align-items: center;
+  gap: var(--claudian-plus-ui-space-sm);
+  padding: var(--claudian-plus-ui-space-sm) var(--claudian-plus-ui-space-md);
+  border-block-end: 1px solid var(--claudian-plus-border);
+  background-color: var(--claudian-plus-surface-secondary);
+}
+
+.claudian-plus-feedback-drawer-title {
+  flex: 1 1 auto;
+  font-size: var(--claudian-plus-ui-font-body-lg);
+  font-weight: var(--font-medium, 600);
+  color: var(--claudian-plus-text-normal);
+}
+
+.claudian-plus-feedback-drawer-filters {
+  display: flex;
+  gap: var(--claudian-plus-ui-space-2xs);
+}
+
+.claudian-plus-feedback-filter,
+.claudian-plus-feedback-drawer-clear,
+.claudian-plus-feedback-drawer-copy {
+  padding: var(--claudian-plus-ui-space-2xs) var(--claudian-plus-ui-space-sm);
+  border: 1px solid transparent;
+  border-radius: var(--claudian-plus-radius-sm);
+  background: transparent;
+  color: var(--claudian-plus-text-muted);
+  font-size: var(--claudian-plus-ui-font-caption);
+  cursor: pointer;
+}
+
+.claudian-plus-feedback-filter:hover,
+.claudian-plus-feedback-drawer-clear:hover,
+.claudian-plus-feedback-drawer-copy:hover {
+  background-color: var(--claudian-plus-surface-hover);
+  color: var(--claudian-plus-text-normal);
+}
+
+.claudian-plus-feedback-filter.is-active {
+  border-color: var(--claudian-plus-border);
+  background-color: var(--claudian-plus-interactive-normal);
+  color: var(--claudian-plus-text-normal);
+}
+
+.claudian-plus-feedback-drawer-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--claudian-plus-ui-space-xs);
+  padding: var(--claudian-plus-ui-space-md);
+  overflow-y: auto;
+}
+
+.claudian-plus-feedback-entry {
+  display: flex;
+  flex-direction: column;
+  gap: var(--claudian-plus-ui-space-2xs);
+  padding: var(--claudian-plus-ui-space-sm) var(--claudian-plus-ui-space-md);
+  border: 1px solid var(--claudian-plus-border);
+  border-radius: var(--claudian-plus-radius-md);
+  background-color: var(--claudian-plus-surface-secondary);
+}
+
+.claudian-plus-feedback-entry-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--claudian-plus-ui-space-sm);
+}
+
+.claudian-plus-feedback-entry-level {
+  flex: 0 0 auto;
+  padding-inline: var(--claudian-plus-ui-space-2xs);
+  border-radius: var(--claudian-plus-radius-xs);
+  font-size: var(--claudian-plus-ui-font-caption);
+  color: var(--claudian-plus-text-muted);
+  background-color: var(--claudian-plus-interactive-normal);
+}
+
+.claudian-plus-feedback-entry-level--error {
+  color: var(--claudian-plus-error);
+}
+
+.claudian-plus-feedback-entry-level--warning {
+  color: var(--claudian-plus-warning);
+}
+
+.claudian-plus-feedback-entry-level--success {
+  color: var(--claudian-plus-success);
+}
+
+.claudian-plus-feedback-entry-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--claudian-plus-ui-font-body);
+  color: var(--claudian-plus-text-normal);
+  overflow-wrap: anywhere;
+}
+
+.claudian-plus-feedback-entry-time {
+  flex: 0 0 auto;
+  color: var(--claudian-plus-text-faint);
+  font-size: var(--claudian-plus-ui-font-caption);
+}
+
+.claudian-plus-feedback-entry-detail {
+  color: var(--claudian-plus-text-muted);
+  font-size: var(--claudian-plus-ui-font-caption);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.claudian-plus-feedback-empty {
+  padding-block: var(--claudian-plus-ui-space-lg);
+  color: var(--claudian-plus-text-faint);
+  font-size: var(--claudian-plus-ui-font-body);
+  text-align: center;
+}
+
+@keyframes claudian-plus-feedback-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--claudian-plus-ui-space-xs));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .claudian-plus-feedback-toast {
+    animation: none;
+  }
 }
 
 
@@ -12494,6 +13202,16 @@ button.claudian-plus-wr-subtab.claudian-plus-wr-subtab--active,
 }
 
 .claudian-plus-inline-preview-action:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.claudian-plus-feedback-toast-close:focus-visible,
+.claudian-plus-feedback-drawer-close:focus-visible,
+.claudian-plus-feedback-action:focus-visible,
+.claudian-plus-feedback-filter:focus-visible,
+.claudian-plus-feedback-drawer-clear:focus-visible,
+.claudian-plus-feedback-drawer-copy:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
 }
