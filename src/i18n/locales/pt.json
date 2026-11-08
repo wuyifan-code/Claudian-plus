@@ -815,6 +815,11 @@
         "title": "Protocolos de Segurança e Limite do Sandbox",
         "desc": "As ações de ferramentas do agente são executadas com os privilégios do seu ambiente de usuário local. Mantenha o Modo Normal / Seguro ativado ao abrir vaults, scripts ou prompts não verificados."
       }
+    },
+    "chatFontSize": {
+      "name": "Chat font size",
+      "desc": "Scales answers and messages only. The appearance setting scales editor text.",
+      "follow": "Follow the theme"
     }
   }
 }

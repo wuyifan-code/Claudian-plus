@@ -1556,6 +1556,11 @@ button.claudian-plus-tab-badge-active,
   color: var(--text-error, var(--claudian-plus-error));
 }
 
+/* Plugin-owned chat type size; the opt-in class keeps the theme default intact. */
+.claudian-plus-container.has-chat-font-size .claudian-plus-message-content {
+  font-size: var(--claudian-plus-chat-font-size);
+}
+
 
 /* ============================================
    components/welcome-cube.css
@@ -6188,6 +6193,7 @@ button.claudian-plus-ui-diagram-node {
    Widget roots are excluded by class so the component family keeps its own
    styling: a Table widget inside a message must not inherit the markdown
    table rules. */
+
 
 /* Vertical rhythm. */
 :is(.claudian-plus-ui-markdown, .claudian-plus-message-content) p:not([class*='claudian-plus-ui']),

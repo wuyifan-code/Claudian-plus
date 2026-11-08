@@ -815,6 +815,11 @@
         "title": "보안 프로토콜 및 샌드박스 경계",
         "desc": "에이전트 도구 작업은 로컬 사용자 환경 권한으로 실행됩니다. 신뢰할 수 없는 볼트, 스크립트 또는 미확인 프롬프트를 열 때는 일반/안전 모드를 활성화된 상태로 유지하세요."
       }
+    },
+    "chatFontSize": {
+      "name": "Chat font size",
+      "desc": "Scales answers and messages only. The appearance setting scales editor text.",
+      "follow": "Follow the theme"
     }
   }
 }

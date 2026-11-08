@@ -10,6 +10,7 @@
    styling: a Table widget inside a message must not inherit the markdown
    table rules. */
 
+
 /* Vertical rhythm. */
 :is(.claudian-plus-ui-markdown, .claudian-plus-message-content) p:not([class*='claudian-plus-ui']),
 :is(.claudian-plus-ui-markdown, .claudian-plus-message-content) ul:not([class*='claudian-plus-ui']),
