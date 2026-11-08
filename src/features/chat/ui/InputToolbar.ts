@@ -1992,6 +1992,16 @@ export class ContextUsageMeter {
     }
   }
 
+  /**
+   * The window shown in the card, which must match the capacity slider next to
+   * it. The provider can report its own window, but the selector reads the one
+   * the UI resolves, so display defers to that and the two never disagree.
+   */
+  private displayWindow(usage: UsageInfo): number {
+    const selected = this.callbacks?.getContextWindow?.() ?? 0;
+    return selected > 0 ? selected : usage.contextWindow;
+  }
+
   update(usage: UsageInfo | null): void {
     this.latestUsage = usage;
     // The ring doubles as the capacity selector, so it stays mounted even with
@@ -2005,17 +2015,19 @@ export class ContextUsageMeter {
     }
     this.hasUsage = true;
     this.setVisibilityState(true);
-    const fillLength = (usage.percentage / 100) * this.circumference;
+    const window = this.displayWindow(usage);
+    const percent = window > 0 ? Math.min(100, Math.max(0, Math.round((usage.contextTokens / window) * 100))) : usage.percentage;
+    const fillLength = (percent / 100) * this.circumference;
     if (this.fillPath) {
       this.fillPath.setAttribute('stroke-dashoffset', String(this.circumference - fillLength));
     }
 
     if (this.percentEl) {
-      this.percentEl.setText(`${usage.percentage}%`);
+      this.percentEl.setText(`${percent}%`);
     }
 
     // Toggle warning class for > 80%
-    if (usage.percentage > 80) {
+    if (percent > 80) {
       this.container.addClass('warning');
     } else {
       this.container.removeClass('warning');
@@ -2042,9 +2054,9 @@ export class ContextUsageMeter {
     }
 
     const used = usage.contextTokens;
-    const limit = usage.contextWindow;
+    const limit = this.displayWindow(usage);
     const free = Math.max(0, limit - used);
-    const percent = Math.min(100, Math.max(0, usage.percentage));
+    const percent = limit > 0 ? Math.min(100, Math.max(0, Math.round((used / limit) * 100))) : 0;
 
     const head = block.createDiv({ cls: 'claudian-plus-context-card-head' });
     const title = head.createSpan({ cls: 'claudian-plus-context-card-title' });
