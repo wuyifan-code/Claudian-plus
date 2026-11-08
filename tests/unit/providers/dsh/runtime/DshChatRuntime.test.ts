@@ -123,6 +123,24 @@ describe('DshChatRuntime native lifecycle', () => {
     f.runtime.cleanup();
   });
 
+  test('read-only refuses every approval without asking the UI', async () => {
+    const f = fixture();
+    f.plugin.settings.sandboxMode = 'read';
+    const result = f.collect();
+    await f.untilPrompt();
+    const approval = jest.fn(async () => 'allow' as const);
+    f.runtime.setApprovalCallback(approval);
+    const outcome = await f.interaction({
+      event: 'approval/request',
+      request: { toolName: 'shell', reason: 'Run command', callId: 'call-1' },
+      signal: new AbortController().signal,
+    });
+    expect(outcome).toEqual({ kind: 'result', value: 'rejected' });
+    expect(approval).not.toHaveBeenCalled();
+    f.runtime.cancel();
+    await result;
+    f.runtime.cleanup();
+  });
   test('YOLO mode auto-approves without consulting the approval UI', async () => {
     const f = fixture();
     f.plugin.settings.permissionMode = 'yolo';

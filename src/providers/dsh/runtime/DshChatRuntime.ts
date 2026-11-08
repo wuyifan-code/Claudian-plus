@@ -19,7 +19,7 @@ import type {
   PreparedChatTurn,
   SessionUpdateResult,
 } from '../../../core/runtime/types';
-import { effectivePermissionMode } from '../../../core/security/sandboxMode';
+import { effectivePermissionMode, sandboxDeniesApprovalRequests } from '../../../core/security/sandboxMode';
 import type { ChatMessage, Conversation, SlashCommand, StreamChunk } from '../../../core/types';
 import { appendBrowserContext } from '../../../utils/browser';
 import { appendCanvasContext } from '../../../utils/canvas';
@@ -283,6 +283,8 @@ export class DshChatRuntime implements ChatRuntime {
   private async handleInteraction({ event, request, signal }: Parameters<DshEventHandler>[0]): Promise<DshEventOutcome> {
     if (event !== 'approval/request') return { kind: 'next' };
     const rejected = { kind: 'result', value: 'rejected' } as const;
+    // Read-only has no sandbox of its own here, so every approval is refused.
+    if (this.isReadOnlyMode() && !signal.aborted && !this.disposed) return rejected;
     // YOLO mirrors Codex's approvalPolicy: 'never' — the user explicitly opted
     // this tab out of approval gates, so the request resolves before any UI
     // exists to dismiss.
@@ -307,6 +309,11 @@ export class DshChatRuntime implements ChatRuntime {
   private isYoloMode(): boolean {
     const snapshot = ProviderSettingsCoordinator.getProviderSettingsSnapshot(this.plugin.settings, this.providerId);
     return effectivePermissionMode(snapshot) === 'yolo';
+  }
+
+  private isReadOnlyMode(): boolean {
+    const snapshot = ProviderSettingsCoordinator.getProviderSettingsSnapshot(this.plugin.settings, this.providerId);
+    return sandboxDeniesApprovalRequests(snapshot);
   }
 
   cancel(): void {
