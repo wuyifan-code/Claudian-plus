@@ -815,6 +815,11 @@
         "title": "セキュリティプロトコルとサンドボックス境界",
         "desc": "エージェントのツールアクションはローカルユーザー環境の権限で実行されます。信頼されていないボールト、スクリプト、未検証のプロンプトを開く際は、通常/セーフモードを有効にしてください。"
       }
+    },
+    "chatFontSize": {
+      "name": "Chat font size",
+      "desc": "Scales answers and messages only. The appearance setting scales editor text.",
+      "follow": "Follow the theme"
     }
   }
 }

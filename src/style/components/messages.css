@@ -284,3 +284,8 @@
   max-width: 420px;
   color: var(--text-error, var(--claudian-plus-error));
 }
+
+/* Plugin-owned chat type size; the opt-in class keeps the theme default intact. */
+.claudian-plus-container.has-chat-font-size .claudian-plus-message-content {
+  font-size: var(--claudian-plus-chat-font-size);
+}

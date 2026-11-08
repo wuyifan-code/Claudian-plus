@@ -815,6 +815,11 @@
         "title": "Sicherheitsprotokolle & Sandbox-Grenze",
         "desc": "Werkzeugaktionen werden mit Ihren lokalen Benutzerumgebungsrechten ausgeführt. Lassen Sie den normalen/sicheren Modus aktiviert, wenn Sie nicht vertrauenswürdige Vaults, Skripte oder ungeprüfte Prompts öffnen."
       }
+    },
+    "chatFontSize": {
+      "name": "Chat font size",
+      "desc": "Scales answers and messages only. The appearance setting scales editor text.",
+      "follow": "Follow the theme"
     }
   }
 }

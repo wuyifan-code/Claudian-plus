@@ -815,6 +815,11 @@
       },
       "header": "Codex 子代理",
       "noAgents": "Vault 中沒有 Codex 子代理。點擊 + 建立一個。"
+    },
+    "chatFontSize": {
+      "name": "聊天字號",
+      "desc": "只縮放回答與訊息正文；Obsidian 外觀裡的字號只影響編輯器。",
+      "follow": "跟隨主題"
     }
   }
 }

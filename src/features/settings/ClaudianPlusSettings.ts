@@ -23,6 +23,7 @@ import type { Locale, TranslationKey } from '../../i18n/types';
 import { FileViewerModal } from '../../shared/modals/FileViewerModal';
 import { renderEnvironmentSettingsSection } from '../../shared/settings/EnvironmentSettingsSection';
 import { formatContextLimit, parseContextLimit, parseEnvironmentVariables } from '../../utils/env';
+import { CHAT_FONT_SIZE_OPTIONS, normalizeChatFontSize } from '../chat/ui/chatFontSize';
 import type { FeatureHost } from '../FeatureHost';
 import { AgentSkillManagementCoordinator } from './AgentSkillManagementCoordinator';
 import { buildNavMappingText, parseNavMappings } from './keyboardNavigation';
@@ -486,6 +487,35 @@ export class ClaudianPlusSettingTab extends PluginSettingTab {
       name: t('settings.language.name'),
       desc: t('settings.language.desc'),
       targetEl: langSetting.settingEl,
+    });
+
+    // Chat font size (plugin-owned; the host setting only scales editor text)
+    const fontSetting = new Setting(card)
+      .setName(t('settings.chatFontSize.name'))
+      .setDesc(t('settings.chatFontSize.desc'))
+      .addDropdown((dropdown) => {
+        dropdown.addOption('0', t('settings.chatFontSize.follow'));
+        for (const size of CHAT_FONT_SIZE_OPTIONS.filter((value) => value > 0)) {
+          dropdown.addOption(String(size), `${size} px`);
+        }
+        dropdown
+          .setValue(String(normalizeChatFontSize(this.plugin.settings.chatFontSize)))
+          .onChange(async (value) => {
+            await this.plugin.mutateSettings((settings) => {
+              settings.chatFontSize = normalizeChatFontSize(value);
+            });
+            for (const view of this.plugin.getAllViews()) {
+              view.refreshChatFontSize?.();
+            }
+          });
+      });
+    this.registerSearchEntry({
+      categoryId: 'general',
+      categoryLabel: 'General',
+      settingKey: 'chatFontSize',
+      name: t('settings.chatFontSize.name'),
+      desc: t('settings.chatFontSize.desc'),
+      targetEl: fontSetting.settingEl,
     });
 
     // User Name

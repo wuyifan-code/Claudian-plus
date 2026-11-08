@@ -40,6 +40,8 @@ export interface FeatureViewHost extends TabManagerViewHost {
   /** Re-applies the transcript inset after the padding settings change. */
   applyConversationPadding(): void;
   updateHiddenProviderCommands(): void;
+  /** Re-applies the plugin-owned chat type size after the setting changes. */
+  refreshChatFontSize?(): void;
   refreshOutlineSide?(): void;
   /** Re-renders the empty-tab welcome animation after the mode setting changes. */
   refreshWelcomeAnimation?(): void;

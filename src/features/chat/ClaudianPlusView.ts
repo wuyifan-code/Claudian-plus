@@ -37,6 +37,7 @@ import {
 import { TabBar } from './tabs/TabBar';
 import { TabManager } from './tabs/TabManager';
 import { clampMaxTabs, type TabBarItem, type TabData, type TabId } from './tabs/types';
+import { chatFontSizeStyle, normalizeChatFontSize } from './ui/chatFontSize';
 import { SessionsView } from './ui/SessionsView';
 import { isContextWindowPinned, recalculateUsageForModel } from './utils/usageInfo';
 
@@ -272,6 +273,7 @@ export class ClaudianPlusView extends ItemView {
     this.viewContainerEl = container;
     this.viewContainerEl.empty();
     this.viewContainerEl.addClass('claudian-plus-container');
+    this.applyChatFontSize();
     this.applyConversationPadding();
 
     const header = this.viewContainerEl.createDiv({ cls: 'claudian-plus-header' });
@@ -1299,6 +1301,23 @@ export class ClaudianPlusView extends ItemView {
       : t('chat.tabLimit.newTabDisabledHint', { count: String(this.getMaxTabs()) });
     this.newTabButtonEl.setAttribute('aria-label', label);
     this.newTabButtonEl.setAttribute('title', label);
+  }
+
+  /** Applies the plugin-owned chat type size; no variable means the theme decides. */
+  private applyChatFontSize(): void {
+    if (!this.viewContainerEl) return;
+    for (const property of ['--claudian-plus-chat-font-size']) {
+      this.viewContainerEl.style.removeProperty(property);
+    }
+    const size = Number(this.plugin.settings.chatFontSize ?? 0);
+    this.viewContainerEl.setCssProps(chatFontSizeStyle(size));
+    // Only opt into the override when a size is chosen, so the default look is untouched.
+    this.viewContainerEl.toggleClass('has-chat-font-size', normalizeChatFontSize(size) > 0);
+  }
+
+  /** Re-applies the chat type size after the setting changes. */
+  refreshChatFontSize(): void {
+    this.applyChatFontSize();
   }
 
   /** Sets `data-provider` on the root container so CSS brand color follows the active provider. */

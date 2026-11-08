@@ -815,6 +815,11 @@
         "title": "Protocoles de Sécurité et Limite du Sandbox",
         "desc": "Les actions d'outils de l'agent s'exécutent avec les privilèges de votre environnement utilisateur local. Gardez le Mode Normal / Sécurisé activé lors de l'ouverture de coffres, scripts ou prompts non vérifiés."
       }
+    },
+    "chatFontSize": {
+      "name": "Chat font size",
+      "desc": "Scales answers and messages only. The appearance setting scales editor text.",
+      "follow": "Follow the theme"
     }
   }
 }

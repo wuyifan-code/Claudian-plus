@@ -815,6 +815,11 @@
       },
       "header": "Codex Subagents",
       "noAgents": "No Codex subagents in vault. Click + to create one."
+    },
+    "chatFontSize": {
+      "name": "Chat font size",
+      "desc": "Scales answers and messages only. The appearance setting scales editor text.",
+      "follow": "Follow the theme"
     }
   }
 }
