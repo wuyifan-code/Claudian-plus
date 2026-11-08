@@ -26,7 +26,7 @@ import type {
   PreparedChatTurn,
   SessionUpdateResult,
 } from '../../../core/runtime/types';
-import { effectivePermissionMode } from '../../../core/security/sandboxMode';
+import { effectivePermissionMode, sandboxDeniesApprovalRequests } from '../../../core/security/sandboxMode';
 import type {
   ChatMessage,
   Conversation,
@@ -1235,6 +1235,11 @@ export class KimiChatRuntime implements ChatRuntime {
     if (effectivePermissionMode(this.getProviderSettings()) === 'yolo') {
       // Prefer one-shot grants so YOLO does not persist approval state in Kimi.
       return mapApprovalDecision('allow', request.options);
+    }
+
+    // Read-only has no sandbox of its own here, so every request is refused.
+    if (sandboxDeniesApprovalRequests(this.getProviderSettings())) {
+      return mapApprovalDecision('deny', request.options);
     }
 
     if (!this.approvalCallback) {

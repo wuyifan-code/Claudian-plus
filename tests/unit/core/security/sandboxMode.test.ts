@@ -2,6 +2,7 @@ import {
   effectivePermissionMode,
   resolveSandboxMode,
   sandboxBypassesApprovals,
+  sandboxDeniesApprovalRequests,
 } from '@/core/security/sandboxMode';
 
 describe('sandbox axis', () => {
@@ -51,5 +52,17 @@ describe('effectivePermissionMode', () => {
     expect(effectivePermissionMode({ sandboxMode: 'workspace' }, 'yolo')).toBe('normal');
     expect(effectivePermissionMode({ sandboxMode: 'full' }, 'normal')).toBe('yolo');
     expect(effectivePermissionMode({ sandboxMode: 'full' }, 'plan')).toBe('plan');
+  });
+});
+
+describe('sandboxDeniesApprovalRequests', () => {
+  it('refuses approvals for the read-only tier', () => {
+    expect(sandboxDeniesApprovalRequests({ sandboxMode: 'read' })).toBe(true);
+  });
+
+  it('leaves workspace and full to the normal approval flow', () => {
+    expect(sandboxDeniesApprovalRequests({ sandboxMode: 'workspace' })).toBe(false);
+    expect(sandboxDeniesApprovalRequests({ sandboxMode: 'full' })).toBe(false);
+    expect(sandboxDeniesApprovalRequests({ permissionMode: 'yolo' })).toBe(false);
   });
 });

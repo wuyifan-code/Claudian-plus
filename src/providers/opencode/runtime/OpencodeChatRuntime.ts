@@ -29,6 +29,7 @@ import type {
   PreparedChatTurn,
   SessionUpdateResult,
 } from '../../../core/runtime/types';
+import { sandboxDeniesApprovalRequests } from '../../../core/security/sandboxMode';
 import type {
   ChatMessage,
   Conversation,
@@ -1533,6 +1534,11 @@ export class OpencodeChatRuntime implements ChatRuntime {
   private async handlePermissionRequest(
     request: AcpRequestPermissionRequest,
   ): Promise<AcpRequestPermissionResponse> {
+    // Read-only has no sandbox of its own here, so every request is refused.
+    if (sandboxDeniesApprovalRequests(this.getProviderSettings())) {
+      return mapApprovalDecision('deny', request.options);
+    }
+
     if (!this.approvalCallback) {
       return { outcome: { outcome: 'cancelled' } };
     }

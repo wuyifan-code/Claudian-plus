@@ -40,6 +40,16 @@ export function sandboxBypassesApprovals(mode: SandboxMode): boolean {
 }
 
 /**
+ * Read-only refuses every approval request outright.
+ *
+ * Providers without their own sandbox (the ACP ones) only ask us whether a tool
+ * may run, so declining there is the only way to keep the tier honest.
+ */
+export function sandboxDeniesApprovalRequests(settings: SandboxAxisSettings): boolean {
+  return resolveSandboxMode(settings) === 'read';
+}
+
+/**
  * The approval mode the runtimes should act on.
  *
  * `full` is defined as the old YOLO behavior, so it reports as `yolo` at every
