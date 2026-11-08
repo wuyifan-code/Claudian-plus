@@ -27,8 +27,9 @@ import type {
   PreparedChatTurn,
   SessionUpdateResult,
 } from '../../../core/runtime/types';
-import { effectivePermissionMode } from '../../../core/security/sandboxMode';
+import { effectivePermissionMode, resolveSandboxMode } from '../../../core/security/sandboxMode';
 import type { ChatMessage, Conversation, ForkSource, SlashCommand, StreamChunk } from '../../../core/types';
+import type { SandboxMode } from '../../../core/types/settings';
 import { getVaultPath } from '../../../utils/path';
 import { buildContextFromHistory } from '../../../utils/session';
 import { CODEX_PROVIDER_CAPABILITIES } from '../capabilities';
@@ -87,17 +88,26 @@ import {
   createCodexWorkspaceDependencyTool,
 } from './CodexWorkspaceDependencyTool';
 
-function resolveCodexSandboxConfig(
+/**
+ * Codex is the one provider with a real sandbox switch, so the read-only tier
+ * is enforced here instead of only being reflected in the UI.
+ */
+export function resolveCodexSandboxConfig(
   permissionMode: string,
+  sandboxMode: SandboxMode,
   codexSafeMode: CodexSafeMode = 'workspace-write',
 ): { approvalPolicy: string; sandbox: string } {
-  if (permissionMode === 'yolo') {
-    return { approvalPolicy: 'never', sandbox: 'danger-full-access' };
-  }
+  // Plan is an approval mode and always narrows the sandbox, even with full access.
   if (permissionMode === 'plan') {
     return { approvalPolicy: 'on-request', sandbox: 'workspace-write' };
   }
-  // normal — resolve through the user's configured safe mode
+  if (sandboxMode === 'full') {
+    return { approvalPolicy: 'never', sandbox: 'danger-full-access' };
+  }
+  if (sandboxMode === 'read') {
+    return { approvalPolicy: 'on-request', sandbox: 'read-only' };
+  }
+  // workspace — resolve through the user's configured safe mode
   return { approvalPolicy: 'on-request', sandbox: codexSafeMode };
 }
 
@@ -1007,6 +1017,7 @@ export class CodexChatRuntime implements ChatRuntime {
     const providerSettings = this.getProviderSettings();
     return resolveCodexSandboxConfig(
       effectivePermissionMode(providerSettings),
+      resolveSandboxMode(providerSettings),
       getCodexProviderSettings(providerSettings).safeMode,
     );
   }

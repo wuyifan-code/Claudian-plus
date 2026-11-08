@@ -805,3 +805,25 @@ describe('QueryOptionsBuilder', () => {
     });
   });
 });
+
+describe('QueryOptionsBuilder.resolveClaudeSdkPermissionMode', () => {
+  it('keeps the safe mode for a normal turn', () => {
+    expect(QueryOptionsBuilder.resolveClaudeSdkPermissionMode('normal', 'acceptEdits'))
+      .toBe('acceptEdits');
+  });
+
+  it('bypasses approvals for yolo', () => {
+    expect(QueryOptionsBuilder.resolveClaudeSdkPermissionMode('yolo', 'acceptEdits'))
+      .toBe('bypassPermissions');
+  });
+
+  it('uses plan as the read-only guard, because the SDK has no read-only sandbox', () => {
+    expect(QueryOptionsBuilder.resolveClaudeSdkPermissionMode('normal', 'acceptEdits', 'read'))
+      .toBe('plan');
+  });
+
+  it('leaves full access on its own path', () => {
+    expect(QueryOptionsBuilder.resolveClaudeSdkPermissionMode('yolo', 'acceptEdits', 'full'))
+      .toBe('bypassPermissions');
+  });
+});
