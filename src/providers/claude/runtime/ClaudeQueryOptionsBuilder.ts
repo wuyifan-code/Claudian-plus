@@ -12,7 +12,8 @@ import {
   type SystemPromptSettings,
 } from '../../../core/prompt/mainAgent';
 import type { AppPluginManager } from '../../../core/providers/types';
-import { effectivePermissionMode } from '../../../core/security/sandboxMode';
+import { effectivePermissionMode, resolveSandboxMode } from '../../../core/security/sandboxMode';
+import type { SandboxMode } from '../../../core/types/settings';
 import type { ClaudianPlusSettings, PermissionMode } from '../../../core/types/settings';
 import { toClaudeRuntimeModelId } from '../modelSelection';
 import {
@@ -111,6 +112,7 @@ export class QueryOptionsBuilder {
     const sdkPermissionMode = QueryOptionsBuilder.resolveClaudeSdkPermissionMode(
       effectivePermissionMode(ctx.settings),
       claudeSettings.safeMode,
+      resolveSandboxMode(ctx.settings),
     );
 
     const disallowedToolsKey = ctx.mcpManager.getAllDisallowedMcpTools().join('|');
@@ -153,9 +155,10 @@ export class QueryOptionsBuilder {
 
     QueryOptionsBuilder.applyPermissionMode(
       options,
-      ctx.settings.permissionMode,
+      effectivePermissionMode(ctx.settings),
       claudeSettings.safeMode,
       ctx.canUseTool,
+      resolveSandboxMode(ctx.settings),
     );
     QueryOptionsBuilder.applyThinking(options, ctx.settings, runtimeModel);
     if (ctx.hooks) options.hooks = ctx.hooks;
@@ -215,9 +218,10 @@ export class QueryOptionsBuilder {
 
     QueryOptionsBuilder.applyPermissionMode(
       options,
-      ctx.settings.permissionMode,
+      effectivePermissionMode(ctx.settings),
       claudeSettings.safeMode,
       ctx.canUseTool,
+      resolveSandboxMode(ctx.settings),
     );
     if (ctx.hooks) options.hooks = ctx.hooks;
     QueryOptionsBuilder.applyThinking(options, ctx.settings, selectedModel);
@@ -240,9 +244,13 @@ export class QueryOptionsBuilder {
   static resolveClaudeSdkPermissionMode(
     permissionMode: PermissionMode,
     claudeSafeMode: ClaudeSafeMode = 'acceptEdits',
+    sandboxMode?: SandboxMode,
   ): SDKPermissionMode {
-    if (permissionMode === 'yolo') return 'bypassPermissions';
     if (permissionMode === 'plan') return 'plan';
+    // Claude has no read-only sandbox; its plan mode is the closest real
+    // guard, and it keeps the agent able to read and propose.
+    if (sandboxMode === 'read') return 'plan';
+    if (permissionMode === 'yolo') return 'bypassPermissions';
     return claudeSafeMode;
   }
 
@@ -250,7 +258,8 @@ export class QueryOptionsBuilder {
     options: Options,
     permissionMode: PermissionMode,
     claudeSafeMode: ClaudeSafeMode,
-    canUseTool?: CanUseTool
+    canUseTool?: CanUseTool,
+    sandboxMode?: SandboxMode,
   ): void {
     options.allowDangerouslySkipPermissions = true;
 
@@ -261,6 +270,7 @@ export class QueryOptionsBuilder {
     options.permissionMode = QueryOptionsBuilder.resolveClaudeSdkPermissionMode(
       permissionMode,
       claudeSafeMode,
+      sandboxMode,
     );
   }
 

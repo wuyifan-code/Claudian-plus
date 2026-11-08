@@ -8,6 +8,7 @@ import * as path from 'path';
 import type { PreparedChatTurn } from '@/core/runtime/types';
 import type { StreamChunk } from '@/core/types/chat';
 import { encodeCodexModelSelectionId } from '@/providers/codex/modelSelection';
+import { resolveCodexSandboxConfig } from '@/providers/codex/runtime/CodexChatRuntime';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -3149,6 +3150,40 @@ describe('CodexChatRuntime', () => {
       // The buffered text should have been flushed after turn/started
       expect(chunks).toContainEqual({ type: 'text', content: 'Buffered text' });
       expect(chunks).toContainEqual({ type: 'done' });
+    });
+  });
+});
+
+describe('resolveCodexSandboxConfig', () => {
+  it('enforces read-only when the sandbox is read only', () => {
+    expect(resolveCodexSandboxConfig('normal', 'read')).toEqual({
+      approvalPolicy: 'on-request',
+      sandbox: 'read-only',
+    });
+  });
+
+  it('keeps the configured safe mode for workspace write', () => {
+    expect(resolveCodexSandboxConfig('normal', 'workspace', 'read-only')).toEqual({
+      approvalPolicy: 'on-request',
+      sandbox: 'read-only',
+    });
+    expect(resolveCodexSandboxConfig('normal', 'workspace')).toEqual({
+      approvalPolicy: 'on-request',
+      sandbox: 'workspace-write',
+    });
+  });
+
+  it('drops every guard for full access', () => {
+    expect(resolveCodexSandboxConfig('normal', 'full')).toEqual({
+      approvalPolicy: 'never',
+      sandbox: 'danger-full-access',
+    });
+  });
+
+  it('lets plan narrow the sandbox even with full access selected', () => {
+    expect(resolveCodexSandboxConfig('plan', 'full')).toEqual({
+      approvalPolicy: 'on-request',
+      sandbox: 'workspace-write',
     });
   });
 });

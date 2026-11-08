@@ -53,7 +53,8 @@ function createIntegrationPlugin(): any {
 
 function createKimiPermissionToggle(plugin: any): {
   label: any;
-  switchEl: any;
+  openMenu: () => void;
+  selectMode: (mode: string) => void;
   waitForChange: () => Promise<void>;
 } {
   const parentEl = createMockEl();
