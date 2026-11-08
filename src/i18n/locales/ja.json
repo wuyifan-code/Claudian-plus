@@ -57,7 +57,6 @@
       "limitChooserDesc": "Close one window, then a new one opens",
       "limitChoose": "Close and open a new one"
     },
-
     "effort": {
       "label": "推論レベル",
       "faster": "速い",
@@ -164,6 +163,16 @@
       "hint": "パーセント計算に使うウィンドウのみを変更します。モデル本来の上限は変わりません。",
       "providerDefault": "プロバイダーの既定値",
       "saveFailed": "コンテキスト容量を保存できませんでした。"
+    },
+    "permission": {
+      "sandbox": {
+        "title": "Permissions",
+        "read": "Read only",
+        "workspace": "Workspace write",
+        "full": "Full access",
+        "fullConfirm": "Full access lets the agent run commands and change files without asking. Only use it when you trust the current task.",
+        "fullConfirmAccept": "Enable full access"
+      }
     }
   },
   "uiBlock": {

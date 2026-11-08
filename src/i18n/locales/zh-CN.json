@@ -57,7 +57,6 @@
       "limitChooserDesc": "先关一个，再新建",
       "limitChoose": "关闭并新建"
     },
-
     "effort": {
       "label": "推理等级",
       "faster": "更快",
@@ -164,6 +163,16 @@
       "hint": "只影响百分比换算的窗口，不改变模型本身的真实上限。",
       "providerDefault": "使用提供方默认值",
       "saveFailed": "无法保存上下文容量设置。"
+    },
+    "permission": {
+      "sandbox": {
+        "title": "权限",
+        "read": "仅可查看",
+        "workspace": "工作区内修改",
+        "full": "完全权限",
+        "fullConfirm": "启用完全权限后，智能体将减少确认步骤，并且可以直接执行更多操作，包括敏感操作、文件修改或外部命令。仅建议在你信任当前任务时使用。",
+        "fullConfirmAccept": "启用完全权限"
+      }
     }
   },
   "uiBlock": {

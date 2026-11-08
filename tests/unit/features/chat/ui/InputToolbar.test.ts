@@ -169,6 +169,7 @@ function createMockCallbacks(overrides: Record<string, any> = {}) {
     onEffortLevelChange: jest.fn().mockResolvedValue(undefined),
     onServiceTierChange: jest.fn().mockResolvedValue(undefined),
     onPermissionModeChange: jest.fn().mockResolvedValue(undefined),
+    onSandboxModeChange: jest.fn().mockResolvedValue(undefined),
     getSettings: jest.fn().mockReturnValue({
       model: 'sonnet',
       thinkingBudget: 'low',
@@ -899,118 +900,105 @@ describe('PermissionToggle', () => {
   let parentEl: any;
   let callbacks: ReturnType<typeof createMockCallbacks>;
 
+  function settingsBag(extra: Record<string, unknown> = {}) {
+    return {
+      model: 'sonnet',
+      thinkingBudget: 'low',
+      serviceTier: 'default',
+      permissionMode: 'normal',
+      ...extra,
+    };
+  }
+
+  function render(extra: Record<string, unknown> = {}) {
+    callbacks.getSettings.mockReturnValue(settingsBag(extra));
+    const host = createMockEl();
+    const toggle = new PermissionToggle(host, callbacks);
+    return { host, toggle };
+  }
+
   beforeEach(() => {
     jest.clearAllMocks();
     parentEl = createMockEl();
     callbacks = createMockCallbacks();
+    callbacks.getSettings.mockReturnValue(settingsBag());
+  });
+
+  it('creates the selector container', () => {
     new PermissionToggle(parentEl, callbacks);
+    expect(parentEl.querySelector('.claudian-plus-permission-toggle')).not.toBeNull();
   });
 
-  it('should create a container with permission-toggle class', () => {
-    const container = parentEl.querySelector('.claudian-plus-permission-toggle');
-    expect(container).not.toBeNull();
-  });
-
-  it('should display Safe label when in normal mode', () => {
+  it('shows the workspace label and its glyph by default', () => {
+    new PermissionToggle(parentEl, callbacks);
     const label = parentEl.querySelector('.claudian-plus-permission-label');
-    expect(label?.textContent).toBe('Safe');
+    expect(label?.textContent).toBe('Workspace write');
+    const icon = parentEl.querySelector('.claudian-plus-permission-icon') as any;
+    // workspace-write paints five paths: filled shield, two rules, pencil body and tip.
+    expect(icon?.children?.[0]?.children?.length).toBe(5);
   });
 
-  it('should display YOLO label when in yolo mode', () => {
-    callbacks.getSettings.mockReturnValue({
-      model: 'sonnet',
-      thinkingBudget: 'low',
-      serviceTier: 'default',
-      permissionMode: 'yolo',
-      enableOpus1M: false,
-      enableSonnet1M: false,
-    });
-    const parentEl2 = createMockEl();
-    new PermissionToggle(parentEl2, callbacks);
-
-    const label = parentEl2.querySelector('.claudian-plus-permission-label');
-    expect(label?.textContent).toBe('YOLO');
+  it('shows the read label when the sandbox is read only', () => {
+    const { host } = render({ sandboxMode: 'read' });
+    expect(host.querySelector('.claudian-plus-permission-label')?.textContent).toBe('Read only');
   });
 
-  it('should show PLAN label and hide toggle in plan mode', () => {
-    callbacks.getSettings.mockReturnValue({
-      model: 'sonnet',
-      thinkingBudget: 'low',
-      serviceTier: 'default',
-      permissionMode: 'plan',
-      enableOpus1M: false,
-      enableSonnet1M: false,
-    });
-    const parentEl2 = createMockEl();
-    new PermissionToggle(parentEl2, callbacks);
+  it('marks full access so the warning ink applies', () => {
+    const { host } = render({ sandboxMode: 'full' });
+    expect(host.querySelector('.claudian-plus-permission-label')?.textContent).toBe('Full access');
+    expect(host.querySelector('.claudian-plus-permission-toggle')?.hasClass('is-full')).toBe(true);
+  });
 
-    const label = parentEl2.querySelector('.claudian-plus-permission-label');
+  it('folds a legacy YOLO switch into full access', () => {
+    const { host } = render({ permissionMode: 'yolo' });
+    expect(host.querySelector('.claudian-plus-permission-label')?.textContent).toBe('Full access');
+  });
+
+  it('opens a three-option menu on click and marks the current one', () => {
+    new PermissionToggle(parentEl, callbacks);
+    parentEl.querySelector('.claudian-plus-permission-button')?.click();
+
+    const options = parentEl.querySelectorAll('.claudian-plus-permission-option');
+    expect(options.map((option: any) => option.getAttribute('data-sandbox-mode')))
+      .toEqual(['read', 'workspace', 'full']);
+    const checked = options.filter((option: any) => option.getAttribute('aria-checked') === 'true');
+    expect(checked).toHaveLength(1);
+    expect(checked[0].getAttribute('data-sandbox-mode')).toBe('workspace');
+  });
+
+  it('reports the chosen sandbox mode and closes the menu', async () => {
+    new PermissionToggle(parentEl, callbacks);
+    parentEl.querySelector('.claudian-plus-permission-button')?.click();
+
+    parentEl.querySelector('[data-sandbox-mode="full"]')?.click();
+    await Promise.resolve();
+
+    expect(callbacks.onSandboxModeChange).toHaveBeenCalledWith('full');
+    expect(parentEl.querySelector('.claudian-plus-permission-menu')).toBeNull();
+  });
+
+  it('keeps the PLAN label in plan mode', () => {
+    const { host } = render({ permissionMode: 'plan' });
+    const label = host.querySelector('.claudian-plus-permission-label');
     expect(label?.textContent).toBe('PLAN');
-    expect(label?.hasClass('plan-active')).toBe(true);
-
-    const toggle = parentEl2.querySelector('.claudian-plus-toggle-switch');
-    expect(toggle?.style.display).toBe('none');
+    expect(host.querySelector('.claudian-plus-permission-toggle')?.hasClass('plan-active')).toBe(true);
   });
 
-  it('should add active class when in yolo mode', () => {
-    callbacks.getSettings.mockReturnValue({
-      model: 'sonnet',
-      thinkingBudget: 'low',
-      serviceTier: 'default',
-      permissionMode: 'yolo',
-    });
-    const parentEl2 = createMockEl();
-    new PermissionToggle(parentEl2, callbacks);
-
-    const toggle = parentEl2.querySelector('.claudian-plus-toggle-switch');
-    expect(toggle?.hasClass('active')).toBe(true);
-  });
-
-  it('should not have active class in normal mode', () => {
-    const toggle = parentEl.querySelector('.claudian-plus-toggle-switch');
-    expect(toggle?.hasClass('active')).toBe(false);
-  });
-
-  it('should toggle from normal to yolo on click', async () => {
-    const toggle = parentEl.querySelector('.claudian-plus-toggle-switch');
-    await toggle?.dispatchEvent('click');
-    expect(callbacks.onPermissionModeChange).toHaveBeenCalledWith('yolo');
-  });
-
-  it('should toggle from yolo to normal on click', async () => {
-    callbacks.getSettings.mockReturnValue({
-      model: 'sonnet',
-      thinkingBudget: 'low',
-      permissionMode: 'yolo',
-    });
-    const parentEl2 = createMockEl();
-    new PermissionToggle(parentEl2, callbacks);
-
-    const toggle = parentEl2.querySelector('.claudian-plus-toggle-switch');
-    await toggle?.dispatchEvent('click');
-    expect(callbacks.onPermissionModeChange).toHaveBeenCalledWith('normal');
-  });
-
-  it('should hide the control when provider exposes no permission toggle UI', () => {
+  it('hides when the provider exposes no permission toggle UI', () => {
     callbacks.getUIConfig.mockReturnValue({
       ...createMockUIConfig(),
       getPermissionModeToggle: jest.fn().mockReturnValue(null),
     });
-    const parentEl2 = createMockEl();
-    new PermissionToggle(parentEl2, callbacks);
-
-    const container = parentEl2.querySelector('.claudian-plus-permission-toggle');
-    expect(container?.style.display).toBe('none');
+    const host = createMockEl();
+    new PermissionToggle(host, callbacks);
+    expect(host.querySelector('.claudian-plus-permission-toggle')?.style.display).toBe('none');
   });
 
-  it('should hide the control when visibility is disabled explicitly', () => {
-    const parentEl2 = createMockEl();
-    const toggle = new PermissionToggle(parentEl2, callbacks);
-
+  it('hides when visibility is disabled explicitly', () => {
+    const host = createMockEl();
+    const toggle = new PermissionToggle(host, callbacks);
     toggle.setVisible(false);
-
-    const container = parentEl2.querySelector('.claudian-plus-permission-toggle');
-    expect(container?.style.display).toBe('none');
+    expect(host.querySelector('.claudian-plus-permission-toggle')?.style.display).toBe('none');
   });
 });
 

@@ -12,6 +12,7 @@ import {
   type SystemPromptSettings,
 } from '../../../core/prompt/mainAgent';
 import type { AppPluginManager } from '../../../core/providers/types';
+import { effectivePermissionMode } from '../../../core/security/sandboxMode';
 import type { ClaudianPlusSettings, PermissionMode } from '../../../core/types/settings';
 import { toClaudeRuntimeModelId } from '../modelSelection';
 import {
@@ -108,7 +109,7 @@ export class QueryOptionsBuilder {
     };
 
     const sdkPermissionMode = QueryOptionsBuilder.resolveClaudeSdkPermissionMode(
-      ctx.settings.permissionMode,
+      effectivePermissionMode(ctx.settings),
       claudeSettings.safeMode,
     );
 

@@ -57,7 +57,6 @@
       "limitChooserDesc": "Close one window, then a new one opens",
       "limitChoose": "Close and open a new one"
     },
-
     "effort": {
       "label": "Effort de raisonnement",
       "faster": "Plus rapide",
@@ -164,6 +163,16 @@
       "hint": "Modifie uniquement la fenêtre utilisée pour le pourcentage, pas la limite réelle du modèle.",
       "providerDefault": "Valeur par défaut du fournisseur",
       "saveFailed": "Impossible d’enregistrer la capacité de contexte."
+    },
+    "permission": {
+      "sandbox": {
+        "title": "Permissions",
+        "read": "Read only",
+        "workspace": "Workspace write",
+        "full": "Full access",
+        "fullConfirm": "Full access lets the agent run commands and change files without asking. Only use it when you trust the current task.",
+        "fullConfirmAccept": "Enable full access"
+      }
     }
   },
   "uiBlock": {

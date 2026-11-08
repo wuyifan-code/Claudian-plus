@@ -27,6 +27,7 @@ import type {
   PreparedChatTurn,
   SessionUpdateResult,
 } from '../../../core/runtime/types';
+import { effectivePermissionMode } from '../../../core/security/sandboxMode';
 import type { ChatMessage, Conversation, ForkSource, SlashCommand, StreamChunk } from '../../../core/types';
 import { getVaultPath } from '../../../utils/path';
 import { buildContextFromHistory } from '../../../utils/session';
@@ -1005,7 +1006,7 @@ export class CodexChatRuntime implements ChatRuntime {
   private resolveSandboxConfig(): { approvalPolicy: string; sandbox: string } {
     const providerSettings = this.getProviderSettings();
     return resolveCodexSandboxConfig(
-      providerSettings.permissionMode as string,
+      effectivePermissionMode(providerSettings),
       getCodexProviderSettings(providerSettings).safeMode,
     );
   }

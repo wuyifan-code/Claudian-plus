@@ -57,7 +57,6 @@
       "limitChooserDesc": "Close one window, then a new one opens",
       "limitChoose": "Close and open a new one"
     },
-
     "effort": {
       "label": "추론 수준",
       "faster": "빠름",
@@ -164,6 +163,16 @@
       "hint": "백분율 계산에 쓰는 창만 바꿉니다. 모델 자체의 실제 한도는 바뀌지 않습니다.",
       "providerDefault": "공급자 기본값",
       "saveFailed": "컨텍스트 용량을 저장하지 못했습니다."
+    },
+    "permission": {
+      "sandbox": {
+        "title": "Permissions",
+        "read": "Read only",
+        "workspace": "Workspace write",
+        "full": "Full access",
+        "fullConfirm": "Full access lets the agent run commands and change files without asking. Only use it when you trust the current task.",
+        "fullConfirmAccept": "Enable full access"
+      }
     }
   },
   "uiBlock": {

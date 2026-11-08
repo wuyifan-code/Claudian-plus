@@ -19,6 +19,7 @@ import type {
   PreparedChatTurn,
   SessionUpdateResult,
 } from '../../../core/runtime/types';
+import { effectivePermissionMode } from '../../../core/security/sandboxMode';
 import type { ChatMessage, Conversation, SlashCommand, StreamChunk } from '../../../core/types';
 import { appendBrowserContext } from '../../../utils/browser';
 import { appendCanvasContext } from '../../../utils/canvas';
@@ -305,7 +306,7 @@ export class DshChatRuntime implements ChatRuntime {
 
   private isYoloMode(): boolean {
     const snapshot = ProviderSettingsCoordinator.getProviderSettingsSnapshot(this.plugin.settings, this.providerId);
-    return snapshot.permissionMode === 'yolo';
+    return effectivePermissionMode(snapshot) === 'yolo';
   }
 
   cancel(): void {

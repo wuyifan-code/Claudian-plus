@@ -57,7 +57,6 @@
       "limitChooserDesc": "先關一個，再新建",
       "limitChoose": "關閉並新建"
     },
-
     "effort": {
       "label": "推理等級",
       "faster": "更快",
@@ -164,6 +163,16 @@
       "hint": "只影響百分比換算的視窗，不改變模型本身的真實上限。",
       "providerDefault": "使用提供方預設值",
       "saveFailed": "無法儲存上下文容量設定。"
+    },
+    "permission": {
+      "sandbox": {
+        "title": "權限",
+        "read": "僅可查看",
+        "workspace": "工作區內修改",
+        "full": "完全權限",
+        "fullConfirm": "啟用完全權限後，智慧體將減少確認步驟，並且可以直接執行更多操作，包括敏感操作、檔案修改或外部命令。僅建議在你信任目前任務時使用。",
+        "fullConfirmAccept": "啟用完全權限"
+      }
     }
   },
   "uiBlock": {
