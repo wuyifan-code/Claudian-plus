@@ -26,6 +26,7 @@ import type {
   PreparedChatTurn,
   SessionUpdateResult,
 } from '../../../core/runtime/types';
+import { effectivePermissionMode } from '../../../core/security/sandboxMode';
 import type {
   ChatMessage,
   Conversation,
@@ -1231,7 +1232,7 @@ export class KimiChatRuntime implements ChatRuntime {
   private async handlePermissionRequest(
     request: AcpRequestPermissionRequest,
   ): Promise<AcpRequestPermissionResponse> {
-    if (this.getProviderSettings().permissionMode === 'yolo') {
+    if (effectivePermissionMode(this.getProviderSettings()) === 'yolo') {
       // Prefer one-shot grants so YOLO does not persist approval state in Kimi.
       return mapApprovalDecision('allow', request.options);
     }

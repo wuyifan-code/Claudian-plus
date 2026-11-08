@@ -49,6 +49,7 @@ import type {
   PreparedChatTurn,
   SessionUpdateResult,
 } from '../../../core/runtime/types';
+import { effectivePermissionMode } from '../../../core/security/sandboxMode';
 import { TOOL_ENTER_PLAN_MODE, TOOL_SKILL } from '../../../core/tools/toolNames';
 import type {
   ApprovalDecision,
@@ -2070,7 +2071,7 @@ export class ClaudeChatRuntime implements ChatRuntime {
 
   private resolveSDKPermissionMode(mode: PermissionMode): SDKPermissionMode {
     return QueryOptionsBuilder.resolveClaudeSdkPermissionMode(
-      mode,
+      effectivePermissionMode(this.plugin.settings, mode),
       getClaudeProviderSettings(this.plugin.settings).safeMode,
     );
   }

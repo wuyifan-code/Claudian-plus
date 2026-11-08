@@ -18,6 +18,7 @@ import type {
   PreparedChatTurn,
   SessionUpdateResult,
 } from '../../../core/runtime/types';
+import { effectivePermissionMode } from '../../../core/security/sandboxMode';
 import type {
   ChatMessage,
   Conversation,
@@ -612,7 +613,7 @@ export class AntigravityChatRuntime implements ChatRuntime {
       const pluginSettings = this.plugin.settings as Record<string, unknown>;
       const allowDangerouslySkipPermissions =
         settings.autoApproveTools !== false
-        || pluginSettings.permissionMode === 'yolo';
+        || effectivePermissionMode(pluginSettings) === 'yolo';
       const providerEnv = parseEnvironmentVariables(settings.environmentVariables);
       const activeEnv = typeof this.plugin.getActiveEnvironmentVariables === 'function'
         ? parseEnvironmentVariables(this.plugin.getActiveEnvironmentVariables('antigravity'))

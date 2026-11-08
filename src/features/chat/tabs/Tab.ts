@@ -27,9 +27,11 @@ import type { ChatRuntime } from '../../../core/runtime/ChatRuntime';
 import type { AutoTurnResult } from '../../../core/runtime/types';
 import { TOOL_AGENT_OUTPUT } from '../../../core/tools/toolNames';
 import type { ChatMessage, ClaudianPlusSettings, Conversation, StreamChunk } from '../../../core/types';
+import type { SandboxMode } from '../../../core/types/settings';
 import { t } from '../../../i18n/i18n';
 import { SlashCommandDropdown } from '../../../shared/components/SlashCommandDropdown';
 import { feedbackBus } from '../../../shared/feedback/FeedbackBus';
+import { confirm } from '../../../shared/modals/ConfirmModal';
 import { buildCanvasActionPrompt, type CanvasContextAction, type CanvasSelectionContext } from '../../../utils/canvas';
 import { getEnhancedPath } from '../../../utils/env';
 import { getVaultPath } from '../../../utils/path';
@@ -1213,6 +1215,20 @@ function initializeInputToolbar(
         settings.serviceTier = serviceTier;
       });
       tab.ui.serviceTierToggle?.updateDisplay();
+    },
+    onSandboxModeChange: async (mode: SandboxMode) => {
+      if (mode === 'full') {
+        const accepted = await confirm(
+          plugin.app,
+          t('chat.permission.sandbox.fullConfirm'),
+          t('chat.permission.sandbox.fullConfirmAccept'),
+        );
+        if (!accepted) return;
+      }
+      await plugin.mutateSettings((settings) => {
+        settings.sandboxMode = mode;
+      });
+      tab.ui.permissionToggle?.updateDisplay();
     },
     onPermissionModeChange: async (mode: string) => {
       await updateTabProviderSettings(tab, plugin, (settings) => {

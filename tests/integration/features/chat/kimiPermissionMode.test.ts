@@ -77,14 +77,21 @@ function createKimiPermissionToggle(plugin: any): {
         ProviderSettingsCoordinator.commitProviderSettingsSnapshot(settings, 'kimi', snapshot);
       });
     },
+    onSandboxModeChange: async (mode: string) => {
+      await plugin.mutateSettings((settings: Record<string, unknown>) => {
+        settings.sandboxMode = mode;
+      });
+    },
     onServiceTierChange: jest.fn().mockResolvedValue(undefined),
     onThinkingBudgetChange: jest.fn().mockResolvedValue(undefined),
   };
   new PermissionToggle(parentEl, callbacks as any);
+  const button = parentEl.querySelector('.claudian-plus-permission-button');
 
   return {
     label: parentEl.querySelector('.claudian-plus-permission-label'),
-    switchEl: parentEl.querySelector('.claudian-plus-toggle-switch'),
+    openMenu: () => button?.click(),
+    selectMode: (mode: string) => parentEl.querySelector(`[data-sandbox-mode="${mode}"]`)?.click(),
     waitForChange: () => plugin.waitForLastMutation(),
   };
 }
@@ -112,28 +119,25 @@ async function closeRuntime(runtime: KimiChatRuntime): Promise<void> {
 }
 
 describe('Kimi Safe/YOLO permission flow', () => {
-  it('switches the real toolbar toggle and persists the Kimi provider mode', async () => {
+  it('switches the real toolbar selector and persists the Kimi sandbox mode', async () => {
     const plugin = createIntegrationPlugin();
     const toggle = createKimiPermissionToggle(plugin);
 
-    expect(toggle.label.textContent).toBe('Safe');
-    expect(toggle.switchEl.hasClass('active')).toBe(false);
+    expect(toggle.label.textContent).toBe('Workspace write');
 
-    toggle.switchEl.click();
+    toggle.openMenu();
+    toggle.selectMode('full');
     await toggle.waitForChange();
 
-    expect(plugin.settings.permissionMode).toBe('yolo');
-    expect(plugin.settings.savedProviderPermissionMode).toEqual({ kimi: 'yolo' });
-    expect(toggle.label.textContent).toBe('YOLO');
-    expect(toggle.switchEl.hasClass('active')).toBe(true);
+    expect(plugin.settings.sandboxMode).toBe('full');
+    expect(toggle.label.textContent).toBe('Full access');
 
-    toggle.switchEl.click();
+    toggle.openMenu();
+    toggle.selectMode('workspace');
     await toggle.waitForChange();
 
-    expect(plugin.settings.permissionMode).toBe('normal');
-    expect(plugin.settings.savedProviderPermissionMode).toEqual({ kimi: 'normal' });
-    expect(toggle.label.textContent).toBe('Safe');
-    expect(toggle.switchEl.hasClass('active')).toBe(false);
+    expect(plugin.settings.sandboxMode).toBe('workspace');
+    expect(toggle.label.textContent).toBe('Workspace write');
   });
 
   it('routes real ACP tool requests through Safe approval and YOLO auto-approval', async () => {
@@ -149,9 +153,10 @@ describe('Kimi Safe/YOLO permission flow', () => {
       expect(approvalCallback).toHaveBeenCalledTimes(1);
       expect(collectText(safeChunks)).toContain('fixture:denied');
 
-      toggle.switchEl.click();
+      toggle.openMenu();
+      toggle.selectMode('full');
       await toggle.waitForChange();
-      expect(plugin.settings.permissionMode).toBe('yolo');
+      expect(plugin.settings.sandboxMode).toBe('full');
 
       const yoloChunks = await collectChunks(runtime, 'yolo permission request');
 

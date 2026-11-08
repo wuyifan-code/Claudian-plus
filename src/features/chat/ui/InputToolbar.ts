@@ -14,13 +14,16 @@ import type {
   ProviderServiceTierToggleConfig,
   ProviderUIOption,
 } from '../../../core/providers/types';
+import { resolveSandboxMode } from '../../../core/security/sandboxMode';
 import type {
   ManagedMcpServer,
   UsageInfo,
 } from '../../../core/types';
+import type { SandboxMode } from '../../../core/types/settings';
 import { t } from '../../../i18n/i18n';
 import { feedbackBus } from '../../../shared/feedback/FeedbackBus';
 import { appendCheckIcon, appendMcpIcon, createProviderIconSvg } from '../../../shared/icons';
+import { createPermissionIcon, type PermissionGlyph } from '../../../shared/icons/permissionIcons';
 import { filterValidPaths, findConflictingPath, isDuplicatePath, isValidDirectoryPath, validateDirectoryPath } from '../../../utils/externalContext';
 import { expandHomePath, normalizePathForFilesystem } from '../../../utils/path';
 import { createEffortSlider, type EffortSlider } from './EffortSlider';
@@ -66,6 +69,8 @@ export interface ToolbarCallbacks {
   onEffortLevelChange: (effort: string) => Promise<void>;
   onServiceTierChange: (serviceTier: string) => Promise<void>;
   onPermissionModeChange: (mode: string) => Promise<void>;
+  /** Persists the sandbox axis; the selector is hidden when omitted. */
+  onSandboxModeChange?: (mode: SandboxMode) => Promise<void>;
   /** Persists a context capacity for the active model; `null` clears the pin. Omit to keep the meter read-only. */
   onContextWindowChange?: (tokens: number | null) => Promise<void>;
   onInterrupt?: () => void;
@@ -818,12 +823,28 @@ export class ThinkingBudgetSelector {
   }
 }
 
+const SANDBOX_ORDER: SandboxMode[] = ['read', 'workspace', 'full'];
+
+const SANDBOX_GLYPHS: Record<SandboxMode, PermissionGlyph> = {
+  read: 'read-only',
+  workspace: 'workspace-write',
+  full: 'full-access',
+};
+
+/**
+ * Sandbox selector: the current mode as an icon and a label, opening the three
+ * DSH permission presets. Plan mode keeps the old label-only treatment because
+ * it is an approval mode, not a sandbox.
+ */
 export class PermissionToggle {
   private container: HTMLElement;
-  private toggleEl: HTMLElement | null = null;
+  private buttonEl: HTMLElement | null = null;
+  private iconEl: HTMLElement | null = null;
   private labelEl: HTMLElement | null = null;
+  private menuEl: HTMLElement | null = null;
   private callbacks: ToolbarCallbacks;
   private visible = true;
+  private documentClickListener: ((event: MouseEvent) => void) | null = null;
 
   constructor(parentEl: HTMLElement, callbacks: ToolbarCallbacks) {
     this.callbacks = callbacks;
@@ -839,14 +860,34 @@ export class PermissionToggle {
   private render() {
     this.container.empty();
 
-    this.labelEl = this.container.createSpan({ cls: 'claudian-plus-permission-label' });
-    this.toggleEl = this.container.createDiv({ cls: 'claudian-plus-toggle-switch' });
+    this.buttonEl = this.container.createDiv({
+      cls: 'claudian-plus-permission-button',
+      attr: {
+        role: 'button',
+        tabindex: '0',
+        'aria-haspopup': 'menu',
+        'aria-expanded': 'false',
+      },
+    });
+    this.iconEl = this.buttonEl.createSpan({ cls: 'claudian-plus-permission-icon' });
+    this.labelEl = this.buttonEl.createSpan({ cls: 'claudian-plus-permission-label' });
+    const chevron = this.buttonEl.createSpan({ cls: 'claudian-plus-permission-chevron' });
+    setIcon(chevron, 'chevron-down');
+
+    this.buttonEl.addEventListener('click', (event: MouseEvent) => {
+      event.stopPropagation();
+      this.toggleMenu();
+    });
+    this.buttonEl.addEventListener('keydown', (event: KeyboardEvent) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        this.toggleMenu();
+      } else if (event.key === 'Escape') {
+        this.closeMenu();
+      }
+    });
 
     this.updateDisplay();
-
-    this.toggleEl.addEventListener('click', () => {
-      runToolbarAction(() => this.toggle(), 'Failed to change permission mode');
-    });
   }
 
   private getToggleConfig(): ProviderPermissionModeToggleConfig | null {
@@ -854,49 +895,118 @@ export class PermissionToggle {
     return uiConfig.getPermissionModeToggle?.() ?? null;
   }
 
+  private currentMode(): SandboxMode {
+    return resolveSandboxMode(this.callbacks.getSettings());
+  }
+
+  private labelFor(mode: SandboxMode): string {
+    if (mode === 'read') return t('chat.permission.sandbox.read');
+    if (mode === 'workspace') return t('chat.permission.sandbox.workspace');
+    return t('chat.permission.sandbox.full');
+  }
+
   updateDisplay() {
-    if (!this.toggleEl || !this.labelEl) return;
+    if (!this.buttonEl || !this.iconEl || !this.labelEl) return;
 
     const toggleConfig = this.getToggleConfig();
-    const capabilities = this.callbacks.getCapabilities();
-    if (!this.visible || !toggleConfig) {
-      this.container.addClass('claudian-plus-hidden');
+    const selectable = this.visible && toggleConfig !== null;
+    this.container.toggleClass('claudian-plus-hidden', !selectable);
+    if (!selectable) {
+      this.closeMenu();
       return;
     }
 
-    this.container.removeClass('claudian-plus-hidden');
-    const mode = this.callbacks.getSettings().permissionMode;
+    const settings = this.callbacks.getSettings();
+    const capabilities = this.callbacks.getCapabilities();
     const planValue = toggleConfig.planValue;
-    const planLabel = toggleConfig.planLabel ?? 'PLAN';
-    const canShowPlan = Boolean(planValue) && capabilities.supportsPlanMode;
+    const inPlan = Boolean(planValue) && capabilities.supportsPlanMode && settings.permissionMode === planValue;
+    const mode = this.currentMode();
 
-    if (canShowPlan && planValue && mode === planValue) {
-      this.toggleEl.addClass('claudian-plus-hidden');
-      this.labelEl.setText(planLabel);
-      this.labelEl.addClass('plan-active');
-    } else {
-      this.toggleEl.removeClass('claudian-plus-hidden');
-      this.labelEl.removeClass('plan-active');
-      if (mode === toggleConfig.activeValue) {
-        this.toggleEl.addClass('active');
-        this.labelEl.setText(toggleConfig.activeLabel);
-      } else {
-        this.toggleEl.removeClass('active');
-        this.labelEl.setText(toggleConfig.inactiveLabel);
-      }
-    }
+    this.iconEl.empty();
+    createPermissionIcon(this.iconEl, SANDBOX_GLYPHS[mode]);
+    this.labelEl.setText(inPlan ? (toggleConfig.planLabel ?? 'PLAN') : this.labelFor(mode));
+    this.container.toggleClass('plan-active', inPlan);
+    this.container.toggleClass('is-full', mode === 'full');
+    this.buttonEl.setAttribute('aria-expanded', this.menuEl ? 'true' : 'false');
   }
 
-  private async toggle() {
-    const toggleConfig = this.getToggleConfig();
-    if (!toggleConfig) return;
+  private toggleMenu(): void {
+    if (!this.visible || !this.getToggleConfig() || !this.callbacks.onSandboxModeChange) return;
+    if (this.menuEl) {
+      this.closeMenu();
+      return;
+    }
+    this.renderMenu();
+  }
 
-    const current = this.callbacks.getSettings().permissionMode;
-    const newMode = current === toggleConfig.activeValue
-      ? toggleConfig.inactiveValue
-      : toggleConfig.activeValue;
-    await this.callbacks.onPermissionModeChange(newMode);
+  private renderMenu(): void {
+    if (!this.buttonEl) return;
+
+    const menu = this.container.createDiv({
+      cls: 'claudian-plus-permission-menu',
+      attr: { role: 'menu', 'aria-label': t('chat.permission.sandbox.title') },
+    });
+    menu.addEventListener('click', (event: MouseEvent) => event.stopPropagation());
+
+    const current = this.currentMode();
+    for (const mode of SANDBOX_ORDER) {
+      const option = menu.createDiv({
+        cls: 'claudian-plus-permission-option',
+        attr: {
+          role: 'menuitemradio',
+          'aria-checked': String(mode === current),
+          'data-sandbox-mode': mode,
+        },
+      });
+      const icon = option.createSpan({ cls: 'claudian-plus-permission-option-icon' });
+      createPermissionIcon(icon, SANDBOX_GLYPHS[mode]);
+      option.createSpan({ cls: 'claudian-plus-permission-option-label', text: this.labelFor(mode) });
+      if (mode === current) {
+        const check = option.createSpan({ cls: 'claudian-plus-permission-option-check' });
+        setIcon(check, 'check');
+      }
+      option.addEventListener('click', () => {
+        runToolbarAction(() => this.select(mode), 'Failed to change permission mode');
+      });
+    }
+
+    this.menuEl = menu;
+    this.container.addClass('is-open');
+    this.buttonEl.setAttribute('aria-expanded', 'true');
+    this.addOutsideClickListener();
+  }
+
+  private async select(mode: SandboxMode): Promise<void> {
+    this.closeMenu();
+    if (!this.callbacks.onSandboxModeChange) return;
+    await this.callbacks.onSandboxModeChange(mode);
     this.updateDisplay();
+  }
+
+  private closeMenu(): void {
+    this.menuEl?.remove();
+    this.menuEl = null;
+    this.container.removeClass('is-open');
+    this.buttonEl?.setAttribute('aria-expanded', 'false');
+    this.removeOutsideClickListener();
+  }
+
+  private addOutsideClickListener(): void {
+    if (this.documentClickListener) return;
+    const doc = this.container.ownerDocument ?? activeDocument;
+    this.documentClickListener = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (target && this.container.contains(target)) return;
+      this.closeMenu();
+    };
+    doc.addEventListener?.('click', this.documentClickListener);
+  }
+
+  private removeOutsideClickListener(): void {
+    if (!this.documentClickListener) return;
+    const doc = this.container.ownerDocument ?? activeDocument;
+    doc.removeEventListener?.('click', this.documentClickListener);
+    this.documentClickListener = null;
   }
 }
 
