@@ -1405,12 +1405,27 @@ describe('ContextUsageMeter', () => {
     expect(container?.hasClass('warning')).toBe(false);
   });
 
+  it('agrees with the capacity slider about the window', () => {
+    const localParent = createMockEl();
+    const localMeter = new ContextUsageMeter(localParent, {
+      onContextWindowChange: jest.fn().mockResolvedValue(undefined),
+      getContextWindow: () => 300_000,
+      hasOverride: () => true,
+    });
+    // The provider reports its own authoritative window; the selector says 300K.
+    localMeter.update(makeUsage({ contextTokens: 150_000, contextWindow: 1_000_000, percentage: 15 }));
+    localParent.querySelector('.claudian-plus-context-meter-button')?.click();
+
+    const card = localParent.querySelector('.claudian-plus-context-card');
+    expect(card?.querySelector('.claudian-plus-context-card-amount')?.textContent).toBe('~150K / 300K');
+    expect(card?.querySelector('.claudian-plus-context-card-percent')?.textContent).toBe('50%');
+  });
   describe('usage block in the capacity popover', () => {
-    function openPopover(usage: ReturnType<typeof makeUsage> | null) {
+    function openPopover(usage: ReturnType<typeof makeUsage> | null, window = 1_000_000) {
       const localParent = createMockEl();
       const localMeter = new ContextUsageMeter(localParent, {
         onContextWindowChange: jest.fn().mockResolvedValue(undefined),
-        getContextWindow: () => 1_000_000,
+        getContextWindow: () => window,
         hasOverride: () => false,
       });
       if (usage) localMeter.update(usage);
@@ -1423,14 +1438,14 @@ describe('ContextUsageMeter', () => {
 
       const card = localParent.querySelector('.claudian-plus-context-card');
       expect(card).not.toBeNull();
-      expect(card?.querySelector('.claudian-plus-context-card-percent')?.textContent).toBe('63%');
+      // 656K of 1M is 66%; the card derives it, so a stale provider percentage cannot drift.
       expect(card?.querySelector('.claudian-plus-context-card-amount')?.textContent).toBe('~656K / 1M');
       const values = card?.querySelectorAll('.claudian-plus-context-card-value') ?? [];
       expect(values.map((value: any) => value.textContent)).toEqual(['~656K', '~344K']);
     });
 
     it('adds the compaction hint only above 80%', () => {
-      const localParent = openPopover(makeUsage({ contextTokens: 170000, contextWindow: 200000, percentage: 85 }));
+      const localParent = openPopover(makeUsage({ contextTokens: 170000, contextWindow: 200000, percentage: 85 }), 200_000);
 
       expect(localParent.querySelector('.claudian-plus-context-card-hint')).not.toBeNull();
     });
