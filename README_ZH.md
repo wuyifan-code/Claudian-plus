@@ -20,7 +20,7 @@
 
 Claudian Plus 把编码 Agent 装进 Obsidian 侧边栏。默认使用 Codex，Claude、Kimi、OpenCode、Pi、Antigravity 与 DeepSeek Harness 接入同一套会话模型。一次对话结束后，它的结论被蒸馏进笔记库里的 `.claudian-plus/memory.md`——一份你可以随时打开、修改、删除的纯 Markdown 文件。
 
-**3.2.6** — 修复社区目录对 3.2.5 的审查发现：排版引擎改用 Obsidian 的 `Platform` API 判断运行环境，探测节点也改用 `setCssProps`。笔记内的生成式界面保持不变。[更新日志](CHANGELOG_ZH.md) · [全部版本](https://github.com/wuyifan-code/Claudian-plus/releases)
+**3.2.7** — 失败从一闪而过的浮层变成可回看、可操作的条目；头部「窗口 chip」让每个任务窗口可切换、可关闭。三档沙箱（只读 / 工作区 / 完全权限）在每个 provider 上都有实际动作，聊天字号由插件自带，CLI 路径可直接敲命令名并有「自动检测」，OpenCode 不再因 `--cwd` 参数启动即退。[更新日志](CHANGELOG_ZH.md) · [全部版本](https://github.com/wuyifan-code/Claudian-plus/releases)
 
 ---
 
