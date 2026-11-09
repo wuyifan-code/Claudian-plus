@@ -656,7 +656,9 @@
       "validation": {
         "notExist": "경로가 존재하지 않습니다",
         "isDirectory": "경로가 디렉토리입니다 파일이 아닙니다"
-      }
+      },
+      "autoDetect": "Auto-detect",
+      "notOnPath": "Could not find the command on PATH"
     },
     "language": {
       "name": "언어",

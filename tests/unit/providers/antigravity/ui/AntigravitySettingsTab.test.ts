@@ -383,7 +383,8 @@ describe('AntigravitySettingsTab', () => {
     expect(createdSettings.flatMap(setting => setting.toggleComponents)).toHaveLength(1);
     expect(findSetting('Enable Antigravity').toggleComponents).toHaveLength(1);
 
-    expect(createdSettings.flatMap(setting => setting.buttonComponents)).toHaveLength(2);
+    expect(createdSettings.flatMap(setting => setting.buttonComponents)).toHaveLength(3);
+    expect(findSetting('CLI path').buttonComponents).toHaveLength(1);
     expect(findSetting('Refresh diagnostics').buttonComponents).toHaveLength(1);
     expect(findSetting('Copy diagnostics snapshot').buttonComponents).toHaveLength(1);
 

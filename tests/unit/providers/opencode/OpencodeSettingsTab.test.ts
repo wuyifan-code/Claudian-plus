@@ -75,6 +75,19 @@ jest.mock('obsidian', () => {
       callback(component);
       return this;
     }
+
+    addButton(callback: (button: any) => void) {
+      const component = {
+        setButtonText: jest.fn().mockReturnThis(),
+        setCta: jest.fn().mockReturnThis(),
+        setWarning: jest.fn().mockReturnThis(),
+        setTooltip: jest.fn().mockReturnThis(),
+        setIcon: jest.fn().mockReturnThis(),
+        onClick: jest.fn().mockReturnThis(),
+      };
+      callback(component);
+      return this;
+    }
   }
 
   return {

@@ -656,7 +656,9 @@
       "validation": {
         "notExist": "パスが存在しません",
         "isDirectory": "パスはディレクトリでファイルではありません"
-      }
+      },
+      "autoDetect": "Auto-detect",
+      "notOnPath": "Could not find the command on PATH"
     },
     "language": {
       "name": "言語",
