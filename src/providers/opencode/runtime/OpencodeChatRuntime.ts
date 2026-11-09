@@ -751,8 +751,11 @@ export class OpencodeChatRuntime implements ChatRuntime {
       ),
     };
 
+    // `opencode acp` rejects `--cwd` from v2 on ("Unrecognized flag", the process
+    // exits and ACP stdin closes). The working directory already travels on the
+    // spawn options and on every `session/new`, so the flag is not needed.
     this.process = new AcpSubprocess({
-      args: ['acp', `--cwd=${params.cwd}`],
+      args: ['acp'],
       command: params.command,
       cwd: params.cwd,
       env: processEnv,
@@ -1336,6 +1339,16 @@ export class OpencodeChatRuntime implements ChatRuntime {
     } catch {
       // Non-critical UI sync callback.
     }
+  }
+
+  /** Last session failure as one line, so settings can explain a failed discovery. */
+  getLastSessionError(): string | null {
+    const lastError = this.lastSessionError;
+    if (!lastError) {
+      return null;
+    }
+    const stderr = lastError.stderr.trim().split('\n').slice(-3).join(' ').trim();
+    return stderr ? `${lastError.message} — ${stderr}` : lastError.message;
   }
 
   private settleActiveTurn(error?: Error): void {

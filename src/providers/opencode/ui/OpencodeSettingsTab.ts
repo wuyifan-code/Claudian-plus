@@ -226,13 +226,19 @@ function renderOpencodeModelPicker(
     }
   };
 
+  let lastCatalogError: string | null = null;
+
   renderProviderModelPicker({
     container,
     emptyCatalogText: localeText('请先启动一次 OpenCode 以加载模型目录，之后即可选择要在聊天模型选择器中显示的模型。', 'Start OpenCode once to load its model catalog. Claudian Plus will then let you pick visible models.'),
-    failedCatalogText: localeText('无法加载 OpenCode 模型目录。请检查 CLI 路径和登录状态后重试。', 'Could not load the OpenCode model catalog. Check the CLI path and login state, then try again.'),
+    failedCatalogText: () => {
+      const base = localeText('无法加载 OpenCode 模型目录。请检查 CLI 路径和登录状态后重试。', 'Could not load the OpenCode model catalog. Check the CLI path and login state, then try again.');
+      return lastCatalogError ? `${base}\n${lastCatalogError}` : base;
+    },
     getState,
     async loadCatalog() {
       const runtime = new OpencodeChatRuntime(context.plugin);
+      lastCatalogError = null;
       try {
         runtime.syncConversationState({
           providerState: { databasePath: OPENCODE_METADATA_WARMUP_DB },
@@ -241,6 +247,7 @@ function renderOpencodeModelPicker(
         const loaded = await runtime.ensureReady({ allowSessionCreation: true });
         const discoveredCount = getOpencodeProviderSettings(settingsBag).discoveredModels.length;
         if (!loaded) {
+          lastCatalogError = runtime.getLastSessionError?.() ?? null;
           return 'failed';
         }
         if (discoveredCount > 0) {
@@ -248,7 +255,8 @@ function renderOpencodeModelPicker(
           return 'loaded';
         }
         return 'empty';
-      } catch {
+      } catch (error) {
+        lastCatalogError = error instanceof Error ? error.message : String(error);
         return 'failed';
       } finally {
         runtime.cleanup();

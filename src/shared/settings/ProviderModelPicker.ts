@@ -32,7 +32,8 @@ export interface ProviderModelPickerOptions {
   checkCatalogFreshnessWhenCached?: boolean;
   container: HTMLElement;
   emptyCatalogText: string;
-  failedCatalogText: string;
+  /** Static copy, or a getter when the reason is only known after a failed load. */
+  failedCatalogText: string | (() => string);
   getState(): ProviderModelPickerState;
   initiallyOpen?: boolean;
   loadCatalog(force: boolean): Promise<'empty' | 'failed' | 'loaded'>;
@@ -339,10 +340,11 @@ export function renderProviderModelPicker(
         text: loadingCatalog
           ? options.loadingCatalogText
           : catalogLoadFailed
-          ? options.failedCatalogText
+          ? (typeof options.failedCatalogText === 'function'
+            ? options.failedCatalogText()
+            : options.failedCatalogText)
           : state.models.length === 0
-          ? options.emptyCatalogText
-          : localeText('没有匹配筛选条件的模型。', 'No models match your filter.'),
+          ? options.emptyCatalogText          : localeText('没有匹配筛选条件的模型。', 'No models match your filter.'),
       });
       return;
     }
