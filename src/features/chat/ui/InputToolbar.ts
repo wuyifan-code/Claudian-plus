@@ -368,9 +368,6 @@ export class ModelSelector {
     if (badge.includes('Reasoning') || badge.includes('Thinking')) {
       return 'claudian-plus-model-badge--reasoning';
     }
-    if (badge.includes('CN') || badge.includes('国内')) {
-      return 'claudian-plus-model-badge--cn';
-    }
     if (badge.includes('1M') || badge.includes('200k') || badge.includes('128k')) {
       return 'claudian-plus-model-badge--context';
     }

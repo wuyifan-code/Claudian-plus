@@ -223,7 +223,7 @@ describe('opencodeChatUIConfig', () => {
     ]);
   });
 
-  it('identifies China-hosted models and attaches tags and group', () => {
+  it('identifies China-hosted models and groups them without a badge', () => {
     const options = opencodeChatUIConfig.getModelOptions({
       providerConfigs: {
         opencode: {
@@ -240,10 +240,10 @@ describe('opencodeChatUIConfig', () => {
     });
 
     expect(options[0]?.isChinaHosted).toBe(true);
-    expect(options[0]?.badges).toContain('CN-Hosted');
+    expect(options[0]?.badges).toBeUndefined();
     expect(options[0]?.group).toBe('Qwen');
     expect(options[1]?.isChinaHosted).toBe(true);
-    expect(options[1]?.badges).toContain('CN-Hosted');
+    expect(options[1]?.badges).toBeUndefined();
     expect(options[1]?.group).toBe('DeepSeek');
   });
 

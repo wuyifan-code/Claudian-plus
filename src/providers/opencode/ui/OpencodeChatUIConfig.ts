@@ -54,9 +54,6 @@ export const opencodeChatUIConfig: ProviderChatUIConfig = {
       if (hasThinking) {
         badges.push('Reasoning');
       }
-      if (isChinaHosted) {
-        badges.push('CN-Hosted');
-      }
       return [
         encodeOpencodeModelId(model.rawId),
         applyAlias(model.rawId, {
@@ -84,10 +81,6 @@ export const opencodeChatUIConfig: ProviderChatUIConfig = {
       const encodedModelId = encodeOpencodeModelId(rawModelId);
       const { providerLabel } = splitOpencodeModelLabel(rawModelId);
       const isChinaHosted = isOpencodeChinaHostedModel(rawModelId);
-      const badges: string[] = [];
-      if (isChinaHosted) {
-        badges.push('CN-Hosted');
-      }
       pushOption(
         options,
         seenValues,
@@ -99,7 +92,6 @@ export const opencodeChatUIConfig: ProviderChatUIConfig = {
             group: providerLabel !== 'Other' ? providerLabel : undefined,
             value: encodedModelId,
             rawModelId,
-            badges: badges.length > 0 ? badges : undefined,
             isChinaHosted,
           }),
       );
@@ -203,7 +195,9 @@ export const opencodeChatUIConfig: ProviderChatUIConfig = {
 
     const opencodeSettings = getOpencodeProviderSettings(context.plugin.settings);
     const baseRawId = resolveOpencodeBaseModelRawId(rawModelId, opencodeSettings.discoveredModels);
-    if (baseRawId && opencodeSettings.thinkingOptionsByModel[baseRawId]) {
+    // OpenCode only reports the `effort` option after a model is selected, so an
+    // empty record must not count as "already warmed" — that would hide Max forever.
+    if (baseRawId && (opencodeSettings.thinkingOptionsByModel[baseRawId]?.length ?? 0) > 0) {
       return;
     }
 

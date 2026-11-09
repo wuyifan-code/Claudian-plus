@@ -58,6 +58,17 @@ export function resolveOpencodeDefaultThinkingLevel(
     return preferredValue;
   }
 
+  // The ladder no longer carries "default", so a missing preference must land on a
+  // real rung: prefer the provider's usual middle ground before the weakest one.
+  if (!values.includes(fallbackValue)) {
+    if (values.includes('high')) {
+      return 'high';
+    }
+    if (values.length > 0) {
+      return values[values.length - 1];
+    }
+  }
+
   return resolvePreferredReasoningDefault(values, fallbackValue);
 }
 
@@ -127,6 +138,11 @@ export function normalizeOpencodeModelVariants(value: unknown): OpencodeModelVar
     const record = entry as Record<string, unknown>;
     const rawValue = typeof record.value === 'string' ? record.value.trim() : '';
     if (!rawValue) {
+      continue;
+    }
+    // OpenCode always reports a "default" rung that just means "no preference".
+    // Keep it out of the ladder so the control never reads as a fake level.
+    if (rawValue.toLowerCase() === OPENCODE_DEFAULT_THINKING_LEVEL) {
       continue;
     }
 

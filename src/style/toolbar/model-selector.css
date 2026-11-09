@@ -271,13 +271,6 @@
   border: 1px solid var(--background-modifier-border);
 }
 
-/* Caution tint, but readable text: error-on-error was invisible. */
-.claudian-plus-model-badge--cn {
-  background-color: var(--background-modifier-error);
-  color: var(--text-normal);
-  border: 1px solid var(--background-modifier-error-hover);
-}
-
 .claudian-plus-model-badge--context {
   background-color: var(--background-secondary);
   color: var(--text-muted);
