@@ -6,7 +6,7 @@ English | [简体中文](CHANGELOG_ZH.md)
 
 Releases before 3.0.2 live in the git tags and the Releases page.
 
-## [3.2.7] - 2026-11-06
+## [3.2.7] - 2026-11-09
 
 ### Added
 
@@ -18,12 +18,24 @@ Releases before 3.0.2 live in the git tags and the Releases page.
 - Hitting the window limit now opens a "close one, then open a new one" chooser instead of a toast that vanishes. The setting is still one entry away.
 - Closing a window reports *window closed · conversation saved* with a **Reopen** action, and starting a new conversation in place offers **Back to the previous conversation**.
 - New command **Open activity log** (`open-feedback-log`), bound to nothing by default.
+- A sandbox axis beside the approval axis: a three-tier selector (read-only / workspace / full access) on the permission toggle, enforced per provider rather than as a hint — Codex runs in its `read-only` sandbox, Claude enters `plan`, Pi gets a read-only launch-spec tool table, Kimi and OpenCode refuse `session/request_permission`, DSH refuses approvals, Antigravity never receives `--dangerously-skip-permissions`.
+- A plugin-owned chat font size: Settings → General offers *Follow theme* or 13–20 px, applied to message content only, so third-party themes stay untouched when it is off.
+- Provider CLI paths can be typed the way people actually type them: a bare command name resolves through an augmented PATH, an absolute path is validated as an existing file, and saving normalizes to the absolute form. Each provider settings page gained a **Detect** button.
 
 ### Changed
 
 - The context ring now opens a usage card on hover: percent used, the exact token budget, and the used/free split. Clicking it still picks a capacity.
 - The header **+** now opens a new task window. "Start a new conversation here" moved to the composer toolbar and says what it does.
 - 140 chat-surface `new Notice(` calls migrated to the feedback bus; the chat feature no longer calls `Notice` directly. Errors already shown inline by a modal dropped their duplicate toast instead of being migrated.
+- The context ring's usage card now agrees with the capacity slider (same token budget, same percentage), and the used/free bar is visually even.
+- The OpenCode model picker dropped the `default` effort rung — it meant "no preference" and was rendered as a preference; no preference now resolves to `high`, or to the strongest rung when `high` is absent. The `CN-Hosted` badge is gone: domestic hosting is already conveyed by the DEEPSEEK / MINIMAX-CN grouping.
+
+### Fixed
+
+- OpenCode showing *0 of 0 visible models*: `opencode acp` has rejected `--cwd` since v2, so the sidecar died on launch and every session failed behind a generic "check the CLI path" message. The flag is gone — the working directory was already passed via spawn options and `session/new`.
+- OpenCode's opaque "server is unavailable" now names the real cause: one OpenCode database serves one instance, so a second session reports the lock instead of a mystery.
+- Provider CLIs could not be entered at all when the settings page demanded an existing absolute path; the resolver above accepts command names, and mis-entered paths now fail with a specific message instead of a generic one.
+- Antigravity: the read-only tier was silently ineffective because a stale default re-added skip-permissions; Pi: the read-only tool narrowing now lives in the launch spec where it is actually enforced.
 
 ## [3.2.6] - 2026-11-02
 
