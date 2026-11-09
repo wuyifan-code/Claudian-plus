@@ -144,6 +144,19 @@ class StreamChunkQueue {
   }
 }
 
+/**
+ * OpenCode runs one server per database, so a leftover CLI process makes the
+ * next session fail with a bare "server is unavailable". Name that cause here
+ * instead of leaving the user to guess.
+ */
+export function explainOpencodeStartFailure(error: unknown): string {
+  const message = error instanceof Error ? error.message : 'OpenCode session creation failed';
+  if (/server is unavailable|Internal service failure|ServiceUnavailable/i.test(message)) {
+    return `${message} Another OpenCode process is probably holding the same database; close other OpenCode sessions and retry.`;
+  }
+  return message;
+}
+
 export class OpencodeChatRuntime implements ChatRuntime {
   readonly providerId = 'opencode' as const;
 
@@ -1406,7 +1419,7 @@ export class OpencodeChatRuntime implements ChatRuntime {
       return response.sessionId;
     } catch (error) {
       this.lastSessionError = {
-        message: error instanceof Error ? error.message : 'OpenCode session creation failed',
+        message: explainOpencodeStartFailure(error),
         stderr: this.process?.getStderrSnapshot() ?? '',
       };
       return null;
