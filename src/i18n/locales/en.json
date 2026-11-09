@@ -678,7 +678,9 @@
       "validation": {
         "notExist": "Path does not exist",
         "isDirectory": "Path is a directory, not a file"
-      }
+      },
+      "autoDetect": "Auto-detect",
+      "notOnPath": "Could not find the command on PATH"
     },
     "language": {
       "name": "Language",

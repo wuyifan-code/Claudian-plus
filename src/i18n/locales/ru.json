@@ -656,7 +656,9 @@
       "validation": {
         "notExist": "Путь не существует",
         "isDirectory": "Путь является директорией, а не файлом"
-      }
+      },
+      "autoDetect": "Auto-detect",
+      "notOnPath": "Could not find the command on PATH"
     },
     "language": {
       "name": "Язык",

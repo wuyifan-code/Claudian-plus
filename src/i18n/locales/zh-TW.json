@@ -678,7 +678,9 @@
       "validation": {
         "notExist": "路徑不存在",
         "isDirectory": "路徑是目錄，不是檔案"
-      }
+      },
+      "autoDetect": "自動偵測",
+      "notOnPath": "PATH 中找不到該命令"
     },
     "language": {
       "name": "語言",

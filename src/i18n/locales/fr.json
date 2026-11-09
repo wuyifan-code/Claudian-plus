@@ -656,7 +656,9 @@
       "validation": {
         "notExist": "Le chemin n'existe pas",
         "isDirectory": "Le chemin est un répertoire, pas un fichier"
-      }
+      },
+      "autoDetect": "Auto-detect",
+      "notOnPath": "Could not find the command on PATH"
     },
     "language": {
       "name": "Langue",

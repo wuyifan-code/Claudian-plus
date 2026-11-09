@@ -656,7 +656,9 @@
       "validation": {
         "notExist": "Pfad existiert nicht",
         "isDirectory": "Pfad ist ein Verzeichnis, keine Datei"
-      }
+      },
+      "autoDetect": "Auto-detect",
+      "notOnPath": "Could not find the command on PATH"
     },
     "language": {
       "name": "Sprache",

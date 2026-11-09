@@ -1,4 +1,3 @@
-import * as fs from 'node:fs';
 
 import { Notice, Setting } from 'obsidian';
 
@@ -7,7 +6,8 @@ import type {
   ProviderSettingsTabRenderer,
   ProviderSettingsTabRendererContext,
 } from '../../../core/providers/types';
-import { localeText } from '../../../i18n/i18n';
+import { localeText, t } from '../../../i18n/i18n';
+import { detectCliPath, resolveCliPathInput } from '../../../shared/settings/cliPathResolver';
 import { renderEnvironmentSettingsSection } from '../../../shared/settings/EnvironmentSettingsSection';
 import { applyProviderEnablementToggle } from '../../../shared/settings/ProviderEnablementToggle';
 import {
@@ -16,7 +16,6 @@ import {
   renderProviderModelPicker,
 } from '../../../shared/settings/ProviderModelPicker';
 import { getHostnameKey } from '../../../utils/env';
-import { expandHomePath } from '../../../utils/path';
 import { maybeGetPiWorkspaceServices } from '../app/PiWorkspaceServices';
 import { decodePiModelId, type PiDiscoveredModel } from '../models';
 import { PiModelDiscoveryService } from '../runtime/PiModelDiscoveryService';
@@ -71,7 +70,9 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
         return;
       }
 
-      const trimmed = value.trim();
+      // Bare command names are normalized to the absolute path the runtime will
+      // spawn, so the field accepts what people actually type.
+      const trimmed = resolveCliPathInput(value, 'pi').path ?? '';
       if (trimmed) {
         cliPathsByHost[hostnameKey] = trimmed;
       } else {
@@ -88,7 +89,7 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
       context.refreshModelSelectors();
     };
 
-    new Setting(container)
+    const piCliPathSetting = new Setting(container)
       .setName(localeText('CLI 路径', 'CLI path'))
       .setDesc(localeText(
         '此电脑上 Pi CLI 的可选绝对路径。留空则使用 PATH 中的 `pi`。',
@@ -107,6 +108,20 @@ export const piSettingsTabRenderer: ProviderSettingsTabRenderer = {
         cliPathInputEl = text.inputEl;
         updateCliPathValidation(currentValue, text.inputEl);
       });
+    piCliPathSetting.addButton((button) => button
+      .setButtonText(t('settings.cliPath.autoDetect'))
+      .onClick(async () => {
+        const detected = detectCliPath('pi');
+        if (!detected) {
+          validationEl.setText(t('settings.cliPath.notOnPath'));
+          validationEl.toggleClass('claudian-plus-hidden', false);
+          return;
+        }
+        if (cliPathInputEl) {
+          cliPathInputEl.value = detected;
+        }
+        await persistCliPath(detected);
+      }));
 
     new Setting(container).setName(localeText('模型', 'Models')).setHeading();
     renderPiModelPicker(container, context, settingsBag);
@@ -198,21 +213,14 @@ function renderPiModelPicker(
 }
 
 function validateCliPath(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) {
+  const resolution = resolveCliPathInput(value, 'pi');
+  if (!resolution.error) {
     return null;
   }
 
-  const expandedPath = expandHomePath(trimmed);
-  if (!fs.existsSync(expandedPath)) {
-    return localeText('路径不存在', 'Path does not exist');
-  }
-
-  if (!fs.statSync(expandedPath).isFile()) {
-    return localeText('路径必须指向文件', 'Path must point to a file');
-  }
-
-  return null;
+  return resolution.error === 'not-a-file'
+    ? localeText('路径必须指向文件', 'Path must point to a file')
+    : localeText('路径不存在，PATH 中也找不到该命令', 'Path does not exist and the command is not on PATH');
 }
 
 function buildPiPickerModels(

@@ -656,7 +656,9 @@
       "validation": {
         "notExist": "Caminho não existe",
         "isDirectory": "Caminho é um diretório, não um arquivo"
-      }
+      },
+      "autoDetect": "Auto-detect",
+      "notOnPath": "Could not find the command on PATH"
     },
     "language": {
       "name": "Idioma",

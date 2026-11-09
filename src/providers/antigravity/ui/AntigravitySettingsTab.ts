@@ -1,12 +1,11 @@
-import * as fs from 'node:fs';
 
 import { Notice, Setting } from 'obsidian';
 
 import type { ProviderSettingsTabRenderer } from '../../../core/providers/types';
-import { localeText } from '../../../i18n/i18n';
+import { localeText, t } from '../../../i18n/i18n';
+import { detectCliPath, resolveCliPathInput } from '../../../shared/settings/cliPathResolver';
 import { applyProviderEnablementToggle } from '../../../shared/settings/ProviderEnablementToggle';
 import { getHostnameKey } from '../../../utils/env';
-import { expandHomePath } from '../../../utils/path';
 import {
   type AntigravityWorkspaceServices,
   maybeGetAntigravityWorkspaceServices,
@@ -72,14 +71,17 @@ export const antigravitySettingsTabRenderer: ProviderSettingsTabRenderer = {
       }
 
       await context.plugin.mutateSettings((settings) => {
-        updateAntigravityProviderSettings(settings, { cliPath: value.trim() });
+        // Bare command names are normalized to the absolute path the runtime spawns.
+        updateAntigravityProviderSettings(settings, {
+          cliPath: resolveCliPathInput(value, 'agy').path ?? '',
+        });
       });
       workspace?.cliResolver?.reset();
       await context.plugin.recycleProviderRuntimes?.('antigravity');
       context.refreshModelSelectors();
     };
 
-    new Setting(container)
+    const agyCliPathSetting = new Setting(container)
       .setName(localeText('CLI 路径', 'CLI path'))
       .setDesc(localeText(
         '此电脑上 `agy` CLI 的可选绝对路径。留空则使用 PATH 中的 `agy`。',
@@ -98,6 +100,20 @@ export const antigravitySettingsTabRenderer: ProviderSettingsTabRenderer = {
         cliPathInputEl = text.inputEl;
         updateCliPathValidation(currentValue, text.inputEl);
       });
+    agyCliPathSetting.addButton((button) => button
+      .setButtonText(t('settings.cliPath.autoDetect'))
+      .onClick(async () => {
+        const detected = detectCliPath('agy');
+        if (!detected) {
+          validationEl.setText(t('settings.cliPath.notOnPath'));
+          validationEl.toggleClass('claudian-plus-hidden', false);
+          return;
+        }
+        if (cliPathInputEl) {
+          cliPathInputEl.value = detected;
+        }
+        await persistCliPath(detected);
+      }));
 
     new Setting(container).setName(localeText('模型', 'Models')).setHeading();
 
@@ -256,19 +272,12 @@ function describeAntigravityLastFailure(failure: AntigravityLastFailure | null):
 }
 
 function validateCliPath(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) {
+  const resolution = resolveCliPathInput(value, 'agy');
+  if (!resolution.error) {
     return null;
   }
 
-  const expandedPath = expandHomePath(trimmed);
-  if (!fs.existsSync(expandedPath)) {
-    return localeText('路径不存在', 'Path does not exist');
-  }
-
-  if (!fs.statSync(expandedPath).isFile()) {
-    return localeText('路径必须指向文件', 'Path must point to a file');
-  }
-
-  return null;
+  return resolution.error === 'not-a-file'
+    ? localeText('路径必须指向文件', 'Path must point to a file')
+    : localeText('路径不存在，PATH 中也找不到该命令', 'Path does not exist and the command is not on PATH');
 }

@@ -1,4 +1,3 @@
-import * as fs from 'fs';
 import { Setting } from 'obsidian';
 
 import { sameStringList } from '../../../core/providers/compareCollections';
@@ -6,7 +5,8 @@ import type {
   ProviderSettingsTabRenderer,
   ProviderSettingsTabRendererContext,
 } from '../../../core/providers/types';
-import { localeText } from '../../../i18n/i18n';
+import { localeText, t } from '../../../i18n/i18n';
+import { detectCliPath, resolveCliPathInput } from '../../../shared/settings/cliPathResolver';
 import { renderEnvironmentSettingsSection } from '../../../shared/settings/EnvironmentSettingsSection';
 import { applyProviderEnablementToggle } from '../../../shared/settings/ProviderEnablementToggle';
 import {
@@ -15,7 +15,6 @@ import {
   renderProviderModelPicker,
 } from '../../../shared/settings/ProviderModelPicker';
 import { getHostnameKey } from '../../../utils/env';
-import { expandHomePath } from '../../../utils/path';
 import { maybeGetOpencodeWorkspaceServices } from '../app/OpencodeWorkspaceServices';
 import { clearOpencodeDiscoveryState } from '../discoveryState';
 import {
@@ -92,7 +91,9 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
         return false;
       }
 
-      const trimmed = value.trim();
+      // Bare command names are normalized to the absolute path the runtime will
+      // spawn, so the field accepts what people actually type.
+      const trimmed = resolveCliPathInput(value, 'opencode').path ?? '';
       if (trimmed) {
         cliPathsByHost[hostnameKey] = trimmed;
       } else {
@@ -121,6 +122,20 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       cliPathInputEl = text.inputEl;
       updateCliPathValidation(currentValue, text.inputEl);
     });
+    cliPathSetting.addButton((button) => button
+      .setButtonText(t('settings.cliPath.autoDetect'))
+      .onClick(async () => {
+        const detected = detectCliPath('opencode');
+        if (!detected) {
+          validationEl.setText(t('settings.cliPath.notOnPath'));
+          validationEl.toggleClass('claudian-plus-hidden', false);
+          return;
+        }
+        if (cliPathInputEl) {
+          cliPathInputEl.value = detected;
+        }
+        await persistCliPath(detected);
+      }));
 
     new Setting(container).setName(localeText('模型', 'Models')).setHeading();
     renderOpencodeModelPicker(container, context, settingsBag);
@@ -267,19 +282,13 @@ function renderOpencodeModelPicker(
 }
 
 function validateCliPath(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) {
+  const resolution = resolveCliPathInput(value, 'opencode');
+  if (!resolution.error) {
     return null;
   }
-
-  const expandedPath = expandHomePath(trimmed);
-  if (!fs.existsSync(expandedPath)) {
-    return localeText('路径不存在', 'Path does not exist');
-  }
-  if (!fs.statSync(expandedPath).isFile()) {
-    return localeText('路径必须指向文件', 'Path must point to a file');
-  }
-  return null;
+  return resolution.error === 'not-a-file'
+    ? localeText('路径必须指向文件', 'Path must point to a file')
+    : localeText('路径不存在，PATH 中也找不到该命令', 'Path does not exist and the command is not on PATH');
 }
 
 function buildOpencodePickerModels(

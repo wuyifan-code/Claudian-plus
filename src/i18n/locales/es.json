@@ -656,7 +656,9 @@
       "validation": {
         "notExist": "La ruta no existe",
         "isDirectory": "La ruta es un directorio, no un archivo"
-      }
+      },
+      "autoDetect": "Auto-detect",
+      "notOnPath": "Could not find the command on PATH"
     },
     "language": {
       "name": "Idioma",
