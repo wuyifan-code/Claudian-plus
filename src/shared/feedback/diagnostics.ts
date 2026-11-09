@@ -1,7 +1,8 @@
 import type { FeedbackEntry } from './types';
 
-// ANSI escapes must be stripped from captured output before it reaches the clipboard.
-// eslint-disable-next-line no-control-regex
+// Strips terminal color/position codes captured from provider output before
+// they reach the clipboard; control chars in a regex body are the mechanism here.
+// eslint-disable-next-line no-control-regex -- matching literal \u001b escape sequences
 const ANSI_ESCAPE = /\u001b\[[0-9;]*m/g;
 const API_TOKEN = /\bsk-[A-Za-z0-9_-]{8,}\b/g;
 const BEARER_TOKEN = /\bBearer\s+[A-Za-z0-9._~+/=-]+/gi;
