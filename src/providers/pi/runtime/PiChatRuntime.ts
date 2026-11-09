@@ -76,6 +76,7 @@ import { buildPiLaunchSpec, type PiLaunchSpec } from './PiLaunchSpec';
 import { buildPiSetModelPayload } from './PiRpcPayloads';
 import { type PiRpcRecord, PiRpcTransport } from './PiRpcTransport';
 import { PiSubprocess } from './PiSubprocess';
+import { resolvePiToolMode } from './piToolModePolicy';
 
 interface ActiveTurn {
   cancel: (error: Error) => void;
@@ -331,12 +332,8 @@ export class PiChatRuntime implements ChatRuntime {
       env.CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_URL = obsidianBridge.url;
       env.CLAUDIAN_PLUS_OBSIDIAN_BRIDGE_TOKEN = obsidianBridge.token;
     }
-    // Pi has no sandbox switch; its own read-only tool list is the only guard,
-    // so the sandbox tier narrows the tool mode for this launch.
+    // The launch spec owns how the sandbox tier narrows Pi's tool list.
     const sandboxMode = resolveSandboxMode(this.plugin.settings);
-    const effectiveSettings = sandboxMode === 'read'
-      ? { ...settings, toolMode: 'readonly' as const }
-      : settings;
     const launchSpec = buildPiLaunchSpec({
       command: resolvedCliPath,
       cwd,
@@ -346,7 +343,8 @@ export class PiChatRuntime implements ChatRuntime {
       obsidianBridgeUrl: obsidianBridge?.url,
       extensions: [obsidianExtensionPath],
       providerState: this.getCurrentProviderState(),
-      settings: effectiveSettings,
+      settings,
+      sandboxMode,
       systemPrompt,
     });
     const sessionTarget = this.sessionFile ?? this.sessionId ?? null;
@@ -357,7 +355,7 @@ export class PiChatRuntime implements ChatRuntime {
       noSession,
       promptKey: computeSystemPromptKey(promptSettings, { memoryAppendix: memoryAppendix ?? undefined }),
       systemPrompt,
-      toolMode: effectiveSettings.toolMode,
+      toolMode: resolvePiToolMode(settings.toolMode, sandboxMode),
       obsidianExtensionPath,
       obsidianBridgeUrl: obsidianBridge?.url,
     });
