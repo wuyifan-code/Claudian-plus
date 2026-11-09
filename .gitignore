@@ -112,3 +112,5 @@ CLAUDE.local.md
 
 # meow-memory database (workspace-local; deleting it is unrecoverable)
 .dsh-meow/
+# Runtime-managed provider state written into test fixtures
+tests/fixtures/.claudian-plus/

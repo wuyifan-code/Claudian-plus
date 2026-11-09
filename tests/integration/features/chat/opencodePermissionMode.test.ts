@@ -1,5 +1,7 @@
 import '@/providers';
 
+import { copyFileSync,mkdtempSync,rmSync } from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { createMockEl } from '@test/helpers/mockElement';
@@ -10,9 +12,17 @@ import type { StreamChunk } from '@/core/types';
 import { PermissionToggle } from '@/features/chat/ui/InputToolbar';
 import { OpencodeChatRuntime } from '@/providers/opencode/runtime/OpencodeChatRuntime';
 
-const FIXTURE_WORKSPACE = path.join(process.cwd(), 'tests', 'fixtures');
+const FIXTURE_SOURCE = path.join(process.cwd(), 'tests', 'fixtures');
 
-function createIntegrationPlugin(): any {
+// The runtime writes its managed OpenCode config into the vault, so each test
+// works in a throwaway copy of the fixture instead of the repo.
+function createFixtureWorkspace(): string {
+  const workspace = mkdtempSync(path.join(os.tmpdir(), 'claudian-oc-'));
+  copyFileSync(path.join(FIXTURE_SOURCE, 'acp'), path.join(workspace, 'acp'));
+  return workspace;
+}
+
+function createIntegrationPlugin(workspace: string): any {
   const settings: Record<string, unknown> = {
     model: 'opencode',
     permissionMode: 'normal',
@@ -29,7 +39,7 @@ function createIntegrationPlugin(): any {
   const plugin: any = {
     app: {
       vault: {
-        adapter: { basePath: FIXTURE_WORKSPACE },
+        adapter: { basePath: workspace },
       },
     },
     getConsciousnessInjectionText: jest.fn().mockResolvedValue(null),
@@ -110,7 +120,8 @@ async function closeRuntime(runtime: OpencodeChatRuntime): Promise<void> {
 
 describe('OpenCode sandbox tiers', () => {
   it('shows the three tiers and persists the chosen one', async () => {
-    const plugin = createIntegrationPlugin();
+    const workspace = createFixtureWorkspace();
+    const plugin = createIntegrationPlugin(workspace);
     const toggle = createOpencodePermissionToggle(plugin);
 
     expect(toggle.label.textContent).toBe('Workspace write');
@@ -126,10 +137,13 @@ describe('OpenCode sandbox tiers', () => {
     await toggle.waitForChange();
     expect(plugin.settings.sandboxMode).toBe('read');
     expect(toggle.label.textContent).toBe('Read only');
+
+    rmSync(workspace, { recursive: true, force: true });
   });
 
   it('refuses the tool request in read-only without asking the user', async () => {
-    const plugin = createIntegrationPlugin();
+    const workspace = createFixtureWorkspace();
+    const plugin = createIntegrationPlugin(workspace);
     plugin.settings.sandboxMode = 'read';
     const runtime = new OpencodeChatRuntime(plugin);
     const approvalCallback = jest.fn().mockResolvedValue('allow');
@@ -140,13 +154,16 @@ describe('OpenCode sandbox tiers', () => {
 
       expect(approvalCallback).not.toHaveBeenCalled();
       expect(collectText(chunks)).toContain('fixture:denied');
+
     } finally {
       await closeRuntime(runtime);
+      rmSync(workspace, { recursive: true, force: true });
     }
   });
 
   it('surfaces the prompt usage the ACP fixture reports', async () => {
-    const plugin = createIntegrationPlugin();
+    const workspace = createFixtureWorkspace();
+    const plugin = createIntegrationPlugin(workspace);
     const runtime = new OpencodeChatRuntime(plugin);
 
     try {
@@ -157,8 +174,10 @@ describe('OpenCode sandbox tiers', () => {
 
       expect(usage?.usage.contextTokens).toBe(1500);
       expect(usage?.usage.inputTokens).toBe(1200);
+
     } finally {
       await closeRuntime(runtime);
+      rmSync(workspace, { recursive: true, force: true });
     }
   });
 });
