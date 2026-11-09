@@ -119,6 +119,24 @@ async function closeRuntime(runtime: KimiChatRuntime): Promise<void> {
   await (runtime as any).shutdownProcess();
 }
 
+describe('Kimi usage reporting', () => {
+  it('surfaces the prompt usage the ACP fixture reports', async () => {
+    const plugin = createIntegrationPlugin();
+    const runtime = new KimiChatRuntime(plugin);
+
+    try {
+      const chunks = await collectChunks(runtime, 'safe permission request');
+      const usage = chunks.find(
+        (chunk): chunk is Extract<StreamChunk, { type: 'usage' }> => chunk.type === 'usage',
+      );
+
+      expect(usage?.usage.contextTokens).toBe(1500);
+      expect(usage?.usage.inputTokens).toBe(1200);
+    } finally {
+      await closeRuntime(runtime);
+    }
+  });
+});
 describe('Kimi Safe/YOLO permission flow', () => {
   it('switches the real toolbar selector and persists the Kimi sandbox mode', async () => {
     const plugin = createIntegrationPlugin();

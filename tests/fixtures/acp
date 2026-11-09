@@ -41,7 +41,11 @@ for await (const line of rl) {
         },
       },
     });
-    respond(pendingPrompt.promptId, { stopReason: approved ? 'end_turn' : 'cancelled' });
+    // Token usage rides on the prompt result so both ACP providers can surface it.
+    respond(pendingPrompt.promptId, {
+      stopReason: approved ? 'end_turn' : 'cancelled',
+      usage: { inputTokens: 1200, totalTokens: 1500 },
+    });
     continue;
   }
 
