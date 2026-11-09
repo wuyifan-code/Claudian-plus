@@ -1,0 +1,46 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "build": {
+      "prompt": "{file:D:\\Vaults\\Creative Vault\\.dev\\claudian-enhanced\\tests\\fixtures\\.claudian-plus\\opencode\\system.md}"
+    },
+    "claudian-plus-yolo": {
+      "mode": "primary",
+      "permission": {
+        "plan_enter": "allow",
+        "question": "allow"
+      },
+      "prompt": "{file:D:\\Vaults\\Creative Vault\\.dev\\claudian-enhanced\\tests\\fixtures\\.claudian-plus\\opencode\\system.md}"
+    },
+    "claudian-plus-safe": {
+      "mode": "primary",
+      "permission": {
+        "plan_enter": "allow",
+        "question": "allow",
+        "bash": "ask",
+        "edit": "ask"
+      },
+      "prompt": "{file:D:\\Vaults\\Creative Vault\\.dev\\claudian-enhanced\\tests\\fixtures\\.claudian-plus\\opencode\\system.md}"
+    },
+    "plan": {
+      "prompt": "{file:D:\\Vaults\\Creative Vault\\.dev\\claudian-enhanced\\tests\\fixtures\\.claudian-plus\\opencode\\system.md}"
+    }
+  },
+  "mcp": {
+    "claudian-plus-obsidian": {
+      "type": "local",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Vaults\\Creative Vault\\.dev\\claudian-enhanced\\tests\\fixtures\\.claudian-plus\\opencode\\obsidian-mcp.cjs"
+      ],
+      "environment": {
+        "CLAUDIAN_PLUS_VAULT_ROOT": "D:\\Vaults\\Creative Vault\\.dev\\claudian-enhanced\\tests\\fixtures"
+      },
+      "enabled": true
+    }
+  },
+  "permission": {
+    "claudian-plus-obsidian_canvas_write": "ask",
+    "claudian-plus-obsidian_properties_set": "ask"
+  }
+}
