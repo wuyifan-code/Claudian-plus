@@ -1,6 +1,8 @@
+import type { SandboxMode } from '../../../core/types/settings';
 import { decodePiModelId, normalizePiThinkingLevel } from '../models';
 import type { PiProviderSettings } from '../settings';
 import type { PiProviderState } from '../types';
+import { resolvePiToolMode } from './piToolModePolicy';
 
 export interface BuildPiLaunchSpecParams {
   command: string;
@@ -14,6 +16,8 @@ export interface BuildPiLaunchSpecParams {
   extensions?: string[];
   providerState?: PiProviderState | null;
   settings: PiProviderSettings;
+  /** Sandbox tier; read-only narrows the tool list regardless of the user's tool mode. */
+  sandboxMode?: SandboxMode;
   systemPrompt?: string;
   thinkingLevel?: string | null;
 }
@@ -51,7 +55,7 @@ export function buildPiLaunchSpec(params: BuildPiLaunchSpecParams): PiLaunchSpec
 
   if (params.noTools) {
     args.push('--no-tools');
-  } else if (params.settings.toolMode === 'readonly') {
+  } else if (resolvePiToolMode(params.settings.toolMode, params.sandboxMode ?? 'workspace') === 'readonly') {
     args.push('--tools', [READONLY_TOOLS, ...READONLY_OBSIDIAN_TOOLS].join(','));
   }
 

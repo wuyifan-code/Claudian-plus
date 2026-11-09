@@ -18,7 +18,7 @@ import type {
   PreparedChatTurn,
   SessionUpdateResult,
 } from '../../../core/runtime/types';
-import { effectivePermissionMode } from '../../../core/security/sandboxMode';
+import { resolveSandboxMode } from '../../../core/security/sandboxMode';
 import type {
   ChatMessage,
   Conversation,
@@ -58,6 +58,7 @@ import {
   buildAntigravityLaunchSpec,
   requireAntigravityCliPath,
 } from './AntigravityLaunchSpec';
+import { resolveAntigravitySkipPermissions } from './antigravityPermissionPolicy';
 import {
   AntigravitySubprocess,
   type AntigravitySubprocessLaunchSpec,
@@ -611,9 +612,10 @@ export class AntigravityChatRuntime implements ChatRuntime {
       const vaultPath = this.resolveVaultPath() ?? getVaultPath(this.plugin.app);
       const cwd = vaultPath ?? process.cwd();
       const pluginSettings = this.plugin.settings as Record<string, unknown>;
-      const allowDangerouslySkipPermissions =
-        settings.autoApproveTools !== false
-        || effectivePermissionMode(pluginSettings) === 'yolo';
+      const allowDangerouslySkipPermissions = resolveAntigravitySkipPermissions(
+        settings.autoApproveTools !== false,
+        resolveSandboxMode(pluginSettings),
+      );
       const providerEnv = parseEnvironmentVariables(settings.environmentVariables);
       const activeEnv = typeof this.plugin.getActiveEnvironmentVariables === 'function'
         ? parseEnvironmentVariables(this.plugin.getActiveEnvironmentVariables('antigravity'))
