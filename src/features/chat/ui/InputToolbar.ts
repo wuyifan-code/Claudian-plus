@@ -669,6 +669,14 @@ export class ThinkingBudgetSelector {
     const options = normalizeReasoningOptions(uiConfig.getReasoningOptions(settings.model, settings));
     const currentInfo = options.find(e => e.value === settings.effortLevel);
 
+    // Providers that expose no reasoning levels (OpenCode today) would otherwise
+    // render an empty "Default" track that cannot do anything.
+    if (options.length === 0) {
+      this.effortEl?.addClass('claudian-plus-hidden');
+      return;
+    }
+    this.effortEl?.removeClass('claudian-plus-hidden');
+
     if (!this.effortCurrentEl) {
       this.effortCurrentEl = this.effortGearsEl.createDiv({
         cls: 'claudian-plus-thinking-current',
