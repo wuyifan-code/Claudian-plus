@@ -141,6 +141,22 @@ describe('Kimi Safe/YOLO permission flow', () => {
     expect(toggle.label.textContent).toBe('Workspace write');
   });
 
+  it('read-only refuses the request without asking the user', async () => {
+    const plugin = createIntegrationPlugin();
+    plugin.settings.sandboxMode = 'read';
+    const runtime = new KimiChatRuntime(plugin);
+    const approvalCallback = jest.fn().mockResolvedValue('allow');
+    runtime.setApprovalCallback(approvalCallback);
+
+    try {
+      const chunks = await collectChunks(runtime, 'safe permission request');
+
+      expect(approvalCallback).not.toHaveBeenCalled();
+      expect(collectText(chunks)).toContain('fixture:denied');
+    } finally {
+      await closeRuntime(runtime);
+    }
+  });
   it('routes real ACP tool requests through Safe approval and YOLO auto-approval', async () => {
     const plugin = createIntegrationPlugin();
     const toggle = createKimiPermissionToggle(plugin);
